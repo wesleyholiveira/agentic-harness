@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "systems-performance",
+  "name": "Systems Performance",
+  "role": "systems-performance-reviewer",
+  "kind": "reviewer",
+  "executionRole": "verification",
+  "orchestrationRole": "specialist",
+  "interactiveMode": "subagent",
+  "tier": 2,
+  "modelClass": "reasoning-cost-balanced",
+  "primaryPaths": [
+    "docs/performance/**"
+  ],
+  "sharedPaths": [
+    "apps/**",
+    "packages/**"
+  ],
+  "collaborativePaths": [
+    "docs/specs/**"
+  ],
+  "skills": [
+    "prepare-agent-context",
+    "verify-and-close-task"
+  ],
+  "superpowersSkills": [
+    "verification-before-completion",
+    "requesting-code-review"
+  ],
+  "routing": {
+    "keywords": [
+      "performance",
+      "latency",
+      "contention",
+      "cache",
+      "hot path"
+    ],
+    "pathHints": [
+      "docs/performance/**"
+    ]
+  },
+  "validationCommands": [],
+  "canDelegateTo": [],
+  "dependsOn": [],
+  "manifest": ".agents/agents/systems-performance/AGENT.md"
+}

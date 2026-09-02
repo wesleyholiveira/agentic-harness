@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-harness://agents/sdd-work-package.schema.json",
+  "title": "Agentic Harness SDD Work Package",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "specId",
+    "title",
+    "revision",
+    "status",
+    "prdPath",
+    "epics",
+    "reviews"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "specId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]+$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "product_ready",
+        "architecture_reviewed",
+        "infrastructure_reviewed",
+        "ai_operations_reviewed",
+        "technically_refined",
+        "implementing",
+        "quality_verified",
+        "operationally_ready",
+        "product_accepted",
+        "changes_requested",
+        "blocked",
+        "closed",
+        "superseded"
+      ]
+    },
+    "prdPath": {
+      "type": "string",
+      "pattern": "^docs/specs/.+/PRD\\.md$"
+    },
+    "epics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "epicId",
+          "title",
+          "outcome",
+          "stories"
+        ],
+        "properties": {
+          "epicId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "outcome": {
+            "type": "string",
+            "minLength": 1
+          },
+          "stories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "storyId",
+                "title",
+                "acceptanceCriteria",
+                "tasks"
+              ],
+              "properties": {
+                "storyId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "acceptanceCriteria": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "tasks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "taskId",
+                      "title",
+                      "ownerAgent",
+                      "ownedPaths",
+                      "validation"
+                    ],
+                    "properties": {
+                      "taskId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "title": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "ownerAgent": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "ownedPaths": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "validation": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "revision",
+          "role",
+          "agentId",
+          "decision",
+          "summary"
+        ],
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "role": {
+            "enum": [
+              "product-owner",
+              "solution-architect",
+              "ux-designer",
+              "devops-engineer",
+              "ai-llmops-engineer",
+              "technical-lead",
+              "quality-assurance"
+            ]
+          },
+          "agentId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "decision": {
+            "enum": [
+              "approved",
+              "changes_requested",
+              "blocked",
+              "accepted"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

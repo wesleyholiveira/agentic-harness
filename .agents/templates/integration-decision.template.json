@@ -1,0 +1,4 @@
+{
+  "$schemaRef": "../schemas/integration-decision.schema.json",
+  "note": "Populate according to the referenced schema."
+}

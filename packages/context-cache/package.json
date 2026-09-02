@@ -1,0 +1,13 @@
+{
+  "name": "@agent-harness/context-cache",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@agent-harness/context-redis": "1.2.0",
+    "@agent-harness/context-semantic-cache": "1.2.0"
+  }
+}

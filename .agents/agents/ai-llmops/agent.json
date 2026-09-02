@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "id": "ai-llmops",
+  "name": "AI / LLMOps",
+  "role": "ai-llmops-engineer",
+  "kind": "ai-operations",
+  "executionRole": "contract",
+  "orchestrationRole": "specialist",
+  "interactiveMode": "subagent",
+  "tier": 1,
+  "modelClass": "reasoning-cost-balanced",
+  "primaryPaths": [
+    "docs/ai-operations/**"
+  ],
+  "sharedPaths": [],
+  "collaborativePaths": [
+    "docs/specs/**"
+  ],
+  "skills": [
+    "sdd-workflow",
+    "govern-ai-llmops",
+    "plan-complex-change",
+    "prepare-agent-context",
+    "verify-and-close-task"
+  ],
+  "superpowersSkills": [
+    "brainstorming",
+    "writing-plans",
+    "systematic-debugging",
+    "verification-before-completion"
+  ],
+  "routing": {
+    "keywords": [
+      "llmops",
+      "mlops",
+      "prompt",
+      "model",
+      "evaluation",
+      "inference"
+    ],
+    "pathHints": [
+      "docs/ai-operations/**"
+    ]
+  },
+  "validationCommands": [],
+  "canDelegateTo": [],
+  "dependsOn": [],
+  "manifest": ".agents/agents/ai-llmops/AGENT.md"
+}

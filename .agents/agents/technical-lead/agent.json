@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "id": "technical-lead",
+  "name": "Technical Lead",
+  "role": "technical-lead",
+  "kind": "technical-lead",
+  "executionRole": "contract",
+  "orchestrationRole": "specialist",
+  "interactiveMode": "subagent",
+  "tier": 1,
+  "modelClass": "reasoning-cost-balanced",
+  "primaryPaths": [
+    "docs/plans/**"
+  ],
+  "sharedPaths": [
+    "docs/specs/**"
+  ],
+  "collaborativePaths": [
+    "docs/specs/**"
+  ],
+  "skills": [
+    "sdd-workflow",
+    "plan-complex-change",
+    "prepare-agent-context",
+    "review-cross-agent-integration",
+    "verify-and-close-task"
+  ],
+  "superpowersSkills": [
+    "writing-plans",
+    "using-git-worktrees",
+    "requesting-code-review",
+    "verification-before-completion"
+  ],
+  "routing": {
+    "keywords": [
+      "technical lead",
+      "implementation plan",
+      "refinement",
+      "feasibility"
+    ],
+    "pathHints": [
+      "docs/plans/**"
+    ]
+  },
+  "validationCommands": [],
+  "canDelegateTo": [],
+  "dependsOn": [],
+  "manifest": ".agents/agents/technical-lead/AGENT.md"
+}

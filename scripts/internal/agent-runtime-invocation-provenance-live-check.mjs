@@ -1,0 +1,85 @@
+import { createHash } from "node:crypto";
+import { readFile, realpath } from "node:fs/promises";
+import { resolve } from "node:path";
+import process from "node:process";
+
+const PLUGIN_ID = "agentic-harness.runtime-invocation-provenance";
+const LIVE_SCHEMA = "runtime-invocation-provenance-live/v1";
+const root = resolve(process.env.AGENT_HARNESS_REPOSITORY_ROOT?.trim() || process.cwd());
+const pluginPath = resolve(root, ".opencode/plugins/runtime-invocation-provenance.js");
+const recordPath = resolve(
+  process.env.AGENT_HARNESS_RUNTIME_PROVENANCE_LIVE_RECORD?.trim()
+    || resolve(root, ".runtime/agents/runtime-invocation-provenance-live.json"),
+);
+
+function fail(code, details = {}) {
+  process.stderr.write(`${JSON.stringify({
+    ok: false,
+    code,
+    repositoryRoot: root,
+    pluginPath,
+    recordPath,
+    operatorAction: "Restart the persistent OpenCode host after source/plugin changes, then attach a fresh TUI session before R-0.",
+    ...details,
+  }, null, 2)}\n`);
+  process.exitCode = 1;
+}
+
+function processAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (error && typeof error === "object" && error.code === "EPERM") return true;
+    return false;
+  }
+}
+
+try {
+  const [pluginBytes, rawRecord, canonicalRoot, canonicalPlugin] = await Promise.all([
+    readFile(pluginPath),
+    readFile(recordPath, "utf8"),
+    realpath(root),
+    realpath(pluginPath),
+  ]);
+  const record = JSON.parse(rawRecord);
+  const expectedSourceSha256 = `sha256:${createHash("sha256").update(pluginBytes).digest("hex")}`;
+  const processId = Number(record?.processId);
+  const loadedAtMs = Date.parse(String(record?.loadedAt ?? ""));
+  const checks = {
+    schema: record?.schemaVersion === LIVE_SCHEMA,
+    pluginId: record?.pluginId === PLUGIN_ID,
+    sourceSha: record?.pluginSourceSha256 === expectedSourceSha256,
+    repositoryRoot: String(record?.repositoryRoot ?? "") === canonicalRoot,
+    pluginPath: String(record?.pluginPath ?? "") === canonicalPlugin,
+    processId: Number.isInteger(processId) && processId > 0,
+    processAlive: Number.isInteger(processId) && processId > 0 && processAlive(processId),
+    loadedAt: Number.isFinite(loadedAtMs) && loadedAtMs <= Date.now(),
+  };
+  const failed = Object.entries(checks).filter(([, ok]) => !ok).map(([name]) => name);
+  if (failed.length > 0) {
+    fail("agent_runtime_invocation_provenance_live_identity_mismatch", {
+      expectedSourceSha256,
+      loadedSourceSha256: record?.pluginSourceSha256 ?? null,
+      processId: Number.isFinite(processId) ? processId : null,
+      loadedAt: record?.loadedAt ?? null,
+      failedChecks: failed,
+    });
+  } else {
+    process.stdout.write(`${JSON.stringify({
+      ok: true,
+      code: "agent_runtime_invocation_provenance_live_identity_ready",
+      repositoryRoot: canonicalRoot,
+      pluginPath: canonicalPlugin,
+      recordPath,
+      pluginSourceSha256: expectedSourceSha256,
+      processId,
+      loadedAt: record.loadedAt,
+      checks,
+    }, null, 2)}\n`);
+  }
+} catch (error) {
+  fail("agent_runtime_invocation_provenance_live_identity_unavailable", {
+    error: error instanceof Error ? error.message : String(error),
+  });
+}

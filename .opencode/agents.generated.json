@@ -1,0 +1,323 @@
+{
+  "main-orchestrator": {
+    "description": "Delivery Orchestrator",
+    "mode": "primary",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/main-orchestrator/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 140,
+    "permission": {
+      "task": {
+        "*": "deny",
+        "explore": "allow"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "product-owner": {
+    "description": "Product Owner",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/product-owner/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "architecture-governance": {
+    "description": "Architecture & Governance",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/architecture-governance/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "devops-engineering": {
+    "description": "DevOps Engineering",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/devops-engineering/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "ai-llmops": {
+    "description": "AI / LLMOps",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/ai-llmops/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "technical-lead": {
+    "description": "Technical Lead",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/technical-lead/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "backend-specialist": {
+    "description": "Backend Specialist",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/backend-specialist/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "frontend-specialist": {
+    "description": "Frontend Specialist",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/frontend-specialist/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "ux-design": {
+    "description": "UX / Product Design",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/ux-design/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "database-administration": {
+    "description": "Database Engineering",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/database-administration/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "async-control-plane": {
+    "description": "Async / Messaging Specialist",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/async-control-plane/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "agent-runtime-engineering": {
+    "description": "Agent Runtime Engineering",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/agent-runtime-engineering/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "platform-release": {
+    "description": "Platform & Release",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/platform-release/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "structural-modernization": {
+    "description": "Structural Modernization",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/structural-modernization/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "verification-evidence": {
+    "description": "Verification & Evidence",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/verification-evidence/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "security-reviewer": {
+    "description": "Security Reviewer",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/security-reviewer/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "systems-performance": {
+    "description": "Systems Performance",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/systems-performance/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "coding-fast": {
+    "description": "Mechanical Coder",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/coding-fast/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "coding-pro": {
+    "description": "Complex Coder",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/coding-pro/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  },
+  "command-runner": {
+    "description": "Command Runner",
+    "mode": "subagent",
+    "prompt": "{file:{env:AGENT_HARNESS_ROOT}/.agents/agents/command-runner/AGENT.md}",
+    "model": "openai/gpt-5.6-luna",
+    "temperature": 0.1,
+    "steps": 100,
+    "permission": {
+      "task": {
+        "*": "deny"
+      },
+      "skill": {
+        "*": "allow"
+      }
+    }
+  }
+}

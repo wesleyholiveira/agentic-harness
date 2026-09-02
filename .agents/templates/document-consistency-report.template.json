@@ -1,0 +1,4 @@
+{
+  "$schemaRef": "../schemas/document-consistency-report.schema.json",
+  "note": "Populate according to the referenced schema."
+}

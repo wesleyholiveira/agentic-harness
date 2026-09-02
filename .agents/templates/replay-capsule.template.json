@@ -1,0 +1,4 @@
+{
+  "$schemaRef": "../schemas/replay-capsule.schema.json",
+  "note": "Populate according to the referenced schema."
+}

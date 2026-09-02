@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "contractVersion": "runtime-policy/v1",
+  "defaultEffect": "deny",
+  "rules": {
+    "plan": {
+      "requiredPhase": "bootstrap",
+      "unresolvedFactPolicy": "provider-edge",
+      "selfDependencyPolicy": "deny",
+      "cyclePolicy": "deny"
+    },
+    "dispatch": {
+      "terminalRunStatuses": ["closed", "failed", "blocked", "cancelled"],
+      "dispatchableTaskStatuses": ["routed", "retrying"],
+      "requireSatisfiedDependencies": true,
+      "requireOpenRetryWindow": true,
+      "requireRefinedBootstrapTopology": true
+    },
+    "retry": {
+      "requireRetryableFailure": true,
+      "respectAttemptBudget": true,
+      "defaultDelayMs": 30000
+    },
+    "compile": {
+      "requiredSourcePhase": "bootstrap",
+      "requireAcceptedTechnicalLead": true,
+      "requireZeroPreflightIssues": true
+    },
+    "promotion": {
+      "requireQa": true,
+      "requireReadinessWhenPresent": true,
+      "requireProductAcceptance": true,
+      "maxBlockingFailures": 0
+    },
+    "reuse": {
+      "scopeFields": ["projectId", "branch", "stage", "role", "schemaVersion"],
+      "requireRevisionEquality": true,
+      "requireFingerprintEquality": true
+    }
+  }
+}

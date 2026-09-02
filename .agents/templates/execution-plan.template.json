@@ -1,0 +1,4 @@
+{
+  "$schemaRef": "../schemas/execution-plan.schema.json",
+  "note": "Populate according to the referenced schema."
+}

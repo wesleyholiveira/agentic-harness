@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "method": "spec-driven-development",
+  "entryAgent": "main-orchestrator",
+  "bootstrap": {
+    "entryStage": "product-discovery",
+    "refinementBoundary": "technical-refinement",
+    "refinementAgentId": "technical-lead",
+    "reviewCapabilities": [
+      {
+        "stage": "architecture-review",
+        "agentId": "architecture-governance",
+        "impactField": "architecture_impact",
+        "capabilityId": "review.architecture",
+        "providesFacts": [
+          "decision.state-authority",
+          "decision.transaction-boundary",
+          "decision.consistency-boundary",
+          "decision.runtime-topology",
+          "decision.deployment-boundary",
+          "decision.model-inference-boundary",
+          "decision.retrieval-topology"
+        ]
+      },
+      {
+        "stage": "database-review",
+        "agentId": "database-administration",
+        "impactField": "database_impact",
+        "capabilityId": "review.database",
+        "providesFacts": [
+          "decision.database-availability-topology",
+          "decision.schema-strategy",
+          "decision.migration-strategy",
+          "decision.connection-pool-topology"
+        ]
+      },
+      {
+        "stage": "infrastructure-review",
+        "agentId": "devops-engineering",
+        "impactField": "infrastructure_impact",
+        "capabilityId": "review.infrastructure",
+        "providesFacts": [
+          "decision.deployment-readiness",
+          "decision.capacity-boundary",
+          "decision.rollback-topology"
+        ]
+      },
+      {
+        "stage": "security-review",
+        "agentId": "security-reviewer",
+        "impactField": "security_impact",
+        "capabilityId": "review.security",
+        "providesFacts": [
+          "decision.security-boundary",
+          "decision.auth-boundary",
+          "decision.secret-handling"
+        ]
+      },
+      {
+        "stage": "ai-operations-review",
+        "agentId": "ai-llmops",
+        "impactField": "ai_operations_impact",
+        "capabilityId": "review.ai-operations",
+        "providesFacts": [
+          "decision.model-routing-policy",
+          "decision.model-residency",
+          "decision.evaluation-policy",
+          "decision.ai-rollback-boundary"
+        ]
+      }
+    ],
+    "dependencyPolicy": {
+      "default": "independent",
+      "edgeBasis": "unresolved-required-decision",
+      "authoritativeContextMaySatisfy": [
+        "product-discovery",
+        "frozen-adr",
+        "project-memory",
+        "repository-context"
+      ],
+      "cyclePolicy": "fail-closed",
+      "convergenceStage": "technical-refinement"
+    },
+    "factResolution": {
+      "contractVersion": "bootstrap-facts/v1",
+      "authoritativeSources": [
+        "product-discovery",
+        "frozen-adr",
+        "project-memory",
+        "repository-context"
+      ],
+      "unresolvedResolution": "provider-capability-edge",
+      "unknownFactPolicy": "fail-closed",
+      "ambiguousProviderPolicy": "fail-closed"
+    }
+  },
+  "compiledDag": {
+    "graphVersion": "dynamic-dag-v2",
+    "source": "technical-refinement.implementationPlan",
+    "topology": "derived-from-implementation-plan",
+    "runtimeAddedGates": {
+      "qualityAssurance": "quality-assurance",
+      "conditionalReadiness": "operational-readiness",
+      "productAcceptance": "product-acceptance"
+    }
+  },
+  "workItemHierarchy": [
+    "prd",
+    "epic",
+    "story",
+    "task"
+  ],
+  "superpowersSkill": "sdd-workflow"
+}

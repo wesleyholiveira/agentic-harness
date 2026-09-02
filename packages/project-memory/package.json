@@ -1,0 +1,12 @@
+{
+  "name": "@agent-harness/project-memory",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "pg": "8.22.0"
+  }
+}

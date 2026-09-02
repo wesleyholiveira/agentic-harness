@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "id": "devops-engineering",
+  "name": "DevOps Engineering",
+  "role": "devops-engineer",
+  "kind": "operations",
+  "executionRole": "contract",
+  "orchestrationRole": "specialist",
+  "interactiveMode": "subagent",
+  "tier": 1,
+  "modelClass": "reasoning-cost-balanced",
+  "primaryPaths": [
+    "infra/**",
+    ".github/workflows/**",
+    "docs/operations/**"
+  ],
+  "sharedPaths": [
+    "compose.yaml",
+    "Dockerfile",
+    ".env.example"
+  ],
+  "collaborativePaths": [
+    "docs/specs/**"
+  ],
+  "skills": [
+    "sdd-workflow",
+    "review-devops-readiness",
+    "change-platform-runtime",
+    "plan-complex-change",
+    "prepare-agent-context",
+    "verify-and-close-task"
+  ],
+  "superpowersSkills": [
+    "brainstorming",
+    "writing-plans",
+    "systematic-debugging",
+    "verification-before-completion"
+  ],
+  "routing": {
+    "keywords": [
+      "devops",
+      "deployment",
+      "infra",
+      "observability",
+      "slo",
+      "security"
+    ],
+    "pathHints": [
+      "infra/**",
+      ".github/workflows/**",
+      "docs/operations/**"
+    ]
+  },
+  "validationCommands": [],
+  "canDelegateTo": [],
+  "dependsOn": [],
+  "manifest": ".agents/agents/devops-engineering/AGENT.md"
+}

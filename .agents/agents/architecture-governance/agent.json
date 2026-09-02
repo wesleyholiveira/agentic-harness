@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "id": "architecture-governance",
+  "name": "Architecture & Governance",
+  "role": "solution-architect",
+  "kind": "governance",
+  "executionRole": "contract",
+  "orchestrationRole": "specialist",
+  "interactiveMode": "subagent",
+  "tier": 1,
+  "modelClass": "reasoning-high",
+  "primaryPaths": [
+    "docs/architecture/**",
+    "docs/adr/**"
+  ],
+  "sharedPaths": [
+    "docs/specs/**"
+  ],
+  "collaborativePaths": [
+    "docs/specs/**"
+  ],
+  "skills": [
+    "sdd-workflow",
+    "orient-repository",
+    "plan-complex-change",
+    "review-cross-agent-integration",
+    "verify-and-close-task"
+  ],
+  "superpowersSkills": [
+    "brainstorming",
+    "systematic-debugging",
+    "verification-before-completion"
+  ],
+  "routing": {
+    "keywords": [
+      "architecture",
+      "adr",
+      "design",
+      "contract",
+      "governance"
+    ],
+    "pathHints": [
+      "docs/architecture/**",
+      "docs/adr/**"
+    ]
+  },
+  "validationCommands": [],
+  "canDelegateTo": [],
+  "dependsOn": [],
+  "manifest": ".agents/agents/architecture-governance/AGENT.md"
+}

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "id": "ux-design",
+  "name": "UX / Product Design",
+  "role": "ux-designer",
+  "kind": "design",
+  "executionRole": "contract",
+  "orchestrationRole": "specialist",
+  "interactiveMode": "subagent",
+  "tier": 1,
+  "modelClass": "reasoning-high",
+  "primaryPaths": [
+    "docs/design/**"
+  ],
+  "sharedPaths": [
+    "docs/specs/**"
+  ],
+  "collaborativePaths": [
+    "docs/specs/**"
+  ],
+  "skills": [
+    "sdd-workflow",
+    "prepare-agent-context",
+    "verify-and-close-task"
+  ],
+  "superpowersSkills": [
+    "brainstorming",
+    "verification-before-completion"
+  ],
+  "routing": {
+    "keywords": [
+      "ux",
+      "accessibility",
+      "design system",
+      "wireframe"
+    ],
+    "pathHints": [
+      "docs/design/**"
+    ]
+  },
+  "validationCommands": [],
+  "canDelegateTo": [],
+  "dependsOn": [],
+  "manifest": ".agents/agents/ux-design/AGENT.md"
+}

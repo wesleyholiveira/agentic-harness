@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "catalog": {
+    "provider": "openai",
+    "authMode": "opencode-managed",
+    "observedAt": "2026-09-02",
+    "source": "agentic-harness-r17.4.5-qualified-baseline",
+    "billing": "configured-provider",
+    "note": "The default is the model used by the promoted baseline. A consuming project may override AGENT_HARNESS_DEFAULT_MODEL after project-local qualification."
+  },
+  "models": {
+    "openai/gpt-5.6-luna": {
+      "profile": [
+        "reasoning",
+        "coding",
+        "tool-use",
+        "long-context",
+        "structured-output",
+        "evidence-review"
+      ],
+      "pricing": null,
+      "billing": "configured-provider"
+    }
+  },
+  "classes": {
+    "reasoning-high": { "default": "openai/gpt-5.6-luna", "singleModelOverride": true },
+    "reasoning-cost-balanced": { "default": "openai/gpt-5.6-luna", "singleModelOverride": true },
+    "coding-fast": { "default": "openai/gpt-5.6-luna", "singleModelOverride": true },
+    "coding-pro": { "default": "openai/gpt-5.6-luna", "singleModelOverride": true },
+    "quality-high": { "default": "openai/gpt-5.6-luna", "singleModelOverride": true },
+    "budget-fallback": { "default": "openai/gpt-5.6-luna", "singleModelOverride": true }
+  },
+  "performancePolicy": {
+    "mode": "benchmark-gated-champion-challenger",
+    "champion": "openai/gpt-5.6-luna",
+    "candidateActivation": "benchmark-only",
+    "challengers": [],
+    "promotion": {
+      "minWarmSamples": 10,
+      "minColdSamples": 3,
+      "maxBlockingQualityRegressions": 0,
+      "minMedianLatencyImprovementPercent": 30,
+      "maxP95LatencyRegressionPercent": 0
+    },
+    "classes": {
+      "reasoning-high": { "targetP95Ms": 720000 },
+      "reasoning-cost-balanced": { "targetP95Ms": 480000 },
+      "coding-fast": { "targetP95Ms": 300000 },
+      "coding-pro": { "targetP95Ms": 600000 },
+      "quality-high": { "targetP95Ms": 600000 },
+      "budget-fallback": { "targetP95Ms": 480000 }
+    }
+  }
+}

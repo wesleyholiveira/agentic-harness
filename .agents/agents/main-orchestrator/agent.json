@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "id": "main-orchestrator",
+  "name": "Delivery Orchestrator",
+  "role": "delivery-orchestrator",
+  "kind": "orchestrator",
+  "executionRole": "contract",
+  "orchestrationRole": "orchestrator",
+  "interactiveMode": "primary",
+  "tier": 0,
+  "modelClass": "reasoning-high",
+  "primaryPaths": [],
+  "sharedPaths": [],
+  "collaborativePaths": [
+    "docs/specs/**"
+  ],
+  "skills": [
+    "sdd-workflow",
+    "orchestrate-multi-agent-work",
+    "prepare-agent-context",
+    "review-cross-agent-integration",
+    "plan-complex-change",
+    "verify-and-close-task",
+    "operate-multi-agent-runtime",
+    "debug-systematically",
+    "use-rtk"
+  ],
+  "superpowersSkills": [
+    "brainstorming",
+    "systematic-debugging",
+    "writing-plans",
+    "using-git-worktrees",
+    "subagent-driven-development",
+    "requesting-code-review",
+    "verification-before-completion",
+    "finishing-a-development-branch"
+  ],
+  "routing": {
+    "keywords": [
+      "orchestrate",
+      "coordinate",
+      "plan",
+      "multi-agent",
+      "sdd"
+    ],
+    "pathHints": []
+  },
+  "validationCommands": [],
+  "canDelegateTo": [],
+  "dependsOn": [],
+  "manifest": ".agents/agents/main-orchestrator/AGENT.md"
+}

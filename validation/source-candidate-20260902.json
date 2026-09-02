@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "agentic-harness-source-candidate-validation/v1",
+  "generatedAt": "2026-09-02T20:56:00Z",
+  "distribution": "standalone-source-candidate",
+  "promotedLineageSourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
+  "inventory": {
+    "agents": 20,
+    "harnessSkills": 22,
+    "schemas": 11,
+    "migrations": 11,
+    "publicScripts": 10,
+    "contractTests": 8,
+    "superpowersVendored": 10,
+    "superpowersExpected": 14
+  },
+  "checks": {
+    "standaloneContracts": {
+      "status": "PASS",
+      "passed": 14,
+      "failed": 0
+    },
+    "nodeSyntax": {
+      "status": "PASS",
+      "files": 115,
+      "errors": 0
+    },
+    "jsonParse": {
+      "status": "PASS",
+      "files": 70,
+      "errors": 0
+    },
+    "typescriptTranspileSyntax": {
+      "status": "PASS",
+      "files": 107,
+      "errors": 0,
+      "method": "TypeScript parser diagnostics"
+    },
+    "typescriptFullCheck": {
+      "status": "BLOCKED_ENVIRONMENT",
+      "reason": "node_modules/type libraries are not installed in the build sandbox; tsc reports TS2688 for node"
+    },
+    "composeYamlParse": {
+      "status": "PASS",
+      "services": [
+        "agent-runtime-worker",
+        "context-embeddings",
+        "context-engine",
+        "database-migrate",
+        "postgres",
+        "rabbitmq",
+        "redis"
+      ]
+    },
+    "opencodeEffectiveConfig": {
+      "status": "PASS",
+      "defaultAgent": "main-orchestrator",
+      "agents": 20,
+      "skillPaths": 2,
+      "template": "config/opencode.template.jsonc",
+      "rootAutoDiscoveredConfigFiles": 0,
+      "contextEngineDefaultUrl": "http://127.0.0.1:8789/mcp",
+      "context7WithoutApiKey": "disabled",
+      "headroomMcpPackage": "headroom-ai[mcp]==0.36.5",
+      "headroomProxyContract": "explicit --proxy-url matches HEADROOM_PROXY_PORT (default 8793)",
+      "codebaseMemoryExecutableResolution": "absolute path when CODEBASE_MEMORY_MCP_COMMAND, standard cache path, or PATH resolves",
+      "globalMcpListIsHarnessEvidence": false
+    },
+    "genericOperationalScan": {
+      "status": "PASS",
+      "forbiddenProjectSpecificMatches": 0
+    },
+    "absoluteUserPathScan": {
+      "status": "PASS",
+      "matches": 0
+    },
+    "credentialTokenScan": {
+      "status": "PASS",
+      "matches": 0
+    },
+    "centralRegistryAbsent": {
+      "status": "PASS"
+    },
+    "publicCommandSurface": {
+      "status": "PASS",
+      "scripts": 10
+    },
+    "cargoCheck": {
+      "status": "BLOCKED_ENVIRONMENT",
+      "reason": "cargo executable unavailable"
+    },
+    "dockerComposeBuild": {
+      "status": "BLOCKED_ENVIRONMENT",
+      "reason": "docker executable unavailable"
+    },
+    "opencodeLive": {
+      "status": "BLOCKED_ENVIRONMENT",
+      "reason": "opencode executable unavailable"
+    },
+    "rtkLive": {
+      "status": "BLOCKED_ENVIRONMENT",
+      "reason": "rtk executable unavailable"
+    },
+    "codebaseMemoryLive": {
+      "status": "BLOCKED_ENVIRONMENT",
+      "reason": "codebase-memory-mcp executable unavailable"
+    },
+    "superpowersVendor": {
+      "status": "PARTIAL_VENDOR_SOURCE_AVAILABLE",
+      "vendored": 10,
+      "expected": 14,
+      "missing": [
+        "dispatching-parallel-agents",
+        "requesting-code-review",
+        "using-git-worktrees",
+        "using-superpowers"
+      ],
+      "completionCommand": "node scripts/vendor-superpowers.mjs"
+    },
+    "windowsExecutablePathSafety": {
+      "status": "PASS",
+      "reason": "host launchers use shell=false; Windows-safe test roots use fileURLToPath rather than URL.pathname; generated OpenCode paths normalize Windows separators before JSON serialization"
+    },
+    "opencodeProjectConfigDiscoverySafety": {
+      "status": "PASS",
+      "reason": "OpenCode template moved outside root auto-discovery names; launcher rejects legacy root opencode.json/opencode.jsonc before startup"
+    },
+    "mcpLaunchPortability": {
+      "status": "PASS",
+      "headroomProxyPackage": "headroom-ai[proxy]==0.36.5",
+      "headroomMcpPackage": "headroom-ai[mcp]==0.36.5",
+      "headroomDefaultProxyPort": 8793,
+      "codebaseMemoryResolutionOrder": [
+        "CODEBASE_MEMORY_MCP_COMMAND",
+        "standard per-user cache",
+        "PATH"
+      ],
+      "shellUsedForExecutableResolution": false
+    }
+  },
+  "finalStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION"
+}

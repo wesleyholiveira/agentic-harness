@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "id": "verification-evidence",
+  "name": "Verification & Evidence",
+  "role": "quality-assurance",
+  "kind": "assurance",
+  "executionRole": "verification",
+  "orchestrationRole": "specialist",
+  "interactiveMode": "subagent",
+  "tier": 1,
+  "modelClass": "quality-high",
+  "primaryPaths": [
+    "tests/**",
+    "docs/testing/**"
+  ],
+  "sharedPaths": [
+    "apps/**",
+    "packages/**",
+    "scripts/**"
+  ],
+  "collaborativePaths": [
+    "docs/specs/**"
+  ],
+  "skills": [
+    "sdd-workflow",
+    "review-cross-agent-integration",
+    "verify-and-close-task",
+    "debug-systematically",
+    "use-rtk",
+    "operate-multi-agent-runtime"
+  ],
+  "superpowersSkills": [
+    "requesting-code-review",
+    "receiving-code-review",
+    "verification-before-completion",
+    "systematic-debugging"
+  ],
+  "routing": {
+    "keywords": [
+      "test",
+      "qa",
+      "verification",
+      "regression",
+      "evidence"
+    ],
+    "pathHints": [
+      "tests/**",
+      "docs/testing/**"
+    ]
+  },
+  "validationCommands": [],
+  "canDelegateTo": [],
+  "dependsOn": [],
+  "manifest": ".agents/agents/verification-evidence/AGENT.md"
+}

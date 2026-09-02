@@ -1,0 +1,4 @@
+{
+  "$schemaRef": "../schemas/reasoning-assessment.schema.json",
+  "note": "Populate according to the referenced schema."
+}

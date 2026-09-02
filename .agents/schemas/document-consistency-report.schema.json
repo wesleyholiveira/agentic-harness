@@ -1,0 +1,268 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-harness://agents/document-consistency-report.schema.json",
+  "title": "Agentic Harness Document Consistency Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "checkedAt",
+    "scope",
+    "checks",
+    "findings",
+    "unresolvedDivergences",
+    "evidence"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "blocked"
+      ]
+    },
+    "checkedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "changedDocuments",
+        "comparedDocuments",
+        "canonicalSources"
+      ],
+      "properties": {
+        "changedDocuments": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "comparedDocuments": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "canonicalSources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "result",
+          "subject",
+          "evidence"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "references",
+              "paths",
+              "ids",
+              "revisions",
+              "status",
+              "values",
+              "units",
+              "defaults",
+              "hardware_profile",
+              "authority",
+              "acceptance_traceability",
+              "changelog"
+            ]
+          },
+          "result": {
+            "enum": [
+              "passed",
+              "failed",
+              "blocked"
+            ]
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "severity",
+          "kind",
+          "subject",
+          "documents",
+          "canonicalSource",
+          "lifecycle",
+          "profile",
+          "unit",
+          "expected",
+          "observed",
+          "resolutionStatus",
+          "resolution",
+          "owner"
+        ],
+        "properties": {
+          "severity": {
+            "enum": [
+              "info",
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "kind": {
+            "enum": [
+              "broken_reference",
+              "path_mismatch",
+              "id_mismatch",
+              "revision_drift",
+              "status_conflict",
+              "value_divergence",
+              "unit_mismatch",
+              "default_divergence",
+              "hardware_profile_divergence",
+              "duplicate_authority",
+              "traceability_gap",
+              "changelog_gap"
+            ]
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1
+          },
+          "documents": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "canonicalSource": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lifecycle": {
+            "enum": [
+              "current",
+              "default",
+              "requested",
+              "effective",
+              "target",
+              "challenger",
+              "deprecated",
+              "not_applicable"
+            ]
+          },
+          "profile": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expected": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "observed": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resolutionStatus": {
+            "enum": [
+              "resolved",
+              "unresolved",
+              "accepted_exception"
+            ]
+          },
+          "resolution": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "owner": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "unresolvedDivergences": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command",
+          "result",
+          "evidence"
+        ],
+        "properties": {
+          "command": {
+            "type": "string",
+            "minLength": 1
+          },
+          "result": {
+            "enum": [
+              "passed",
+              "failed",
+              "blocked"
+            ]
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}
+

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-input-manifest.schema.json",
+  "title": "AgentInputManifest/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contractVersion", "schemaVersion", "runId", "taskId", "agentId", "attempt", "createdAt", "entries", "accounting", "manifestFingerprint"],
+  "properties": {
+    "contractVersion": { "const": "agent-input-manifest/v1" },
+    "schemaVersion": { "const": 1 },
+    "runId": { "type": "string", "minLength": 1 },
+    "taskId": { "type": "string", "minLength": 1 },
+    "agentId": { "type": "string", "minLength": 1 },
+    "attempt": { "type": "integer", "minimum": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["entryId", "category", "authorityClass", "deliveryMode", "contentHash", "bytes", "estimatedTokens", "sourceRef", "attach"],
+        "properties": {
+          "entryId": { "type": "string", "minLength": 1 },
+          "category": { "enum": ["task_contract", "schemas", "execution_contract", "retrieved_context", "upstream_evidence", "governance", "references", "tool_output"] },
+          "authorityClass": { "enum": ["exact-authority", "deterministic-projection", "retrieved-context", "lazy-reference", "tool-output"] },
+          "deliveryMode": { "enum": ["attachment", "embedded", "lazy", "tool"] },
+          "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "bytes": { "type": "integer", "minimum": 0 },
+          "estimatedTokens": { "type": "integer", "minimum": 0 },
+          "rawTokens": { "type": "integer", "minimum": 0 },
+          "sourceRef": { "type": "string", "minLength": 1 },
+          "path": { "type": ["string", "null"] },
+          "attach": { "type": "boolean" },
+          "mediaType": { "type": ["string", "null"] },
+          "projectionOf": { "type": ["string", "null"] },
+          "artifactRef": { "type": ["string", "null"] },
+          "lazyPolicy": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "properties": {
+              "maxBytes": { "type": "integer", "minimum": 1 },
+              "allowedMediaTypes": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    },
+    "accounting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["estimator", "categories", "global"],
+      "properties": {
+        "estimator": { "const": "bytes-div-4-ceil/v1" },
+        "categories": { "type": "object", "additionalProperties": { "type": "object" } },
+        "global": {
+          "type": "object",
+          "required": ["runtimeOwnedRawTokens", "runtimeOwnedDeliveredTokens", "runtimeOwnedTokensSaved", "runtimeOwnedSavingsPercent", "wireTokens", "uniqueContentTokens", "duplicateTokens", "duplicatePercent"],
+          "properties": {
+            "runtimeOwnedRawTokens": { "type": "integer", "minimum": 0 },
+            "runtimeOwnedDeliveredTokens": { "type": "integer", "minimum": 0 },
+            "runtimeOwnedTokensSaved": { "type": "integer", "minimum": 0 },
+            "runtimeOwnedSavingsPercent": { "type": "number", "minimum": 0, "maximum": 100 },
+            "wireTokens": { "type": "integer", "minimum": 0 },
+            "uniqueContentTokens": { "type": "integer", "minimum": 0 },
+            "duplicateTokens": { "type": "integer", "minimum": 0 },
+            "duplicatePercent": { "type": "number", "minimum": 0, "maximum": 100 }
+          }
+        }
+      }
+    },
+    "manifestFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  }
+}

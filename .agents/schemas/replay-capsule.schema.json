@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent Runtime Replay Capsule",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "contractVersion",
+    "runId",
+    "capturedAt",
+    "identity",
+    "inputs",
+    "provenance",
+    "plan",
+    "planFingerprint",
+    "evidence",
+    "capsuleFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "contractVersion": {
+      "const": "agent-runtime-replay-capsule/v1"
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capturedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runId",
+        "createdAt"
+      ],
+      "properties": {
+        "runId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "planFingerprint": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "events",
+        "artifacts",
+        "checkpoints"
+      ],
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "checkpoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "capsuleFingerprint": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "compiled": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "compiledAt",
+        "implementationPlan",
+        "requiredAcceptanceCriteria",
+        "planFingerprint"
+      ],
+      "properties": {
+        "compiledAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "implementationPlan": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "requiredAcceptanceCriteria": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "planFingerprint": {
+          "type": "string",
+          "pattern": "^sha256:"
+        }
+      }
+    },
+    "refinedBootstrap": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "assessment",
+        "topology",
+        "planFingerprint",
+        "topologyFingerprint"
+      ],
+      "properties": {
+        "authority": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assessment": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "planFingerprint": {
+          "type": "string",
+          "pattern": "^sha256:"
+        },
+        "topologyFingerprint": {
+          "type": "string",
+          "pattern": "^sha256:"
+        },
+        "topology": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "selectedReviewStages",
+            "bootstrapFactBindings",
+            "bootstrapReviewDependencies"
+          ],
+          "properties": {
+            "selectedReviewStages": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "bootstrapFactBindings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "bootstrapReviewDependencies": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "terminal": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

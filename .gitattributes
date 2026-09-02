@@ -1,0 +1,10 @@
+# Keep source fingerprints stable across Windows/Linux clones and submodules.
+* text=auto eol=lf
+
+# Explicitly keep known binary/archive formats binary if they are ever added as evidence.
+*.zip binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.pdf binary

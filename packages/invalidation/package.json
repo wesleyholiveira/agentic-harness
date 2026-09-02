@@ -1,0 +1,13 @@
+{
+  "name": "@agent-harness/invalidation",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@agent-harness/cbm-adapter": "1.2.0",
+    "@agent-harness/context-cache": "1.2.0"
+  }
+}

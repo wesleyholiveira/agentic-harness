@@ -1,0 +1,122 @@
+name: agentic-harness
+services:
+  postgres:
+    image: postgres:17-alpine
+    profiles: [runtime]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-agent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agent}
+      POSTGRES_DB: ${POSTGRES_DB:-agent_harness}
+    ports: ["${AGENT_HARNESS_POSTGRES_PORT:-5432}:5432"]
+    volumes: ["agent-harness-postgres:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agent} -d ${POSTGRES_DB:-agent_harness}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    profiles: [runtime]
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-agent}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-agent}
+    ports:
+      - "${AGENT_HARNESS_RABBITMQ_PORT:-5672}:5672"
+      - "${AGENT_HARNESS_RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes: ["agent-harness-rabbitmq:/var/lib/rabbitmq"]
+
+  redis:
+    image: redis:8-alpine
+    profiles: [runtime]
+    ports: ["${AGENT_HARNESS_REDIS_PORT:-6379}:6379"]
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lfu"]
+    volumes: ["agent-harness-redis:/data"]
+
+  context-embeddings:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8.3
+    profiles: [runtime, embeddings]
+    command: ["--model-id", "${CONTEXT_SEMANTIC_EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}"]
+    ports: ["${AGENT_HARNESS_EMBEDDINGS_PORT:-8791}:80"]
+
+
+  database-migrate:
+    build:
+      context: .
+      dockerfile: apps/context-engine/Dockerfile
+    profiles: [runtime]
+    environment:
+      AGENT_HARNESS_ROOT: /workspace/harness
+      AGENT_POSTGRES_URL: postgresql://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent}@postgres:5432/${POSTGRES_DB:-agent_harness}
+      AGENT_POSTGRES_SCHEMA: ${AGENT_POSTGRES_SCHEMA:-public}
+    command: ["node", "scripts/harness-migrate.mjs"]
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  context-engine:
+    build:
+      context: .
+      dockerfile: apps/context-engine/Dockerfile
+    profiles: [runtime]
+    environment:
+      AGENT_HARNESS_ROOT: /workspace/harness
+      AGENT_HARNESS_PROJECT_ROOT: /workspace/repository
+      AGENT_POSTGRES_URL: postgresql://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent}@postgres:5432/${POSTGRES_DB:-agent_harness}
+      CONTEXT_ENGINE_PROJECT_MEMORY_POSTGRES_URL: postgresql://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent}@postgres:5432/${POSTGRES_DB:-agent_harness}
+      CONTEXT_EXACT_REDIS_URL: redis://redis:6379
+      CONTEXT_SEMANTIC_REDIS_URL: redis://redis:6379
+      CONTEXT_SEMANTIC_EMBEDDING_BASE_URL: http://context-embeddings:80
+      CONTEXT_ENGINE_PROJECT_MEMORY_BACKEND: postgres
+      CONTEXT_ENGINE_EXACT_CACHE_BACKEND: redis
+      CONTEXT_SEMANTIC_CACHE_MODE: ${CONTEXT_SEMANTIC_CACHE_MODE:-enforce}
+      CONTEXT_SEMANTIC_CACHE_FAILURE_MODE: ${CONTEXT_SEMANTIC_CACHE_FAILURE_MODE:-open}
+      AGENT_HARNESS_RUNTIME_RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-agent}:${RABBITMQ_DEFAULT_PASS:-agent}@rabbitmq:5672/%2f
+      AGENT_HARNESS_OPENCODE_CONTINUATION_URL: ${AGENT_HARNESS_OPENCODE_CONTINUATION_URL:-http://host.docker.internal:4096}
+      AGENT_HARNESS_OPENCODE_CONTINUATION_HOST_PROBE_URL: ${AGENT_HARNESS_OPENCODE_CONTINUATION_HOST_PROBE_URL:-http://host.docker.internal:4096}
+      AGENT_HARNESS_OPENCODE_CONTINUATION_USERNAME: ${AGENT_HARNESS_OPENCODE_CONTINUATION_USERNAME:-opencode}
+      AGENT_HARNESS_OPENCODE_CONTINUATION_PASSWORD: ${AGENT_HARNESS_OPENCODE_CONTINUATION_PASSWORD:-}
+    ports: ["${AGENT_HARNESS_CONTEXT_ENGINE_PORT:-8789}:8789"]
+    depends_on:
+      database-migrate: {condition: service_completed_successfully}
+      rabbitmq: {condition: service_started}
+      redis: {condition: service_started}
+      context-embeddings: {condition: service_started}
+    volumes:
+      - type: bind
+        source: ${AGENT_HARNESS_PROJECT_ROOT:-.}
+        target: /workspace/repository
+
+  agent-runtime-worker:
+    build:
+      context: .
+      dockerfile: apps/runtime-worker/Dockerfile
+    profiles: [runtime]
+    environment:
+      AGENT_HARNESS_ROOT: /workspace/harness
+      AGENT_HARNESS_PROJECT_ROOT: /workspace/repository
+      AGENT_HARNESS_CONTEXT_ENGINE_INTERNAL_URL: http://context-engine:8789/mcp
+      AGENT_POSTGRES_URL: postgresql://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent}@postgres:5432/${POSTGRES_DB:-agent_harness}
+      AGENT_HARNESS_RUNTIME_RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-agent}:${RABBITMQ_DEFAULT_PASS:-agent}@rabbitmq:5672/%2f
+      AGENT_HARNESS_RUNTIME_WORKER_ID: ${AGENT_HARNESS_RUNTIME_WORKER_ID:-agentic-harness-worker}
+      AGENT_HARNESS_RUNTIME_WORKER_CONCURRENCY: ${AGENT_HARNESS_RUNTIME_WORKER_CONCURRENCY:-3}
+      AGENT_HARNESS_OPENCODE_CONTINUATION_URL: ${AGENT_HARNESS_OPENCODE_CONTINUATION_URL:-http://host.docker.internal:4096}
+      AGENT_HARNESS_OPENCODE_CONTINUATION_USERNAME: ${AGENT_HARNESS_OPENCODE_CONTINUATION_USERNAME:-opencode}
+      AGENT_HARNESS_OPENCODE_CONTINUATION_PASSWORD: ${AGENT_HARNESS_OPENCODE_CONTINUATION_PASSWORD:-}
+    depends_on:
+      database-migrate: {condition: service_completed_successfully}
+      rabbitmq: {condition: service_started}
+      context-engine: {condition: service_started}
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: ${AGENT_HARNESS_PROJECT_ROOT:-.}
+        target: /workspace/repository
+      - type: bind
+        source: ${AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE:-./vendor/empty-opencode-auth.json}
+        target: /root/.local/share/opencode/auth.json
+        read_only: true
+
+volumes:
+  agent-harness-postgres: {}
+  agent-harness-rabbitmq: {}
+  agent-harness-redis: {}

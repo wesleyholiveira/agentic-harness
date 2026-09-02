@@ -1,0 +1,4 @@
+{
+  "$schemaRef": "../schemas/context-packet.schema.json",
+  "note": "Populate according to the referenced schema."
+}

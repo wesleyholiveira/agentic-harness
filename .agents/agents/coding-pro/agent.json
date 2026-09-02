@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "coding-pro",
+  "name": "Complex Coder",
+  "role": "complex-coder",
+  "kind": "utility",
+  "executionRole": "implementation",
+  "orchestrationRole": "specialist",
+  "interactiveMode": "subagent",
+  "tier": 2,
+  "modelClass": "coding-pro",
+  "primaryPaths": [],
+  "sharedPaths": [],
+  "collaborativePaths": [],
+  "skills": [
+    "enforce-code-quality-standards",
+    "debug-systematically",
+    "verify-and-close-task"
+  ],
+  "superpowersSkills": [
+    "test-driven-development",
+    "systematic-debugging",
+    "requesting-code-review",
+    "verification-before-completion"
+  ],
+  "routing": {
+    "keywords": [
+      "complex",
+      "migration",
+      "refactor",
+      "concurrency"
+    ],
+    "pathHints": []
+  },
+  "validationCommands": [],
+  "canDelegateTo": [],
+  "dependsOn": [],
+  "manifest": ".agents/agents/coding-pro/AGENT.md"
+}

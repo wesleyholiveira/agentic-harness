@@ -1,0 +1,4 @@
+{
+  "$schemaRef": "../schemas/agent-input-manifest.schema.json",
+  "note": "Populate according to the referenced schema."
+}

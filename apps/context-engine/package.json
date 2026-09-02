@@ -1,0 +1,22 @@
+{
+  "name": "@agent-harness/context-engine",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@agent-harness/cbm-adapter": "1.2.0",
+    "@agent-harness/context-cache": "1.2.0",
+    "@agent-harness/context-pack": "1.2.0",
+    "@agent-harness/context-semantic-cache": "1.2.0",
+    "@agent-harness/context7-adapter": "1.2.0",
+    "@agent-harness/invalidation": "1.2.0",
+    "@agent-harness/project-memory": "1.2.0",
+    "@agent-harness/serena-adapter": "1.2.0",
+    "@agent-harness/summary-manager": "1.2.0",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "@agent-harness/context-redis": "1.2.0"
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "id": "platform-release",
+  "name": "Platform & Release",
+  "role": "platform-engineer",
+  "kind": "platform",
+  "executionRole": "implementation",
+  "orchestrationRole": "specialist",
+  "interactiveMode": "subagent",
+  "tier": 1,
+  "modelClass": "coding-fast",
+  "primaryPaths": [
+    "Dockerfile",
+    "compose.yaml",
+    "infra/**",
+    ".github/workflows/**"
+  ],
+  "sharedPaths": [
+    "package.json",
+    ".env.example"
+  ],
+  "collaborativePaths": [],
+  "skills": [
+    "enforce-code-quality-standards",
+    "change-platform-runtime",
+    "prepare-release",
+    "prepare-agent-context",
+    "debug-systematically",
+    "use-rtk",
+    "verify-and-close-task"
+  ],
+  "superpowersSkills": [
+    "test-driven-development",
+    "systematic-debugging",
+    "requesting-code-review",
+    "verification-before-completion"
+  ],
+  "routing": {
+    "keywords": [
+      "docker",
+      "compose",
+      "release",
+      "build",
+      "ci",
+      "cd"
+    ],
+    "pathHints": [
+      "Dockerfile",
+      "compose.yaml",
+      "infra/**",
+      ".github/workflows/**"
+    ]
+  },
+  "validationCommands": [],
+  "canDelegateTo": [],
+  "dependsOn": [],
+  "manifest": ".agents/agents/platform-release/AGENT.md"
+}

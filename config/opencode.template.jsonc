@@ -1,0 +1,98 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "main-orchestrator",
+  "small_model": "openai/gpt-5.6-luna",
+  "instructions": [
+    "{env:AGENT_HARNESS_ROOT}/AGENTS.md",
+    "{env:AGENT_HARNESS_ROOT}/docs/sdd/WORKFLOW.md",
+    "{env:AGENT_HARNESS_ROOT}/docs/sdd/MODEL-ROUTING.md"
+  ],
+  "skills": {
+    "paths": [
+      "{env:AGENT_HARNESS_ROOT}/.agents/skills",
+      "{env:AGENT_HARNESS_ROOT}/vendor/superpowers/skills"
+    ]
+  },
+  "mcp": {
+    "context-engine": {
+      "type": "remote",
+      "url": "{env:AGENT_HARNESS_CONTEXT_ENGINE_MCP_URL}",
+      "enabled": true,
+      "oauth": false,
+      "headers": {
+        "X-Agentic-Harness-Agent-Id": "main-orchestrator"
+      }
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer {env:CONTEXT7_API_KEY}"
+      }
+    },
+    "serena": {
+      "type": "local",
+      "enabled": true,
+      "command": [
+        "uvx",
+        "--python",
+        "3.12",
+        "--from",
+        "serena-agent==1.7.0",
+        "serena",
+        "start-mcp-server",
+        "--context",
+        "ide",
+        "--project-from-cwd"
+      ],
+      "cwd": ".",
+      "timeout": 120000
+    },
+    "headroom": {
+      "type": "local",
+      "enabled": true,
+      "command": [
+        "uvx",
+        "--isolated",
+        "--managed-python",
+        "--python",
+        "3.12",
+        "--from",
+        "headroom-ai[mcp]==0.36.5",
+        "headroom",
+        "mcp",
+        "serve",
+        "--proxy-url",
+        "http://127.0.0.1:8793"
+      ],
+      "cwd": ".",
+      "timeout": 120000
+    },
+    "codebase-memory-mcp": {
+      "type": "local",
+      "enabled": true,
+      "command": [
+        "codebase-memory-mcp"
+      ]
+    },
+    "caveman": {
+      "type": "local",
+      "enabled": false,
+      "command": [
+        "caveman-mcp"
+      ]
+    }
+  },
+  "plugin": [
+    "opencode-openai-codex-auth",
+    "superpowers@git+https://github.com/obra/superpowers.git#v5.1.0"
+  ],
+  "command": {
+    "sdd": {
+      "template": "Load the local `sdd-workflow` skill and execute the full project-agnostic SDD workflow for: $ARGUMENTS",
+      "description": "Run the Agentic Harness SDD workflow",
+      "agent": "main-orchestrator"
+    }
+  }
+}

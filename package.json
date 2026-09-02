@@ -1,0 +1,34 @@
+{
+  "name": "agentic-harness",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "workspaces": [
+    "apps/context-engine",
+    "packages/*"
+  ],
+  "scripts": {
+    "harness:bootstrap": "node bin/harness.mjs bootstrap",
+    "harness:doctor": "node bin/harness.mjs doctor",
+    "harness:up": "node bin/harness.mjs up",
+    "harness:down": "node bin/harness.mjs down",
+    "harness:logs": "node bin/harness.mjs logs",
+    "harness:migrate": "node bin/harness.mjs migrate",
+    "harness:test": "node bin/harness.mjs test",
+    "harness:qualify": "node bin/harness.mjs qualify",
+    "harness:opencode": "node bin/harness.mjs opencode",
+    "harness:clean": "node bin/harness.mjs clean"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "pg": "8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.0",
+    "@types/pg": "8.15.6",
+    "tsx": "4.20.6",
+    "typescript": "5.9.2",
+    "vitest": "3.2.4"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "graphVersion": "dynamic-dag-v2",
+  "workItems": [
+    {"id":"W0","ownerCapability":"architecture","dependsOn":[]},
+    {"id":"W1","ownerCapability":"agent-runtime","dependsOn":["W0"]},
+    {"id":"W2","ownerCapability":"agent-runtime","dependsOn":["W0","W1"]},
+    {"id":"W3","ownerCapability":"devops","dependsOn":["W2"]},
+    {"id":"W4","ownerCapability":"database+runtime","dependsOn":["W2"]},
+    {"id":"W5","ownerCapability":"structural-modernization","dependsOn":["W1","W3","W4"]},
+    {"id":"W6","ownerCapability":"verification","dependsOn":["W3","W4","W5"]}
+  ]
+}

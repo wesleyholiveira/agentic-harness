@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-harness://agents/context-packet.schema.json",
+  "title": "Agentic Harness Agent Context Packet v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "packetId", "runId", "taskId", "agentId", "createdAt", "budgetBytes", "usedBytes", "estimatedTokens", "references", "upstreamArtifacts", "contextEngine"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "packetId": { "type": "string", "minLength": 1 },
+    "runId": { "type": "string", "minLength": 1 },
+    "taskId": { "type": "string", "minLength": 1 },
+    "agentId": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "budgetBytes": { "type": "integer", "minimum": 1 },
+    "usedBytes": { "type": "integer", "minimum": 0 },
+    "estimatedTokens": { "type": "integer", "minimum": 0 },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "kind", "sha256", "bytes", "included"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "bytes": { "type": "integer", "minimum": 0 },
+          "included": { "type": "boolean" },
+          "content": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "upstreamArtifacts": { "type": "array", "items": { "type": "object" } },
+    "upstreamEvidenceRef": { "type": ["string", "null"] },
+    "contextEngine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "packId", "cacheStatus", "payload", "error"],
+      "properties": {
+        "status": { "enum": ["ok", "degraded"] },
+        "packId": { "type": ["string", "null"] },
+        "cacheStatus": { "type": ["string", "null"] },
+        "payload": { "type": ["object", "null"], "additionalProperties": true },
+        "error": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

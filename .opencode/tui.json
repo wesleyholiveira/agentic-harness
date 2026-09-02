@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/tui.json",
+  "plugin": [
+    [
+      "./plugins/runtime-progress-live.tsx",
+      {
+        "pollMs": 750,
+        "idlePollMs": 3000,
+        "messageLimit": 80,
+        "staleAfterMs": 900000,
+        "observationUrl": "http://127.0.0.1:8789/runtime-progress-observation",
+        "liveSnapshotUrl": "http://127.0.0.1:8789/runtime-progress-live",
+        "liveSnapshotPollMs": 1000
+      }
+    ]
+  ]
+}

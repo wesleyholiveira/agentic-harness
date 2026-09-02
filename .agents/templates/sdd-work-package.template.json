@@ -1,0 +1,4 @@
+{
+  "$schemaRef": "../schemas/sdd-work-package.schema.json",
+  "note": "Populate according to the referenced schema."
+}

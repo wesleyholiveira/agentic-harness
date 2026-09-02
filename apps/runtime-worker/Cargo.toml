@@ -1,0 +1,31 @@
+[package]
+name = "agentic-harness-worker"
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT"
+[[bin]]
+name = "agentic-harness-worker"
+path = "src/main.rs"
+[dependencies]
+anyhow="1.0"
+chrono={version="0.4",default-features=false,features=["clock","serde"]}
+clap={version="4.5",features=["derive","env"]}
+futures-util="0.3"
+lapin={version="4.10",default-features=false,features=["rustls","rustls--ring","tokio"]}
+reqwest={version="0.12",default-features=false,features=["json","rustls-tls"]}
+rustls={version="0.23",default-features=false,features=["ring","std"]}
+serde={version="1.0",features=["derive"]}
+serde_json="1.0"
+sha2="0.10"
+tokio={version="1.48",features=["macros","rt-multi-thread","signal","sync","time","net","process","io-util","fs"]}
+tokio-postgres={version="0.7",features=["with-chrono-0_4"]}
+tracing="0.1"
+tracing-subscriber={version="0.3",features=["env-filter","fmt","json"]}
+uuid={version="1.18",features=["v4","serde"]}
+zip={version="0.6.6",default-features=false}
+[profile.release]
+lto="thin"
+codegen-units=1
+panic="abort"
+strip=true

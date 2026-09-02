@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "id": "security-reviewer",
+  "name": "Security Reviewer",
+  "role": "security-reviewer",
+  "kind": "reviewer",
+  "executionRole": "verification",
+  "orchestrationRole": "specialist",
+  "interactiveMode": "subagent",
+  "tier": 2,
+  "modelClass": "coding-pro",
+  "primaryPaths": [
+    "docs/security/**"
+  ],
+  "sharedPaths": [
+    "apps/**",
+    "infra/**"
+  ],
+  "collaborativePaths": [
+    "docs/specs/**"
+  ],
+  "skills": [
+    "sdd-workflow",
+    "prepare-agent-context",
+    "review-cross-agent-integration",
+    "verify-and-close-task"
+  ],
+  "superpowersSkills": [
+    "requesting-code-review",
+    "verification-before-completion",
+    "systematic-debugging"
+  ],
+  "routing": {
+    "keywords": [
+      "security",
+      "threat model",
+      "auth",
+      "authorization",
+      "secrets"
+    ],
+    "pathHints": [
+      "docs/security/**"
+    ]
+  },
+  "validationCommands": [],
+  "canDelegateTo": [],
+  "dependsOn": [],
+  "manifest": ".agents/agents/security-reviewer/AGENT.md"
+}

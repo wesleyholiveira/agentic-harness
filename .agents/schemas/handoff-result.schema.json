@@ -1,0 +1,586 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-harness://agents/handoff-result.schema.json",
+  "title": "Agentic Harness Agent Handoff Result v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runId",
+    "taskId",
+    "agentId",
+    "status",
+    "artifactVersion",
+    "changedPaths",
+    "contractChanges",
+    "assumptions",
+    "criterionResults",
+    "validation",
+    "residualRisks",
+    "followUps"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "taskId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "agentId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "complete",
+        "blocked",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "retryable": {
+      "type": "boolean"
+    },
+    "artifactVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "changedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reusedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "contractChanges": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "criterionResults": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "criterionId",
+          "result",
+          "evidence"
+        ],
+        "properties": {
+          "criterionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "result": {
+            "enum": [
+              "passed",
+              "failed",
+              "blocked",
+              "not_applicable"
+            ]
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "validation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command",
+          "phase",
+          "blocking",
+          "result",
+          "evidence"
+        ],
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "phase": {
+            "enum": [
+              "red",
+              "implementation",
+              "final"
+            ]
+          },
+          "blocking": {
+            "type": "boolean"
+          },
+          "result": {
+            "enum": [
+              "passed",
+              "failed",
+              "blocked"
+            ]
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "authority": {
+            "enum": [
+              "runtime",
+              "model"
+            ]
+          },
+          "exitCode": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "timedOut": {
+            "type": "boolean"
+          },
+          "executedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "residualRisks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "followUps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "usedContextPaths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "acceptanceCriteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "source",
+          "statement",
+          "blocking",
+          "verification"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "blocking": {
+            "type": "boolean"
+          },
+          "verification": {
+            "type": "string",
+            "minLength": 1
+          },
+          "proofStage": {
+            "enum": [
+              "implementation",
+              "quality-assurance",
+              "database-readiness",
+              "infrastructure-readiness",
+              "ai-readiness",
+              "product-acceptance"
+            ]
+          }
+        }
+      }
+    },
+    "implementationPlan": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "inputTokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "outputTokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cachedInputTokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "contextBytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "costUsd": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "executionTelemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "modelId",
+        "variant",
+        "reasoningEffort",
+        "stepsLimit",
+        "stepsUsed",
+        "stepLimitReached",
+        "stopReason",
+        "attempt"
+      ],
+      "properties": {
+        "modelId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "variant": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reasoningEffort": {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ]
+        },
+        "stepsLimit": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "stepsUsed": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "stepLimitReached": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "stopReason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sessionId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "usageSource": {
+          "enum": [
+            "session-export",
+            "json-stream",
+            "handoff",
+            "unavailable"
+          ]
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "sddReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "stage",
+        "decision",
+        "reviewedRevision",
+        "requiredDeltas"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stage": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decision": {
+          "enum": [
+            "approved",
+            "changes_requested",
+            "blocked",
+            "accepted"
+          ]
+        },
+        "reviewedRevision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "nextRole": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "requiredDeltas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "dockerValidation": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "auxiliaryInvocations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "purpose",
+          "modelId",
+          "sessionId",
+          "adapterAttempts",
+          "stepsUsed",
+          "stepsLimit",
+          "stepLimitReached",
+          "stopReason",
+          "inputTokens",
+          "cachedInputTokens",
+          "outputTokens",
+          "costUsd"
+        ],
+        "properties": {
+          "purpose": {
+            "enum": [
+              "technical-plan-synthesis",
+              "technical-plan-repair",
+              "completion-evidence-synthesis",
+              "handoff-review-projection",
+              "product-discovery-scope-repair",
+              "product-discovery-bootstrap-assessment"
+            ]
+          },
+          "modelId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sessionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "adapterAttempts": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "stepsUsed": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "stepsLimit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "stepLimitReached": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "stopReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "inputTokens": {
+            "type": "number",
+            "minimum": 0
+          },
+          "cachedInputTokens": {
+            "type": "number",
+            "minimum": 0
+          },
+          "outputTokens": {
+            "type": "number",
+            "minimum": 0
+          },
+          "costUsd": {
+            "type": "number",
+            "minimum": 0
+          },
+          "wallMs": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "bootstrapReviewAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contractVersion",
+        "requiredCapabilities",
+        "factRequirements",
+        "evidence"
+      ],
+      "properties": {
+        "contractVersion": {
+          "const": "bootstrap-review-assessment/v1"
+        },
+        "requiredCapabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "factRequirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "factId",
+              "consumerCapabilityId",
+              "resolution",
+              "source",
+              "evidence",
+              "rationale"
+            ],
+            "properties": {
+              "factId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "consumerCapabilityId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "resolution": {
+                "enum": [
+                  "authoritative-context",
+                  "review"
+                ]
+              },
+              "providerCapabilityId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "source": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence": {
+                "type": "string",
+                "minLength": 1
+              },
+              "rationale": {
+                "type": "string",
+                "minLength": 1
+              },
+              "provenance": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "sddReview": {
+            "type": "object",
+            "properties": {
+              "stage": {
+                "const": "product-discovery"
+              }
+            },
+            "required": [
+              "stage"
+            ]
+          }
+        },
+        "required": [
+          "sddReview"
+        ]
+      },
+      "then": {
+        "required": [
+          "bootstrapReviewAssessment"
+        ]
+      }
+    }
+  ]
+}

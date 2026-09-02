@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-harness://agents/reasoning-assessment.schema.json",
+  "title": "Agentic Harness Semantic Reasoning Assessment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "complexity",
+    "reasoningLevel",
+    "confidence",
+    "ambiguity",
+    "estimatedFiles",
+    "estimatedDomains",
+    "recommendedAgents",
+    "requiresArchitecture",
+    "riskFactors",
+    "rationale"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "complexity": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "reasoningLevel": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "max"
+      ]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "ambiguity": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "estimatedFiles": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000
+    },
+    "estimatedDomains": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 32
+    },
+    "recommendedAgents": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "requiresArchitecture": {
+      "type": "boolean"
+    },
+    "riskFactors": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1
+    },
+    "bootstrapReviewDependencies": {
+      "type": "array",
+      "description": "Only unresolved cross-review decision dependencies. Omit an edge when PRD, frozen ADRs, Project Memory or repository context already supplies the downstream input.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fromStage",
+          "toStage",
+          "requiredDecision",
+          "rationale"
+        ],
+        "properties": {
+          "fromStage": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*-review$"
+          },
+          "toStage": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*-review$"
+          },
+          "requiredDecision": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "bootstrapFactRequirements": {
+      "type": "array",
+      "description": "Facts required by bootstrap review capabilities. Explicit [] proves safe fan-out. Each fact is either resolved by authoritative context or supplied by another review capability.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "factId",
+          "consumerCapabilityId",
+          "resolution",
+          "source",
+          "evidence",
+          "rationale"
+        ],
+        "properties": {
+          "factId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "consumerCapabilityId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "resolution": {
+            "enum": [
+              "authoritative-context",
+              "review"
+            ]
+          },
+          "providerCapabilityId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1
+          },
+          "provenance": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "bootstrapRequiredCapabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "description": "Optional authoritative bootstrap review capability set. Runtime-internal after Product Discovery refinement; initial reasoners SHOULD use bootstrapFactRequirements and recommendations instead."
+    }
+  }
+}

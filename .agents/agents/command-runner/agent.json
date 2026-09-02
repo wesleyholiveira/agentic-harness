@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "command-runner",
+  "name": "Command Runner",
+  "role": "command-executor",
+  "kind": "utility",
+  "executionRole": "verification",
+  "orchestrationRole": "specialist",
+  "interactiveMode": "subagent",
+  "tier": 2,
+  "modelClass": "budget-fallback",
+  "primaryPaths": [],
+  "sharedPaths": [],
+  "collaborativePaths": [
+    "docs/specs/**"
+  ],
+  "skills": [
+    "use-rtk",
+    "verify-and-close-task"
+  ],
+  "superpowersSkills": [
+    "verification-before-completion"
+  ],
+  "routing": {
+    "keywords": [
+      "test",
+      "build",
+      "lint",
+      "typecheck",
+      "command"
+    ],
+    "pathHints": []
+  },
+  "validationCommands": [],
+  "canDelegateTo": [],
+  "dependsOn": [],
+  "manifest": ".agents/agents/command-runner/AGENT.md"
+}

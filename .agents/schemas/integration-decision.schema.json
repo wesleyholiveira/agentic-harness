@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-harness://agents/integration-decision.schema.json",
+  "title": "Agentic Harness Agent Integration Decision v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "status", "createdAt", "planPhase", "productAcceptanceTaskId", "acceptedArtifacts", "rejectedArtifacts", "conflicts", "sharedPaths", "validation", "criteria", "dockerValidation"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "runId": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["integrated", "blocked", "failed", "cancelled"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "planPhase": { "enum": ["bootstrap", "compiled"] },
+    "productAcceptanceTaskId": { "type": ["string", "null"] },
+    "acceptedArtifacts": { "type": "array", "items": { "type": "string" } },
+    "rejectedArtifacts": { "type": "array", "items": { "type": "string" } },
+    "conflicts": { "type": "array", "items": { "type": "object" } },
+    "sharedPaths": { "type": "object", "additionalProperties": { "type": "string" } },
+    "validation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["taskId", "stage", "status"],
+        "properties": {
+          "taskId": { "type": "string" },
+          "stage": { "type": "string" },
+          "status": { "type": "string" }
+        }
+      }
+    },
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "source", "statement", "blocking", "result", "evidence"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "source": { "type": "string", "minLength": 1 },
+          "statement": { "type": "string", "minLength": 1 },
+          "blocking": { "type": "boolean" },
+          "result": { "enum": ["passed", "failed", "blocked", "not_applicable", "missing"] },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "dockerValidation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "taskId": { "type": "string" },
+          "profile": { "type": "string" },
+          "result": { "enum": ["pass", "fail", "blocked"] },
+          "services": { "type": "array", "items": { "type": "string" } },
+          "limitation": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

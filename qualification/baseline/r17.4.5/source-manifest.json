@@ -1,0 +1,1658 @@
+{
+  "schemaVersion": "r17.4.5-source-manifest/v1",
+  "generatedAt": "2026-09-02T03:19:04.411Z",
+  "repositoryRoot": "D:\\clip-compass-refactor-codebase-modernization",
+  "gitHead": "c8ef4a341482870928c8f41d9182aaeef5a245e5",
+  "preExistingDirtyTree": [
+    " M .agents/runtime/parked-orchestrator-guard.mjs",
+    " M .agents/runtime/session-host-readiness.mjs",
+    " M .opencode/plugins/runtime-invocation-provenance.js",
+    " M apps/context-engine/src/http.ts",
+    " M apps/context-engine/src/invocation-provenance.ts",
+    " M apps/worker/src/agent_continuation.rs",
+    " M apps/worker/tests/gpu_model_residency.rs",
+    " M docs/adr/0118-opencode-message-history-shape-for-invocation-provenance.md",
+    " M docs/adr/0119-server-bound-opencode-session-history-and-hard-turn-park.md",
+    " M docs/adr/0120-sessionless-progress-checkpoints-and-phantom-turn-elimination.md",
+    " M docs/adr/0132-terminal-continuation-assistant-completion-proof.md",
+    " M docs/adr/0137-terminal-continuation-delivery-vs-consumer-completion.md",
+    " M docs/operations/agent-runtime-v2-r17-performance-qualification.md",
+    " M docs/operations/agent-runtime-v2-v12-6-1-r15-recovery-validation.md",
+    " M docs/operations/prompts/agent-runtime-v2-r17-performance-qualification-agent-prompt.md",
+    " M package.json",
+    " M scripts/agent-runtime-authoritative-readiness-contract.test.mjs",
+    " M scripts/agent-runtime-compose.mjs",
+    " M scripts/agent-runtime-container-profile-contract.test.mjs",
+    " M scripts/agent-runtime-h9r-fault-harness.mjs",
+    " M scripts/agent-runtime-harness-validation.mjs",
+    " M scripts/agent-runtime-r15-6-10-opencode-message-history-contract.test.mjs",
+    " M scripts/agent-runtime-r15-6-11-hard-turn-park-contract.test.mjs",
+    " M scripts/agent-runtime-r15-6-7-invocation-provenance-contract.test.mjs",
+    " M scripts/agent-runtime-r15-6-h9r-process-loss-contract.test.mjs",
+    " M scripts/agent-runtime-r17-4-5-continuation-delivery-contract.test.mjs",
+    " M scripts/agent-runtime-r17-4-qualification-authority-contract.test.mjs",
+    " M scripts/agent-runtime-r17-4-terminal-continuation-contract.test.mjs",
+    " M scripts/agent-runtime-session-adapter-migration-check.mjs",
+    "?? scripts/agent-runtime-exec-file.mjs",
+    "?? scripts/agent-runtime-h9r-docker-target.mjs",
+    "?? scripts/agent-runtime-invocation-provenance-live-check.mjs",
+    "?? scripts/agent-runtime-invocation-provenance-live-contract.test.mjs"
+  ],
+  "authorities": [
+    "docs/adr/0123-runtime-v2-critical-path-latency-and-deterministic-reuse.md",
+    "docs/adr/0124-r17-deterministic-reuse-qualification-fixture.md",
+    "docs/adr/0125-r17-2-in-run-qa-evidence-and-lossless-runtime-events.md",
+    "docs/adr/0126-r17-3-qualification-meta-run-admission-gate-token-scoping.md",
+    "docs/adr/0127-runtime-v2-retry-attribution-and-performance-amplification.md",
+    "docs/adr/0132-terminal-continuation-assistant-completion-proof.md",
+    "docs/adr/0133-product-discovery-bootstrap-envelope-reconciliation-and-retry-diagnostics.md",
+    "docs/adr/0134-product-discovery-source-authority-and-opencode-attempt-state-isolation.md",
+    "docs/adr/0135-integrated-agent-runtime-v2-architecture-reference.md",
+    "docs/adr/0136-terminal-continuation-session-prompt-affinity.md",
+    "docs/adr/0137-terminal-continuation-delivery-vs-consumer-completion.md",
+    "docs/architecture/agent-runtime-v2/README.md",
+    "docs/operations/agent-runtime-v2-r17-performance-qualification.md",
+    "docs/operations/prompts/agent-runtime-v2-r17-performance-qualification-agent-prompt.md",
+    "docs/adr/0121-unified-agent-input-plane.md",
+    "docs/adr/0122-focused-implementation-validation-authority.md"
+  ],
+  "missingAuthorities": [],
+  "entries": [
+    {
+      "path": ".agents/model-routing.json",
+      "sha256": "d5bdf88b7012c29d97a7fc06876c63514f181f96239c6ed96d618bbbb3d2a5b8",
+      "bytes": 2421
+    },
+    {
+      "path": ".agents/runtime/__control_plane_smoke__/runtime-v2-canary.mjs",
+      "sha256": "5feba0d7e1c3f0374c3eb034e80f75c742d911b8c1584b77e0b736f59fab4330",
+      "bytes": 73
+    },
+    {
+      "path": ".agents/runtime/__control_plane_smoke__/runtime-v2-canary.test.mjs",
+      "sha256": "97748091de145029bc72bce24325e45af28ae3aad3e1c5a5cbaba1bfd5037cd8",
+      "bytes": 592
+    },
+    {
+      "path": ".agents/runtime/acceptance-criteria.mjs",
+      "sha256": "d27881076f94f50ac422bf0ed88bba53a2ebf3d34b42407b47ee57be146fcb67",
+      "bytes": 2626
+    },
+    {
+      "path": ".agents/runtime/agent-input-contract.mjs",
+      "sha256": "9b3611a88edc54132bd40b6694e204062a4d9d0f16fbe9803b26d8c5aaff03cc",
+      "bytes": 3532
+    },
+    {
+      "path": ".agents/runtime/agent-input-manifest.mjs",
+      "sha256": "a135ee29cf87b2dc28d768f61c433376f341ad6a1e725caf43953f41f27de03c",
+      "bytes": 12360
+    },
+    {
+      "path": ".agents/runtime/agent-input-preparation.mjs",
+      "sha256": "04262af7245de62d3e059aa57deb578546745e15bac93dd5f975d4a6ce8f668b",
+      "bytes": 3797
+    },
+    {
+      "path": ".agents/runtime/agent-topology.mjs",
+      "sha256": "84ff6262ff2dc34743cc5ea0d782aa32718ba030ee61acec751a4b8b5bfe285c",
+      "bytes": 3345
+    },
+    {
+      "path": ".agents/runtime/auxiliary-telemetry.mjs",
+      "sha256": "5a459aeed7f3444f1675f7ba0d60e3825158199d2825ad9843d36457502b20c4",
+      "bytes": 1604
+    },
+    {
+      "path": ".agents/runtime/bootstrap-capabilities.mjs",
+      "sha256": "eadec77701b4443f610faa6530a3f872b96fcbf9911202306de5254dc306f03c",
+      "bytes": 16558
+    },
+    {
+      "path": ".agents/runtime/bootstrap-review-dependencies.mjs",
+      "sha256": "382105639e55563c1aa87078a97c294b1025d4c89f869baba0ab8318e66db65c",
+      "bytes": 7104
+    },
+    {
+      "path": ".agents/runtime/bootstrap-topology-refiner.mjs",
+      "sha256": "bf83a6ae57cfa6ba9d2531948bde6432328992afd032ce58cd3bfd904082310f",
+      "bytes": 12142
+    },
+    {
+      "path": ".agents/runtime/completion-evidence-synthesis.mjs",
+      "sha256": "237e2e4daebbe68fc2a0c07f5f22cc6a4cc7194a2595fe8df7b842a170dd26a3",
+      "bytes": 7229
+    },
+    {
+      "path": ".agents/runtime/completion-gate.mjs",
+      "sha256": "179e6449bb66752be6bcbd43fc78ac91444e768373cf04d6a356522d9ebc9916",
+      "bytes": 4889
+    },
+    {
+      "path": ".agents/runtime/context-builder.mjs",
+      "sha256": "e2f515d7572f64574b13cb76bbd85c9eb12ab75fdf451461046dea060292d2c5",
+      "bytes": 19252
+    },
+    {
+      "path": ".agents/runtime/context-ready.mjs",
+      "sha256": "769fa34a776168e68c2c8828d5b8a9e4034993cdedf4a643929fa6ad7adfb3dd",
+      "bytes": 1030
+    },
+    {
+      "path": ".agents/runtime/continuation.mjs",
+      "sha256": "14562d6832f0439d99d653d298a1f240ff8358beefc0851ab95f5d3e52a8190e",
+      "bytes": 6060
+    },
+    {
+      "path": ".agents/runtime/control-plane.mjs",
+      "sha256": "ed27ceb6273da345b10ee34abc84be087eee847166ad4b70006a0b2af531c89e",
+      "bytes": 33775
+    },
+    {
+      "path": ".agents/runtime/dag-compiler.mjs",
+      "sha256": "8fed6a16d99253c0548bd3b0791df30b70cd23c63b02ff7ab210b1524613c177",
+      "bytes": 24360
+    },
+    {
+      "path": ".agents/runtime/database-config.mjs",
+      "sha256": "6ec14d079dbe23a5fd65faaf17f3e2f72a8f84d22e7677fde6db750ac4aac379",
+      "bytes": 4450
+    },
+    {
+      "path": ".agents/runtime/database-config.test.ts",
+      "sha256": "8cb6c040dc1f35d613799f995ca005c4ed49a2aa4d3654bd40db769f9a734829",
+      "bytes": 5311
+    },
+    {
+      "path": ".agents/runtime/doctor.mjs",
+      "sha256": "3f16499fc95dab5333039076f64572e99ad1e937db43199b880ca7b26a83459d",
+      "bytes": 14356
+    },
+    {
+      "path": ".agents/runtime/dynamic-dag-engine.mjs",
+      "sha256": "4d325e8a309bd97466ccc875a5c4cd56b9ec6329859e24febcb298adc5324eb0",
+      "bytes": 5061
+    },
+    {
+      "path": ".agents/runtime/efficiency.mjs",
+      "sha256": "19e0ed157a846e0b5f923427496e46fd66e7b49ad393a9fd6238cd3376d02ed2",
+      "bytes": 25983
+    },
+    {
+      "path": ".agents/runtime/engine.mjs",
+      "sha256": "ce15d2c2ffe5d218613afb126e94e73bf43a989f893bced53af82bf44fb6e70b",
+      "bytes": 335
+    },
+    {
+      "path": ".agents/runtime/event-driven-contracts.mjs",
+      "sha256": "a142a9c2038e02034572b40b9ee253f6bf9ea216dd525267449bfd1dc2a52ac4",
+      "bytes": 5606
+    },
+    {
+      "path": ".agents/runtime/event-driven-finalizer.mjs",
+      "sha256": "38a55e16f79d2f89df5e5032d5d777fe8022e62d5c148e97906f5e039ce2d3fd",
+      "bytes": 33023
+    },
+    {
+      "path": ".agents/runtime/event-driven-preparation.mjs",
+      "sha256": "28944611e79ecf8243c3411222a6036ccb0fc713bc02aa9e09446553f0e2c342",
+      "bytes": 24668
+    },
+    {
+      "path": ".agents/runtime/event-driven-reconciler.mjs",
+      "sha256": "d99db31dd67e643f71ff913e0f75b2333c854acb9313ed6f559133a94ada5441",
+      "bytes": 25499
+    },
+    {
+      "path": ".agents/runtime/execution-liveness.mjs",
+      "sha256": "cf7e0e8bb58c16ec608b179d15146f219e7414066971ea92a011abef6d5c9164",
+      "bytes": 2542
+    },
+    {
+      "path": ".agents/runtime/execution-plane-readiness.mjs",
+      "sha256": "1aef37497980a95b2d5c840fd78005118afa816a7381c9e83e3fe0312604ec6c",
+      "bytes": 1096
+    },
+    {
+      "path": ".agents/runtime/executor.mjs",
+      "sha256": "7958872844775167f51e421f23b83b418d7abe24362e2b874607a8a582d66def",
+      "bytes": 74054
+    },
+    {
+      "path": ".agents/runtime/executor.test.ts",
+      "sha256": "6cbf388e9406cd491f118667d02b37e4c6a3372e04db4d38caebb2c619981cb0",
+      "bytes": 61192
+    },
+    {
+      "path": ".agents/runtime/h9r-evidence.mjs",
+      "sha256": "2027382e27c9da4405207c3e34dbe5cae8303fa2c98e5f9487ae8a46ff244a24",
+      "bytes": 4285
+    },
+    {
+      "path": ".agents/runtime/h9r-process-loss.mjs",
+      "sha256": "2fd2b90e78803351d31d0c7318346af1abfb5678ac29407a2eaeef59aa2cffe7",
+      "bytes": 872
+    },
+    {
+      "path": ".agents/runtime/handoff-authority.mjs",
+      "sha256": "99faf23af04fb9490e4fb8d08cb9ff24358fca45c68331dd92bc757e15d389c1",
+      "bytes": 14320
+    },
+    {
+      "path": ".agents/runtime/handoff-contract.mjs",
+      "sha256": "40dc8f0be10d5a21ad86eb5eac60d58d2ad1ff9c68e7591b54285340d4e02b71",
+      "bytes": 13738
+    },
+    {
+      "path": ".agents/runtime/handoff-structured-finalization.mjs",
+      "sha256": "fb1941bd312ea5e7174967bf73d78b553518ac6621e767aa5426a6aab48a0b7d",
+      "bytes": 12753
+    },
+    {
+      "path": ".agents/runtime/handoff-telemetry.mjs",
+      "sha256": "d4b96ceb347fabb4dfe022305ab8d10f392f7d74af6d2ecd2ae26a264c642338",
+      "bytes": 2990
+    },
+    {
+      "path": ".agents/runtime/harness-live-evidence.mjs",
+      "sha256": "a2451718bae7cb4ffd852c38c7e3340622e1bbca586e1480cee2e22207586dfb",
+      "bytes": 21497
+    },
+    {
+      "path": ".agents/runtime/in-memory-test-store.mjs",
+      "sha256": "bf4ecbcd0604404d0468a8c9d28999531a96d5fc88d1b241c6d9d5ecc8f2d359",
+      "bytes": 22198
+    },
+    {
+      "path": ".agents/runtime/llm-reasoner.mjs",
+      "sha256": "8ba787bf3a8effe72544a11de562967896ba8015fd2c40aa5119df42e02f1e5d",
+      "bytes": 15593
+    },
+    {
+      "path": ".agents/runtime/llm-reasoner.test.ts",
+      "sha256": "c52552ca01f247d534c8a513774f53f8496554cda4a291a254d98ef6fcca501e",
+      "bytes": 3752
+    },
+    {
+      "path": ".agents/runtime/maintenance.mjs",
+      "sha256": "eb4274e8b512a91bea122e3d4cc532acc6ab3819227d9dbeb042482971cedee3",
+      "bytes": 1864
+    },
+    {
+      "path": ".agents/runtime/mcp/agent-config.mjs",
+      "sha256": "f6f3f17fe96b20ac8bf5296635ac64411d24a2dc6bfd5a585cdd1ad29059dfa1",
+      "bytes": 1555
+    },
+    {
+      "path": ".agents/runtime/mcp/agent-errors.mjs",
+      "sha256": "6bb032d276dfbabcd185228e9f883113f6a9d95cae44b2005cfce542f6f1239e",
+      "bytes": 382
+    },
+    {
+      "path": ".agents/runtime/mcp/agent-projections.mjs",
+      "sha256": "92aef03e76a5ea88715d412640d4287a5ea1f5515b8c0d19f7b9582f8cfb615f",
+      "bytes": 2877
+    },
+    {
+      "path": ".agents/runtime/mcp/agent-resources.mjs",
+      "sha256": "d3377e4b3e9b079a6984aaa6fdd140c6d250bf738459e6510db30788fc0ea468",
+      "bytes": 2121
+    },
+    {
+      "path": ".agents/runtime/mcp/agent-runtime.mjs",
+      "sha256": "a1aa73b57994dada28f14e0a6f2e48798e40b5cf3a7cf2ab73a12cb011a26ec1",
+      "bytes": 3412
+    },
+    {
+      "path": ".agents/runtime/mcp/agent-tools.mjs",
+      "sha256": "46d07cc64de6b032089f1ded601cb7d47ea6c09d43c31c651a8a32deb05d9ba2",
+      "bytes": 2596
+    },
+    {
+      "path": ".agents/runtime/metrics.mjs",
+      "sha256": "3bde3d9412e9db124be3997146f5f8c2977fe12b43df3af91cd4c1764b35bcac",
+      "bytes": 9290
+    },
+    {
+      "path": ".agents/runtime/model-capabilities.mjs",
+      "sha256": "0eceaa8ca74d9b4ea2ca2559f62c6a8b26ab7f74e96216dc399c2e89f617b080",
+      "bytes": 2978
+    },
+    {
+      "path": ".agents/runtime/model-router.mjs",
+      "sha256": "69e5a9c8ee38e76e08713ef189cf675b3c152a708fc6cceef172d5714ea3b1ef",
+      "bytes": 5084
+    },
+    {
+      "path": ".agents/runtime/onboarding.mjs",
+      "sha256": "147c148568c1c7034175a5a12fa47bc46b299ede2a1dc9b67b3066be7610ace5",
+      "bytes": 6876
+    },
+    {
+      "path": ".agents/runtime/onboarding.test.ts",
+      "sha256": "1f45d7e4e01acbf21f87f2f0919ce3e8f7bfec8fd6725d7dd82f73857acae6b9",
+      "bytes": 2308
+    },
+    {
+      "path": ".agents/runtime/opencode-readiness.mjs",
+      "sha256": "cd74269e01bc7f5b649915abbce6546c90ad5b4ea2c2a9d217fc0e8a49543e5d",
+      "bytes": 7593
+    },
+    {
+      "path": ".agents/runtime/opencode-structured-output.mjs",
+      "sha256": "680519eca0a5796f7a97b434ba85ac7ca52dbb5fcb01f5d9b6c1ca7b17be06b1",
+      "bytes": 20084
+    },
+    {
+      "path": ".agents/runtime/parked-orchestrator-guard.mjs",
+      "sha256": "95b1c26bab3be14e4fdef87c8947edd60a7ca3d68bf1e9712af1726f02f0932f",
+      "bytes": 1693
+    },
+    {
+      "path": ".agents/runtime/performance.mjs",
+      "sha256": "870768f6148f2d91f49a5ba51e60fd3b6e2de4a8095e0adebed9d3401deefcad",
+      "bytes": 24103
+    },
+    {
+      "path": ".agents/runtime/planner.mjs",
+      "sha256": "553beaa6433154fce8517ea222d942291cb77b74898ab0c73d1800e7038dad1e",
+      "bytes": 21077
+    },
+    {
+      "path": ".agents/runtime/policy-engine.mjs",
+      "sha256": "1de468c61db2e75cce27ed4f0ed4d56adc3970ca30ee728805ac704bdeaba41c",
+      "bytes": 17849
+    },
+    {
+      "path": ".agents/runtime/presentation-plane.mjs",
+      "sha256": "39d56fd79a59aef48773c724953615ee1dffe92756fcfe944a86c6a04e096628",
+      "bytes": 5908
+    },
+    {
+      "path": ".agents/runtime/process.mjs",
+      "sha256": "f69b3d3a0d5c5e8719890af079153b7357ba29373d21b2f6e07870cfe6e726a3",
+      "bytes": 1758
+    },
+    {
+      "path": ".agents/runtime/product-discovery-acceptance-criteria.mjs",
+      "sha256": "e92d40cab0d4eb52ddad02c340cfb8ad6a412a008a61cd7892e5cbff40b46911",
+      "bytes": 12508
+    },
+    {
+      "path": ".agents/runtime/product-discovery-bootstrap-assessment.mjs",
+      "sha256": "98c7d3285d4302fdcd021e79891f9f48588392b844d658ee4af871746a3bae23",
+      "bytes": 13074
+    },
+    {
+      "path": ".agents/runtime/product-discovery-scope-repair.mjs",
+      "sha256": "e0827bf4270186f5ba4cc6f41bf77d3269c339d3180ddae4c9be8343dbe777d2",
+      "bytes": 7860
+    },
+    {
+      "path": ".agents/runtime/progress-evidence.mjs",
+      "sha256": "f205c1c580f34df0efb48b87d80a81b56c27897514e6b01744567fd78d42f22e",
+      "bytes": 1181
+    },
+    {
+      "path": ".agents/runtime/progress.mjs",
+      "sha256": "a28252c47c1d0024bbb90cb7c6a5d0d547f1e1d9ea373392a43d2f20bfdbe779",
+      "bytes": 53506
+    },
+    {
+      "path": ".agents/runtime/qualification-meta-run-guard.mjs",
+      "sha256": "a2846ab0d46e80df205df63e21e3adea2094a5d572f6099f9ff6bf41306b6309",
+      "bytes": 4140
+    },
+    {
+      "path": ".agents/runtime/reasoning.mjs",
+      "sha256": "3cc351726f5bb59ea9b0d630915517b6a5e794fe153f892deec7020c27e82dd6",
+      "bytes": 18408
+    },
+    {
+      "path": ".agents/runtime/reasoning.test.ts",
+      "sha256": "9a5db16727f7fea06559cda0de90949e4c434e7faff08438504f820d6822a532",
+      "bytes": 1235
+    },
+    {
+      "path": ".agents/runtime/registry.mjs",
+      "sha256": "ed06c9145f6342d144dd4dd0dccb9b65c6dea126826d45af4d4faa63efe9fe08",
+      "bytes": 1709
+    },
+    {
+      "path": ".agents/runtime/repair-checkpoint.mjs",
+      "sha256": "da6b9d048e04c4be416a65c6456bd520618b7c56594fcadcc51c79c4903bc2bd",
+      "bytes": 3565
+    },
+    {
+      "path": ".agents/runtime/retrieval/config.mjs",
+      "sha256": "c4b11c47ca1cfe4f8619dd4652f4055eaae0836f2563f4ecd1db879b9f50f69d",
+      "bytes": 754
+    },
+    {
+      "path": ".agents/runtime/retrieval/index.mjs",
+      "sha256": "f89b6090d2d26eecdaf0ba09c1693eb9fa9a67c90dffbaa1b6dd8a0c07991ec7",
+      "bytes": 6926
+    },
+    {
+      "path": ".agents/runtime/retrieval/search.mjs",
+      "sha256": "a8efa8b998848c1b2c957eac48d3644fd9d7f73b305937dd01cad60aa21fbbd9",
+      "bytes": 3170
+    },
+    {
+      "path": ".agents/runtime/retrieval/shadow.mjs",
+      "sha256": "3836f0f926b33103f69fb9453d9634ef1d56421ce9206045007ff8b00460a4ff",
+      "bytes": 2518
+    },
+    {
+      "path": ".agents/runtime/retry-efficiency.mjs",
+      "sha256": "07c769426eef549161f926e7f208a763d1b27e247ab16fc6d539a843a1b204d4",
+      "bytes": 10006
+    },
+    {
+      "path": ".agents/runtime/review-contract.mjs",
+      "sha256": "b6cea288fb06ec01050561ca2982976d986b0be5cd7d5601d6510d70704cb0fa",
+      "bytes": 8116
+    },
+    {
+      "path": ".agents/runtime/run-invariants.mjs",
+      "sha256": "4c648315b5f183f93db20dfb7fbbf1897cab3723a402c1100192795c6e8f6262",
+      "bytes": 1340
+    },
+    {
+      "path": ".agents/runtime/run-replay.mjs",
+      "sha256": "e0aa86e094dfd7c8bd427a530f2c445037d4a9d444f0c6028f3b212a4a959834",
+      "bytes": 15234
+    },
+    {
+      "path": ".agents/runtime/runtime-driver.mjs",
+      "sha256": "766ef372d80756315918d181c83c6b847ec2da5cec7048172b6248212f723f7a",
+      "bytes": 11434
+    },
+    {
+      "path": ".agents/runtime/runtime-log.mjs",
+      "sha256": "706c838c34e46e5abfd2831c9862c4b801abfbc00e03619b3b1a3b27bd01d7b2",
+      "bytes": 1915
+    },
+    {
+      "path": ".agents/runtime/schema-validator.mjs",
+      "sha256": "dffc9376b622c4cfd6e28a7002d61f9153933b7d651b08b40df26167e80deb6d",
+      "bytes": 6054
+    },
+    {
+      "path": ".agents/runtime/service-lifecycle.mjs",
+      "sha256": "ac1a53cb390bcdda06182aac2d9aa27227930c9ac2e405ce9bfc68397cec590c",
+      "bytes": 28169
+    },
+    {
+      "path": ".agents/runtime/service-lifecycle.test.ts",
+      "sha256": "f5c103b6f42fe8c2a1cccf807d9f4b0c51b479341f24b64ed181df4a675a66ff",
+      "bytes": 35517
+    },
+    {
+      "path": ".agents/runtime/session-adapter.mjs",
+      "sha256": "ea4908dfaa3fdb3944724888519bebe53e81720f3e00f62621256f8adef42acb",
+      "bytes": 16582
+    },
+    {
+      "path": ".agents/runtime/session-host-readiness.mjs",
+      "sha256": "48dd95f9a6248a006671ea4ac43fe103217b1cc84b4d5705f79dfcb230477051",
+      "bytes": 5183
+    },
+    {
+      "path": ".agents/runtime/store.mjs",
+      "sha256": "59a4cd71a07170b72dca16beb63e2aabcbc442a95c1959e482f4cc035401523c",
+      "bytes": 67685
+    },
+    {
+      "path": ".agents/runtime/store.test.ts",
+      "sha256": "67e9f7202483774bef7694d40a25bc620f07bf353452ff3110bcf98d177b77e0",
+      "bytes": 3638
+    },
+    {
+      "path": ".agents/runtime/summary.mjs",
+      "sha256": "dbd022fc452019bb7caf4d1a05e7718b3d9ad3126e4a16a34e1f241bfe8ecf6d",
+      "bytes": 19281
+    },
+    {
+      "path": ".agents/runtime/technical-plan-synthesis.mjs",
+      "sha256": "de4a7246069bd8d8350c6047ebbc09ac9dcac4f7a350d0620ed4052e9aeaac16",
+      "bytes": 25787
+    },
+    {
+      "path": ".agents/runtime/utils.mjs",
+      "sha256": "25306fc9107b65b10cf0dc60a3e88c8d3cad7fcebb27b0815a555f14f30a878c",
+      "bytes": 6149
+    },
+    {
+      "path": ".agents/runtime/validation-command.mjs",
+      "sha256": "43fc0623cbf61332cb5b9224ebd094fccbbe9495cb503dca6cb85eec73e549fe",
+      "bytes": 6345
+    },
+    {
+      "path": ".agents/runtime/validation-evidence.mjs",
+      "sha256": "08b5e83f051bb9e041e1fa084ba7678820aed9d427743bc614bc63f0c7077e3e",
+      "bytes": 4517
+    },
+    {
+      "path": ".agents/runtime/workspace.mjs",
+      "sha256": "3d7ba0298dc4951143b6633a8708f5031a199df311539cb84177eb143f86bbb7",
+      "bytes": 17706
+    },
+    {
+      "path": ".agents/schemas/agent-input-manifest.schema.json",
+      "sha256": "b51516775267078ff42c7375847a53e37d0f3594fd69d6587df11676461ce6dd",
+      "bytes": 3742
+    },
+    {
+      "path": ".agents/schemas/context-packet.schema.json",
+      "sha256": "25df0cc9011d124557aab6702d4c593ac104f66267a1fca0659132e76350ee0e",
+      "bytes": 2144
+    },
+    {
+      "path": ".agents/schemas/document-consistency-report.schema.json",
+      "sha256": "c03f5f270c4da94474c7df9759bf354d520f5b162fa7811237d44b2494028780",
+      "bytes": 5790
+    },
+    {
+      "path": ".agents/schemas/execution-plan.schema.json",
+      "sha256": "0b5d6fe7303a22cda640cff73ec3e42bce438552ba1ba478d1764bc6a5dd8a5c",
+      "bytes": 13623
+    },
+    {
+      "path": ".agents/schemas/handoff-result.schema.json",
+      "sha256": "f5445f5aae4ee0a445190625bede7a21f6a532eac34367f9de7b8e905eed22a4",
+      "bytes": 12528
+    },
+    {
+      "path": ".agents/schemas/implementation-plan.schema.json",
+      "sha256": "2e6c4064b9800b477deddfc21be7e5be02d6b5ac32517e6d368057175d9b64eb",
+      "bytes": 4357
+    },
+    {
+      "path": ".agents/schemas/integration-decision.schema.json",
+      "sha256": "80ad3779a073c19b26ea0029c22518c5bf13b0da18738f634e02c12b2edbe48a",
+      "bytes": 2555
+    },
+    {
+      "path": ".agents/schemas/reasoning-assessment.schema.json",
+      "sha256": "5f790d210a28aeb4859fb35dcc10f4409347e525f83a15c6a900ad49f7251d41",
+      "bytes": 4312
+    },
+    {
+      "path": ".agents/schemas/replay-capsule.schema.json",
+      "sha256": "56e9d9ccfeb28ed6767aa080d08f7d45cdbefd9da8b7ce75e192a94f97c9d210",
+      "bytes": 4647
+    },
+    {
+      "path": ".agents/schemas/sdd-work-package.schema.json",
+      "sha256": "63d13d5097ecb4752b05a7551c06f8b944057b61318801991e8536460cd5fff5",
+      "bytes": 5163
+    },
+    {
+      "path": ".agents/schemas/task-brief.schema.json",
+      "sha256": "90ff9a6d25a6a2bbeebcb7515e6dea235dd00036fc88836ba460ff8a16c2c732",
+      "bytes": 11056
+    },
+    {
+      "path": ".opencode/plugins/runtime-invocation-provenance.js",
+      "sha256": "73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b",
+      "bytes": 16722
+    },
+    {
+      "path": "apps/context-engine/src/agent-runtime-control.ts",
+      "sha256": "d444a070f3dd479bb0f6a142d97152005ce49a66dd8ea5416018baf81894b07b",
+      "bytes": 5363
+    },
+    {
+      "path": "apps/context-engine/src/cbm-bootstrap-retry.ts",
+      "sha256": "c204028da111ee6b4a8da0413f29f6c63fe8ca2cec5658913285c63197aeaa28",
+      "bytes": 905
+    },
+    {
+      "path": "apps/context-engine/src/cbm-command-resolver.ts",
+      "sha256": "cd8bb0759335e5f09c0e1e7cbe2233491b9b6fceb418bf467b8392dfcafd494d",
+      "bytes": 2118
+    },
+    {
+      "path": "apps/context-engine/src/http.ts",
+      "sha256": "77c731a34a11b824af68f1d6cae26c30d77fab4558d1d20c1b2e9232b296779f",
+      "bytes": 21057
+    },
+    {
+      "path": "apps/context-engine/src/index.ts",
+      "sha256": "7f0ef638aa366e9498271828fced047d4dfcd47e1a117f63aa9b44f4b7fcb638",
+      "bytes": 279
+    },
+    {
+      "path": "apps/context-engine/src/invocation-provenance.ts",
+      "sha256": "b716e07e8909f2cf505635fc59432a74a96f426b77bf2894edaf243c8224ea1b",
+      "bytes": 3556
+    },
+    {
+      "path": "apps/context-engine/src/request-context.ts",
+      "sha256": "b928bc8c94c7257272c5d61717e5ea17aefd792f1a69d41a1fbfae2890ceeb0e",
+      "bytes": 929
+    },
+    {
+      "path": "apps/context-engine/src/runtime-services.ts",
+      "sha256": "aeabfd50977f4c3c0a9af140bc3667a4790433a67177e088c4e66453e3b06dd0",
+      "bytes": 13138
+    },
+    {
+      "path": "apps/context-engine/src/semantic-cache-config.ts",
+      "sha256": "66bb3767f5a233dc0a710daafdc253149bcddbcdce13ebf460a45db1c55de9fb",
+      "bytes": 14370
+    },
+    {
+      "path": "apps/context-engine/src/server.ts",
+      "sha256": "9f4d3c3f94bf8a4e0ec4c7a631c1973a5a1a602fb937fcc52db45f72e17ec102",
+      "bytes": 3978
+    },
+    {
+      "path": "apps/context-engine/src/stats.ts",
+      "sha256": "e4870d3e1960cde0111b271acc54022e07125ff3bb69c26ad355ef36ca26eb04",
+      "bytes": 5137
+    },
+    {
+      "path": "apps/context-engine/src/structured-log.ts",
+      "sha256": "ad52db439f41e5d17f047113b85877530c0b701309dfcb2ddfe0ba9e009aa84c",
+      "bytes": 2656
+    },
+    {
+      "path": "apps/context-engine/src/task-context-service.ts",
+      "sha256": "4412f56bed593d7b2c8403511a52c7c6ce2ba3f6124d32655da57c4a6013c592",
+      "bytes": 3656
+    },
+    {
+      "path": "apps/context-engine/src/tools/agent-runtime.ts",
+      "sha256": "529e882c275ba785f5840dd37eafd87f403cbf61dcf32e4f0067af05f6b6d5c6",
+      "bytes": 12599
+    },
+    {
+      "path": "apps/context-engine/src/tools/find-related.ts",
+      "sha256": "3f9fdd9a2f0c48ab2d3029a90bacd8f78a441f5a2d64565a916bd98076ff0756",
+      "bytes": 797
+    },
+    {
+      "path": "apps/context-engine/src/tools/get-architecture.ts",
+      "sha256": "f22758e1fb0a924e339bc99104175e0a56bb613a5a107dc62668bd2d86a8bce2",
+      "bytes": 527
+    },
+    {
+      "path": "apps/context-engine/src/tools/get-decision.ts",
+      "sha256": "a8f65b8516c27abd4c3ca59f6bb8998f76ae36eef337166926042e5f036e09d7",
+      "bytes": 780
+    },
+    {
+      "path": "apps/context-engine/src/tools/get-efficiency.ts",
+      "sha256": "97cfae43c0874fe230633426399c1730d4b3e0b249715a01be56163601cc2551",
+      "bytes": 6370
+    },
+    {
+      "path": "apps/context-engine/src/tools/get-file-summary.ts",
+      "sha256": "915ea57e3fa98aa8e37098e428ed4995bd150867044fff75b814640d7c910bd6",
+      "bytes": 3011
+    },
+    {
+      "path": "apps/context-engine/src/tools/get-health.ts",
+      "sha256": "84ff97f68575be9fe616b05bbe818819f5cb9385fa770e9eca2e55002fb56638",
+      "bytes": 6933
+    },
+    {
+      "path": "apps/context-engine/src/tools/get-impact.ts",
+      "sha256": "19cce858d8347a2500bed9c5a09893a5d572f8030f74029298dc4f877d2497d3",
+      "bytes": 782
+    },
+    {
+      "path": "apps/context-engine/src/tools/get-stats.ts",
+      "sha256": "d8eb280273da2cdb6bf1a793867364647b094b7904f4e7ae5fdbb92f30d53b33",
+      "bytes": 3231
+    },
+    {
+      "path": "apps/context-engine/src/tools/get-symbol.ts",
+      "sha256": "6478118df0e00ce8b02d5cddf48c946d5b0fe6e977a842db534d263ba3a5802b",
+      "bytes": 1047
+    },
+    {
+      "path": "apps/context-engine/src/tools/get-task-context.ts",
+      "sha256": "4cf9cac47ab31d20285e9312fc6bc3daa76cf28911ea50cdec7ebd2ea1e2b5cc",
+      "bytes": 4166
+    },
+    {
+      "path": "apps/context-engine/src/tools/resolve-context.ts",
+      "sha256": "f824dda8490a2fe7a056eefdf6300ca7948d44fb4089e2aef4d646b40f144e63",
+      "bytes": 1516
+    },
+    {
+      "path": "apps/context-engine/src/tools/search-history.ts",
+      "sha256": "0abd4dbf3b5a45d8a0cffc0e05bf8f99276d3849b91de15d833dcec9cbc2964f",
+      "bytes": 758
+    },
+    {
+      "path": "apps/context-engine/src/tools/store-decision.ts",
+      "sha256": "1998958ba657925ca71a61082ee81d5f5536af529583a6415144c09db4ea3a42",
+      "bytes": 1159
+    },
+    {
+      "path": "apps/context-engine/src/visibility.ts",
+      "sha256": "624848828eac1eed5163e2f740421bd74daf80205f9e6b4dad0705b3a4ef33e9",
+      "bytes": 4591
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0001_async_trace_events.sql",
+      "sha256": "a4d228c899a06fddd119be6cc71162153b852f1845b09c1195359a599568dfed",
+      "bytes": 3954
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0002_authoritative_runtime.sql",
+      "sha256": "bc4ce5bf7bc75c7ad588d1d63a892a73934c3e9d1fc092eae33475d9f2c7ad61",
+      "bytes": 26336
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0003_automatic_transcription_cache.sql",
+      "sha256": "0dcd03c1e2b1c50191be74d5d117f772758fc85283ab955773faa75e097b0ab9",
+      "bytes": 1112
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0004_outbox.sql",
+      "sha256": "87c08db966f5f6bc6cb38e35a700e4470d88a8b874e61fa73ea85f1efd92d042",
+      "bytes": 1097
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0005_automatic_transcription_cache_generations.sql",
+      "sha256": "43311c49eb3d7dc4b1527b7aaa3ff280d984a1b97f3c97c5d931bd506e5750d8",
+      "bytes": 215
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0006_queue_control_plane.sql",
+      "sha256": "d43026ef2aa6db0190a478594ad062bbed01cbc806312ba424fd564511de5be2",
+      "bytes": 1459
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0007_gpu_lease_and_reservation.rollback.sql",
+      "sha256": "66980c597ebbd203a0825b9ddceb388f19b6ab7541f51169eebad4defd7aa63c",
+      "bytes": 206
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0007_gpu_lease_and_reservation.sql",
+      "sha256": "0d2f941d84b8bb64c7770ce7c5d320c7ccc61463bc2ed8cb0d7d26ff3458c035",
+      "bytes": 2585
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0008_transcription_chunk_state_machine.sql",
+      "sha256": "f3407b6a4a0fea7dc4ef0e1841b583ed11a10b9b998f4dadedc2211c805508c6",
+      "bytes": 887
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0009_async_tasks_tenant_scope.sql",
+      "sha256": "5328a2a0705f11b2342719e6c6dd4303bdb303e6bc946257beb99b431efbfffc",
+      "bytes": 515
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0010_async_task_variant_identity.sql",
+      "sha256": "f556b6955c9fa0cac85af52f6ab6a7807ca4a1f1bfd23b14ac0f1fa1acfb462f",
+      "bytes": 462
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0011_phase_aware_workflow_foundation.sql",
+      "sha256": "029e930779a0939d739817488605b70eabdd01b9e5b6075fc36f7c3f9fb1bbc5",
+      "bytes": 23499
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0012_phase_aware_authority_hardening.sql",
+      "sha256": "6c8123627f7cbc56648720c89c3c7359d6082725b76dd93a7ce679159880f227",
+      "bytes": 40246
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0013_phase_aware_transactional_dispatch.sql",
+      "sha256": "eff61d554d23ec493f0f5adc1f9890139039793021956516d6be066016e21472",
+      "bytes": 4232
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0014_temporal_alignment_canary_definition.sql",
+      "sha256": "d872bbefe75707c471a185d567188806444f5f3f716d0c27b1c364abdcfa136b",
+      "bytes": 8222
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0015_semantic_analysis_external_gate_definition.sql",
+      "sha256": "79a2d649aee29ec2d19c71932b2e441725eeca446e51d44fa5c53215d80d31ee",
+      "bytes": 3026
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0016_workflow_runtime_access_reconciliation.sql",
+      "sha256": "1039cd92e2d76cf7057203292a0b779620351c7299499b43fcbd0dbb1665cb90",
+      "bytes": 6924
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0017_workflow_recovery_event_runtime_hardening.sql",
+      "sha256": "d3361664c46c222540013bb41c596e2bd1c578082a2371494152b124b4613c09",
+      "bytes": 2281
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0018_database_access_policy_ledger.sql",
+      "sha256": "cb84797f850bb8b295da6f0774c39a870fc65b25cbbf9f03a882661ed8adedd3",
+      "bytes": 520
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0019_semantic_analysis_dag_scope.sql",
+      "sha256": "fe2accd83208b8b20a3c4cd66bc3122adb49c5cf7185139107f08d70f3d410a9",
+      "bytes": 20147
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0020_async_eta_profiles.sql",
+      "sha256": "b601126dc4e0329acc0afa9b7d5182715b1064af003e51f803b61322396bb5fc",
+      "bytes": 1434
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0021_transcription_parent_fair_admission.sql",
+      "sha256": "d500017acdc476fa890196f3c31e9295a0b39e175b556b24b748bf116d33d40f",
+      "bytes": 13010
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0022_semantic_bulkhead_enforcement.sql",
+      "sha256": "fba4c573728d1c5b05c514c1669d36be6204882d203702ac7e858d39bedb7025",
+      "bytes": 1236
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0023_add_gpu_fair_vram_column.sql",
+      "sha256": "fe770ad2e59adcde976bbc4ad6212d1febea47254be51a0ec767a47f17ad9b5b",
+      "bytes": 1579
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0024_gpu_model_residency_lifecycle.sql",
+      "sha256": "8a9fb0c33841dc46f9b6c64331f11ab53ae3fba37884afda973b6886d6d72dc5",
+      "bytes": 5796
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0025_gpu_model_residency_enforce_repair.sql",
+      "sha256": "5ea3fab1378ab890ec7df9891c12b847fab5eaa7279e51ff3db86875c1370aaf",
+      "bytes": 4266
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0026_gpu_model_residency_policy_state.sql",
+      "sha256": "d4e9a8c59bfe6a9dbaa3ff6d0b3e23821ccf0c6b1055eb4322328013adba1b5e",
+      "bytes": 2408
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0027_gpu_model_owner_process_reconciliation.sql",
+      "sha256": "2f8fba07db160d6a457d8657f11c7a7014fc156cdf502c9df4f3a740e651eaf9",
+      "bytes": 5441
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0028_gpu_fair_batch_cohorts.sql",
+      "sha256": "751d58f12b63e5a92d8098362d1c522d1eab61b706750432c008d157f007280a",
+      "bytes": 4057
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0029_gpu_fair_entity_scope_constraints.sql",
+      "sha256": "8e169a2a2fb9f42e85156808f93063c4877a72a23ae85459fe9e051c9ba38df9",
+      "bytes": 1704
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0030_gpu_model_action_ack_device_evidence.sql",
+      "sha256": "6469d2bb17f520e3cdd963e33992c94ca7990b0e1720229186018a11f655eb55",
+      "bytes": 948
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0031_gpu_model_action_drain_fence.sql",
+      "sha256": "2520d358128df2a730189e3069f3c6da9a603d92a01467de8c70b410c7d271a1",
+      "bytes": 1271
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0032_async_step_eta_state.sql",
+      "sha256": "13d41e852eeb1675adb7210416d3a27633e4d44c15e7c0df7e2eeada658c7267",
+      "bytes": 3481
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0033_async_step_eta_pause_clock.sql",
+      "sha256": "5b2a0fef6c038cbd4307616d94e1005f1045658bf14fb7caf868a61771a33a25",
+      "bytes": 434
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0034_async_step_eta_resource_wait_accumulator.sql",
+      "sha256": "ec36a41cfc35c1874bc1aac642eb8b879c2f9305039ca663ab56941291cf7821",
+      "bytes": 570
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0035_web_push_subscriptions.sql",
+      "sha256": "c40d3265dc6573c6c4daf127361480d136d1b67261403a8a02d8fa3bce33a9cf",
+      "bytes": 5478
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0036_web_push_transcription_start.sql",
+      "sha256": "d28901cd3bbde46ba806ef1a1311f4e3a659962cc7e1f4519c75ce30f5bbde28",
+      "bytes": 4580
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0037_backend_pipeline_and_web_push_delivery_ack.sql",
+      "sha256": "d83024f0b5300335a5cb84a2d37bcd65804e644649d5af2783ffef6c79e52f29",
+      "bytes": 8961
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0037_web_push_transcription_task_binding.sql",
+      "sha256": "c5f2aaead94c68fe96d02fd85e654f6d7186af2f803996b5dc89a647841ad6a8",
+      "bytes": 2132
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0038_gpu_reservation_peak_envelope_accounting.sql",
+      "sha256": "4651f95f7ba17577efa0617ec154d7471b55ccca454c220eeded7c1ad54c83e1",
+      "bytes": 1026
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0039_pipeline_progress_web_push_milestones.sql",
+      "sha256": "7ca3ccfeddf401a9d9a96133fb15855e4139369d21a3e65db41f0f7ffa33e1cf",
+      "bytes": 5521
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0040_host_model_cpu_residency.sql",
+      "sha256": "647372c77a6b94ca0d03d0e89e1c2171c09e9f025365ad279c10d847586b88ae",
+      "bytes": 1913
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0041_gpu_fair_device_peak_envelope.sql",
+      "sha256": "c8aa358f6bd03a4b675c548f576d98387aec26a840597c497dc59bb8b7cfb5dc",
+      "bytes": 575
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0042_gpu_compute_lease_workflow_provenance.sql",
+      "sha256": "f3166df39d99d6cb8f6ba87e4244756f18548cb574554dff91f0150b8211323d",
+      "bytes": 530
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0043_gpu_asr_adaptive_profiles.sql",
+      "sha256": "4bdae344ad64e42cce46f9cf02abd3d3295d06d27d4b9b66af06eec29d7f5dc6",
+      "bytes": 1533
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0044_learning_v2_foundation.sql",
+      "sha256": "22b7c5c33efbfe5a36d228082020840f0d409eb920e8c75a461bd7c76be66487",
+      "bytes": 8880
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0045_v2_authority_retirement.sql",
+      "sha256": "19db7503e37accbda6f29bb71e4a5498c4a3bb55e48918fb4544c8b38fd35259",
+      "bytes": 3034
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0046_agent_runtime_dynamic_dag_v2.sql",
+      "sha256": "3772941ccb0b0a3a6836cfad48d40af93b08b829892b7f9a4828f1f72ac3c351",
+      "bytes": 1224
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0047_agent_runtime_event_driven_dispatch.sql",
+      "sha256": "327d173179e5deb482ac442c79b45ee901e697c875d3287d5f32195d3ff40965",
+      "bytes": 2665
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0048_agent_runtime_checkpoints_and_prefetch.sql",
+      "sha256": "86e370c7cde2522a1687f6f36bff00c686447550125412d7737bf55b282bb226",
+      "bytes": 3067
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0049_agent_runtime_retry_not_before.sql",
+      "sha256": "64c2e0ab4ad8a9ddea356f5eb7a6206e6360c69415000da75ed2b1bd1694cef6",
+      "bytes": 467
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0050_context_engine_project_memory.sql",
+      "sha256": "e2c3d8235576da5df2307779a2f01c110d4a76f39d9baa5036a4548e7e751a67",
+      "bytes": 1649
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0051_context_engine_project_memory_revision.sql",
+      "sha256": "5639d88d3bb329c069bf00b95e9c63bdfcf1b626f076830b8a8041f26050f624",
+      "bytes": 1867
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0052_agent_runtime_durable_continuations.sql",
+      "sha256": "6c6571e7f8f2ec11e5e6f2f7fbd9d41f62310f937b9faab503c7f2576cc27ee5",
+      "bytes": 3918
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0053_agent_runtime_session_adapter_identity.sql",
+      "sha256": "726011af74735e795159385e2fe219c0016fe52b63d91ce545b7f91dd7b2ce0c",
+      "bytes": 592
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0054_agent_runtime_unified_input_plane.sql",
+      "sha256": "e72cfdd87a0c232bbf04c6de16a3036ed3fa93bc4e9a7ed0095f2661e356dbb6",
+      "bytes": 928
+    },
+    {
+      "path": "apps/ml/migrations/postgres/0055_agent_runtime_continuation_prompt_identity.sql",
+      "sha256": "ddb0034df88e6bd54c51d5e71b9a49944e71c1d0ab46550b9c5e7de8f6f1f2df",
+      "bytes": 1478
+    },
+    {
+      "path": "apps/ml/migrations/postgres/README.md",
+      "sha256": "6cf352bb181b057c10f3d142a112801faa2f347e9889d84c6daea2cf8fc913fe",
+      "bytes": 23542
+    },
+    {
+      "path": "apps/worker/src/agent_continuation.rs",
+      "sha256": "64489eaa67ae67469be011d09ad9d3c0671ffefe3efcbe6a64fc46f846c78080",
+      "bytes": 69322
+    },
+    {
+      "path": "apps/worker/src/agent_runtime.rs",
+      "sha256": "f8af8bafd632099ae2a675314e8e33b1b19ad5fde5d8ffd40548229f673fdd88",
+      "bytes": 76345
+    },
+    {
+      "path": "apps/worker/src/amqp.rs",
+      "sha256": "c96534999597e34a022070615357a20c067a5ace310bda63c196fa99ba23ed26",
+      "bytes": 6167
+    },
+    {
+      "path": "apps/worker/src/audio_artifact.rs",
+      "sha256": "e37753f6d14c08b7e138c7ab4f8dedad001620458c3b259293654eeb52c901a0",
+      "bytes": 94707
+    },
+    {
+      "path": "apps/worker/src/config.rs",
+      "sha256": "ab2e6efb2e57d48c098d20bc1e76eeffbad32683a252792e4355f20cee1e26ff",
+      "bytes": 42410
+    },
+    {
+      "path": "apps/worker/src/consumer.rs",
+      "sha256": "566a66e34aed3500f2fd7076f39a12721cc793d1055693a1d0e83d1ba9b3e21d",
+      "bytes": 57259
+    },
+    {
+      "path": "apps/worker/src/control_plane.rs",
+      "sha256": "5f7e27109f38d00b2b54190a891266b6bbebaf1e4d26adc3f0815b582f9c42ea",
+      "bytes": 61665
+    },
+    {
+      "path": "apps/worker/src/control_plane/gpu_api.rs",
+      "sha256": "f412a2416f509a8300e42a00cfcaeede758af2a660187467d2c5f49c11f170c2",
+      "bytes": 99915
+    },
+    {
+      "path": "apps/worker/src/control_plane/gpu_fairness.rs",
+      "sha256": "47776edfc96713d3e03ec1f759a879dbee5a5216078039c3025f3a98b93a33f4",
+      "bytes": 89745
+    },
+    {
+      "path": "apps/worker/src/gpu_arbiter.rs",
+      "sha256": "d557bf8eaf8f7af18e13068f4386f72f036eff90fdb6120ff98822df5b26735b",
+      "bytes": 156820
+    },
+    {
+      "path": "apps/worker/src/gpu_arbiter/fairness.rs",
+      "sha256": "03a88eba38bcdb43ca9118f4c18c372fa23b2e6243504b498cd66eeebb6d0700",
+      "bytes": 29916
+    },
+    {
+      "path": "apps/worker/src/gpu_arbiter/leases.rs",
+      "sha256": "7855c854e88c702835220d8244d8d4610e407c70ca1a3e38ed4a2c9b78437c4c",
+      "bytes": 14849
+    },
+    {
+      "path": "apps/worker/src/gpu_arbiter/lifecycle.rs",
+      "sha256": "b94bbfe0da1924899438241a99d30ddff8e2b0d82b8b1838f5e0d8c36655dc3e",
+      "bytes": 74023
+    },
+    {
+      "path": "apps/worker/src/gpu_arbiter/reservations.rs",
+      "sha256": "e76314ab9f1d9f52cc308414efe6301b2ed90a30bbf65f67125fcff243d29514",
+      "bytes": 13978
+    },
+    {
+      "path": "apps/worker/src/gpu_contracts.rs",
+      "sha256": "73588bee3ddeb572aca1978f243f5e1693679b9e7c90fd9278268e4fe8e19ae7",
+      "bytes": 45686
+    },
+    {
+      "path": "apps/worker/src/gpu_fair_scheduler.rs",
+      "sha256": "f190c674baee5d1c02bf0fca4858e1dd90bd261c453d1d4ebe3de974151aae04",
+      "bytes": 70220
+    },
+    {
+      "path": "apps/worker/src/gpu_lease_client.rs",
+      "sha256": "2cbeffd75e007dc648965be9eb9d00d0c4b51babff85104771d658db4c58b522",
+      "bytes": 17011
+    },
+    {
+      "path": "apps/worker/src/gpu_store.rs",
+      "sha256": "a2595640c16cbf62b0f999c026d004ba46eaee3d8890c5dc3314dac9f14855e1",
+      "bytes": 61653
+    },
+    {
+      "path": "apps/worker/src/heartbeat.rs",
+      "sha256": "c17b478cdcea99558ef6bf34eecf3a6bd86dd9c5d269b64661b1ea756041ad70",
+      "bytes": 1368
+    },
+    {
+      "path": "apps/worker/src/lease.rs",
+      "sha256": "930e283dbcb4577798d953b92d3d2144c9e3ed95c66a70256f84d98654229364",
+      "bytes": 3463
+    },
+    {
+      "path": "apps/worker/src/main.rs",
+      "sha256": "2871c4dd4389474fae9c8f1261bd4fb04af0b915b247c069148095289af1ca39",
+      "bytes": 7052
+    },
+    {
+      "path": "apps/worker/src/media.rs",
+      "sha256": "a066d4bd43f5c19ec677ef360b7104f88538e6e896f099816ad6b4ea538162ef",
+      "bytes": 74927
+    },
+    {
+      "path": "apps/worker/src/observability.rs",
+      "sha256": "7c7fc88f76b1a5e4ffa309087ce82de22187a75299c296d7a206d45b884dd309",
+      "bytes": 15905
+    },
+    {
+      "path": "apps/worker/src/outbox.rs",
+      "sha256": "bec1a8ab402071a1d0024aab57df95ed6f677ca513b45ad01403cf1fb6a08180",
+      "bytes": 26272
+    },
+    {
+      "path": "apps/worker/src/postgres.rs",
+      "sha256": "04b2cc566c70134008cedbad64442e2aa79d60a064ae31f7a585f2353ce6704d",
+      "bytes": 7532
+    },
+    {
+      "path": "apps/worker/src/types.rs",
+      "sha256": "3ddb429fad4048241e149687961ab57a87af92788059f3079eb36d8f1f9b4df3",
+      "bytes": 3271
+    },
+    {
+      "path": "apps/worker/src/workflow_coordinator.rs",
+      "sha256": "b8cc623df22bac236bfeb4ab2f47185449ba05e7b1447fea67973d7c49004c0d",
+      "bytes": 71851
+    },
+    {
+      "path": "apps/worker/src/workflow_recovery.rs",
+      "sha256": "1577c2c44c2d15358995d2a7c6e402bd67782c52e322331eb493a104094d0770",
+      "bytes": 45286
+    },
+    {
+      "path": "apps/worker/src/workflow_store.rs",
+      "sha256": "9e753f9700899fa688503d42e06fecf7fb94bf45930a24e9ef50c6bb48137a8b",
+      "bytes": 80223
+    },
+    {
+      "path": "apps/worker/src/workflow_store/mutations.rs",
+      "sha256": "27e29e40b4cffe08d8049f035e29d5dc8679db9767f4d18808286e6bfa72c67b",
+      "bytes": 48687
+    },
+    {
+      "path": "docs/adr/0120-sessionless-progress-checkpoints-and-phantom-turn-elimination.md",
+      "sha256": "d8961bc2e213d1ac24b7ed0b297784e9458277d1504cd3ef994185245b52c783",
+      "bytes": 6993
+    },
+    {
+      "path": "docs/adr/0121-unified-agent-input-plane.md",
+      "sha256": "529df7a43a1143c04026a4243f707c298ee5d40b86f479fbe1b216a709dd5ccc",
+      "bytes": 3395
+    },
+    {
+      "path": "docs/adr/0122-focused-implementation-validation-authority.md",
+      "sha256": "a6d326f278399db455d83ef4c02417ee849b5f5162e6925693d4285c333652ef",
+      "bytes": 4219
+    },
+    {
+      "path": "docs/adr/0123-runtime-v2-critical-path-latency-and-deterministic-reuse.md",
+      "sha256": "d26daa07db47173a394ebd5087a8906765e5a29c5e471e76aa49a055cde6936b",
+      "bytes": 6792
+    },
+    {
+      "path": "docs/adr/0124-r17-deterministic-reuse-qualification-fixture.md",
+      "sha256": "0634dcb341fb807f58cceb4bd57af8118d433601a73e98f6aaf07fd7e5bef6ae",
+      "bytes": 3358
+    },
+    {
+      "path": "docs/adr/0125-r17-2-in-run-qa-evidence-and-lossless-runtime-events.md",
+      "sha256": "f8371e5a872c2d6c866c1f2fd882fa12a257f8fcc7ee3f16f17de4ddb068de12",
+      "bytes": 4527
+    },
+    {
+      "path": "docs/adr/0126-r17-3-qualification-meta-run-admission-gate-token-scoping.md",
+      "sha256": "62232fe0ff0a66a9ff3a5ee90d5e43c661b8530ec3cfc6d379629dd83b352e4d",
+      "bytes": 3356
+    },
+    {
+      "path": "docs/adr/0127-runtime-v2-retry-attribution-and-performance-amplification.md",
+      "sha256": "8e9d83f10921ef47699bdac3e74a78f73b757dfdb20ff1c8d75787824f1797b6",
+      "bytes": 4086
+    },
+    {
+      "path": "docs/adr/0128-opencode-nested-proxy-port-ownership-and-context7-stdio.md",
+      "sha256": "ca0018100f7c194d726095fbdf7232ae675a6de44e89a52c86b314baaa91824d",
+      "bytes": 2861
+    },
+    {
+      "path": "docs/adr/0129-pinned-isolated-headroom-proxy-runtime-on-windows.md",
+      "sha256": "0b49eeb71f3ecb3c3bc417a0cf9d827dcb050a26e5c981d87b7021a04f31352c",
+      "bytes": 3144
+    },
+    {
+      "path": "docs/adr/0130-supervised-headroom-proxy-and-windows-caveman-shim-resolution.md",
+      "sha256": "c395fee7b3217f15f738ba5f853b074b11772760fdd29f4349d1d8dc1c59bf42",
+      "bytes": 2428
+    },
+    {
+      "path": "docs/adr/0131-single-authority-nested-provider-routing-and-node-live-probe.md",
+      "sha256": "dda6fd6f985297b1edaeb609afae8413fb5ac0b3618ba5df4d6f5e0166b0a049",
+      "bytes": 2112
+    },
+    {
+      "path": "docs/adr/0132-terminal-continuation-assistant-completion-proof.md",
+      "sha256": "6ffb2f5fbc2142cdd93e00d4bbe13dfc25de47057451a665121d84951dd74164",
+      "bytes": 4095
+    },
+    {
+      "path": "docs/adr/0133-product-discovery-bootstrap-envelope-reconciliation-and-retry-diagnostics.md",
+      "sha256": "62c6e334222438e45e738ccdc89d3a15830390d684efca3ab3accaad35bef514",
+      "bytes": 2926
+    },
+    {
+      "path": "docs/adr/0134-product-discovery-source-authority-and-opencode-attempt-state-isolation.md",
+      "sha256": "c0f92da8976f2ee6996d94b0e86cc489da53ef29522a5d79ab882b98295aa3dc",
+      "bytes": 4014
+    },
+    {
+      "path": "docs/adr/0135-integrated-agent-runtime-v2-architecture-reference.md",
+      "sha256": "ff6dbe897e507d8527e1cf52756f0b64869982d499930bfc7037a7b7f4d20d3d",
+      "bytes": 5735
+    },
+    {
+      "path": "docs/adr/0136-terminal-continuation-session-prompt-affinity.md",
+      "sha256": "2d9121bcb2b940d7cd950e7ebdba6a0ae3f82579e3670c9553bc7b16cc6d2534",
+      "bytes": 4918
+    },
+    {
+      "path": "docs/adr/0137-terminal-continuation-delivery-vs-consumer-completion.md",
+      "sha256": "f075c1111223c7026cb53481099d0e9e21d843bb165e81b6801dd36cbd7fda90",
+      "bytes": 7748
+    },
+    {
+      "path": "docs/operations/prompts/agent-runtime-v2-r17-performance-qualification-agent-prompt.md",
+      "sha256": "df633a7ba3acb26389f7d71e62ade1d999124a630beef2a4be6843e03589ba13",
+      "bytes": 19027
+    },
+    {
+      "path": "docs/specs/agent-runtime-v2-r17-deterministic-reuse-qualification/PRD.md",
+      "sha256": "e3d2715ff343e7e45ea4557b892290d443d56e6f723444d14b1828789c9d7afe",
+      "bytes": 4349
+    },
+    {
+      "path": "docs/specs/agent-runtime-v2-r17-performance/DESIGN.md",
+      "sha256": "508507f6609591ef0e1ee2af511df79083fad66d89330c26ecc6fbaa13f93c11",
+      "bytes": 7732
+    },
+    {
+      "path": "docs/specs/agent-runtime-v2-r17-performance/IMPLEMENTATION-MANIFEST.md",
+      "sha256": "5f2b67a9a43b48e1e3a77314ab2f5048620bbb13d822939c9a482e55f9d6595c",
+      "bytes": 4634
+    },
+    {
+      "path": "docs/specs/agent-runtime-v2-r17-performance/PRD.md",
+      "sha256": "5f3036ead1167e02cf89e1e025a52a6e791de6ce07ff8382cbde41b6840ffc86",
+      "bytes": 3918
+    },
+    {
+      "path": "docs/specs/agent-runtime-v2-r17-performance/TEST-PLAN.md",
+      "sha256": "efa93ed5aef380fe114512f63fd5f95efceb431a100bfce372789c541ee20fff",
+      "bytes": 4216
+    },
+    {
+      "path": "scripts/agent-runtime-authoritative-readiness-contract.test.mjs",
+      "sha256": "5951ff6399384686b9993f437cb7b3647f430c421c8cc7e066fcd0241d33fea1",
+      "bytes": 5754
+    },
+    {
+      "path": "scripts/agent-runtime-authoritative-readiness.mjs",
+      "sha256": "88b3fb387d1fc7cdc302dd21878ca53f0b39d673291bf42b02c400ea8e5577c0",
+      "bytes": 2989
+    },
+    {
+      "path": "scripts/agent-runtime-bootstrap-refinement-contract.test.mjs",
+      "sha256": "ad054f09e3be19427813eb501889ddd38ea0b2a172814b3eabd9df793b48b969",
+      "bytes": 14658
+    },
+    {
+      "path": "scripts/agent-runtime-capability-facts-contract.test.mjs",
+      "sha256": "0baea6c263c2785ee535330c483de07f6d9032a3c2287a192bc5e111c8471eea",
+      "bytes": 14876
+    },
+    {
+      "path": "scripts/agent-runtime-clear-active.mjs",
+      "sha256": "df3d5c20180e39537618e5d37f171414d8560b86c23abebd94d05dc42e048f64",
+      "bytes": 1440
+    },
+    {
+      "path": "scripts/agent-runtime-compose.mjs",
+      "sha256": "3f612592f50ee11f986a33a9dfac5dfcae79d4ece4e795781f53829d7db6e1b0",
+      "bytes": 12889
+    },
+    {
+      "path": "scripts/agent-runtime-container-profile-contract.test.mjs",
+      "sha256": "bebac8aa2b5b0f2083ce00de7e3ff00eff586492fd98e4fcaac928c72c064b8f",
+      "bytes": 22096
+    },
+    {
+      "path": "scripts/agent-runtime-continuation-qualification.mjs",
+      "sha256": "573d6415e27fa0f18d14f67a501bd35b457b9a31462beaa7e7c3daf92fc77a1c",
+      "bytes": 12035
+    },
+    {
+      "path": "scripts/agent-runtime-durable-continuation-contract.test.mjs",
+      "sha256": "067f7903e801d65d30ad2111ba33563e4430c7cee3c651a79a9ea083d46b99c3",
+      "bytes": 11879
+    },
+    {
+      "path": "scripts/agent-runtime-efficiency-contract.test.mjs",
+      "sha256": "06b1a7bccba38d9ecdd4476bb67a5cb8a697a2e84313bc8bb3d6f4ef1d2af1cc",
+      "bytes": 12279
+    },
+    {
+      "path": "scripts/agent-runtime-event-driven-contract.test.mjs",
+      "sha256": "38b3930d9c4698d58edaac354f54cea8a09f7727e3cf212babfe6229ac281a15",
+      "bytes": 16843
+    },
+    {
+      "path": "scripts/agent-runtime-h9r-fault-harness.mjs",
+      "sha256": "89f172813e1eef3a1cda3925a9d2653559b099e7ca2737dcc9948eebd7cc40c2",
+      "bytes": 23924
+    },
+    {
+      "path": "scripts/agent-runtime-harness-live-evidence-contract.test.mjs",
+      "sha256": "2ef314a312ed2d85e02d778347d288d1963f4cd952270202e01657785fdccde0",
+      "bytes": 16303
+    },
+    {
+      "path": "scripts/agent-runtime-harness-runbook-contract.test.mjs",
+      "sha256": "1e8e1556a1bc8cced469cc47fdc3787e6ee7b329a192b3b85d7e76415b8e8aad",
+      "bytes": 10503
+    },
+    {
+      "path": "scripts/agent-runtime-harness-sdd-contract.test.mjs",
+      "sha256": "80b89f2e1d0d2cf247cf887b1d862ae46011100982af76ec1d08ab569f18a203",
+      "bytes": 7538
+    },
+    {
+      "path": "scripts/agent-runtime-harness-validation.mjs",
+      "sha256": "30034dfea13e30474e417ab6a6641dac7117b1bc8509d7c6afb994213a3e6bb4",
+      "bytes": 13166
+    },
+    {
+      "path": "scripts/agent-runtime-live-projector-probe.mjs",
+      "sha256": "6cc0678a597d9398513c947f6e706f78682c826478b11adcde7f4d2b4c96f99f",
+      "bytes": 5101
+    },
+    {
+      "path": "scripts/agent-runtime-model-benchmark.mjs",
+      "sha256": "eab48c1114db4e3c4d660bbf96cd8acadb2f2ad813000189ddfd60e9217e19b2",
+      "bytes": 18632
+    },
+    {
+      "path": "scripts/agent-runtime-model-benchmark.test.mjs",
+      "sha256": "862d7781f2bdc065b5425c91faa5a0c286dbbf58d21b49b7e0c9044a4680e72b",
+      "bytes": 5156
+    },
+    {
+      "path": "scripts/agent-runtime-model-capability-routing-contract.test.mjs",
+      "sha256": "09f6fd8f4e17723318ec9b8be40342a7b6848e9011fd8fc30c3b09c9eb3a8b5a",
+      "bytes": 7534
+    },
+    {
+      "path": "scripts/agent-runtime-opencode-adapter-integration.test.mjs",
+      "sha256": "48f5e292f27cf9623bedaf6461aeb1124bfa97c1f0b46bb06a107493cd26576f",
+      "bytes": 17811
+    },
+    {
+      "path": "scripts/agent-runtime-opencode-argv-contract.test.mjs",
+      "sha256": "86576c69ecd6bcd41705a486476ad63c903496a621e520c73b0ef9e98a3a0790",
+      "bytes": 4849
+    },
+    {
+      "path": "scripts/agent-runtime-policy-engine-contract.test.mjs",
+      "sha256": "489ad749909e92acd0beba3a3d05c253c0db6d14bda04a7400f95227486ff83f",
+      "bytes": 11811
+    },
+    {
+      "path": "scripts/agent-runtime-product-discovery-assessment-contract.test.mjs",
+      "sha256": "4681eadb48bcbe461d75f77046f6cf981c91a29adce94aab5308a3c09632b1d8",
+      "bytes": 15576
+    },
+    {
+      "path": "scripts/agent-runtime-product-discovery-criteria-contract.test.mjs",
+      "sha256": "fff25a9c938ce84de6b2a9506c7e8ac2751ebe60f52816e524a58e32f12458c3",
+      "bytes": 9199
+    },
+    {
+      "path": "scripts/agent-runtime-product-discovery-scope-contract.test.mjs",
+      "sha256": "733661e36f36660f94a5781781f06ec45a4705bac305bd7f9175b4992e83cf6f",
+      "bytes": 5397
+    },
+    {
+      "path": "scripts/agent-runtime-progress-contract.test.mjs",
+      "sha256": "dce0969ff2ecf4527469f8156be2b3c1874546a3df30eebb5533f9a2c3669c23",
+      "bytes": 44126
+    },
+    {
+      "path": "scripts/agent-runtime-r15-5-qualification-fixture-contract.test.mjs",
+      "sha256": "02f03eb42a1160f75f82494ff9eaa541c9acd0b0f3dd196af9b42f1c186ad120",
+      "bytes": 4482
+    },
+    {
+      "path": "scripts/agent-runtime-r15-6-1-qualification-controller-contract.test.mjs",
+      "sha256": "b00a5f077eab44b253dc84d00775a1a9c73a1b1070ec07162b45ef41aadbebec",
+      "bytes": 3839
+    },
+    {
+      "path": "scripts/agent-runtime-r15-6-10-opencode-message-history-contract.test.mjs",
+      "sha256": "f9dd570b9dfffece8c8b255d64db23674f89dc3e8d611231d00f15ececbf33a2",
+      "bytes": 14529
+    },
+    {
+      "path": "scripts/agent-runtime-r15-6-11-hard-turn-park-contract.test.mjs",
+      "sha256": "be30b2cff2cc184db985767e2d343246964ffe260f66f15d450b42578886e3f4",
+      "bytes": 8068
+    },
+    {
+      "path": "scripts/agent-runtime-r15-6-12-sessionless-progress-contract.test.mjs",
+      "sha256": "2ab9b238eb86e6bed7fb47f4814fe9857545851a693ab2108d535f2f0f7d32ef",
+      "bytes": 4210
+    },
+    {
+      "path": "scripts/agent-runtime-r15-6-2-meta-run-admission-contract.test.mjs",
+      "sha256": "84c96bade0c198418c59a9b17aa033a02c9d74986b8b4855272e92d152dc679c",
+      "bytes": 5968
+    },
+    {
+      "path": "scripts/agent-runtime-r15-6-3-product-review-lineage-contract.test.mjs",
+      "sha256": "f6b626c55c3b2deab4c0391ce060a5e18529855efee71f7f317e1218dc72c520",
+      "bytes": 3140
+    },
+    {
+      "path": "scripts/agent-runtime-r15-6-4-h9r-lease-expiry-contract.test.mjs",
+      "sha256": "cb3699f15eb84768f372b9edfa9bd92de31360a8d35919904cf05bcfd5fcf2a6",
+      "bytes": 2177
+    },
+    {
+      "path": "scripts/agent-runtime-r15-6-5-machine-tui-qualification-contract.test.mjs",
+      "sha256": "4c0116b36c604e672e709a4605132259072896af86a00dc787e47522c6004e6e",
+      "bytes": 4089
+    },
+    {
+      "path": "scripts/agent-runtime-r15-6-7-invocation-provenance-contract.test.mjs",
+      "sha256": "8f432e92b1566252d225fc70d3ed3866ff9cccfab8b10100e1b28cb522f42feb",
+      "bytes": 10402
+    },
+    {
+      "path": "scripts/agent-runtime-r15-6-8-invocation-provenance-typesafety-contract.test.mjs",
+      "sha256": "52c605077f7b2a65316aed07782c306998d26c4b7c92335bf1fbfead82ec05d0",
+      "bytes": 1681
+    },
+    {
+      "path": "scripts/agent-runtime-r15-6-9-qualification-entrypoint-contract.test.mjs",
+      "sha256": "e6420aeab29efc6ab8a22b5e596a1ef8c3a62328a5517a08b9859414ccb9c86b",
+      "bytes": 3046
+    },
+    {
+      "path": "scripts/agent-runtime-r15-6-h9r-process-loss-contract.test.mjs",
+      "sha256": "617fe43696b0e7f92ec3904eecb4eb8afb2f16e322b206d482d269ca26e8c24a",
+      "bytes": 14810
+    },
+    {
+      "path": "scripts/agent-runtime-r15-recovery-cpu-contract.test.mjs",
+      "sha256": "a42173e1d1753030f485b8123679d7d9bf1f293a8f75db3315be33644fd08474",
+      "bytes": 17970
+    },
+    {
+      "path": "scripts/agent-runtime-r16-1-focused-validation-contract.test.mjs",
+      "sha256": "7feec8af6ec3982a5e4c22e7f472a7bb9be6d001b11f76964973c86076222f82",
+      "bytes": 7648
+    },
+    {
+      "path": "scripts/agent-runtime-r16-migration-check.mjs",
+      "sha256": "eec21655163885264a5d3ae1d9cc4e3b59278a6d3fc4da369e3871b58cb2af07",
+      "bytes": 3778
+    },
+    {
+      "path": "scripts/agent-runtime-r16-unified-input-contract.test.mjs",
+      "sha256": "d3bf47d385ea5163955ba8c2e2ba812058d43f8f4de68c54b4853b97ec36fa08",
+      "bytes": 9796
+    },
+    {
+      "path": "scripts/agent-runtime-r17-2-qa-evidence-telemetry-contract.test.mjs",
+      "sha256": "0c79c6dfe399b648ffae186bb499183a2ca45a90d133f6d7b119c4bb5385ee03",
+      "bytes": 7627
+    },
+    {
+      "path": "scripts/agent-runtime-r17-3-meta-run-admission-contract.test.mjs",
+      "sha256": "26355b5e0914a6711376e9fd9db2f59a536026cf51dd4a5f2308e701cc7c4b24",
+      "bytes": 3466
+    },
+    {
+      "path": "scripts/agent-runtime-r17-4-2-bootstrap-retry-diagnostics-contract.test.mjs",
+      "sha256": "f1a1b5b43f07f84033f157c907e85683e1059d2e272bcd74ccde810382c872a9",
+      "bytes": 1873
+    },
+    {
+      "path": "scripts/agent-runtime-r17-4-3-opencode-state-isolation-contract.test.mjs",
+      "sha256": "1aad0b10a6f79d0fb3f6812707b8ae3a24b645a244cbb531f66bced23197bb4d",
+      "bytes": 4536
+    },
+    {
+      "path": "scripts/agent-runtime-r17-4-4-continuation-session-affinity-contract.test.mjs",
+      "sha256": "f273c9eebb918a759688300cd4b5b80da031220daf21d99e8b56d30299f22786",
+      "bytes": 4422
+    },
+    {
+      "path": "scripts/agent-runtime-r17-4-5-continuation-delivery-contract.test.mjs",
+      "sha256": "cbe26c9df9662051f1b285994a70d4cfae4d1b58e5d67b5a0e5205f65b1eb26c",
+      "bytes": 4175
+    },
+    {
+      "path": "scripts/agent-runtime-r17-4-qualification-authority-contract.test.mjs",
+      "sha256": "7c421b07e33de2b3f52f1870817db3f421b0fa4ec030db2c414e2219014b59fd",
+      "bytes": 9830
+    },
+    {
+      "path": "scripts/agent-runtime-r17-4-retry-attribution-contract.test.mjs",
+      "sha256": "44ef1c2db5a3def7140b658eaf3efa048c8e70a1dc33097d5a29da6f8e276967",
+      "bytes": 8087
+    },
+    {
+      "path": "scripts/agent-runtime-r17-4-terminal-continuation-contract.test.mjs",
+      "sha256": "8c94a8f1e4133de3edc508e67504a43c3dacfdd4f6a7aba1e741081f11b1da6b",
+      "bytes": 2525
+    },
+    {
+      "path": "scripts/agent-runtime-r17-deterministic-reuse-fixture-contract.test.mjs",
+      "sha256": "b53122e74b6e3cb08c118a74486743ef7817ebf64ff1897f8a03e9af8921c269",
+      "bytes": 4990
+    },
+    {
+      "path": "scripts/agent-runtime-r17-performance-contract.test.mjs",
+      "sha256": "dce5552ce51c35002cdd0ff1af1379ba25071988dae4dba761f0698c44f25764",
+      "bytes": 18027
+    },
+    {
+      "path": "scripts/agent-runtime-replay-contract.test.mjs",
+      "sha256": "f2587ad310ff092a988303c33ff8c37306545a7ea2af729dc623bad69ab2f24e",
+      "bytes": 16831
+    },
+    {
+      "path": "scripts/agent-runtime-replay.mjs",
+      "sha256": "4b9c505eecbe3c5a325081e98985139b3a369d0433d4b7bbdc1587fe88a022a3",
+      "bytes": 4083
+    },
+    {
+      "path": "scripts/agent-runtime-run-exclusivity-contract.test.mjs",
+      "sha256": "fe7a12d7fbce86aeb69cfb6c864d2cd25d46b19de55dceb29c778235a2c2f74e",
+      "bytes": 6143
+    },
+    {
+      "path": "scripts/agent-runtime-session-adapter-migration-check.mjs",
+      "sha256": "3af1f7090284219501ff4d8554d84301c366df9d661258d7e43750b7d2a0d887",
+      "bytes": 5830
+    },
+    {
+      "path": "scripts/agent-runtime-structured-logging-contract.test.mjs",
+      "sha256": "5229cabdf9bb1d79aed17c3ff9b1c728876a36ebaaf9655abdc418872e2059b8",
+      "bytes": 4565
+    },
+    {
+      "path": "scripts/agent-runtime-v12-4-hardening-contract.test.mjs",
+      "sha256": "2c784192f85a8dfbdf72e53f845d4a0ab1c9c3b067d4d6aeb16d1292f29477a9",
+      "bytes": 6315
+    },
+    {
+      "path": "scripts/agent-runtime-v12-5-retry-efficiency-contract.test.mjs",
+      "sha256": "0c4259327fd374f1056159a8da6544a420b480241bc20386e7a0b9bf729106b8",
+      "bytes": 7093
+    },
+    {
+      "path": "scripts/agent-runtime-v12-6-retry-semantics-contract.test.mjs",
+      "sha256": "5b91f17b2263d8f626e4223839bcd2a4d3916869d1ab7979c3d6874e9c31383b",
+      "bytes": 9046
+    },
+    {
+      "path": "scripts/agent-runtime-v2-architecture-documentation-contract.test.mjs",
+      "sha256": "9f9921d49adb44b1b79cb553d85b3b8ef4db39e6ef638f82b8580706ed1c196c",
+      "bytes": 9884
+    },
+    {
+      "path": "scripts/agent-runtime-v2-environment-contract.test.mjs",
+      "sha256": "3ee7113dc47452f2acb6bf8f9980396b0f6c021dc0cf365f4b3be1ddf472fd26",
+      "bytes": 36282
+    },
+    {
+      "path": "scripts/agent-runtime-v2-run-regressions.test.mjs",
+      "sha256": "c3e143deabd83c765d75dd6c272f3ceaa7d9c3a0dc9c9d4149e7afaf2d1203ee",
+      "bytes": 9611
+    },
+    {
+      "path": "scripts/agent-runtime-v2-upgrade.mjs",
+      "sha256": "cc0eacfd7b135ebb4b7b09b2a4c7a089ca0fd064faae12857bc74b600f16a589",
+      "bytes": 1392
+    },
+    {
+      "path": "scripts/agent-runtime-validation-toolchain-preflight.mjs",
+      "sha256": "e5f00ad4b602ffb4c04f4ab9cc7e25756d361316200c9406213c59e45e2e46ac",
+      "bytes": 5156
+    },
+    {
+      "path": "scripts/agent-runtime-worker.mjs",
+      "sha256": "55ecba57d39dd0f36830bf4c7c58e403d9c53f5e3c788ceeb4cc15074c6b90e2",
+      "bytes": 2856
+    },
+    {
+      "path": "scripts/deterministic-reuse-executor.mjs",
+      "sha256": "32f070ab6fe10841deae418e73553d36d3e0ba1eb1fa926bd74a98cf24929f98",
+      "bytes": 7702
+    },
+    {
+      "path": "scripts/opencode-task-executor.mjs",
+      "sha256": "9fda0844fe3bf7dfe6cde62277c27f35e5ea8e50d9ec0340e7d5326437c79851",
+      "bytes": 66313
+    }
+  ],
+  "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf"
+}
