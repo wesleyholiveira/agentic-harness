@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-02T23:26:42Z",
+  "generatedAt": "2026-09-02T23:27:23Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 472,
-  "treeSha256": "sha256:5b4998a99f4bae9965e769a28b7bd5b390adf42d8f7a52e024141ded41bd77b2",
+  "fileCount": 473,
+  "treeSha256": "sha256:c860200bc89dc0c73c74c6493106e3322db98308a56058b2a4214fcfba07b4ae",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -1146,6 +1146,11 @@
       "bytes": 16814,
       "path": "apps/context-engine/test/visibility.test.ts",
       "sha256": "sha256:a36eaf154ad7e196b4d9610f6b993542d861ed55a1e68883f0ddcf708bb290c6"
+    },
+    {
+      "bytes": 85632,
+      "path": "apps/runtime-worker/Cargo.lock",
+      "sha256": "sha256:48ceb5667184fbbbd8b26f5edbc4420907dbe9ec2fd308f1da9d359d5abedd27"
     },
     {
       "bytes": 1075,
