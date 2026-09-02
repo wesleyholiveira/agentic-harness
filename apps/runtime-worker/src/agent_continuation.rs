@@ -87,7 +87,10 @@ enum DeliveryClaim {
 #[derive(Debug)]
 enum DeliveryOutcome {
     Ack,
-    Requeue { delay_ms: u64, reason: String },
+    Requeue {
+        delay_ms: u64,
+        reason: String,
+    },
     Ambiguous {
         reason: String,
         delivery: ContinuationDelivery,
@@ -171,9 +174,7 @@ async fn claim_inbox(
     claim_owner: &str,
 ) -> Result<InboxClaim> {
     let received_at = now();
-    let lease_expires_at = format_utc(
-        Utc::now() + chrono::Duration::seconds(INBOX_LEASE_SECONDS),
-    );
+    let lease_expires_at = format_utc(Utc::now() + chrono::Duration::seconds(INBOX_LEASE_SECONDS));
     let transaction = client.transaction().await?;
     transaction
         .execute(
@@ -371,7 +372,10 @@ async fn load_and_claim_delivery(
             delivery: Some(value),
         });
     }
-    if matches!(value.continuation_status.as_str(), "cancelled" | "manual_review") {
+    if matches!(
+        value.continuation_status.as_str(),
+        "cancelled" | "manual_review"
+    ) {
         transaction.rollback().await?;
         return Ok(DeliveryClaim::Cancelled);
     }
@@ -408,9 +412,8 @@ async fn load_and_claim_delivery(
         transaction.rollback().await?;
         return Ok(DeliveryClaim::Busy);
     }
-    let lease_expires_at = format_utc(
-        Utc::now() + chrono::Duration::seconds(DELIVERY_LEASE_SECONDS),
-    );
+    let lease_expires_at =
+        format_utc(Utc::now() + chrono::Duration::seconds(DELIVERY_LEASE_SECONDS));
     let changed = transaction
         .execute(
             "UPDATE agent_continuation_deliveries \
@@ -464,11 +467,7 @@ fn request_with_auth(config: &Config, request: RequestBuilder) -> RequestBuilder
     }
 }
 
-fn endpoint_url(
-    server_url: &str,
-    path: &str,
-    directory: Option<&str>,
-) -> Result<Url> {
+fn endpoint_url(server_url: &str, path: &str, directory: Option<&str>) -> Result<Url> {
     let mut base = Url::parse(server_url).context("agent_continuation_server_url_invalid")?;
     if !matches!(base.scheme(), "http" | "https") {
         bail!("agent_continuation_server_url_protocol_invalid");
@@ -538,11 +537,7 @@ async fn get_target_message(
         "/session/{}/message/{}",
         delivery.session_id, delivery.opencode_message_id
     );
-    let url = endpoint_url(
-        &delivery.server_url,
-        &path,
-        delivery.directory.as_deref(),
-    )?;
+    let url = endpoint_url(&delivery.server_url, &path, delivery.directory.as_deref())?;
     let response = request_with_auth(config, http.get(url))
         .send()
         .await
@@ -566,7 +561,6 @@ async fn get_target_message(
         &delivery.prompt_sha256,
     ))
 }
-
 
 fn continuation_turn_state_from_messages(
     items: &[Value],
@@ -627,7 +621,9 @@ fn continuation_turn_state_from_messages(
             .and_then(Value::as_str)
             .is_some_and(|value| !value.is_empty());
     if completed {
-        return ContinuationTurnState::Completed { assistant_message_id };
+        return ContinuationTurnState::Completed {
+            assistant_message_id,
+        };
     }
 
     // A materialized child without a terminal marker is also pending. OpenCode
@@ -643,11 +639,7 @@ async fn continuation_turn_state(
     delivery: &ContinuationDelivery,
 ) -> Result<ContinuationTurnState> {
     let path = format!("/session/{}/message", delivery.session_id);
-    let mut url = endpoint_url(
-        &delivery.server_url,
-        &path,
-        delivery.directory.as_deref(),
-    )?;
+    let mut url = endpoint_url(&delivery.server_url, &path, delivery.directory.as_deref())?;
     url.query_pairs_mut().append_pair("limit", "100");
     let response = request_with_auth(config, http.get(url))
         .send()
@@ -672,7 +664,10 @@ async fn continuation_turn_state(
     ))
 }
 
-fn continuation_completion_window_expired(delivery: &ContinuationDelivery, config: &Config) -> bool {
+fn continuation_completion_window_expired(
+    delivery: &ContinuationDelivery,
+    config: &Config,
+) -> bool {
     let Some(started_at) = delivery.dispatch_started_at.as_deref() else {
         return false;
     };
@@ -731,11 +726,7 @@ async fn dispatch_terminal_prompt(
     // independently from the exact deterministic user message materialized in
     // session history; this transport task is only the wake trigger.
     let path = format!("/session/{}/message", delivery.session_id);
-    let url = endpoint_url(
-        &delivery.server_url,
-        &path,
-        delivery.directory.as_deref(),
-    )?;
+    let url = endpoint_url(&delivery.server_url, &path, delivery.directory.as_deref())?;
     let mut body = json!({
         "messageID": &delivery.opencode_message_id,
         "agent": &delivery.session_agent_id,
@@ -785,11 +776,7 @@ async fn dispatch_terminal_prompt(
     Ok(())
 }
 
-fn spawn_terminal_prompt(
-    http: HttpClient,
-    config: Config,
-    delivery: ContinuationDelivery,
-) {
+fn spawn_terminal_prompt(http: HttpClient, config: Config, delivery: ContinuationDelivery) {
     tokio::spawn(async move {
         match dispatch_terminal_prompt(&http, &config, &delivery).await {
             Ok(()) => info!(
@@ -883,11 +870,7 @@ async fn mark_dispatching(
     Ok(())
 }
 
-async fn mark_accepted(
-    client: &Client,
-    delivery_id: &str,
-    claim_owner: &str,
-) -> Result<()> {
+async fn mark_accepted(client: &Client, delivery_id: &str, claim_owner: &str) -> Result<()> {
     let accepted_at = now();
     let changed = client
         .execute(
@@ -902,22 +885,28 @@ async fn mark_accepted(
     Ok(())
 }
 
+struct DeferSpec<'a> {
+    reason: &'a str,
+    delay_ms: u64,
+    next_status: &'a str,
+}
+
 async fn defer_delivery(
     client: &mut Client,
     envelope: &AgentRuntimeEnvelope,
     delivery: &ContinuationDelivery,
     payload_hash: &str,
     claim_owner: &str,
-    reason: &str,
-    delay_ms: u64,
-    next_status: &str,
+    spec: DeferSpec<'_>,
 ) -> Result<()> {
-    if !matches!(next_status, "deferred" | "dispatching" | "accepted") {
-        bail!("agent_continuation_defer_status_invalid:{next_status}");
+    if !matches!(spec.next_status, "deferred" | "dispatching" | "accepted") {
+        bail!(
+            "agent_continuation_defer_status_invalid:{}",
+            spec.next_status
+        );
     }
-    let next_attempt_at = format_utc(
-        Utc::now() + chrono::Duration::milliseconds(delay_ms as i64),
-    );
+    let next_attempt_at =
+        format_utc(Utc::now() + chrono::Duration::milliseconds(spec.delay_ms as i64));
     let changed_at = now();
     let transaction = client.transaction().await?;
     let delivery_changed = transaction
@@ -926,9 +915,9 @@ async fn defer_delivery(
              WHERE delivery_id=$1 AND lease_owner=$6",
             &[
                 &delivery.delivery_id,
-                &next_status,
+                &spec.next_status,
                 &next_attempt_at,
-                &reason,
+                &spec.reason,
                 &changed_at,
                 &claim_owner,
             ],
@@ -938,7 +927,7 @@ async fn defer_delivery(
         .execute(
             "UPDATE agent_runtime_inbox SET status='deferred',lease_owner=NULL,lease_expires_at=NULL,last_error=$4 \
              WHERE message_id=$1 AND payload_sha256=$2 AND lease_owner=$3 AND status='claimed'",
-            &[&envelope.message_id, &payload_hash, &claim_owner, &reason],
+            &[&envelope.message_id, &payload_hash, &claim_owner, &spec.reason],
         )
         .await?;
     if delivery_changed != 1 || inbox_changed != 1 {
@@ -1184,7 +1173,8 @@ async fn verify_after_dispatch(
     for attempt in 0..config.agent_continuation_verify_attempts {
         match get_target_message(http, config, delivery).await? {
             TargetMessageState::Absent | TargetMessageState::Pending
-                if attempt + 1 < config.agent_continuation_verify_attempts => {
+                if attempt + 1 < config.agent_continuation_verify_attempts =>
+            {
                 sleep(Duration::from_millis(
                     config.agent_continuation_verify_delay_ms,
                 ))
@@ -1207,13 +1197,8 @@ async fn process_claimed(
     let delivery = match load_and_claim_delivery(client, envelope, claim_owner).await? {
         DeliveryClaim::Ready(delivery) => delivery,
         DeliveryClaim::Observed | DeliveryClaim::Cancelled => {
-            mark_inbox_processed_owned(
-                client,
-                &envelope.message_id,
-                payload_hash,
-                claim_owner,
-            )
-            .await?;
+            mark_inbox_processed_owned(client, &envelope.message_id, payload_hash, claim_owner)
+                .await?;
             return Ok(DeliveryOutcome::Ack);
         }
         DeliveryClaim::Busy => {
@@ -1251,7 +1236,10 @@ async fn process_claimed(
 
     if delivery.adapter_id != "opencode" {
         return Ok(DeliveryOutcome::Dead {
-            reason: format!("agent_continuation_adapter_unsupported:{}", delivery.adapter_id),
+            reason: format!(
+                "agent_continuation_adapter_unsupported:{}",
+                delivery.adapter_id
+            ),
             delivery: Some(delivery),
         });
     }
@@ -1263,9 +1251,11 @@ async fn process_claimed(
             &delivery,
             payload_hash,
             claim_owner,
-            "agent_continuation_session_lock_busy",
-            config.agent_continuation_verify_delay_ms,
-            "deferred",
+            DeferSpec {
+                reason: "agent_continuation_session_lock_busy",
+                delay_ms: config.agent_continuation_verify_delay_ms,
+                next_status: "deferred",
+            },
         )
         .await?;
         return Ok(DeliveryOutcome::Requeue {
@@ -1278,7 +1268,9 @@ async fn process_claimed(
         match get_target_message(http, config, &delivery).await? {
             TargetMessageState::Match => {
                 match continuation_turn_state(http, config, &delivery).await? {
-                    ContinuationTurnState::Completed { assistant_message_id } => {
+                    ContinuationTurnState::Completed {
+                        assistant_message_id,
+                    } => {
                         mark_observed(
                             client,
                             envelope,
@@ -1291,7 +1283,10 @@ async fn process_claimed(
                         return Ok(DeliveryOutcome::Ack);
                     }
                     ContinuationTurnState::Failed(reason) => {
-                        return Ok(DeliveryOutcome::Ambiguous { reason, delivery: delivery.clone() });
+                        return Ok(DeliveryOutcome::Ambiguous {
+                            reason,
+                            delivery: delivery.clone(),
+                        });
                     }
                     ContinuationTurnState::Pending => {
                         if continuation_completion_window_expired(&delivery, config) {
@@ -1306,9 +1301,11 @@ async fn process_claimed(
                             &delivery,
                             payload_hash,
                             claim_owner,
-                            "agent_continuation_assistant_response_pending",
-                            config.agent_continuation_verify_delay_ms,
-                            "accepted",
+                            DeferSpec {
+                                reason: "agent_continuation_assistant_response_pending",
+                                delay_ms: config.agent_continuation_verify_delay_ms,
+                                next_status: "accepted",
+                            },
                         )
                         .await?;
                         return Ok(DeliveryOutcome::Requeue {
@@ -1325,9 +1322,12 @@ async fn process_claimed(
                 });
             }
             TargetMessageState::Pending => {
-                if delivery.dispatch_started_at.is_some() && !ambiguity_window_active(&delivery, config) {
+                if delivery.dispatch_started_at.is_some()
+                    && !ambiguity_window_active(&delivery, config)
+                {
                     return Ok(DeliveryOutcome::Ambiguous {
-                        reason: "agent_continuation_target_message_pending_after_ambiguity_window".into(),
+                        reason: "agent_continuation_target_message_pending_after_ambiguity_window"
+                            .into(),
                         delivery: delivery.clone(),
                     });
                 }
@@ -1337,12 +1337,18 @@ async fn process_claimed(
                     &delivery,
                     payload_hash,
                     claim_owner,
-                    "agent_continuation_target_message_pending",
-                    config.agent_continuation_verify_delay_ms,
-                    if delivery.dispatch_started_at.is_some() {
-                        if delivery.prior_status == "accepted" { "accepted" } else { "dispatching" }
-                    } else {
-                        "deferred"
+                    DeferSpec {
+                        reason: "agent_continuation_target_message_pending",
+                        delay_ms: config.agent_continuation_verify_delay_ms,
+                        next_status: if delivery.dispatch_started_at.is_some() {
+                            if delivery.prior_status == "accepted" {
+                                "accepted"
+                            } else {
+                                "dispatching"
+                            }
+                        } else {
+                            "deferred"
+                        },
                     },
                 )
                 .await?;
@@ -1362,9 +1368,15 @@ async fn process_claimed(
                     &delivery,
                     payload_hash,
                     claim_owner,
-                    "agent_continuation_ambiguous_dispatch_window",
-                    config.agent_continuation_verify_delay_ms,
-                    if delivery.prior_status == "accepted" { "accepted" } else { "dispatching" },
+                    DeferSpec {
+                        reason: "agent_continuation_ambiguous_dispatch_window",
+                        delay_ms: config.agent_continuation_verify_delay_ms,
+                        next_status: if delivery.prior_status == "accepted" {
+                            "accepted"
+                        } else {
+                            "dispatching"
+                        },
+                    },
                 )
                 .await?;
                 return Ok(DeliveryOutcome::Requeue {
@@ -1385,9 +1397,11 @@ async fn process_claimed(
                 &delivery,
                 payload_hash,
                 claim_owner,
-                "agent_continuation_session_busy",
-                config.agent_continuation_verify_delay_ms,
-                "deferred",
+                DeferSpec {
+                    reason: "agent_continuation_session_busy",
+                    delay_ms: config.agent_continuation_verify_delay_ms,
+                    next_status: "deferred",
+                },
             )
             .await?;
             return Ok(DeliveryOutcome::Requeue {
@@ -1449,7 +1463,9 @@ async fn process_claimed(
                     opencode_message_id=%delivery.opencode_message_id
                 );
                 match continuation_turn_state(http, config, &delivery).await? {
-                    ContinuationTurnState::Completed { assistant_message_id } => {
+                    ContinuationTurnState::Completed {
+                        assistant_message_id,
+                    } => {
                         mark_observed(
                             client,
                             envelope,
@@ -1472,9 +1488,11 @@ async fn process_claimed(
                             &delivery,
                             payload_hash,
                             claim_owner,
-                            "agent_continuation_assistant_response_pending",
-                            config.agent_continuation_verify_delay_ms,
-                            "accepted",
+                            DeferSpec {
+                                reason: "agent_continuation_assistant_response_pending",
+                                delay_ms: config.agent_continuation_verify_delay_ms,
+                                next_status: "accepted",
+                            },
                         )
                         .await?;
                         Ok(DeliveryOutcome::Requeue {
@@ -1498,9 +1516,11 @@ async fn process_claimed(
                     &delivery,
                     payload_hash,
                     claim_owner,
-                    "agent_continuation_prompt_inflight_not_yet_materialized",
-                    config.agent_continuation_verify_delay_ms,
-                    "dispatching",
+                    DeferSpec {
+                        reason: "agent_continuation_prompt_inflight_not_yet_materialized",
+                        delay_ms: config.agent_continuation_verify_delay_ms,
+                        next_status: "dispatching",
+                    },
                 )
                 .await?;
                 Ok(DeliveryOutcome::Requeue {
@@ -1545,15 +1565,7 @@ async fn handle_delivery(
     };
     let payload_hash = payload_sha256(&delivery.data);
     let claim_owner = format!("{}:{}", config.worker_id, Uuid::new_v4());
-    match claim_inbox(
-        &mut client,
-        &config,
-        &envelope,
-        &payload_hash,
-        &claim_owner,
-    )
-    .await
-    {
+    match claim_inbox(&mut client, &config, &envelope, &payload_hash, &claim_owner).await {
         Ok(InboxClaim::ProcessedDuplicate) => {
             info!(event="agent_continuation.rabbit_duplicate_suppressed", message_id=%envelope.message_id, run_id=%envelope.run_id, effect_key=?envelope.effect_key);
             let _ = delivery.ack(BasicAckOptions::default()).await;
@@ -1619,7 +1631,10 @@ async fn handle_delivery(
                 })
                 .await;
         }
-        Ok(DeliveryOutcome::Ambiguous { reason, delivery: target }) => {
+        Ok(DeliveryOutcome::Ambiguous {
+            reason,
+            delivery: target,
+        }) => {
             let mark_result = mark_delivery_ambiguous(
                 &mut client,
                 &envelope,
@@ -1642,7 +1657,10 @@ async fn handle_delivery(
             warn!(event="agent_continuation.delivery_ambiguous", message_id=%envelope.message_id, run_id=%envelope.run_id, delivery_id=%target.delivery_id, effect_key=%target.effect_key, reason=%reason, automatic_repost=false);
             let _ = delivery.ack(BasicAckOptions::default()).await;
         }
-        Ok(DeliveryOutcome::Dead { reason, delivery: target }) => {
+        Ok(DeliveryOutcome::Dead {
+            reason,
+            delivery: target,
+        }) => {
             let mark_result = mark_delivery_dead(
                 &mut client,
                 &envelope,

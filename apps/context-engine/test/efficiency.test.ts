@@ -27,7 +27,7 @@ describe("context_efficiency", () => {
     const tool = tools.get("context_efficiency");
     expect(tool).toBeDefined();
     const response = await tool!.handler({ runId: "run-1" });
-    const body = JSON.parse(response.content[0].text);
+    const body = JSON.parse(response.content[0]?.text ?? "{}");
     expect(body.contractVersion).toBe("context-efficiency/v2");
     expect(body.scope).toBe("run-primary-with-process-lifetime-diagnostics");
     expect(body.primary.contractVersion).toBe("runtime-efficiency/v1");

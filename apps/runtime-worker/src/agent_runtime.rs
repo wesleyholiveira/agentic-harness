@@ -91,7 +91,10 @@ impl AgentRuntimeEnvelope {
         if self.message_id.trim().is_empty() || self.run_id.trim().is_empty() {
             bail!("agent_runtime_envelope_identity_missing");
         }
-        let taskless = matches!(self.kind.as_str(), "agent.run.reconcile.v1" | "agent.continuation.wake.v1");
+        let taskless = matches!(
+            self.kind.as_str(),
+            "agent.run.reconcile.v1" | "agent.continuation.wake.v1"
+        );
         if !taskless && self.task_id.as_deref().unwrap_or("").is_empty() {
             bail!("agent_runtime_task_identity_missing");
         }
@@ -254,16 +257,32 @@ async fn connect_database(config: &Config) -> Result<Client> {
 }
 
 pub async fn declare_topology(channel: &Channel) -> Result<()> {
-    let durable_exchange = ExchangeDeclareOptions { durable: true, ..Default::default() };
+    let durable_exchange = ExchangeDeclareOptions {
+        durable: true,
+        ..Default::default()
+    };
     channel
-        .exchange_declare(EXCHANGE.into(), ExchangeKind::Topic, durable_exchange, FieldTable::default())
+        .exchange_declare(
+            EXCHANGE.into(),
+            ExchangeKind::Topic,
+            durable_exchange,
+            FieldTable::default(),
+        )
         .await?;
     channel
-        .exchange_declare(DLX_EXCHANGE.into(), ExchangeKind::Topic, durable_exchange, FieldTable::default())
+        .exchange_declare(
+            DLX_EXCHANGE.into(),
+            ExchangeKind::Topic,
+            durable_exchange,
+            FieldTable::default(),
+        )
         .await?;
 
     for (queue, bindings) in [
-        (SCHEDULER_QUEUE, vec!["scheduler.reconcile", "execution.finished", "task.prefetch"]),
+        (
+            SCHEDULER_QUEUE,
+            vec!["scheduler.reconcile", "execution.finished", "task.prefetch"],
+        ),
         (EXECUTE_QUEUE, vec!["task.execute"]),
         (CLEANUP_QUEUE, vec!["workspace.cleanup"]),
         (CONTINUATION_QUEUE, vec!["continuation.wake"]),
@@ -272,11 +291,24 @@ pub async fn declare_topology(channel: &Channel) -> Result<()> {
         args.insert("x-queue-type".into(), long_string("quorum"));
         args.insert("x-dead-letter-exchange".into(), long_string(DLX_EXCHANGE));
         channel
-            .queue_declare(queue.into(), QueueDeclareOptions { durable: true, ..Default::default() }, args)
+            .queue_declare(
+                queue.into(),
+                QueueDeclareOptions {
+                    durable: true,
+                    ..Default::default()
+                },
+                args,
+            )
             .await?;
         for binding in bindings {
             channel
-                .queue_bind(queue.into(), EXCHANGE.into(), binding.into(), QueueBindOptions::default(), FieldTable::default())
+                .queue_bind(
+                    queue.into(),
+                    EXCHANGE.into(),
+                    binding.into(),
+                    QueueBindOptions::default(),
+                    FieldTable::default(),
+                )
                 .await?;
         }
     }
@@ -284,10 +316,23 @@ pub async fn declare_topology(channel: &Channel) -> Result<()> {
     let mut dlq_args = FieldTable::default();
     dlq_args.insert("x-queue-type".into(), long_string("quorum"));
     channel
-        .queue_declare(DLQ.into(), QueueDeclareOptions { durable: true, ..Default::default() }, dlq_args)
+        .queue_declare(
+            DLQ.into(),
+            QueueDeclareOptions {
+                durable: true,
+                ..Default::default()
+            },
+            dlq_args,
+        )
         .await?;
     channel
-        .queue_bind(DLQ.into(), DLX_EXCHANGE.into(), "#".into(), QueueBindOptions::default(), FieldTable::default())
+        .queue_bind(
+            DLQ.into(),
+            DLX_EXCHANGE.into(),
+            "#".into(),
+            QueueBindOptions::default(),
+            FieldTable::default(),
+        )
         .await?;
     Ok(())
 }
@@ -304,7 +349,12 @@ fn routing_key(kind: &str) -> Result<&'static str> {
     }
 }
 
-async fn publish_runtime_envelope(channel: &Channel, body: &[u8], kind: &str, message_id: &str) -> Result<()> {
+async fn publish_runtime_envelope(
+    channel: &Channel,
+    body: &[u8],
+    kind: &str,
+    message_id: &str,
+) -> Result<()> {
     let properties = BasicProperties::default()
         .with_delivery_mode(2)
         .with_content_type("application/json".into())
@@ -368,16 +418,30 @@ async fn run_outbox_relay(config: Config, channel: Channel) -> Result<()> {
             let kind: String = row.get(1);
             let payload: String = row.get(2);
             let count: i32 = row.get(3);
-            let run_id_for_log = serde_json::from_str::<AgentRuntimeEnvelope>(&payload).ok().map(|value| value.run_id).unwrap_or_default();
-            let task_id_for_log = serde_json::from_str::<AgentRuntimeEnvelope>(&payload).ok().and_then(|value| value.task_id).unwrap_or_default();
+            let run_id_for_log = serde_json::from_str::<AgentRuntimeEnvelope>(&payload)
+                .ok()
+                .map(|value| value.run_id)
+                .unwrap_or_default();
+            let task_id_for_log = serde_json::from_str::<AgentRuntimeEnvelope>(&payload)
+                .ok()
+                .and_then(|value| value.task_id)
+                .unwrap_or_default();
             let envelope = serde_json::from_str::<AgentRuntimeEnvelope>(&payload)
                 .context("agent_runtime_outbox_invalid_payload");
             let published = match envelope {
-                Ok(envelope) => envelope.validate().and_then(|_| Ok(envelope)),
+                Ok(envelope) => envelope.validate().map(|_| envelope),
                 Err(error) => Err(error),
             };
             let result = match published {
-                Ok(envelope) => publish_runtime_envelope(&channel, payload.as_bytes(), &kind, &envelope.message_id).await,
+                Ok(envelope) => {
+                    publish_runtime_envelope(
+                        &channel,
+                        payload.as_bytes(),
+                        &kind,
+                        &envelope.message_id,
+                    )
+                    .await
+                }
                 Err(error) => Err(error),
             };
             match result {
@@ -422,7 +486,11 @@ async fn run_outbox_relay(config: Config, channel: Channel) -> Result<()> {
             // the configured low-latency cadence. This keeps busy-path latency
             // unchanged while eliminating 10 idle PostgreSQL polls/second at the
             // default 100ms configuration.
-            next_poll_ms = if row_count >= config.outbox_batch_size.max(1) as usize { 0 } else { base_poll_ms };
+            next_poll_ms = if row_count >= config.outbox_batch_size.max(1) {
+                0
+            } else {
+                base_poll_ms
+            };
         }
     }
 }
@@ -440,14 +508,21 @@ async fn consume_scheduler(config: Config, channel: Channel) -> Result<()> {
     info!(event="agent_runtime.scheduler_consumer_started", worker_id=%config.worker_id, queue=SCHEDULER_QUEUE);
     channel.basic_qos(32, BasicQosOptions::default()).await?;
     let mut consumer = channel
-        .basic_consume(SCHEDULER_QUEUE.into(), "agent-runtime-scheduler-wakeup".into(), BasicConsumeOptions::default(), FieldTable::default())
+        .basic_consume(
+            SCHEDULER_QUEUE.into(),
+            "agent-runtime-scheduler-wakeup".into(),
+            BasicConsumeOptions::default(),
+            FieldTable::default(),
+        )
         .await?;
     while let Some(delivery) = consumer.next().await {
         let delivery = delivery?;
         match serde_json::from_slice::<AgentRuntimeEnvelope>(&delivery.data)
             .context("agent_runtime_scheduler_envelope_invalid")
-            .and_then(|envelope| { envelope.validate()?; Ok(envelope) })
-        {
+            .and_then(|envelope| {
+                envelope.validate()?;
+                Ok(envelope)
+            }) {
             Ok(envelope) => {
                 info!(event="agent_runtime.scheduler_wakeup", run_id=%envelope.run_id, task_id=?envelope.task_id, message_kind=%envelope.kind, dispatch_generation=envelope.dispatch_generation);
                 notify_semantic_controller(&client, &envelope.run_id).await?;
@@ -455,14 +530,25 @@ async fn consume_scheduler(config: Config, channel: Channel) -> Result<()> {
             }
             Err(error) => {
                 error!(event = "agent_runtime.scheduler_message_invalid", error = %error);
-                delivery.nack(BasicNackOptions { requeue: false, ..Default::default() }).await?;
+                delivery
+                    .nack(BasicNackOptions {
+                        requeue: false,
+                        ..Default::default()
+                    })
+                    .await?;
             }
         }
     }
     Ok(())
 }
 
-async fn insert_event(client: &Client, run_id: &str, task_id: Option<&str>, event_type: &str, payload: serde_json::Value) -> Result<()> {
+async fn insert_event(
+    client: &Client,
+    run_id: &str,
+    task_id: Option<&str>,
+    event_type: &str,
+    payload: serde_json::Value,
+) -> Result<()> {
     client
         .execute(
             "INSERT INTO agent_events(event_id,run_id,task_id,event_type,payload_json,created_at) VALUES($1,$2,$3,$4,$5,$6)",
@@ -472,8 +558,15 @@ async fn insert_event(client: &Client, run_id: &str, task_id: Option<&str>, even
     Ok(())
 }
 
-async fn claim_execution(client: &mut Client, config: &Config, envelope: &AgentRuntimeEnvelope) -> Result<Option<ClaimedExecution>> {
-    let task_id = envelope.task_id.as_deref().context("agent_runtime_execute_task_missing")?;
+async fn claim_execution(
+    client: &mut Client,
+    config: &Config,
+    envelope: &AgentRuntimeEnvelope,
+) -> Result<Option<ClaimedExecution>> {
+    let task_id = envelope
+        .task_id
+        .as_deref()
+        .context("agent_runtime_execute_task_missing")?;
     let transaction = client.transaction().await?;
     let row = transaction
         .query_opt(
@@ -492,7 +585,12 @@ async fn claim_execution(client: &mut Client, config: &Config, envelope: &AgentR
     let fence: i64 = row.get(3);
     let descriptor_path: Option<String> = row.get(4);
     let run_status: String = row.get(5);
-    if run_status != "running" || status != "queued" || attempt != envelope.attempt.unwrap_or_default() || generation != envelope.dispatch_generation || envelope.fencing_token != Some(fence) {
+    if run_status != "running"
+        || status != "queued"
+        || attempt != envelope.attempt.unwrap_or_default()
+        || generation != envelope.dispatch_generation
+        || envelope.fencing_token != Some(fence)
+    {
         transaction.rollback().await?;
         return Ok(None);
     }
@@ -520,11 +618,21 @@ async fn claim_execution(client: &mut Client, config: &Config, envelope: &AgentR
         warn!(event="agent_runtime.progress_wakeup_failed", run_id=%envelope.run_id, task_id=%task_id, error=%error);
     }
     info!(event="agent_runtime.task_claimed", run_id=%envelope.run_id, task_id=%task_id, worker_id=%config.worker_id, attempt, dispatch_generation=generation, fencing_token=fence, lease_expires_at=%expires);
-    Ok(Some(ClaimedExecution { task_id: task_id.to_string(), run_id: envelope.run_id.clone(), descriptor_path, attempt, dispatch_generation: generation, fencing_token: fence }))
+    Ok(Some(ClaimedExecution {
+        task_id: task_id.to_string(),
+        run_id: envelope.run_id.clone(),
+        descriptor_path,
+        attempt,
+        dispatch_generation: generation,
+        fencing_token: fence,
+    }))
 }
 
 fn should_skip_entry(name: &str) -> bool {
-    matches!(name, ".runtime" | ".git" | "node_modules" | "dist" | "release" | "target")
+    matches!(
+        name,
+        ".runtime" | ".git" | "node_modules" | "dist" | "release" | "target"
+    )
 }
 
 fn fingerprint_file(path: &Path) -> io::Result<FileFingerprint> {
@@ -534,22 +642,37 @@ fn fingerprint_file(path: &Path) -> io::Result<FileFingerprint> {
     let mut bytes = 0_u64;
     loop {
         let read = file.read(&mut buffer)?;
-        if read == 0 { break; }
+        if read == 0 {
+            break;
+        }
         hasher.update(&buffer[..read]);
         bytes += read as u64;
     }
-    Ok(FileFingerprint { sha256: format!("{:x}", hasher.finalize()), bytes })
+    Ok(FileFingerprint {
+        sha256: format!("{:x}", hasher.finalize()),
+        bytes,
+    })
 }
 
-fn copy_tree_with_baseline(source: &Path, target: &Path) -> io::Result<HashMap<String, FileFingerprint>> {
+fn copy_tree_with_baseline(
+    source: &Path,
+    target: &Path,
+) -> io::Result<HashMap<String, FileFingerprint>> {
     let mut baseline = HashMap::new();
     fs::create_dir_all(target)?;
-    fn visit(root: &Path, current: &Path, target: &Path, baseline: &mut HashMap<String, FileFingerprint>) -> io::Result<()> {
+    fn visit(
+        root: &Path,
+        current: &Path,
+        target: &Path,
+        baseline: &mut HashMap<String, FileFingerprint>,
+    ) -> io::Result<()> {
         for entry in fs::read_dir(current)? {
             let entry = entry?;
             let name = entry.file_name();
             let name_text = name.to_string_lossy();
-            if should_skip_entry(&name_text) { continue; }
+            if should_skip_entry(&name_text) {
+                continue;
+            }
             let path = entry.path();
             let rel = path.strip_prefix(root).unwrap_or(&path);
             let out = target.join(rel);
@@ -558,7 +681,9 @@ fn copy_tree_with_baseline(source: &Path, target: &Path) -> io::Result<HashMap<S
                 fs::create_dir_all(&out)?;
                 visit(root, &path, target, baseline)?;
             } else if kind.is_file() {
-                if let Some(parent) = out.parent() { fs::create_dir_all(parent)?; }
+                if let Some(parent) = out.parent() {
+                    fs::create_dir_all(parent)?;
+                }
                 fs::copy(&path, &out)?;
                 let key = rel.to_string_lossy().replace('\\', "/");
                 // The attempt baseline must describe the exact bytes the specialist
@@ -576,12 +701,18 @@ fn copy_tree_with_baseline(source: &Path, target: &Path) -> io::Result<HashMap<S
 
 fn snapshot_tree(root: &Path) -> io::Result<HashMap<String, FileFingerprint>> {
     let mut snapshot = HashMap::new();
-    fn visit(root: &Path, current: &Path, snapshot: &mut HashMap<String, FileFingerprint>) -> io::Result<()> {
+    fn visit(
+        root: &Path,
+        current: &Path,
+        snapshot: &mut HashMap<String, FileFingerprint>,
+    ) -> io::Result<()> {
         for entry in fs::read_dir(current)? {
             let entry = entry?;
             let name = entry.file_name();
             let name_text = name.to_string_lossy();
-            if should_skip_entry(&name_text) { continue; }
+            if should_skip_entry(&name_text) {
+                continue;
+            }
             let path = entry.path();
             let kind = entry.file_type()?;
             if kind.is_dir() {
@@ -599,25 +730,47 @@ fn snapshot_tree(root: &Path) -> io::Result<HashMap<String, FileFingerprint>> {
 }
 
 async fn write_baseline(path: &str, baseline: &HashMap<String, FileFingerprint>) -> Result<()> {
-    if let Some(parent) = Path::new(path).parent() { tokio::fs::create_dir_all(parent).await?; }
-    tokio::fs::write(path, serde_json::to_vec_pretty(&serde_json::json!({"files": baseline}))?).await?;
+    if let Some(parent) = Path::new(path).parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+    tokio::fs::write(
+        path,
+        serde_json::to_vec_pretty(&serde_json::json!({"files": baseline}))?,
+    )
+    .await?;
     Ok(())
 }
 
-async fn collect_workspace_change_set(descriptor: &ExecutionDescriptor, claimed: &ClaimedExecution) -> Result<()> {
-    let baseline_path = descriptor.workspace.baseline_path.as_deref().context("agent_runtime_workspace_baseline_path_missing")?;
-    let baseline_value: serde_json::Value = serde_json::from_slice(&tokio::fs::read(baseline_path).await?)
-        .context("agent_runtime_workspace_baseline_invalid")?;
+async fn collect_workspace_change_set(
+    descriptor: &ExecutionDescriptor,
+    claimed: &ClaimedExecution,
+) -> Result<()> {
+    let baseline_path = descriptor
+        .workspace
+        .baseline_path
+        .as_deref()
+        .context("agent_runtime_workspace_baseline_path_missing")?;
+    let baseline_value: serde_json::Value =
+        serde_json::from_slice(&tokio::fs::read(baseline_path).await?)
+            .context("agent_runtime_workspace_baseline_invalid")?;
     let baseline: HashMap<String, FileFingerprint> = serde_json::from_value(
-        baseline_value.get("files").cloned().unwrap_or_else(|| serde_json::json!({}))
-    ).context("agent_runtime_workspace_baseline_files_invalid")?;
+        baseline_value
+            .get("files")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!({})),
+    )
+    .context("agent_runtime_workspace_baseline_files_invalid")?;
     let root = if descriptor.workspace.mode == "none" {
         PathBuf::from(&descriptor.workspace.source_root)
     } else {
         PathBuf::from(&descriptor.workspace.path)
     };
     let after = tokio::task::spawn_blocking(move || snapshot_tree(&root)).await??;
-    let mut keys = baseline.keys().chain(after.keys()).cloned().collect::<Vec<_>>();
+    let mut keys = baseline
+        .keys()
+        .chain(after.keys())
+        .cloned()
+        .collect::<Vec<_>>();
     keys.sort();
     keys.dedup();
     let mut observed_paths = Vec::new();
@@ -642,8 +795,14 @@ async fn collect_workspace_change_set(descriptor: &ExecutionDescriptor, claimed:
         "createdAt": now(),
         "collector": "rust-agent-runtime-executor"
     });
-    if let Some(parent) = Path::new(&descriptor.change_set_path).parent() { tokio::fs::create_dir_all(parent).await?; }
-    tokio::fs::write(&descriptor.change_set_path, serde_json::to_vec_pretty(&change_set)?).await?;
+    if let Some(parent) = Path::new(&descriptor.change_set_path).parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+    tokio::fs::write(
+        &descriptor.change_set_path,
+        serde_json::to_vec_pretty(&change_set)?,
+    )
+    .await?;
     Ok(())
 }
 
@@ -656,7 +815,12 @@ fn should_inject_cleanup_ebusy_once(config: &Config, task_id: &str, attempts: i3
             .is_some_and(|matcher| task_id.contains(matcher))
 }
 
-async fn remove_workspace_for_cleanup(config: &Config, task_id: &str, attempts: i32, path: &Path) -> Result<()> {
+async fn remove_workspace_for_cleanup(
+    config: &Config,
+    task_id: &str,
+    attempts: i32,
+    path: &Path,
+) -> Result<()> {
     if should_inject_cleanup_ebusy_once(config, task_id, attempts) {
         bail!("EBUSY: injected local-only Agent Runtime cleanup fault for {task_id}");
     }
@@ -664,7 +828,9 @@ async fn remove_workspace_for_cleanup(config: &Config, task_id: &str, attempts: 
 }
 
 async fn remove_workspace_robust(path: &Path) -> Result<()> {
-    if !path.exists() { return Ok(()); }
+    if !path.exists() {
+        return Ok(());
+    }
     let mut delay = 50_u64;
     let mut last = None;
     for _ in 0..CLEANUP_RETRIES_PER_DELIVERY {
@@ -677,14 +843,20 @@ async fn remove_workspace_robust(path: &Path) -> Result<()> {
         sleep(Duration::from_millis(delay)).await;
         delay = (delay * 2).min(2_000);
     }
-    Err(last.map(anyhow::Error::from).unwrap_or_else(|| anyhow::anyhow!("workspace_cleanup_failed")))
+    Err(last
+        .map(anyhow::Error::from)
+        .unwrap_or_else(|| anyhow::anyhow!("workspace_cleanup_failed")))
 }
 
 async fn link_node_modules(source: &Path, target: &Path) -> Result<()> {
     let source_modules = source.join("node_modules");
-    if !source_modules.exists() { return Ok(()); }
+    if !source_modules.exists() {
+        return Ok(());
+    }
     let target_modules = target.join("node_modules");
-    if target_modules.exists() { return Ok(()); }
+    if target_modules.exists() {
+        return Ok(());
+    }
     #[cfg(windows)]
     {
         let status = Command::new("cmd")
@@ -694,13 +866,18 @@ async fn link_node_modules(source: &Path, target: &Path) -> Result<()> {
             .status()
             .await
             .context("agent_runtime_node_modules_junction_spawn_failed")?;
-        if !status.success() { bail!("agent_runtime_node_modules_junction_failed"); }
+        if !status.success() {
+            bail!("agent_runtime_node_modules_junction_failed");
+        }
     }
     #[cfg(unix)]
     {
         let source_modules = source_modules.clone();
         let target_modules = target_modules.clone();
-        tokio::task::spawn_blocking(move || std::os::unix::fs::symlink(source_modules, target_modules)).await??;
+        tokio::task::spawn_blocking(move || {
+            std::os::unix::fs::symlink(source_modules, target_modules)
+        })
+        .await??;
     }
     Ok(())
 }
@@ -712,31 +889,48 @@ async fn initialize_workspace_git(target: &Path) -> Result<()> {
         .status()
         .await
         .context("agent_runtime_workspace_git_init_spawn_failed")?;
-    if !init.success() { bail!("agent_runtime_workspace_git_init_failed"); }
+    if !init.success() {
+        bail!("agent_runtime_workspace_git_init_failed");
+    }
     let add = Command::new("git")
         .args(["add", "-A"])
         .current_dir(target)
         .status()
         .await
         .context("agent_runtime_workspace_git_add_spawn_failed")?;
-    if !add.success() { bail!("agent_runtime_workspace_git_add_failed"); }
+    if !add.success() {
+        bail!("agent_runtime_workspace_git_add_failed");
+    }
     let commit = Command::new("git")
         .args([
-            "-c", "user.name=Agentic Harness Runtime",
-            "-c", "user.email=runtime@agent-harness.invalid",
-            "commit", "--quiet", "--allow-empty", "--no-gpg-sign", "-m", "Agent Runtime workspace baseline",
+            "-c",
+            "user.name=Agentic Harness Runtime",
+            "-c",
+            "user.email=runtime@agent-harness.invalid",
+            "commit",
+            "--quiet",
+            "--allow-empty",
+            "--no-gpg-sign",
+            "-m",
+            "Agent Runtime workspace baseline",
         ])
         .current_dir(target)
         .status()
         .await
         .context("agent_runtime_workspace_git_commit_spawn_failed")?;
-    if !commit.success() { bail!("agent_runtime_workspace_git_commit_failed"); }
+    if !commit.success() {
+        bail!("agent_runtime_workspace_git_commit_failed");
+    }
     Ok(())
 }
 
 async fn materialize_workspace(descriptor: &ExecutionDescriptor) -> Result<()> {
     let source = PathBuf::from(&descriptor.workspace.source_root);
-    let baseline_path = descriptor.workspace.baseline_path.as_deref().context("agent_runtime_workspace_baseline_path_missing")?;
+    let baseline_path = descriptor
+        .workspace
+        .baseline_path
+        .as_deref()
+        .context("agent_runtime_workspace_baseline_path_missing")?;
     if descriptor.workspace.mode == "none" {
         let source_clone = source.clone();
         let baseline = tokio::task::spawn_blocking(move || snapshot_tree(&source_clone)).await??;
@@ -756,7 +950,9 @@ async fn materialize_workspace(descriptor: &ExecutionDescriptor) -> Result<()> {
     remove_workspace_robust(&target).await?;
     let source_clone = source.clone();
     let target_clone = target.clone();
-    let baseline = tokio::task::spawn_blocking(move || copy_tree_with_baseline(&source_clone, &target_clone)).await??;
+    let baseline =
+        tokio::task::spawn_blocking(move || copy_tree_with_baseline(&source_clone, &target_clone))
+            .await??;
     let baseline_files = baseline.len();
     let git_started = Instant::now();
     initialize_workspace_git(&target).await?;
@@ -781,12 +977,18 @@ async fn observe_runtime_event(
 ) {
     const PREFIX: &str = "@@agent-harness-runtime-event ";
     const MAX_BUFFERED_RUNTIME_EVENTS: usize = 256;
-    let Some(raw) = line.strip_prefix(PREFIX) else { return; };
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(raw) else { return; };
-    if value.get("type").and_then(|value| value.as_str()) == Some("opencode.session.observed") {
-        if let Some(id) = value.pointer("/payload/sessionId").and_then(|value| value.as_str()) {
-            *session.lock().await = Some(id.to_string());
-        }
+    let Some(raw) = line.strip_prefix(PREFIX) else {
+        return;
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(raw) else {
+        return;
+    };
+    if value.get("type").and_then(|value| value.as_str()) == Some("opencode.session.observed")
+        && let Some(id) = value
+            .pointer("/payload/sessionId")
+            .and_then(|value| value.as_str())
+    {
+        *session.lock().await = Some(id.to_string());
     }
     // stdout and stderr are drained by separate tasks. `try_lock()` made
     // performance boundaries lossy whenever both streams produced lines at the
@@ -810,8 +1012,7 @@ async fn stream_output<R>(
     stderr_tail: Option<Arc<Mutex<String>>>,
     session: Arc<Mutex<Option<String>>>,
     runtime_events: Arc<Mutex<Vec<serde_json::Value>>>,
-)
-where
+) where
     R: tokio::io::AsyncRead + Unpin,
 {
     let mut lines = BufReader::new(reader).lines();
@@ -831,10 +1032,17 @@ where
     }
 }
 
-async fn run_shell_command(descriptor: &ExecutionDescriptor, claimed: &ClaimedExecution, client: &Client, config: &Config) -> Result<ExecutionResult> {
+async fn run_shell_command(
+    descriptor: &ExecutionDescriptor,
+    claimed: &ClaimedExecution,
+    client: &Client,
+    config: &Config,
+) -> Result<ExecutionResult> {
     info!(event="agent_runtime.execution_preparing", run_id=%claimed.run_id, task_id=%claimed.task_id, agent_id=%descriptor.agent_id, worker_id=%config.worker_id, attempt=claimed.attempt, dispatch_generation=claimed.dispatch_generation, fencing_token=claimed.fencing_token, workspace_mode=%descriptor.workspace.mode);
     let workspace_started = Instant::now();
-    materialize_workspace(descriptor).await.context("agent_runtime_workspace_materialize_failed")?;
+    materialize_workspace(descriptor)
+        .await
+        .context("agent_runtime_workspace_materialize_failed")?;
     let workspace_duration_ms = workspace_started.elapsed().as_millis() as u64;
     if let Err(error) = insert_event(client, &claimed.run_id, Some(&claimed.task_id), "workspace.ready", serde_json::json!({
         "attempt": claimed.attempt, "dispatchGeneration": claimed.dispatch_generation, "fencingToken": claimed.fencing_token,
@@ -843,8 +1051,17 @@ async fn run_shell_command(descriptor: &ExecutionDescriptor, claimed: &ClaimedEx
         warn!(event="agent_runtime.performance_event_failed", event_type="workspace.ready", run_id=%claimed.run_id, task_id=%claimed.task_id, error=%error);
     }
     info!(event="agent_runtime.workspace_ready", run_id=%claimed.run_id, task_id=%claimed.task_id, workspace_mode=%descriptor.workspace.mode, workspace_path=%descriptor.workspace.path, duration_ms=workspace_duration_ms, execution_mode=%descriptor.execution_mode);
-    if let Some(parent) = Path::new(&descriptor.log_path).parent() { tokio::fs::create_dir_all(parent).await?; }
-    let log = Arc::new(Mutex::new(OpenOptions::new().create(true).truncate(true).write(true).open(&descriptor.log_path).await?));
+    if let Some(parent) = Path::new(&descriptor.log_path).parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+    let log = Arc::new(Mutex::new(
+        OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(&descriptor.log_path)
+            .await?,
+    ));
     let mut command = if cfg!(windows) {
         let mut cmd = Command::new("cmd");
         cmd.args(["/D", "/S", "/C", &descriptor.process.command]);
@@ -869,7 +1086,9 @@ async fn run_shell_command(descriptor: &ExecutionDescriptor, claimed: &ClaimedEx
     let started = Instant::now();
     info!(event="agent_runtime.executor_starting", run_id=%claimed.run_id, task_id=%claimed.task_id, agent_id=%descriptor.agent_id, attempt=claimed.attempt, dispatch_generation=claimed.dispatch_generation, fencing_token=claimed.fencing_token, timeout_ms=descriptor.process.timeout_ms, soft_timeout_ms=?descriptor.process.soft_timeout_ms, stall_timeout_ms=?descriptor.process.stall_timeout_ms, liveness_policy=?descriptor.process.liveness_policy, log_path=%descriptor.log_path);
     info!(event="agent_runtime.executor_liveness_policy", run_id=%claimed.run_id, task_id=%claimed.task_id, attempt=claimed.attempt, hard_timeout_ms=descriptor.process.timeout_ms, soft_timeout_ms=?descriptor.process.soft_timeout_ms, stall_timeout_ms=?descriptor.process.stall_timeout_ms, policy=?descriptor.process.liveness_policy);
-    let mut child = command.spawn().context("agent_runtime_executor_spawn_failed")?;
+    let mut child = command
+        .spawn()
+        .context("agent_runtime_executor_spawn_failed")?;
     let pid = child.id().map(i64::from);
     insert_event(client, &claimed.run_id, Some(&claimed.task_id), "executor.spawned", serde_json::json!({
         "pid": pid, "attempt": claimed.attempt, "dispatchGeneration": claimed.dispatch_generation,
@@ -882,12 +1101,26 @@ async fn run_shell_command(descriptor: &ExecutionDescriptor, claimed: &ClaimedEx
     let stderr_tail = Arc::new(Mutex::new(String::new()));
     let session_id = Arc::new(Mutex::new(None));
     let runtime_events = Arc::new(Mutex::new(Vec::<serde_json::Value>::new()));
-    let stdout_task = child.stdout.take().map(|stdout| tokio::spawn(stream_output(
-        stdout, log.clone(), stdout_bytes.clone(), None, session_id.clone(), runtime_events.clone(),
-    )));
-    let stderr_task = child.stderr.take().map(|stderr| tokio::spawn(stream_output(
-        stderr, log.clone(), stderr_bytes.clone(), Some(stderr_tail.clone()), session_id.clone(), runtime_events.clone(),
-    )));
+    let stdout_task = child.stdout.take().map(|stdout| {
+        tokio::spawn(stream_output(
+            stdout,
+            log.clone(),
+            stdout_bytes.clone(),
+            None,
+            session_id.clone(),
+            runtime_events.clone(),
+        ))
+    });
+    let stderr_task = child.stderr.take().map(|stderr| {
+        tokio::spawn(stream_output(
+            stderr,
+            log.clone(),
+            stderr_bytes.clone(),
+            Some(stderr_tail.clone()),
+            session_id.clone(),
+            runtime_events.clone(),
+        ))
+    });
 
     let mut heartbeat = interval(Duration::from_secs(HEARTBEAT_SECONDS));
     heartbeat.tick().await;
@@ -895,10 +1128,14 @@ async fn run_shell_command(descriptor: &ExecutionDescriptor, claimed: &ClaimedEx
     cancellation.tick().await;
     let timeout = sleep(Duration::from_millis(descriptor.process.timeout_ms));
     tokio::pin!(timeout);
-    let soft_timeout_ms = descriptor.process.soft_timeout_ms.unwrap_or(descriptor.process.timeout_ms);
+    let soft_timeout_ms = descriptor
+        .process
+        .soft_timeout_ms
+        .unwrap_or(descriptor.process.timeout_ms);
     let soft_timeout = sleep(Duration::from_millis(soft_timeout_ms));
     tokio::pin!(soft_timeout);
-    let soft_timeout_enabled = descriptor.process.soft_timeout_ms.is_some() && soft_timeout_ms < descriptor.process.timeout_ms;
+    let soft_timeout_enabled = descriptor.process.soft_timeout_ms.is_some()
+        && soft_timeout_ms < descriptor.process.timeout_ms;
     let mut timed_out = false;
     let mut soft_timed_out = false;
     let mut stalled = false;
@@ -933,25 +1170,26 @@ async fn run_shell_command(descriptor: &ExecutionDescriptor, claimed: &ClaimedEx
                     "source": "rust-agent-runtime-executor"
                 })).await?;
                 debug!(event="agent_runtime.executor_heartbeat", run_id=%claimed.run_id, task_id=%claimed.task_id, worker_id=%config.worker_id, elapsed_ms=started.elapsed().as_millis() as u64, stdout_bytes=current_stdout, stderr_bytes=current_stderr, idle_ms=idle_ms, dispatch_generation=claimed.dispatch_generation, fencing_token=claimed.fencing_token);
-                if !stalled && !soft_timed_out && !timed_out {
-                    if let Some(stall_timeout_ms) = descriptor.process.stall_timeout_ms {
-                        if idle_ms >= stall_timeout_ms {
-                            warn!(event="agent_runtime.executor_stalled", run_id=%claimed.run_id, task_id=%claimed.task_id, worker_id=%config.worker_id, stall_timeout_ms=stall_timeout_ms, elapsed_ms=started.elapsed().as_millis() as u64, idle_ms, stdout_bytes=current_stdout, stderr_bytes=current_stderr, dispatch_generation=claimed.dispatch_generation, fencing_token=claimed.fencing_token);
-                            insert_event(client, &claimed.run_id, Some(&claimed.task_id), "executor.stalled", serde_json::json!({
-                                "stallTimeoutMs": stall_timeout_ms,
-                                "elapsedMs": started.elapsed().as_millis() as u64,
-                                "idleMs": idle_ms,
-                                "stdoutBytes": current_stdout,
-                                "stderrBytes": current_stderr,
-                                "dispatchGeneration": claimed.dispatch_generation,
-                                "fencingToken": claimed.fencing_token,
-                                "source": "rust-agent-runtime-executor"
-                            })).await?;
-                            stalled = true;
-                            terminate_process_tree(pid).await;
-                            let _ = child.kill().await;
-                        }
-                    }
+                if !stalled
+                    && !soft_timed_out
+                    && !timed_out
+                    && let Some(stall_timeout_ms) = descriptor.process.stall_timeout_ms
+                    && idle_ms >= stall_timeout_ms
+                {
+                    warn!(event="agent_runtime.executor_stalled", run_id=%claimed.run_id, task_id=%claimed.task_id, worker_id=%config.worker_id, stall_timeout_ms=stall_timeout_ms, elapsed_ms=started.elapsed().as_millis() as u64, idle_ms, stdout_bytes=current_stdout, stderr_bytes=current_stderr, dispatch_generation=claimed.dispatch_generation, fencing_token=claimed.fencing_token);
+                    insert_event(client, &claimed.run_id, Some(&claimed.task_id), "executor.stalled", serde_json::json!({
+                        "stallTimeoutMs": stall_timeout_ms,
+                        "elapsedMs": started.elapsed().as_millis() as u64,
+                        "idleMs": idle_ms,
+                        "stdoutBytes": current_stdout,
+                        "stderrBytes": current_stderr,
+                        "dispatchGeneration": claimed.dispatch_generation,
+                        "fencingToken": claimed.fencing_token,
+                        "source": "rust-agent-runtime-executor"
+                    })).await?;
+                    stalled = true;
+                    terminate_process_tree(pid).await;
+                    let _ = child.kill().await;
                 }
             }
             _ = cancellation.tick(), if !aborted => {
@@ -993,9 +1231,15 @@ async fn run_shell_command(descriptor: &ExecutionDescriptor, claimed: &ClaimedEx
             }
         }
     };
-    if let Some(task) = stdout_task { let _ = task.await; }
-    if let Some(task) = stderr_task { let _ = task.await; }
-    collect_workspace_change_set(descriptor, claimed).await.context("agent_runtime_workspace_changeset_failed")?;
+    if let Some(task) = stdout_task {
+        let _ = task.await;
+    }
+    if let Some(task) = stderr_task {
+        let _ = task.await;
+    }
+    collect_workspace_change_set(descriptor, claimed)
+        .await
+        .context("agent_runtime_workspace_changeset_failed")?;
     info!(event="agent_runtime.workspace_changeset_ready", run_id=%claimed.run_id, task_id=%claimed.task_id, change_set_path=%descriptor.change_set_path);
 
     let completed_at = now();
@@ -1056,20 +1300,37 @@ async fn run_shell_command(descriptor: &ExecutionDescriptor, claimed: &ClaimedEx
 }
 
 async fn terminate_process_tree(pid: Option<i64>) {
-    let Some(pid) = pid else { return; };
+    let Some(pid) = pid else {
+        return;
+    };
     if cfg!(windows) {
-        let _ = Command::new("taskkill").args(["/PID", &pid.to_string(), "/T", "/F"]).output().await;
+        let _ = Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/T", "/F"])
+            .output()
+            .await;
     } else {
-        let _ = Command::new("pkill").args(["-TERM", "-P", &pid.to_string()]).output().await;
-        let _ = Command::new("kill").args(["-TERM", &pid.to_string()]).output().await;
+        let _ = Command::new("pkill")
+            .args(["-TERM", "-P", &pid.to_string()])
+            .output()
+            .await;
+        let _ = Command::new("kill")
+            .args(["-TERM", &pid.to_string()])
+            .output()
+            .await;
     }
 }
 
-async fn existing_execution_result(descriptor: &ExecutionDescriptor, claim: &ClaimedExecution) -> Result<Option<ExecutionResult>> {
+async fn existing_execution_result(
+    descriptor: &ExecutionDescriptor,
+    claim: &ClaimedExecution,
+) -> Result<Option<ExecutionResult>> {
     let path = Path::new(&descriptor.result_path);
-    if !path.exists() { return Ok(None); }
+    if !path.exists() {
+        return Ok(None);
+    }
     let text = tokio::fs::read_to_string(path).await?;
-    let result: ExecutionResult = serde_json::from_str(&text).context("agent_runtime_existing_result_invalid")?;
+    let result: ExecutionResult =
+        serde_json::from_str(&text).context("agent_runtime_existing_result_invalid")?;
     if result.schema_version != "agent-execution-result/v1"
         || result.run_id != claim.run_id
         || result.task_id != claim.task_id
@@ -1083,15 +1344,22 @@ async fn existing_execution_result(descriptor: &ExecutionDescriptor, claim: &Cla
 }
 
 async fn persist_execution_result(client: &mut Client, result: &ExecutionResult) -> Result<()> {
-    if let Some(parent) = Path::new(&result.log_path).parent() { tokio::fs::create_dir_all(parent).await?; }
+    if let Some(parent) = Path::new(&result.log_path).parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
     let result_path = PathBuf::from(&result.result_path);
-    if let Some(parent) = result_path.parent() { tokio::fs::create_dir_all(parent).await?; }
+    if let Some(parent) = result_path.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
     let payload = serde_json::to_string_pretty(result)?;
     tokio::fs::write(&result_path, &payload).await?;
     let result_path = result_path.to_string_lossy().to_string();
     let transaction = client.transaction().await?;
     let current = transaction
-        .query_opt("SELECT dispatch_generation,fencing_token FROM agent_tasks WHERE task_id=$1 FOR UPDATE", &[&result.task_id])
+        .query_opt(
+            "SELECT dispatch_generation,fencing_token FROM agent_tasks WHERE task_id=$1 FOR UPDATE",
+            &[&result.task_id],
+        )
         .await?;
     let Some(current) = current else {
         transaction.rollback().await?;
@@ -1137,7 +1405,9 @@ async fn persist_execution_result(client: &mut Client, result: &ExecutionResult)
             &[&id, &result.run_id, &result.task_id, &result.dispatch_generation, &serde_json::to_string(&envelope)?, &now()],
         )
         .await?;
-    transaction.query_one("SELECT pg_notify($1,$2)", &[&WAKE_CHANNEL, &result.run_id]).await?;
+    transaction
+        .query_one("SELECT pg_notify($1,$2)", &[&WAKE_CHANNEL, &result.run_id])
+        .await?;
     transaction.commit().await?;
     info!(event="agent_runtime.execution_result_persisted", run_id=%result.run_id, task_id=%result.task_id, attempt=result.attempt, dispatch_generation=result.dispatch_generation, fencing_token=result.fencing_token, exit_code=?result.exit_code, result_path=%result.result_path);
     Ok(())
@@ -1145,9 +1415,16 @@ async fn persist_execution_result(client: &mut Client, result: &ExecutionResult)
 
 async fn consume_execute(config: Config, channel: Channel, concurrency: u16) -> Result<()> {
     info!(event="agent_runtime.execute_consumer_started", worker_id=%config.worker_id, queue=EXECUTE_QUEUE, concurrency);
-    channel.basic_qos(concurrency.max(1), BasicQosOptions::default()).await?;
+    channel
+        .basic_qos(concurrency.max(1), BasicQosOptions::default())
+        .await?;
     let mut consumer = channel
-        .basic_consume(EXECUTE_QUEUE.into(), "agent-runtime-executor".into(), BasicConsumeOptions::default(), FieldTable::default())
+        .basic_consume(
+            EXECUTE_QUEUE.into(),
+            "agent-runtime-executor".into(),
+            BasicConsumeOptions::default(),
+            FieldTable::default(),
+        )
         .await?;
     let semaphore = Arc::new(tokio::sync::Semaphore::new(concurrency.max(1) as usize));
     while let Some(delivery) = consumer.next().await {
@@ -1160,18 +1437,30 @@ async fn consume_execute(config: Config, channel: Channel, concurrency: u16) -> 
                 Ok(client) => client,
                 Err(error) => {
                     error!(event="agent_runtime.execute_db_failed", error=%error);
-                    let _ = delivery.nack(BasicNackOptions { requeue: true, ..Default::default() }).await;
+                    let _ = delivery
+                        .nack(BasicNackOptions {
+                            requeue: true,
+                            ..Default::default()
+                        })
+                        .await;
                     return;
                 }
             };
             let envelope = match serde_json::from_slice::<AgentRuntimeEnvelope>(&delivery.data)
                 .context("agent_runtime_execute_envelope_invalid")
-                .and_then(|value| { value.validate()?; Ok(value) })
-            {
+                .and_then(|value| {
+                    value.validate()?;
+                    Ok(value)
+                }) {
                 Ok(value) => value,
                 Err(error) => {
                     error!(event="agent_runtime.execute_message_invalid", error=%error);
-                    let _ = delivery.nack(BasicNackOptions { requeue: false, ..Default::default() }).await;
+                    let _ = delivery
+                        .nack(BasicNackOptions {
+                            requeue: false,
+                            ..Default::default()
+                        })
+                        .await;
                     return;
                 }
             };
@@ -1180,7 +1469,12 @@ async fn consume_execute(config: Config, channel: Channel, concurrency: u16) -> 
                 Ok(value) => value,
                 Err(error) => {
                     error!(event="agent_runtime.execute_claim_failed", error=%error);
-                    let _ = delivery.nack(BasicNackOptions { requeue: true, ..Default::default() }).await;
+                    let _ = delivery
+                        .nack(BasicNackOptions {
+                            requeue: true,
+                            ..Default::default()
+                        })
+                        .await;
                     return;
                 }
             };
@@ -1189,19 +1483,40 @@ async fn consume_execute(config: Config, channel: Channel, concurrency: u16) -> 
                 let _ = delivery.ack(BasicAckOptions::default()).await;
                 return;
             };
-            let descriptor = match tokio::fs::read_to_string(&claim.descriptor_path).await
+            let descriptor = match tokio::fs::read_to_string(&claim.descriptor_path)
+                .await
                 .context("agent_runtime_descriptor_read_failed")
-                .and_then(|text| serde_json::from_str::<ExecutionDescriptor>(&text).context("agent_runtime_descriptor_invalid"))
-            {
-                Ok(value) if value.schema_version == "agent-execution-descriptor/v1" && value.run_id == claim.run_id && value.task_id == claim.task_id && value.attempt == claim.attempt && value.dispatch_generation == claim.dispatch_generation => value,
+                .and_then(|text| {
+                    serde_json::from_str::<ExecutionDescriptor>(&text)
+                        .context("agent_runtime_descriptor_invalid")
+                }) {
+                Ok(value)
+                    if value.schema_version == "agent-execution-descriptor/v1"
+                        && value.run_id == claim.run_id
+                        && value.task_id == claim.task_id
+                        && value.attempt == claim.attempt
+                        && value.dispatch_generation == claim.dispatch_generation =>
+                {
+                    value
+                }
                 Ok(_) => {
                     error!(event="agent_runtime.descriptor_identity_mismatch", task_id=%claim.task_id);
-                    let _ = delivery.nack(BasicNackOptions { requeue: false, ..Default::default() }).await;
+                    let _ = delivery
+                        .nack(BasicNackOptions {
+                            requeue: false,
+                            ..Default::default()
+                        })
+                        .await;
                     return;
                 }
                 Err(error) => {
                     error!(event="agent_runtime.descriptor_load_failed", task_id=%claim.task_id, error=%error);
-                    let _ = delivery.nack(BasicNackOptions { requeue: true, ..Default::default() }).await;
+                    let _ = delivery
+                        .nack(BasicNackOptions {
+                            requeue: true,
+                            ..Default::default()
+                        })
+                        .await;
                     return;
                 }
             };
@@ -1209,10 +1524,17 @@ async fn consume_execute(config: Config, channel: Channel, concurrency: u16) -> 
             match existing_execution_result(&descriptor, &claim).await {
                 Ok(Some(existing)) => {
                     match persist_execution_result(&mut client, &existing).await {
-                        Ok(()) => { let _ = delivery.ack(BasicAckOptions::default()).await; }
+                        Ok(()) => {
+                            let _ = delivery.ack(BasicAckOptions::default()).await;
+                        }
                         Err(error) => {
                             error!(event="agent_runtime.existing_result_persist_failed", task_id=%claim.task_id, error=%error);
-                            let _ = delivery.nack(BasicNackOptions { requeue: true, ..Default::default() }).await;
+                            let _ = delivery
+                                .nack(BasicNackOptions {
+                                    requeue: true,
+                                    ..Default::default()
+                                })
+                                .await;
                         }
                     }
                     return;
@@ -1226,20 +1548,46 @@ async fn consume_execute(config: Config, channel: Channel, concurrency: u16) -> 
                 Ok(value) => value,
                 Err(error) => ExecutionResult {
                     schema_version: "agent-execution-result/v1".into(),
-                    run_id: claim.run_id.clone(), task_id: claim.task_id.clone(), agent_id: descriptor.agent_id.clone(),
-                    attempt: claim.attempt, dispatch_generation: claim.dispatch_generation, fencing_token: claim.fencing_token,
-                    started_at: now(), completed_at: now(), exit_code: Some(1), signal: None, timed_out: false, soft_timed_out: false, stalled: false, aborted: false,
-                    error: Some(error.to_string()), stderr_summary: error.to_string(), handoff_path: descriptor.handoff_path.clone(),
-                    log_path: descriptor.log_path.clone(), result_path: descriptor.result_path.clone(), change_set_path: descriptor.change_set_path.clone(),
-                    workspace: ExecutionResultWorkspace { mode: descriptor.workspace.mode.clone(), path: descriptor.workspace.path.clone(), baseline_path: descriptor.workspace.baseline_path.clone() },
+                    run_id: claim.run_id.clone(),
+                    task_id: claim.task_id.clone(),
+                    agent_id: descriptor.agent_id.clone(),
+                    attempt: claim.attempt,
+                    dispatch_generation: claim.dispatch_generation,
+                    fencing_token: claim.fencing_token,
+                    started_at: now(),
+                    completed_at: now(),
+                    exit_code: Some(1),
+                    signal: None,
+                    timed_out: false,
+                    soft_timed_out: false,
+                    stalled: false,
+                    aborted: false,
+                    error: Some(error.to_string()),
+                    stderr_summary: error.to_string(),
+                    handoff_path: descriptor.handoff_path.clone(),
+                    log_path: descriptor.log_path.clone(),
+                    result_path: descriptor.result_path.clone(),
+                    change_set_path: descriptor.change_set_path.clone(),
+                    workspace: ExecutionResultWorkspace {
+                        mode: descriptor.workspace.mode.clone(),
+                        path: descriptor.workspace.path.clone(),
+                        baseline_path: descriptor.workspace.baseline_path.clone(),
+                    },
                     telemetry: ExecutionTelemetry::default(),
                 },
             };
             match persist_execution_result(&mut client, &result).await {
-                Ok(()) => { let _ = delivery.ack(BasicAckOptions::default()).await; }
+                Ok(()) => {
+                    let _ = delivery.ack(BasicAckOptions::default()).await;
+                }
                 Err(error) => {
                     error!(event="agent_runtime.result_persist_failed", task_id=%claim.task_id, error=%error);
-                    let _ = delivery.nack(BasicNackOptions { requeue: true, ..Default::default() }).await;
+                    let _ = delivery
+                        .nack(BasicNackOptions {
+                            requeue: true,
+                            ..Default::default()
+                        })
+                        .await;
                 }
             }
         });
@@ -1251,18 +1599,30 @@ async fn consume_cleanup(config: Config, channel: Channel) -> Result<()> {
     info!(event="agent_runtime.cleanup_consumer_started", worker_id=%config.worker_id, queue=CLEANUP_QUEUE);
     channel.basic_qos(4, BasicQosOptions::default()).await?;
     let mut consumer = channel
-        .basic_consume(CLEANUP_QUEUE.into(), "agent-runtime-cleanup".into(), BasicConsumeOptions::default(), FieldTable::default())
+        .basic_consume(
+            CLEANUP_QUEUE.into(),
+            "agent-runtime-cleanup".into(),
+            BasicConsumeOptions::default(),
+            FieldTable::default(),
+        )
         .await?;
     while let Some(delivery) = consumer.next().await {
         let delivery = delivery?;
         let envelope = match serde_json::from_slice::<AgentRuntimeEnvelope>(&delivery.data)
             .context("agent_runtime_cleanup_envelope_invalid")
-            .and_then(|value| { value.validate()?; Ok(value) })
-        {
+            .and_then(|value| {
+                value.validate()?;
+                Ok(value)
+            }) {
             Ok(value) => value,
             Err(error) => {
                 error!(event="agent_runtime.cleanup_message_invalid", error=%error);
-                delivery.nack(BasicNackOptions { requeue: false, ..Default::default() }).await?;
+                delivery
+                    .nack(BasicNackOptions {
+                        requeue: false,
+                        ..Default::default()
+                    })
+                    .await?;
                 continue;
             }
         };
@@ -1301,18 +1661,28 @@ async fn consume_cleanup(config: Config, channel: Channel) -> Result<()> {
                 "UPDATE agent_workspace_cleanup_jobs SET status='done',last_error='superseded_execution_identity',next_attempt_at=NULL,completed_at=$2 WHERE cleanup_id=$1",
                 &[&cleanup_id, &completed_at],
             ).await?;
-            insert_event(&client, &envelope.run_id, Some(task_id), "workspace.cleanup.superseded", serde_json::json!({
-                "cleanupDispatchGeneration": envelope.dispatch_generation,
-                "cleanupFencingToken": fence,
-                "currentDispatchGeneration": current_generation,
-                "currentFencingToken": current_fence,
-                "source":"rust-agent-runtime-executor"
-            })).await?;
+            insert_event(
+                &client,
+                &envelope.run_id,
+                Some(task_id),
+                "workspace.cleanup.superseded",
+                serde_json::json!({
+                    "cleanupDispatchGeneration": envelope.dispatch_generation,
+                    "cleanupFencingToken": fence,
+                    "currentDispatchGeneration": current_generation,
+                    "currentFencingToken": current_fence,
+                    "source":"rust-agent-runtime-executor"
+                }),
+            )
+            .await?;
             info!(event="agent_runtime.cleanup_superseded", run_id=%envelope.run_id, task_id=%task_id, cleanup_id=%cleanup_id, cleanup_dispatch_generation=envelope.dispatch_generation, cleanup_fencing_token=fence, current_dispatch_generation=current_generation, current_fencing_token=current_fence);
             delivery.ack(BasicAckOptions::default()).await?;
             continue;
         }
-        if current_generation == envelope.dispatch_generation && current_fence == fence && active_lease.is_some() {
+        if current_generation == envelope.dispatch_generation
+            && current_fence == fence
+            && active_lease.is_some()
+        {
             let next_attempt_at = (Utc::now() + chrono::Duration::seconds(2)).to_rfc3339();
             client.execute(
                 "UPDATE agent_workspace_cleanup_jobs SET status='deferred',last_error='execution_still_leased',next_attempt_at=$2 WHERE cleanup_id=$1",
@@ -1324,7 +1694,12 @@ async fn consume_cleanup(config: Config, channel: Channel) -> Result<()> {
             })).await?;
             warn!(event="agent_runtime.cleanup_deferred", run_id=%envelope.run_id, task_id=%task_id, cleanup_id=%cleanup_id, reason="execution_still_leased", dispatch_generation=envelope.dispatch_generation, fencing_token=fence);
             sleep(Duration::from_secs(2)).await;
-            delivery.nack(BasicNackOptions { requeue: true, ..Default::default() }).await?;
+            delivery
+                .nack(BasicNackOptions {
+                    requeue: true,
+                    ..Default::default()
+                })
+                .await?;
             continue;
         }
         info!(event="agent_runtime.cleanup_started", run_id=%envelope.run_id, task_id=%task_id, cleanup_id=%cleanup_id, workspace_path=%workspace, attempt=envelope.attempt.unwrap_or_default(), dispatch_generation=envelope.dispatch_generation, fencing_token=fence);
@@ -1338,14 +1713,22 @@ async fn consume_cleanup(config: Config, channel: Channel) -> Result<()> {
             &[&task_id, &envelope.dispatch_generation, &fence],
         ).await?;
         if should_inject_cleanup_ebusy_once(&config, task_id, attempts) {
-            insert_event(&client, &envelope.run_id, Some(task_id), "workspace.cleanup.fault_injected", serde_json::json!({
-                "fault":"EBUSY", "mode":"ebusy-once", "attemptsBefore": attempts,
-                "dispatchGeneration": envelope.dispatch_generation, "fencingToken": fence,
-                "source":"rust-agent-runtime-executor"
-            })).await?;
+            insert_event(
+                &client,
+                &envelope.run_id,
+                Some(task_id),
+                "workspace.cleanup.fault_injected",
+                serde_json::json!({
+                    "fault":"EBUSY", "mode":"ebusy-once", "attemptsBefore": attempts,
+                    "dispatchGeneration": envelope.dispatch_generation, "fencingToken": fence,
+                    "source":"rust-agent-runtime-executor"
+                }),
+            )
+            .await?;
             warn!(event="agent_runtime.cleanup_fault_injected", run_id=%envelope.run_id, task_id=%task_id, cleanup_id=%cleanup_id, fault="EBUSY", mode="ebusy-once", attempts_before=attempts, dispatch_generation=envelope.dispatch_generation, fencing_token=fence);
         }
-        match remove_workspace_for_cleanup(&config, task_id, attempts, Path::new(&workspace)).await {
+        match remove_workspace_for_cleanup(&config, task_id, attempts, Path::new(&workspace)).await
+        {
             Ok(()) => {
                 let completed_at = now();
                 client.execute(
@@ -1375,16 +1758,28 @@ async fn consume_cleanup(config: Config, channel: Channel) -> Result<()> {
                      WHERE task_id=$1 AND dispatch_generation=$2 AND fencing_token=$3",
                     &[&task_id, &envelope.dispatch_generation, &fence, &error.to_string()],
                 ).await?;
-                insert_event(&client, &envelope.run_id, Some(task_id), "workspace.cleanup.deferred", serde_json::json!({
-                    "attempts": attempts + 1, "error":error.to_string(),
-                    "dispatchGeneration": envelope.dispatch_generation, "fencingToken": fence,
-                    "source":"rust-agent-runtime-executor"
-                })).await?;
+                insert_event(
+                    &client,
+                    &envelope.run_id,
+                    Some(task_id),
+                    "workspace.cleanup.deferred",
+                    serde_json::json!({
+                        "attempts": attempts + 1, "error":error.to_string(),
+                        "dispatchGeneration": envelope.dispatch_generation, "fencingToken": fence,
+                        "source":"rust-agent-runtime-executor"
+                    }),
+                )
+                .await?;
                 warn!(event="agent_runtime.cleanup_deferred", run_id=%envelope.run_id, task_id=%task_id, cleanup_id=%cleanup_id, attempts=attempts + 1, error=%error, dispatch_generation=envelope.dispatch_generation, fencing_token=fence);
                 // Run 5 regression: filesystem cleanup is operational authority only.
                 // A transient Windows EBUSY/EPERM never mutates semantic task/run status.
                 sleep(Duration::from_secs(2)).await;
-                delivery.nack(BasicNackOptions { requeue: true, ..Default::default() }).await?;
+                delivery
+                    .nack(BasicNackOptions {
+                        requeue: true,
+                        ..Default::default()
+                    })
+                    .await?;
             }
         }
     }
@@ -1442,7 +1837,10 @@ mod tests {
         let value = serde_json::to_value(envelope).unwrap();
         assert!(value.get("prompt").is_none());
         assert!(value.get("contextPacket").is_none());
-        assert_eq!(routing_key("agent.task.execute.v1").unwrap(), "task.execute");
+        assert_eq!(
+            routing_key("agent.task.execute.v1").unwrap(),
+            "task.execute"
+        );
     }
 
     #[test]
@@ -1456,13 +1854,37 @@ mod tests {
     #[test]
     fn cleanup_ebusy_fault_injection_is_single_attempt_and_task_scoped() {
         let mut values = std::collections::HashMap::new();
-        values.insert("DATABASE_APP_URL".to_string(), "postgresql://user:pass@localhost/db".to_string());
-        values.insert("AGENT_HARNESS_DEPLOYMENT_MODE".to_string(), "local".to_string());
-        values.insert("AGENT_HARNESS_RUNTIME_TEST_CLEANUP_FAULT".to_string(), "ebusy-once".to_string());
-        values.insert("AGENT_HARNESS_RUNTIME_TEST_CLEANUP_FAULT_TASK_MATCH".to_string(), "runtime-v2-canary".to_string());
+        values.insert(
+            "AGENT_POSTGRES_URL".to_string(),
+            "postgresql://user:pass@localhost/db".to_string(),
+        );
+        values.insert(
+            "AGENT_HARNESS_DEPLOYMENT_MODE".to_string(),
+            "local".to_string(),
+        );
+        values.insert(
+            "AGENT_HARNESS_RUNTIME_TEST_CLEANUP_FAULT".to_string(),
+            "ebusy-once".to_string(),
+        );
+        values.insert(
+            "AGENT_HARNESS_RUNTIME_TEST_CLEANUP_FAULT_TASK_MATCH".to_string(),
+            "runtime-v2-canary".to_string(),
+        );
         let config = Config::from_lookup(|key| values.get(key).cloned()).unwrap();
-        assert!(should_inject_cleanup_ebusy_once(&config, "run:implementation:runtime-v2-canary", 0));
-        assert!(!should_inject_cleanup_ebusy_once(&config, "run:implementation:runtime-v2-canary", 1));
-        assert!(!should_inject_cleanup_ebusy_once(&config, "run:product-discovery", 0));
+        assert!(should_inject_cleanup_ebusy_once(
+            &config,
+            "run:implementation:runtime-v2-canary",
+            0
+        ));
+        assert!(!should_inject_cleanup_ebusy_once(
+            &config,
+            "run:implementation:runtime-v2-canary",
+            1
+        ));
+        assert!(!should_inject_cleanup_ebusy_once(
+            &config,
+            "run:product-discovery",
+            0
+        ));
     }
 }

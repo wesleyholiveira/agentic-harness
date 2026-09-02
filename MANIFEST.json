@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-02T21:24:49Z",
+  "generatedAt": "2026-09-02T23:26:42Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 472,
-  "treeSha256": "sha256:86226fe74f22719a9eb9d88dadc9eb82f235f8058c938d862f63c08526a231f9",
+  "treeSha256": "sha256:5b4998a99f4bae9965e769a28b7bd5b390adf42d8f7a52e024141ded41bd77b2",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -1123,9 +1123,9 @@
       "sha256": "sha256:47f09f2d2f8d892b7c336cb34ab0ed13f7fce34c3c16ef19bd3b815142a2364e"
     },
     {
-      "bytes": 2094,
+      "bytes": 2103,
       "path": "apps/context-engine/test/efficiency.test.ts",
-      "sha256": "sha256:c0c84f928e4103674d2df2ad7332b867681299db395695427bb7fcd5c1767e55"
+      "sha256": "sha256:a79c3f52246188bb051a1e2f6c472f546a4d02de53ee9652756bd4adb1acebad"
     },
     {
       "bytes": 3685,
@@ -1138,9 +1138,9 @@
       "sha256": "sha256:685818176ef669bbb844a741cd812f62e057d5710e70be8b00f1dbb5b7963382"
     },
     {
-      "bytes": 28996,
+      "bytes": 29031,
       "path": "apps/context-engine/test/server.test.ts",
-      "sha256": "sha256:4c531ee8fa0ba643c91fbfa4c3fe105e6d1d33df212779f890d8055475672d39"
+      "sha256": "sha256:500526e6d2452d3fee852cc1c7d6f90b0df13295028a45b71643701a099d01a5"
     },
     {
       "bytes": 16814,
@@ -1163,29 +1163,29 @@
       "sha256": "sha256:5a8889db852d66a46b25816c0ff6ae8c3918d68fadb096a3928d2e7b6a8f9df4"
     },
     {
-      "bytes": 69324,
+      "bytes": 70517,
       "path": "apps/runtime-worker/src/agent_continuation.rs",
-      "sha256": "sha256:b354cf2b7d9f709a0f672274b792e04df12811238bac80003f3e54f349cef76a"
+      "sha256": "sha256:611a5659c15f92766c5256c30d5c56684cca854f2705984d875155bc26f5b344"
     },
     {
-      "bytes": 76353,
+      "bytes": 81931,
       "path": "apps/runtime-worker/src/agent_runtime.rs",
-      "sha256": "sha256:e9f93f9d7c6918cf69ce6f00169c495ab0c29e71c7659b99bbab4a9c041015fd"
+      "sha256": "sha256:828f56f315b26272db8815998909669f0602e77a517484368c2b08ac569f4eae"
     },
     {
-      "bytes": 1119,
+      "bytes": 1373,
       "path": "apps/runtime-worker/src/amqp.rs",
-      "sha256": "sha256:ef38f2ff29e9c6ae872bf77e09979b1d2ec37a2d526d3df1c4eb02240f13aed6"
+      "sha256": "sha256:1076fb6c694533416d6c90602018ca0f6bfce23a39222a97d32adb831fde31d1"
     },
     {
-      "bytes": 3494,
+      "bytes": 5321,
       "path": "apps/runtime-worker/src/config.rs",
-      "sha256": "sha256:971e4f31ed174e20860f49a317dcd66cf1e9789b319eb84c0e30b24816d42427"
+      "sha256": "sha256:28da17315cda45a1a7504b45d1511fea98d1086337775b557534a05fd3c6f7cc"
     },
     {
-      "bytes": 610,
+      "bytes": 702,
       "path": "apps/runtime-worker/src/main.rs",
-      "sha256": "sha256:1388b87ac900af3232d2d4d4e1f474d0a9017821060b8eaacea8dca7555874ce"
+      "sha256": "sha256:2bff460dff0b44124573ae08f82053393089470047d661fdcff2165c5a39ef15"
     },
     {
       "bytes": 2656,
@@ -1778,9 +1778,9 @@
       "sha256": "sha256:69d9e8fcfc9aa747e6fee502db80e6051a5ff7cc2ce8cc41743fc697dfdc65df"
     },
     {
-      "bytes": 15606,
+      "bytes": 15736,
       "path": "packages/context-semantic-cache/test/semantic-cache.test.ts",
-      "sha256": "sha256:7ab552c768e86a6a66db6c9c6d752e3b454ba0215a72f7ab73be05508446fd89"
+      "sha256": "sha256:08d2d625ff913397fdd1d926bc412cc87fab29fbe9ff37852ba378b8c72ad07c"
     },
     {
       "bytes": 159,

@@ -74,9 +74,11 @@ describe("semantic candidate cache", () => {
     const lookup = await cache.lookup({ task: task(), scope: scope(), sourceRevisions: { memory: "m1", cbm: "c1", artifacts: "a1" } });
     expect(lookup.status).toBe("miss");
     expect(lookup.queryEmbedding).toBeDefined();
+    const queryEmbedding = lookup.queryEmbedding;
+    if (!queryEmbedding) throw new Error("semantic_lookup_embedding_missing");
     const before = cache.getStats().embedding_calls;
     const write = await cache.put({
-      task: task(), embedding: lookup.queryEmbedding, scope: scope(), sourceRevisions: { memory: "m1", cbm: "c1", artifacts: "a1" },
+      task: task(), embedding: queryEmbedding, scope: scope(), sourceRevisions: { memory: "m1", cbm: "c1", artifacts: "a1" },
       sourcePackKey: "pack:1", components: {}, relevantPaths: [],
     });
     expect(write.status).toBe("stored");
@@ -301,7 +303,7 @@ describe("semantic candidate cache", () => {
     const cache = new SemanticContextCache(
       {
         mode: "enforce", failureMode: "closed", projectId: "p", branch: "b", schemaVersion: "s",
-        minSimilarity: 0.88, topK: 5, ttlMs: 60_000, failureCooldownMs: 30_000, maxPayloadBytes: 1_000_000,
+        minSimilarity: 0.88, topK: 5, ttlMs: 60_000, failureCooldownMs: 30_000, cwd: process.cwd(),
       },
       {
         async query() { return []; },
@@ -326,7 +328,7 @@ describe("semantic candidate cache", () => {
     await expect(cache.lookup({
       task: { intent: "i", domains: [], language: "en", files: [], symbols: [], canonicalQuery: "q", text: "t", fingerprint: "f" },
       scope: { projectId: "p", branch: "b", role: "r", stage: "s", schemaVersion: "v" },
-      sourceRevisions: { memory: "m", cbm: "c" },
+      sourceRevisions: { memory: "m", cbm: "c", artifacts: "a" },
     })).rejects.toMatchObject({
       code: "context_semantic_dependency_unavailable",
       dependency: "embedding",

@@ -31,6 +31,7 @@ interface CapturedTool {
 
 interface ToolResult {
   content: Array<{ type: string; text: string }>;
+  _meta?: Record<string, unknown>;
 }
 
 function createMockServer(stats = new StatsCollector()) {
