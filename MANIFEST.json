@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-02T21:17:08Z",
+  "generatedAt": "2026-09-02T21:24:49Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,17 +9,12 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 476,
-  "treeSha256": "sha256:87ee8431eaa9db263d8dfd2248f519480177c09b49ff4f1222d526f3fff73b64",
-  "treeHashAlgorithm": "sha256(canonical-json(files sorted by path; keys sorted; UTF-8; compact separators))",
+  "fileCount": 472,
+  "treeSha256": "sha256:86226fe74f22719a9eb9d88dadc9eb82f235f8058c938d862f63c08526a231f9",
+  "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
-    ".git/",
-    ".runtime/",
-    "node_modules/",
-    "target/",
-    ".target/",
-    ".env",
-    "MANIFEST.json (self)"
+    "MANIFEST.json (self)",
+    "all Git-ignored/untracked local state"
   ],
   "files": [
     {
@@ -923,11 +918,6 @@
       "sha256": "sha256:dac56f86d69319127690b032a3c972417e43a86895eb7086c6efe3fd0a129203"
     },
     {
-      "bytes": 63,
-      "path": ".opencode/.gitignore",
-      "sha256": "sha256:663a068e76d264d0bc6740f5450b6c4193c7b41ecf5e0dc222485b8a17404d95"
-    },
-    {
       "bytes": 7663,
       "path": ".opencode/agents.generated.json",
       "sha256": "sha256:48ebd65dffff5df507a16858a86ebf0127a36c2d218a5f1252827de224187c2d"
@@ -936,16 +926,6 @@
       "bytes": 561,
       "path": ".opencode/commands/sdd.md",
       "sha256": "sha256:f4c652227c84363b1464293cc3c4f25cac7a308028c49a54eac97e66252b9fd0"
-    },
-    {
-      "bytes": 6972,
-      "path": ".opencode/package-lock.json",
-      "sha256": "sha256:c014b99b601f6d276d919d7e15c5760466e0962a22490f71854910a836284b5b"
-    },
-    {
-      "bytes": 65,
-      "path": ".opencode/package.json",
-      "sha256": "sha256:790b5aa8963469aee2ea3c09c1dea2097b7a5dfcb743d9dd68facdd64ccdc396"
     },
     {
       "bytes": 16732,
@@ -976,11 +956,6 @@
       "bytes": 28,
       "path": ".serena/.gitignore",
       "sha256": "sha256:441f89b8bba2252c9f7797ebc2fca741b760712e1c8261a7ad5c282175dd52f2"
-    },
-    {
-      "bytes": 402,
-      "path": ".serena/project.local.yml",
-      "sha256": "sha256:7b5753e9fcf8348db026f8d23ff601b1cf90d9543532fe979f31650e27b15d2b"
     },
     {
       "bytes": 9962,
@@ -2063,9 +2038,9 @@
       "sha256": "sha256:e43c0f492b191281633e8617aae99178a99c8f86873b653bbcc9f4fc7fce1766"
     },
     {
-      "bytes": 3755,
+      "bytes": 6269,
       "path": "scripts/internal/source-manifest.mjs",
-      "sha256": "sha256:7414406c5ebe1a6063bcdbdb1485aac29b0cf2ac7cf4f88ac2aa2720d8122286"
+      "sha256": "sha256:cca3b8f124dcaa67844792a5da54d1797d85ddd1f972c835e89af89caf209b93"
     },
     {
       "bytes": 1692,
@@ -2093,9 +2068,9 @@
       "sha256": "sha256:f4b3ef794acd858e00bfeddf99e084066260481d66950686e4f00d7abb9ff3e7"
     },
     {
-      "bytes": 4283,
+      "bytes": 6690,
       "path": "tests/contracts/config.test.mjs",
-      "sha256": "sha256:d65edebc2dff78b2fc36ea812e9b90fd322c45c84f9468a01b956380eacefcfd"
+      "sha256": "sha256:3265af8c18350af9bc7538759884b22cd07c13e669bd48bfd031dbbaa7a8db24"
     },
     {
       "bytes": 867,
@@ -2402,5 +2377,6 @@
       "path": "vendor/superpowers/UPSTREAM-README.md",
       "sha256": "sha256:3fd67bc92dc7ebdbcb28117f42a68bd043e5f7a815f07dd803e265ab74e57b1f"
     }
-  ]
+  ],
+  "sourceAuthority": "git-tracked-worktree"
 }

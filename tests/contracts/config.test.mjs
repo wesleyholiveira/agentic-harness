@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, rmSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -71,11 +71,53 @@ test("doctor treats codebase-memory-mcp as an MCP server, not a --version CLI", 
   assert.equal(/probe\(codebaseMemoryExecutable/.test(source), false);
 });
 
-test("source manifest can be regenerated after pre-R0 dependency vendoring", () => {
-  const source = readFileSync(resolve(root, "scripts", "internal", "source-manifest.mjs"), "utf8");
-  assert.match(source, /agent_harness_manifest_written/);
-  assert.match(source, /agent_harness_manifest_matches_source/);
-  assert.match(source, /MANIFEST\.json/);
+test("source manifest is derived only from Git-tracked source and ignores local tool state", () => {
+  const temp = mkdtempSync(resolve(root, ".runtime", "manifest-contract-"));
+  try {
+    mkdirSync(resolve(temp, ".opencode"), { recursive: true });
+    mkdirSync(resolve(temp, ".serena"), { recursive: true });
+    writeFileSync(resolve(temp, ".gitignore"), ".opencode/package.json\n.serena/project.local.yml\n");
+    writeFileSync(resolve(temp, "source.txt"), "tracked\n");
+    writeFileSync(resolve(temp, "MANIFEST.json"), "{}\n");
+    writeFileSync(resolve(temp, ".opencode", "package.json"), "{}\n");
+    writeFileSync(resolve(temp, ".serena", "project.local.yml"), "local: true\n");
+    for (const args of [
+      ["init"],
+      ["add", ".gitignore", "source.txt", "MANIFEST.json"],
+      ["-c", "user.name=Harness Test", "-c", "user.email=harness@example.invalid", "commit", "-m", "fixture"],
+    ]) {
+      const result = spawnSync("git", args, { cwd: temp, encoding: "utf8", shell: false });
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+    }
+    const script = resolve(root, "scripts", "internal", "source-manifest.mjs");
+    let result = spawnSync(process.execPath, [script, "--write"], {
+      cwd: temp,
+      env: { ...process.env, AGENT_HARNESS_ROOT: temp },
+      encoding: "utf8",
+      shell: false,
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const manifest = JSON.parse(readFileSync(resolve(temp, "MANIFEST.json"), "utf8"));
+    assert.equal(manifest.sourceAuthority, "git-tracked-worktree");
+    assert.deepEqual(manifest.files.map((entry) => entry.path), [".gitignore", "source.txt"]);
+    assert.equal(manifest.files.some((entry) => entry.path.includes(".opencode/package.json")), false);
+    assert.equal(manifest.files.some((entry) => entry.path.includes(".serena/project.local.yml")), false);
+
+    result = spawnSync("git", ["add", "MANIFEST.json"], { cwd: temp, encoding: "utf8", shell: false });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    result = spawnSync("git", ["-c", "user.name=Harness Test", "-c", "user.email=harness@example.invalid", "commit", "-m", "manifest"], { cwd: temp, encoding: "utf8", shell: false });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    result = spawnSync(process.execPath, [script, "--check"], {
+      cwd: temp,
+      env: { ...process.env, AGENT_HARNESS_ROOT: temp },
+      encoding: "utf8",
+      shell: false,
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /agent_harness_manifest_matches_git_source/);
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
 });
 
 
