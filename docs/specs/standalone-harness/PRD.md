@@ -20,6 +20,7 @@ Provide one official, project-agnostic Git repository that can be mounted as a s
 - **HARNESS-8:** `package.json` exposes a small lifecycle-oriented command API rather than version-specific check aliases.
 - **HARNESS-9:** the promoted R17.4.5 source/recovery evidence is retained as immutable lineage but is not represented as qualification of the genericized repository.
 - **HARNESS-10:** a standalone contract suite proves the reusable boundary before distribution.
+- **HARNESS-11:** each consuming project receives an independent Docker Compose runtime namespace so containers, networks and named durable volumes cannot be silently shared across unrelated consumers.
 
 ## Non-goals
 

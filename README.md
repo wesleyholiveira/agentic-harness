@@ -35,7 +35,7 @@ Those are intentionally the only public package scripts. Versioned R12–R17 con
 
 ## Two-root model
 
-`AGENT_HARNESS_ROOT` points at this repository/submodule. `AGENT_HARNESS_PROJECT_ROOT` points at the consuming repository. Runtime code, agent manifests, schemas and OpenCode plugins come from the harness root; workspaces, project PRDs/ADRs/code and all generated `.runtime` evidence—including `opencode.effective.json`—come from the consuming project root.
+`AGENT_HARNESS_ROOT` points at this repository/submodule. `AGENT_HARNESS_PROJECT_ROOT` points at the consuming repository. Runtime code, agent manifests, schemas and OpenCode plugins come from the harness root; workspaces, project PRDs/ADRs/code and all generated `.runtime` evidence—including `opencode.effective.json`—come from the consuming project root. Docker Compose runtime identity is also consumer-scoped: the launcher derives a deterministic project name from the canonical consuming-project root so containers, networks and named volumes are not shared across unrelated consumers. Set `AGENT_HARNESS_COMPOSE_PROJECT_NAME` only for an explicit namespace override.
 
 See `docs/sdd/SUBMODULE-INTEGRATION.md` for installation and `docs/architecture/DECISIONS.md` for the current reusable architecture.
 

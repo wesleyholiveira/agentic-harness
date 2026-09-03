@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-03T00:52:03Z",
+  "generatedAt": "2026-09-03T01:28:42Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 478,
-  "treeSha256": "sha256:9ac3ce3e1ceac746ad6e77d843199294469f488d5921c9a201bd2b93e99a2afc",
+  "fileCount": 480,
+  "treeSha256": "sha256:514dcbc391fb2e99a007ccdd76b23b811be02e94ec8c4ef16b9ea102994b3b0f",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -1193,14 +1193,14 @@
       "sha256": "sha256:2bff460dff0b44124573ae08f82053393089470047d661fdcff2165c5a39ef15"
     },
     {
-      "bytes": 2754,
+      "bytes": 3441,
       "path": "bin/harness.mjs",
-      "sha256": "sha256:dc8304059a5860fef69e989c9ff7431038b38364c0d06014512a71956155abf8"
+      "sha256": "sha256:aee37b992397929fbd0bbefc8a2cdae82057de73cb7ddf73049548543bfd45d7"
     },
     {
-      "bytes": 5900,
+      "bytes": 5878,
       "path": "compose.yaml",
-      "sha256": "sha256:bf6318d4cc782bad9673a01d260ea3cd9661a236b41a940e093933d053d9fa3a"
+      "sha256": "sha256:23147fd55f589ca28a99a2d7aa702066433917207e8aef99b82d9202d069e91a"
     },
     {
       "bytes": 2309,
@@ -1208,9 +1208,9 @@
       "sha256": "sha256:19db88b7ddc6902d55c006b381e9a1fe6a4af472f37942d768aab876b329b353"
     },
     {
-      "bytes": 8687,
+      "bytes": 10259,
       "path": "DISTRIBUTION-REPORT.md",
-      "sha256": "sha256:55508a3a0ffdb96e549ad16139aa2407243bfb53937a3d0d49f2337fce99128a"
+      "sha256": "sha256:02489e1f04d0be189bc49589a9feaed9d4b0dd13f1999811fba3632a95222a86"
     },
     {
       "bytes": 961,
@@ -1238,9 +1238,14 @@
       "sha256": "sha256:7b30d47c80f8800105cf46591ca5c802136fd6fee97238a1af2d0598f15cdb15"
     },
     {
-      "bytes": 655,
+      "bytes": 2572,
+      "path": "docs/adr/0006-consumer-scoped-compose-runtime-identity.md",
+      "sha256": "sha256:4aab93387bee3ade60c2de48ffeda0bee8e28d5eb95eaf97583f1653ec7b9294"
+    },
+    {
+      "bytes": 888,
       "path": "docs/architecture/DECISIONS.md",
-      "sha256": "sha256:8787848eaa60d1c0e13713dd51ed18e9140e2918a2f9cbcef7cfd92b54dc7981"
+      "sha256": "sha256:05c5cd8c9cbf9dd3ad68f52b62d749cdb4bbf688a21ba810532a5e0c501b0f8d"
     },
     {
       "bytes": 6993,
@@ -1318,9 +1323,9 @@
       "sha256": "sha256:e78c09aedb6a7bddd7098d9f6060b4edb152b800097e57ecc6065ec7646a495a"
     },
     {
-      "bytes": 3830,
+      "bytes": 4505,
       "path": "docs/sdd/SUBMODULE-INTEGRATION.md",
-      "sha256": "sha256:12d29a53eac8485e2e4a71b5f9f2d16026b3140a1966a0e6310383af2ffe2dcb"
+      "sha256": "sha256:9a9b30a31413d16992d7cadf064cd53498c999e27a41f25a7481634e2c85d99f"
     },
     {
       "bytes": 466,
@@ -1348,9 +1353,9 @@
       "sha256": "sha256:6e3cacde6dd1e1926f05e510ecf95b1ad7295a4f6475a875d58c81859a456ead"
     },
     {
-      "bytes": 734,
+      "bytes": 890,
       "path": "docs/specs/standalone-harness/context-packets/w4.md",
-      "sha256": "sha256:aa00fd1045d27f91eda02921867c5c145c16b872aef72e99e69859310336cc17"
+      "sha256": "sha256:fe8b917e692ff3b919b4564c094c3a4664dfdc4bf43d06b4b21822fa8afbb953"
     },
     {
       "bytes": 665,
@@ -1363,19 +1368,19 @@
       "sha256": "sha256:fbb594bde0b35a377a447f3a266931008d9f96fa0d6c782933c8c14174ef65f4"
     },
     {
-      "bytes": 2184,
+      "bytes": 2726,
       "path": "docs/specs/standalone-harness/DESIGN.md",
-      "sha256": "sha256:4ee3316b152a67307fcc0c685f2b124d93f9ed1b9ed846f9c051385ff9eed5af"
+      "sha256": "sha256:ac0f0a77afecae7c2d44516882ecdf0ac19befcaae3ddbf09a4482f06b7ec288"
     },
     {
-      "bytes": 926,
+      "bytes": 951,
       "path": "docs/specs/standalone-harness/IMPLEMENTATION-PLAN.md",
-      "sha256": "sha256:7ca1bb35c18df2c56a0a540a847ae33513c752f87289dafe0e8e6e6af577aa62"
+      "sha256": "sha256:367e3432670b6063134d64550a912ff55c321a7e926764373b9e032475755a0c"
     },
     {
-      "bytes": 2201,
+      "bytes": 2403,
       "path": "docs/specs/standalone-harness/PRD.md",
-      "sha256": "sha256:a9711db00fa357ab6ecbc1b7fe3fb71fafb80b3dd76a98965369569df4d889cb"
+      "sha256": "sha256:0f9247538f0a1b8d5ade8eff68ac77da197319d6b7e66d3d49fe2e43267e7a75"
     },
     {
       "bytes": 598,
@@ -1403,9 +1408,9 @@
       "sha256": "sha256:ef215ca433145f2fde28d4d6a033bb9dc356221840226cb0a79af261ac870520"
     },
     {
-      "bytes": 623,
+      "bytes": 1015,
       "path": "docs/specs/standalone-harness/task-briefs/w4.md",
-      "sha256": "sha256:2e38e55f797ffab333ade770f302625db571cdd64bc260d8b89cd8642c3d872a"
+      "sha256": "sha256:c6be6820cfe21ebed4158eeb95e3b28eb3c6939570d4e393e1002ab1a1dab64c"
     },
     {
       "bytes": 562,
@@ -1418,9 +1423,9 @@
       "sha256": "sha256:ce7ff803949f3782c35e5db028a79a6215aeb49e7fa3a3231218856f4d6b5a54"
     },
     {
-      "bytes": 1000,
+      "bytes": 1207,
       "path": "docs/specs/standalone-harness/TEST-PLAN.md",
-      "sha256": "sha256:5d32741afc756b2354a05a7cf57eeeda68ea496d376d23a4916073ce26f79194"
+      "sha256": "sha256:8927e26ec20a4c10d65f9df0c5035cd8c430bc273234394441f3f98ee0e9c0bb"
     },
     {
       "bytes": 145,
@@ -1968,9 +1973,9 @@
       "sha256": "sha256:a356cd51ed50911ef091fc68ee1a704cebbadc2892d5d1fa99e3c72d6a0bab66"
     },
     {
-      "bytes": 3329,
+      "bytes": 3645,
       "path": "README.md",
-      "sha256": "sha256:82c62a5a9a8d2b42e5583c284bbb29795245ed275edc41fc7e5002d6b7c32a83"
+      "sha256": "sha256:0d3427f8eebe7cc1f5ee6796e8727a75d9074f146e7c9659e295586b3c1366d6"
     },
     {
       "bytes": 3043,
@@ -1983,9 +1988,9 @@
       "sha256": "sha256:2ff7aacb28aa75929e31691f3658274292b52fef34a2e00c4e1acc339676d52e"
     },
     {
-      "bytes": 3778,
+      "bytes": 3959,
       "path": "scripts/harness-doctor.mjs",
-      "sha256": "sha256:3ba9ad4939e9ad86bf7bb7b9e99a5976df9cfe8d1469c7e484f266287350b5ef"
+      "sha256": "sha256:ed535843f44c4944be47aac1ad55a3abadfc9e454f10757cf6f6e4ddbaa006bc"
     },
     {
       "bytes": 1448,
@@ -2026,6 +2031,11 @@
       "bytes": 5156,
       "path": "scripts/internal/agent-runtime-validation-toolchain-preflight.mjs",
       "sha256": "sha256:e5f00ad4b602ffb4c04f4ab9cc7e25756d361316200c9406213c59e45e2e46ac"
+    },
+    {
+      "bytes": 2116,
+      "path": "scripts/internal/compose-project-identity.mjs",
+      "sha256": "sha256:ebbc519693a1eff4ce1499e33380926c0817a0ec37b6a6c86b6aae7ce174f4ae"
     },
     {
       "bytes": 7715,
@@ -2083,9 +2093,9 @@
       "sha256": "sha256:f4b3ef794acd858e00bfeddf99e084066260481d66950686e4f00d7abb9ff3e7"
     },
     {
-      "bytes": 12143,
+      "bytes": 14946,
       "path": "tests/contracts/config.test.mjs",
-      "sha256": "sha256:e11373d8fd3c21633c5f75e68378d950b64e4be5c8b4057203b13e754a3d0448"
+      "sha256": "sha256:b18bf314b24c71e02d6134f4204059803c9577cf36d2da903570d6644841926a"
     },
     {
       "bytes": 1117,

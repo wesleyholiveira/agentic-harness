@@ -35,6 +35,7 @@ The consuming project owns its product code and project-specific PRDs, ADRs, des
 3. Product-specific specialists and Clip Compass application/runtime surfaces are excluded from the operational harness.
 4. Historical R12–R17 qualification scripts are not public package scripts. The public operational surface is intentionally bounded to ten stable `harness:*` commands.
 5. Generic SDD authority for the harness itself is in `docs/specs/standalone-harness/`; historical qualification material is provenance only.
+6. Docker Compose runtime resources are consumer-scoped. The launcher derives a deterministic project name from the canonical `AGENT_HARNESS_PROJECT_ROOT`, preventing unrelated consumers from sharing containers, networks or named durable volumes.
 
 ## Distribution inventory
 
@@ -43,7 +44,7 @@ The consuming project owns its product code and project-specific PRDs, ADRs, des
 - Artifact schemas: 11
 - PostgreSQL harness migrations: 11
 - Public `package.json` scripts: 10
-- Standalone contract files: 11 (23 current Node subtests)
+- Standalone contract files: 11 (25 current Node subtests)
 - Superpowers expected by lock: 14
 - Superpowers skill trees physically vendorized in this archive: 14
 
@@ -71,6 +72,14 @@ The first independent Windows target-host qualification of this standalone tree 
 
 This source revision fixes the ownership boundary by writing the effective config to `<AGENT_HARNESS_PROJECT_ROOT>/.runtime/opencode.effective.json`, strengthens the contract test to prove no harness-root output is created, aligns persistent provenance identity with harness-plugin/project-evidence dual roots, and makes `harness:clean` remove the generated effective config from the project runtime directory. Because this is a source change, R-0 onward must be rerun before promotion; R-6 through R-10 are not claimed by this report.
 
+## Target-host R-4 consumer isolation remediation
+
+A subsequent target-host qualification reached R-4 after PRE-R0 through R-3 passed. The first R-4 attempt experienced transient Docker DNS failures (`postgres` service discovery and external Hugging Face resolution); a fresh bounded Docker-network preflight later proved host DNS, container DNS/HTTPS, Compose service discovery and fresh TEI model initialization all healthy. No DNS workaround is encoded in source.
+
+That preflight also exposed three residual volumes with the legacy fixed `agentic-harness` Compose namespace. A fixed top-level project name is incompatible with independent submodule consumers because Docker would scope containers, the default network and named PostgreSQL/RabbitMQ/Redis volumes to the same project. This revision removes the fixed Compose `name:` and makes `bin/harness.mjs` derive `agentic-harness-<sha256-prefix>` from the canonical consuming-project root, pass it explicitly with `docker compose -p`, and override inherited generic `COMPOSE_PROJECT_NAME`. `AGENT_HARNESS_COMPOSE_PROJECT_NAME` is the explicit operator override. Legacy volumes are preserved rather than deleted automatically.
+
+Because this is another tracked source change, the standalone qualification must restart before R-0; no R-4+ PASS is claimed by this report.
+
 ## Validation performed in the build environment
 
 The distribution is checked with `node scripts/harness-test.mjs`, syntax/JSON/TypeScript-transpile checks, OpenCode effective-config generation and YAML parsing of `compose.yaml`.
@@ -96,7 +105,7 @@ No fabricated `package-lock.json` is included. Direct npm dependencies are exact
 
 | Check | Result |
 |---|---|
-| Standalone contracts | PASS — 23/23 current subtests |
+| Standalone contracts | PASS — 25/25 current subtests |
 | Node syntax | PASS — 115 files |
 | JSON parse | PASS — 70 files |
 | TypeScript transpile/syntax | PASS — 107 files, 0 parse errors |

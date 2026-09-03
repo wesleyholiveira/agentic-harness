@@ -21,6 +21,8 @@ node .harness/bin/harness.mjs up
 
 `harness up` starts PostgreSQL, RabbitMQ, Redis, optional TEI, applies harness-owned database migrations, starts the Context Engine and then the Rust worker. The consuming repository is bind-mounted at `/workspace/repository`; the harness code is baked into the service images at `/workspace/harness`.
 
+The launcher assigns a deterministic Docker Compose project name from the canonical `AGENT_HARNESS_PROJECT_ROOT`. Therefore each consuming repository gets its own Compose containers, network and named PostgreSQL/RabbitMQ/Redis volumes even when several consumers reference the same harness checkout. A generic inherited `COMPOSE_PROJECT_NAME` is intentionally overridden; use `AGENT_HARNESS_COMPOSE_PROJECT_NAME` when an operator explicitly needs a stable custom namespace. Concurrent stacks still need distinct published host ports through the existing `AGENT_HARNESS_*_PORT` variables. Legacy volumes created by older fixed-name revisions are never deleted automatically.
+
 If OpenCode OAuth credentials exist at `~/.local/share/opencode/auth.json`, the launcher automatically passes that host file to the worker container. Override with `AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE` when needed.
 
 ## OpenCode

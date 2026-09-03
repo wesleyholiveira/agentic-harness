@@ -1,4 +1,3 @@
-name: agentic-harness
 services:
   postgres:
     image: postgres:17-alpine

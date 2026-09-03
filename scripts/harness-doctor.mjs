@@ -3,9 +3,11 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveCodebaseMemoryExecutable } from "./internal/tool-resolution.mjs";
+import { resolveComposeProjectIdentity } from "./internal/compose-project-identity.mjs";
 
 const root = resolve(process.env.AGENT_HARNESS_ROOT || resolve(dirname(fileURLToPath(import.meta.url)), ".."));
 const project = resolve(process.argv[2] || process.env.AGENT_HARNESS_PROJECT_ROOT || process.cwd());
+const composeProject = resolveComposeProjectIdentity(project, process.env);
 function probe(binary, args = ["--version"]) {
   const result = spawnSync(binary, args, { stdio: "ignore", shell: false });
   return result.status === 0;
@@ -35,7 +37,7 @@ const vendoredSuperpowers = existsSync(superpowersDir)
 const missingSuperpowers = superpowersLock.skills.filter((name) => !vendoredSuperpowers.includes(name));
 const ok = Object.values(files).every(Boolean) && agentCount > 0 && binary.node && binary.git;
 console.log(JSON.stringify({
-  ok, harnessRoot: root, projectRoot: project, binary, codebaseMemoryExecutable, files, agentCount,
+  ok, harnessRoot: root, projectRoot: project, composeProject, binary, codebaseMemoryExecutable, files, agentCount,
   codebaseMemory: {
     requiredWhenEnabled: true,
     resolved: codebaseMemoryResolved,

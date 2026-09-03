@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { deriveComposeProjectName, resolveComposeProjectIdentity } from "../../scripts/internal/compose-project-identity.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -37,6 +38,54 @@ test("host and consuming-project roots are distinct runtime concepts", () => {
   assert.match(server, /AGENT_HARNESS_ROOT/);
   assert.match(control, /harnessRoot/);
   assert.match(control, /repositoryRoot/);
+});
+
+
+test("Compose runtime namespace is deterministic per consumer and isolated across consumers", () => {
+  const consumerA = mkdtempSync(join(tmpdir(), "agentic-harness-compose-consumer-a-"));
+  const consumerB = mkdtempSync(join(tmpdir(), "agentic-harness-compose-consumer-b-"));
+  try {
+    const nameA1 = deriveComposeProjectName(consumerA);
+    const nameA2 = deriveComposeProjectName(consumerA);
+    const nameB = deriveComposeProjectName(consumerB);
+    assert.equal(nameA1, nameA2);
+    assert.notEqual(nameA1, nameB);
+    assert.match(nameA1, /^agentic-harness-[a-f0-9]{16}$/);
+    assert.equal(nameA1.includes("users"), false);
+    assert.equal(nameA1.includes("tmp"), false);
+
+    const inheritedGeneric = resolveComposeProjectIdentity(consumerA, { COMPOSE_PROJECT_NAME: "shared-global-name" });
+    assert.equal(inheritedGeneric.name, nameA1, "generic COMPOSE_PROJECT_NAME must not collapse consumer isolation");
+    assert.equal(inheritedGeneric.source, "derived-from-canonical-project-root");
+
+    const explicit = resolveComposeProjectIdentity(consumerA, { AGENT_HARNESS_COMPOSE_PROJECT_NAME: "agentic-harness-explicit-fixture" });
+    assert.equal(explicit.name, "agentic-harness-explicit-fixture");
+    assert.equal(explicit.source, "AGENT_HARNESS_COMPOSE_PROJECT_NAME");
+    assert.throws(
+      () => resolveComposeProjectIdentity(consumerA, { AGENT_HARNESS_COMPOSE_PROJECT_NAME: "Invalid Project Name" }),
+      /AGENT_HARNESS_COMPOSE_PROJECT_NAME/,
+    );
+  } finally {
+    rmSync(consumerA, { recursive: true, force: true });
+    rmSync(consumerB, { recursive: true, force: true });
+  }
+});
+
+test("public lifecycle commands always use the consumer-scoped Compose project identity", () => {
+  const launcher = readFileSync(resolve(root, "bin", "harness.mjs"), "utf8");
+  const compose = readFileSync(resolve(root, "compose.yaml"), "utf8");
+  assert.match(launcher, /resolveComposeProjectIdentity\(projectRoot, process\.env\)/);
+  assert.match(launcher, /COMPOSE_PROJECT_NAME: composeProject\.name/);
+  assert.match(launcher, /Do not leak it into/);
+  assert.match(launcher, /\["compose", "-p", composeProject\.name, "-f", composeFile/);
+  assert.match(launcher, /case "up": compose\(/);
+  assert.match(launcher, /case "down": compose\(/);
+  assert.match(launcher, /case "logs": compose\(/);
+  assert.doesNotMatch(compose, /^name:\s*agentic-harness\s*$/m);
+  assert.match(compose, /^\s{2}agent-harness-postgres:\s*\{\}\s*$/m);
+  assert.match(compose, /^\s{2}agent-harness-rabbitmq:\s*\{\}\s*$/m);
+  assert.match(compose, /^\s{2}agent-harness-redis:\s*\{\}\s*$/m);
+  assert.doesNotMatch(compose, /^\s+name:\s*agent-harness-(?:postgres|rabbitmq|redis)/m);
 });
 
 

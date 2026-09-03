@@ -9,3 +9,5 @@
 - Redis: exact/semantic context cache.
 - TEI: optional embeddings for semantic context reuse.
 - OpenCode: interactive orchestrator and isolated specialist execution.
+
+- Consumer-scoped Compose identity: Docker containers, networks and named volumes are namespaced by a deterministic hash of the canonical consuming-project root; only `AGENT_HARNESS_COMPOSE_PROJECT_NAME` may explicitly override it.
