@@ -6,7 +6,18 @@ import { fileURLToPath } from "node:url";
 const PLUGIN_ID = "agentic-harness.runtime-invocation-provenance";
 const TERMINAL_PREFIX = "Agentic Harness Runtime V2 continuation event.";
 const PROGRESS_SYSTEM_MARKER = "CLIP_RUNTIME_PROGRESS_LIVE_V1";
-const DEFAULT_PROVENANCE_URL = `http://127.0.0.1:${String(process.env.CONTEXT_ENGINE_HTTP_PORT ?? "8789").trim() || "8789"}/runtime-invocation-provenance`;
+function runtimeInvocationProvenanceUrl(environment = process.env) {
+  const explicit = String(environment.AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL ?? "").trim();
+  if (explicit) return new URL(explicit).toString();
+  const mcp = String(environment.AGENT_HARNESS_CONTEXT_ENGINE_MCP_URL ?? "").trim() || "http://127.0.0.1:8789/mcp";
+  const endpoint = new URL(mcp);
+  endpoint.pathname = "/runtime-invocation-provenance";
+  endpoint.search = "";
+  endpoint.hash = "";
+  return endpoint.toString();
+}
+
+const DEFAULT_PROVENANCE_URL = runtimeInvocationProvenanceUrl();
 const PARK_TRIGGER = "session-resume-event";
 const HOST_REQUEST_TIMEOUT_MS = 5_000;
 const GRACEFUL_PARK_SENTINEL = "PARKED_FOR_H9R_CONTINUATION";

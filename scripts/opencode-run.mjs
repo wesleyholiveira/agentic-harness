@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runHeadroomOpenCode } from "./internal/headroom-opencode.mjs";
@@ -27,12 +27,24 @@ if (generator.status !== 0) {
   process.exit(generator.status ?? 1);
 }
 const effective = (generator.stdout || "").trim().split(/\r?\n/).at(-1);
+const effectiveConfig = JSON.parse(readFileSync(effective, "utf8"));
+const effectiveContextEngineMcpUrl = String(effectiveConfig?.mcp?.["context-engine"]?.url ?? "").trim();
+function provenanceUrlFromMcp(mcpUrl) {
+  const endpoint = new URL(mcpUrl || "http://127.0.0.1:8789/mcp");
+  endpoint.pathname = "/runtime-invocation-provenance";
+  endpoint.search = "";
+  endpoint.hash = "";
+  return endpoint.toString();
+}
 const env = {
   ...process.env,
   AGENT_HARNESS_ROOT: root,
   AGENT_HARNESS_PROJECT_ROOT: project,
   OPENCODE_CONFIG: effective,
   OPENCODE_CONFIG_DIR: resolve(root, ".opencode"),
+  AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL:
+    process.env.AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL?.trim()
+      || provenanceUrlFromMcp(effectiveContextEngineMcpUrl),
 };
 const args = process.argv.slice(2);
 if (!args.includes("--hostname")) args.push("--hostname", "0.0.0.0");

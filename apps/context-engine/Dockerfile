@@ -4,6 +4,7 @@ COPY package.json package-lock.json tsconfig.json ./
 COPY apps/context-engine ./apps/context-engine
 COPY packages ./packages
 COPY .agents ./.agents
+COPY .opencode/plugins/runtime-invocation-provenance.js ./.opencode/plugins/runtime-invocation-provenance.js
 COPY infra ./infra
 COPY scripts/internal ./scripts/internal
 COPY scripts/harness-migrate.mjs ./scripts/harness-migrate.mjs

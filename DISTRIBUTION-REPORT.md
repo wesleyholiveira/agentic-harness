@@ -38,6 +38,7 @@ The consuming project owns its product code and project-specific PRDs, ADRs, des
 6. Docker Compose runtime resources are consumer-scoped. The launcher derives a deterministic project name from the canonical `AGENT_HARNESS_PROJECT_ROOT`, preventing unrelated consumers from sharing containers, networks or named durable volumes.
 7. Public launcher root resolution is consumer-safe: a stale inherited `AGENT_HARNESS_PROJECT_ROOT` that resolves to harness source, including another outer checkout, cannot override an external Git consumer cwd containing the active harness submodule. The correction is surfaced by bootstrap/doctor diagnostics.
 8. Public migration is submodule-safe: `harness:migrate` runs the existing migrator in the consumer-scoped `database-migrate` Compose service instead of importing host `pg` from a clean `.harness` checkout.
+9. Runtime invocation provenance shares the effective Context Engine endpoint authority with OpenCode MCP traffic; the Context Engine image packages the exact provenance plugin source used for SHA validation.
 
 ## Distribution inventory
 

@@ -256,6 +256,61 @@ test("harness clean removes only harness-owned runtime artifacts from the consum
   }
 });
 
+
+test("runtime invocation provenance follows the effective Context Engine endpoint and image source", () => {
+  const plugin = readFileSync(resolve(root, ".opencode/plugins/runtime-invocation-provenance.js"), "utf8");
+  const launcher = readFileSync(resolve(root, "scripts/opencode-run.mjs"), "utf8");
+  const dockerfile = readFileSync(resolve(root, "apps/context-engine/Dockerfile"), "utf8");
+
+  assert.match(plugin, /AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL/);
+  assert.match(plugin, /AGENT_HARNESS_CONTEXT_ENGINE_MCP_URL/);
+  assert.doesNotMatch(plugin, /CONTEXT_ENGINE_HTTP_PORT/);
+  assert.match(launcher, /effectiveContextEngineMcpUrl/);
+  assert.match(launcher, /AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL/);
+  assert.match(launcher, /provenanceUrlFromMcp/);
+  assert.match(dockerfile, /COPY \.opencode\/plugins\/runtime-invocation-provenance\.js \.\/\.opencode\/plugins\/runtime-invocation-provenance\.js/);
+
+  const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-provenance-port-consumer-"));
+  try {
+    const pluginUrl = pathToFileURL(resolve(root, ".opencode/plugins/runtime-invocation-provenance.js")).href;
+    const script = `
+      const calls = [];
+      globalThis.fetch = async (input, init = {}) => {
+        const url = new URL(String(input));
+        calls.push(url.toString());
+        if (url.port === "4096" && url.pathname.includes("/session/")) {
+          return new Response(JSON.stringify([{ info: { id: "msg-user-1", role: "user", time: { created: 1 } }, parts: [{ type: "text", text: "qualify" }] }]), { status: 200, headers: { "content-type": "application/json" } });
+        }
+        if (url.port === "28789" && url.pathname === "/runtime-invocation-provenance") {
+          return new Response(JSON.stringify({ accepted: true }), { status: 202, headers: { "content-type": "application/json" } });
+        }
+        return new Response(JSON.stringify({ error: "unexpected", url: url.toString() }), { status: 599, headers: { "content-type": "application/json" } });
+      };
+      const { RuntimeInvocationProvenance } = await import(${JSON.stringify(pluginUrl)});
+      const hooks = await RuntimeInvocationProvenance({ serverUrl: new URL("http://127.0.0.1:4096"), directory: process.env.AGENT_HARNESS_PROJECT_ROOT, client: {} });
+      await hooks["tool.execute.before"]({ tool: "agent_start", sessionID: "session-1", callID: "call-1" }, { args: { request: "fixture" } });
+      console.log(JSON.stringify(calls));
+    `;
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+      cwd: consumerRoot,
+      env: {
+        ...process.env,
+        AGENT_HARNESS_ROOT: root,
+        AGENT_HARNESS_PROJECT_ROOT: consumerRoot,
+        AGENT_HARNESS_CONTEXT_ENGINE_MCP_URL: "http://127.0.0.1:28789/mcp",
+        AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL: "",
+      },
+      encoding: "utf8",
+      shell: false,
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /127\.0\.0\.1:28789\/runtime-invocation-provenance/);
+    assert.doesNotMatch(result.stdout, /127\.0\.0\.1:8789\/runtime-invocation-provenance/);
+  } finally {
+    rmSync(consumerRoot, { recursive: true, force: true });
+  }
+});
+
 test("persistent OpenCode provenance keeps harness plugin authority and project runtime evidence separate", () => {
   const plugin = readFileSync(resolve(root, ".opencode/plugins/runtime-invocation-provenance.js"), "utf8");
   const checker = readFileSync(resolve(root, "scripts/internal/agent-runtime-invocation-provenance-live-check.mjs"), "utf8");
