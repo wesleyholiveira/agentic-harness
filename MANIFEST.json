@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-03T00:37:33Z",
+  "generatedAt": "2026-09-03T00:52:03Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 478,
-  "treeSha256": "sha256:b06798edc2ff15b7ca6a59cba22e6f4bb248df4e1be25212c5bedcb0dd17b7aa",
+  "treeSha256": "sha256:9ac3ce3e1ceac746ad6e77d843199294469f488d5921c9a201bd2b93e99a2afc",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -928,9 +928,9 @@
       "sha256": "sha256:f4c652227c84363b1464293cc3c4f25cac7a308028c49a54eac97e66252b9fd0"
     },
     {
-      "bytes": 17192,
+      "bytes": 17639,
       "path": ".opencode/plugins/runtime-invocation-provenance.js",
-      "sha256": "sha256:c23eadc9984fd2c457c17588e7d2154717b751abb937e6296636fda6cb7b1402"
+      "sha256": "sha256:56a1e4abff8adefd6ed834c1a2981612be31627a739e874d191fe7c32b1435d1"
     },
     {
       "bytes": 21828,
@@ -2008,9 +2008,9 @@
       "sha256": "sha256:ea52d1ddef5fbe0828f4245293d6d9ac3c8f506d71a95ef8206f8128cc6c5c73"
     },
     {
-      "bytes": 3581,
+      "bytes": 4104,
       "path": "scripts/internal/agent-runtime-invocation-provenance-live-check.mjs",
-      "sha256": "sha256:30596b9143f982fec0aa6c9bc6d652cbc5fe799ed83a961686ead84efdb66d29"
+      "sha256": "sha256:74eaaacaaa88c5847c3c3fdbc261ddc68c4df5be23bf4fd5be0656662d278e85"
     },
     {
       "bytes": 5103,
@@ -2083,9 +2083,9 @@
       "sha256": "sha256:f4b3ef794acd858e00bfeddf99e084066260481d66950686e4f00d7abb9ff3e7"
     },
     {
-      "bytes": 11673,
+      "bytes": 12143,
       "path": "tests/contracts/config.test.mjs",
-      "sha256": "sha256:3c001dc349f7e8279b849073ebef3894d31c10b8dce36de27c7d57123c3c5d81"
+      "sha256": "sha256:e11373d8fd3c21633c5f75e68378d950b64e4be5c8b4057203b13e754a3d0448"
     },
     {
       "bytes": 1117,

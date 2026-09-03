@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { readFile, realpath } from "node:fs/promises";
+import { realpathSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import process from "node:process";
 
@@ -16,6 +17,22 @@ const recordPath = resolve(
   process.env.AGENT_HARNESS_RUNTIME_PROVENANCE_LIVE_RECORD?.trim()
     || resolve(projectRoot, ".runtime/agents/runtime-invocation-provenance-live.json"),
 );
+
+function canonicalFsPath(value) {
+  const input = resolve(String(value ?? "").trim());
+  return typeof realpathSync.native === "function"
+    ? realpathSync.native(input)
+    : realpathSync(input);
+}
+
+function fsPathIdentity(value) {
+  try {
+    const canonical = canonicalFsPath(value);
+    return process.platform === "win32" ? canonical.toLowerCase() : canonical;
+  } catch {
+    return null;
+  }
+}
 
 function fail(code, details = {}) {
   process.stderr.write(`${JSON.stringify({
@@ -42,13 +59,13 @@ function processAlive(pid) {
 }
 
 try {
-  const [pluginBytes, rawRecord, canonicalProjectRoot, canonicalHarnessRoot, canonicalPlugin] = await Promise.all([
+  const [pluginBytes, rawRecord] = await Promise.all([
     readFile(pluginPath),
     readFile(recordPath, "utf8"),
-    realpath(projectRoot),
-    realpath(harnessRoot),
-    realpath(pluginPath),
   ]);
+  const canonicalProjectRoot = canonicalFsPath(projectRoot);
+  const canonicalHarnessRoot = canonicalFsPath(harnessRoot);
+  const canonicalPlugin = canonicalFsPath(pluginPath);
   const record = JSON.parse(rawRecord);
   const expectedSourceSha256 = `sha256:${createHash("sha256").update(pluginBytes).digest("hex")}`;
   const processId = Number(record?.processId);
@@ -57,9 +74,9 @@ try {
     schema: record?.schemaVersion === LIVE_SCHEMA,
     pluginId: record?.pluginId === PLUGIN_ID,
     sourceSha: record?.pluginSourceSha256 === expectedSourceSha256,
-    repositoryRoot: String(record?.repositoryRoot ?? "") === canonicalProjectRoot,
-    harnessRoot: String(record?.harnessRoot ?? "") === canonicalHarnessRoot,
-    pluginPath: String(record?.pluginPath ?? "") === canonicalPlugin,
+    repositoryRoot: fsPathIdentity(record?.repositoryRoot) === fsPathIdentity(canonicalProjectRoot),
+    harnessRoot: fsPathIdentity(record?.harnessRoot) === fsPathIdentity(canonicalHarnessRoot),
+    pluginPath: fsPathIdentity(record?.pluginPath) === fsPathIdentity(canonicalPlugin),
     processId: Number.isInteger(processId) && processId > 0,
     processAlive: Number.isInteger(processId) && processId > 0 && processAlive(processId),
     loadedAt: Number.isFinite(loadedAtMs) && loadedAtMs <= Date.now(),

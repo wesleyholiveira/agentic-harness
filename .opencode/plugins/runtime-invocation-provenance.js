@@ -15,6 +15,23 @@ const LIVE_IDENTITY_RELATIVE_PATH = ".runtime/agents/runtime-invocation-provenan
 const PLUGIN_SOURCE_PATH = fileURLToPath(import.meta.url);
 const PLUGIN_SOURCE_SHA256 = `sha256:${createHash("sha256").update(readFileSync(PLUGIN_SOURCE_PATH)).digest("hex")}`;
 
+function canonicalFsPath(value) {
+  const input = resolve(String(value ?? "").trim());
+  const canonical = typeof realpathSync.native === "function"
+    ? realpathSync.native(input)
+    : realpathSync(input);
+  return canonical;
+}
+
+function fsPathIdentity(value) {
+  try {
+    const canonical = canonicalFsPath(value);
+    return process.platform === "win32" ? canonical.toLowerCase() : canonical;
+  } catch {
+    return null;
+  }
+}
+
 const PROVENANCE_TOOLS = new Set([
   "agent_start",
   "context_efficiency",
@@ -206,7 +223,7 @@ function writeLivePluginIdentity(directory) {
   try {
     const expectedPluginPath = resolve(harnessRoot, ".opencode/plugins/runtime-invocation-provenance.js");
     if (!existsSync(expectedPluginPath)) return null;
-    if (realpathSync(expectedPluginPath) !== realpathSync(PLUGIN_SOURCE_PATH)) return null;
+    if (fsPathIdentity(expectedPluginPath) !== fsPathIdentity(PLUGIN_SOURCE_PATH)) return null;
     const target = resolve(projectRoot, LIVE_IDENTITY_RELATIVE_PATH);
     mkdirSync(dirname(target), { recursive: true });
     const temporary = `${target}.${process.pid}.tmp`;
@@ -215,9 +232,9 @@ function writeLivePluginIdentity(directory) {
       schemaVersion: LIVE_IDENTITY_SCHEMA,
       pluginId: PLUGIN_ID,
       pluginSourceSha256: PLUGIN_SOURCE_SHA256,
-      pluginPath: realpathSync(PLUGIN_SOURCE_PATH),
-      harnessRoot: realpathSync(harnessRoot),
-      repositoryRoot: realpathSync(projectRoot),
+      pluginPath: canonicalFsPath(PLUGIN_SOURCE_PATH),
+      harnessRoot: canonicalFsPath(harnessRoot),
+      repositoryRoot: canonicalFsPath(projectRoot),
       processId: process.pid,
       loadedAt,
     }, null, 2)}\n`, "utf8");

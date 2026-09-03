@@ -1,12 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+
+function fsPathIdentity(value) {
+  const canonical = typeof realpathSync.native === "function"
+    ? realpathSync.native(resolve(value))
+    : realpathSync(resolve(value));
+  return process.platform === "win32" ? canonical.toLowerCase() : canonical;
+}
 
 test("OpenCode config is portable and uses pinned integrations", () => {
   assert.equal(existsSync(resolve(root, "opencode.json")), false, "root opencode.json must not be auto-discoverable");
@@ -115,6 +122,8 @@ test("persistent OpenCode provenance keeps harness plugin authority and project 
   assert.match(checker, /AGENT_HARNESS_ROOT/);
   assert.match(checker, /AGENT_HARNESS_PROJECT_ROOT/);
   assert.match(checker, /resolve\(projectRoot, "\.runtime\/agents\/runtime-invocation-provenance-live\.json"\)/);
+  assert.match(checker, /realpathSync\.native/);
+  assert.match(checker, /process\.platform === "win32"/);
 });
 
 test("persistent provenance live identity is materialized in the consumer and validates against the harness plugin", () => {
@@ -142,9 +151,9 @@ test("persistent provenance live identity is materialized in the consumer and va
     assert.match(result.stdout, /agent_runtime_invocation_provenance_live_identity_ready/);
     const recordPath = resolve(consumerRoot, ".runtime/agents/runtime-invocation-provenance-live.json");
     const record = JSON.parse(readFileSync(recordPath, "utf8"));
-    assert.equal(record.repositoryRoot, consumerRoot);
-    assert.equal(record.harnessRoot, root);
-    assert.equal(record.pluginPath, resolve(root, ".opencode/plugins/runtime-invocation-provenance.js"));
+    assert.equal(fsPathIdentity(record.repositoryRoot), fsPathIdentity(consumerRoot));
+    assert.equal(fsPathIdentity(record.harnessRoot), fsPathIdentity(root));
+    assert.equal(fsPathIdentity(record.pluginPath), fsPathIdentity(resolve(root, ".opencode/plugins/runtime-invocation-provenance.js")));
   } finally {
     rmSync(consumerRoot, { recursive: true, force: true });
   }
