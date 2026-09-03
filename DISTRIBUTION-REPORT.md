@@ -36,6 +36,7 @@ The consuming project owns its product code and project-specific PRDs, ADRs, des
 4. Historical R12–R17 qualification scripts are not public package scripts. The public operational surface is intentionally bounded to ten stable `harness:*` commands.
 5. Generic SDD authority for the harness itself is in `docs/specs/standalone-harness/`; historical qualification material is provenance only.
 6. Docker Compose runtime resources are consumer-scoped. The launcher derives a deterministic project name from the canonical `AGENT_HARNESS_PROJECT_ROOT`, preventing unrelated consumers from sharing containers, networks or named durable volumes.
+7. Public launcher root resolution is consumer-safe: a stale inherited `AGENT_HARNESS_PROJECT_ROOT` that resolves to harness source, including another outer checkout, cannot override an external Git consumer cwd containing the active harness submodule. The correction is surfaced by bootstrap/doctor diagnostics.
 
 ## Distribution inventory
 
@@ -44,7 +45,7 @@ The consuming project owns its product code and project-specific PRDs, ADRs, des
 - Artifact schemas: 11
 - PostgreSQL harness migrations: 11
 - Public `package.json` scripts: 10
-- Standalone contract files: 11 (25 current Node subtests)
+- Standalone contract files: 11 (27 current Node subtests)
 - Superpowers expected by lock: 14
 - Superpowers skill trees physically vendorized in this archive: 14
 
@@ -80,6 +81,14 @@ That preflight also exposed three residual volumes with the legacy fixed `agenti
 
 Because this is another tracked source change, the standalone qualification must restart before R-0; no R-4+ PASS is claimed by this report.
 
+## Target-host R-3 inherited-root remediation
+
+A later fresh target-host qualification passed PRE-R0 through R-2 and then correctly held at R-3. The external consumer and `.harness` submodule were created correctly, but the Outer Qualification Controller inherited `AGENT_HARNESS_PROJECT_ROOT` from its parent harness session. `bin/harness.mjs` previously gave that stale environment value unconditional precedence over the consumer invocation cwd, so bootstrap wrote `.agent-harness/` into reusable harness source and every downstream project/runtime identity would have collapsed to the submodule.
+
+This revision centralizes public-launcher project-root resolution. An explicit `AGENT_HARNESS_PROJECT_ROOT` outside the harness remains authoritative. When the inherited value resolves to the harness (or a descendant) and the current cwd is an external Git consumer that contains that harness, the launcher instead selects the consumer cwd and records `projectRootResolution.source=consumer-cwd-over-stale-harness-env`. A focused integration contract copies the launcher into a temporary `.harness`, deliberately injects the stale self-root environment, and proves `.agent-harness/config.json` is created only in the consumer.
+
+Because this is tracked source remediation after an R-3 HOLD, the full standalone qualification must restart at PRE-R0/R-0; no R-3+ PASS is claimed by this report.
+
 ## Validation performed in the build environment
 
 The distribution is checked with `node scripts/harness-test.mjs`, syntax/JSON/TypeScript-transpile checks, OpenCode effective-config generation and YAML parsing of `compose.yaml`.
@@ -99,16 +108,16 @@ before the first stable repository tag is promoted.
 
 ## Package-lock policy
 
-No fabricated `package-lock.json` is included. Direct npm dependencies are exact-pinned in `package.json`; generate and commit the lockfile in the official repository on a host that can resolve the dependency graph, then qualify that exact tree.
+`package-lock.json` is committed source authority for the standalone candidate and must remain byte-identical throughout a qualification run. Direct npm dependencies are exact-pinned in `package.json`; dependency changes require an intentionally regenerated lockfile followed by a completely fresh qualification.
 
 ## Concrete source-candidate results
 
 | Check | Result |
 |---|---|
-| Standalone contracts | PASS — 25/25 current subtests |
-| Node syntax | PASS — 115 files |
-| JSON parse | PASS — 70 files |
-| TypeScript transpile/syntax | PASS — 107 files, 0 parse errors |
+| Standalone contracts | PASS — 27/27 current subtests |
+| Node syntax | PASS — 126 files |
+| JSON parse | PASS — 72 files |
+| TypeScript transpile/syntax | PASS — 108 files, 0 parse errors |
 | `tsc --noEmit` | BLOCKED_ENVIRONMENT — `node_modules` / `@types/node` unavailable |
 | Compose YAML parse | PASS — 7 services |
 | OpenCode effective config generation | PASS — 20 agents / 2 local skill paths |

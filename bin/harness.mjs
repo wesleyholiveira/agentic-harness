@@ -5,9 +5,11 @@ import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveComposeProjectIdentity } from "../scripts/internal/compose-project-identity.mjs";
+import { resolveHarnessProjectRoot } from "../scripts/internal/project-root-resolution.mjs";
 
 const harnessRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const projectRoot = resolve(process.env.AGENT_HARNESS_PROJECT_ROOT || process.cwd());
+const projectRootResolution = resolveHarnessProjectRoot({ harnessRoot, cwd: process.cwd(), environment: process.env });
+const projectRoot = projectRootResolution.projectRoot;
 const cmd = process.argv[2] || "doctor";
 const rest = process.argv.slice(3);
 const composeProject = resolveComposeProjectIdentity(projectRoot, process.env);
@@ -16,6 +18,8 @@ const env = {
   ...process.env,
   AGENT_HARNESS_ROOT: harnessRoot,
   AGENT_HARNESS_PROJECT_ROOT: projectRoot,
+  AGENT_HARNESS_PROJECT_ROOT_SOURCE: projectRootResolution.source,
+  AGENT_HARNESS_STALE_PROJECT_ROOT_IGNORED: projectRootResolution.staleInheritedHarnessRootIgnored ? "true" : "false",
 };
 
 const defaultAuth = resolve(homedir(), ".local", "share", "opencode", "auth.json");

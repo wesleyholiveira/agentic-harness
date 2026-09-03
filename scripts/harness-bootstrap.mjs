@@ -16,5 +16,9 @@ console.log(JSON.stringify({
   ok: true,
   projectRoot: project,
   harnessRoot: root,
+  projectRootResolution: {
+    source: process.env.AGENT_HARNESS_PROJECT_ROOT_SOURCE || (process.argv[2] ? "launcher-positional" : "direct-resolution"),
+    staleInheritedHarnessRootIgnored: process.env.AGENT_HARNESS_STALE_PROJECT_ROOT_IGNORED === "true",
+  },
   next: "run <submodule>/bin/harness.mjs opencode",
 }, null, 2));

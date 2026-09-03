@@ -4,7 +4,7 @@
 |---|---|---|---|
 | W0 | architecture | — | freeze reusable/product boundary and R17.4.5 lineage |
 | W1 | agent-runtime | W0 | distributed manifests + dynamic-DAG authority |
-| W2 | agent-runtime | W0,W1 | dual-root Runtime/Context Engine wiring |
+| W2 | agent-runtime | W0,W1 | dual-root launcher/Runtime/Context Engine wiring, including stale inherited self-root recovery |
 | W3 | devops | W2 | portable OpenCode/MCP/Headroom/RTK/Superpowers integration |
 | W4 | database + runtime | W2 | standalone consumer-scoped Compose identity, migrations and Rust worker packaging |
 | W5 | structural-modernization | W1,W3,W4 | delete product artifacts, legacy registry and public command sprawl |

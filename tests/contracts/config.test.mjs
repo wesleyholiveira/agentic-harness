@@ -1,11 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { deriveComposeProjectName, resolveComposeProjectIdentity } from "../../scripts/internal/compose-project-identity.mjs";
+import { resolveHarnessProjectRoot } from "../../scripts/internal/project-root-resolution.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -40,6 +41,82 @@ test("host and consuming-project roots are distinct runtime concepts", () => {
   assert.match(control, /repositoryRoot/);
 });
 
+
+
+
+test("consumer launcher ignores a stale inherited project root that points to another harness checkout", () => {
+  const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-stale-root-consumer-"));
+  const harnessRoot = resolve(consumerRoot, ".harness");
+  const staleOuterHarnessRoot = mkdtempSync(join(tmpdir(), "agentic-harness-stale-outer-checkout-"));
+  try {
+    mkdirSync(resolve(consumerRoot, ".git"), { recursive: true });
+    mkdirSync(resolve(harnessRoot, "bin"), { recursive: true });
+    mkdirSync(resolve(harnessRoot, "scripts", "internal"), { recursive: true });
+    mkdirSync(resolve(staleOuterHarnessRoot, "bin"), { recursive: true });
+    mkdirSync(resolve(staleOuterHarnessRoot, ".agents"), { recursive: true });
+    writeFileSync(resolve(staleOuterHarnessRoot, "package.json"), '{"name":"agentic-harness"}\n');
+    writeFileSync(resolve(staleOuterHarnessRoot, "SOURCE-OF-TRUTH.md"), "fixture\n");
+    writeFileSync(resolve(staleOuterHarnessRoot, "bin", "harness.mjs"), "// fixture\n");
+    writeFileSync(resolve(staleOuterHarnessRoot, ".agents", "workflow.json"), "{}\n");
+
+    const resolution = resolveHarnessProjectRoot({
+      harnessRoot,
+      cwd: consumerRoot,
+      environment: { AGENT_HARNESS_PROJECT_ROOT: staleOuterHarnessRoot },
+    });
+    assert.equal(fsPathIdentity(resolution.projectRoot), fsPathIdentity(consumerRoot));
+    assert.equal(resolution.source, "consumer-cwd-over-stale-harness-env");
+    assert.equal(resolution.staleInheritedHarnessRootIgnored, true);
+
+    for (const relativePath of [
+      "bin/harness.mjs",
+      "scripts/harness-bootstrap.mjs",
+      "scripts/internal/compose-project-identity.mjs",
+      "scripts/internal/project-root-resolution.mjs",
+    ]) {
+      const target = resolve(harnessRoot, relativePath);
+      mkdirSync(dirname(target), { recursive: true });
+      copyFileSync(resolve(root, relativePath), target);
+    }
+
+    const result = spawnSync(process.execPath, [resolve(harnessRoot, "bin", "harness.mjs"), "bootstrap"], {
+      cwd: consumerRoot,
+      env: { ...process.env, AGENT_HARNESS_PROJECT_ROOT: staleOuterHarnessRoot },
+      encoding: "utf8",
+      shell: false,
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(existsSync(resolve(consumerRoot, ".agent-harness", "config.json")), true);
+    assert.equal(existsSync(resolve(harnessRoot, ".agent-harness")), false, "bootstrap must never write into the submodule because of a stale inherited root");
+    const output = JSON.parse(result.stdout);
+    assert.equal(fsPathIdentity(output.projectRoot), fsPathIdentity(consumerRoot));
+    assert.equal(output.projectRootResolution.source, "consumer-cwd-over-stale-harness-env");
+    assert.equal(output.projectRootResolution.staleInheritedHarnessRootIgnored, true);
+  } finally {
+    rmSync(consumerRoot, { recursive: true, force: true });
+    rmSync(staleOuterHarnessRoot, { recursive: true, force: true });
+  }
+});
+
+test("explicit external AGENT_HARNESS_PROJECT_ROOT remains authoritative outside the stale-self-root case", () => {
+  const harnessRoot = mkdtempSync(join(tmpdir(), "agentic-harness-root-authority-"));
+  const cwd = mkdtempSync(join(tmpdir(), "agentic-harness-cwd-authority-"));
+  const explicitProject = mkdtempSync(join(tmpdir(), "agentic-harness-explicit-project-"));
+  try {
+    const resolution = resolveHarnessProjectRoot({
+      harnessRoot,
+      cwd,
+      environment: { AGENT_HARNESS_PROJECT_ROOT: explicitProject },
+    });
+    assert.equal(fsPathIdentity(resolution.projectRoot), fsPathIdentity(explicitProject));
+    assert.equal(resolution.source, "AGENT_HARNESS_PROJECT_ROOT");
+    assert.equal(resolution.staleInheritedHarnessRootIgnored, false);
+  } finally {
+    rmSync(harnessRoot, { recursive: true, force: true });
+    rmSync(cwd, { recursive: true, force: true });
+    rmSync(explicitProject, { recursive: true, force: true });
+  }
+});
 
 test("Compose runtime namespace is deterministic per consumer and isolated across consumers", () => {
   const consumerA = mkdtempSync(join(tmpdir(), "agentic-harness-compose-consumer-a-"));

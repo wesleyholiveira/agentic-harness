@@ -37,7 +37,12 @@ const vendoredSuperpowers = existsSync(superpowersDir)
 const missingSuperpowers = superpowersLock.skills.filter((name) => !vendoredSuperpowers.includes(name));
 const ok = Object.values(files).every(Boolean) && agentCount > 0 && binary.node && binary.git;
 console.log(JSON.stringify({
-  ok, harnessRoot: root, projectRoot: project, composeProject, binary, codebaseMemoryExecutable, files, agentCount,
+  ok, harnessRoot: root, projectRoot: project,
+  projectRootResolution: {
+    source: process.env.AGENT_HARNESS_PROJECT_ROOT_SOURCE || (process.argv[2] ? "launcher-positional" : "direct-resolution"),
+    staleInheritedHarnessRootIgnored: process.env.AGENT_HARNESS_STALE_PROJECT_ROOT_IGNORED === "true",
+  },
+  composeProject, binary, codebaseMemoryExecutable, files, agentCount,
   codebaseMemory: {
     requiredWhenEnabled: true,
     resolved: codebaseMemoryResolved,

@@ -17,6 +17,8 @@ project AGENTS.md                       SDD workflow + templates
 
 Runtime services see `/workspace/repository` as project authority and `/workspace/harness` as harness authority.
 
+The public launcher resolves project authority before dispatching any lifecycle command. `AGENT_HARNESS_PROJECT_ROOT` is honored when it resolves outside the harness. If it is inherited from an outer harness session and resolves to harness source (the active submodule or another harness checkout) while the invocation cwd is an external Git consumer containing the active submodule, the launcher selects the consumer cwd instead and records the stale-self-root correction. This prevents bootstrap, `.runtime`, OpenCode and Compose state from being redirected into reusable harness source.
+
 Docker Compose is a third derived runtime identity, not a source authority. `bin/harness.mjs` computes `agentic-harness-<sha256-prefix>` from the canonical consuming-project root and passes it with `docker compose -p` for lifecycle commands. This prevents unrelated consumers from sharing Compose networks or named durable volumes. `AGENT_HARNESS_COMPOSE_PROJECT_NAME` is the only explicit override; an inherited generic `COMPOSE_PROJECT_NAME` cannot collapse consumer isolation. The fixed top-level Compose `name:` is intentionally absent.
 
 ## Agent discovery

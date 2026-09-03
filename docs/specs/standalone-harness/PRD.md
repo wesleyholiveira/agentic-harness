@@ -10,7 +10,7 @@ Provide one official, project-agnostic Git repository that can be mounted as a s
 
 ## Acceptance criteria
 
-- **HARNESS-1:** the harness and consuming project have explicit independent roots and no symlink/copy requirement.
+- **HARNESS-1:** the harness and consuming project have explicit independent roots and no symlink/copy requirement; a stale inherited project-root variable that resolves to harness source, including another harness checkout, cannot override a real external consumer invocation root.
 - **HARNESS-2:** specialist manifests are distributed and contain no static run DAG/delegation graph.
 - **HARNESS-3:** Technical Refinement `implementationPlan` is the authority compiled into the runtime DAG.
 - **HARNESS-4:** PostgreSQL/RabbitMQ/Rust/Context Engine/OpenCode authority and recovery invariants from the promoted Runtime baseline are preserved.

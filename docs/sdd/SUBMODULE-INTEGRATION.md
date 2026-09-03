@@ -9,7 +9,7 @@ node .harness/bin/harness.mjs bootstrap
 node .harness/bin/harness.mjs doctor
 ```
 
-The bootstrap writes only `.agent-harness/config.json` in the consuming repository. It does **not** copy the harness, create symlinks, or duplicate `.opencode`.
+The bootstrap writes only `.agent-harness/config.json` in the consuming repository. It does **not** copy the harness, create symlinks, or duplicate `.opencode`. The public launcher treats the consumer invocation cwd as recovery authority when an inherited `AGENT_HARNESS_PROJECT_ROOT` incorrectly resolves to harness source (the active `.harness` submodule or another outer harness checkout); this prevents nested qualification/automation environments from creating `.agent-harness` or `.runtime` inside harness source. `bootstrap` and `doctor` report `projectRootResolution` so the selected authority is auditable. Explicit project roots that resolve outside the harness remain authoritative for host-driven launches.
 
 ## Runtime
 

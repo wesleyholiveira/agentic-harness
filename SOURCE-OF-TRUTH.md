@@ -33,7 +33,7 @@ A consuming repository remains authoritative for its domain code, product requir
 - `AGENT_HARNESS_ROOT`: this repository/submodule.
 - `AGENT_HARNESS_PROJECT_ROOT`: consuming repository.
 
-Never collapse these roots in code that reads project context or writes project runtime evidence.
+Never collapse these roots in code that reads project context or writes project runtime evidence. A stale inherited `AGENT_HARNESS_PROJECT_ROOT` that resolves to harness source (including a different outer checkout) is not allowed to redirect an invocation made from a real external consumer containing the active harness submodule; the public launcher must recover the consumer cwd and expose that resolution decision in diagnostics.
 
 ## Stable public interface
 
