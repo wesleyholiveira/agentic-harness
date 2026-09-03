@@ -19,7 +19,7 @@ The harness launcher:
 3. hashes that canonical identity with SHA-256;
 4. derives `agentic-harness-<16 hex characters>` without embedding the raw path or username;
 5. passes the derived name explicitly with `docker compose -p` and scopes `COMPOSE_PROJECT_NAME` only to the Docker Compose subprocess;
-6. uses the same project identity for `up`, `down`, `logs` and harness migration context without leaking the generic Compose variable into OpenCode or consumer commands;
+6. uses the same project identity for `up`, `down`, `logs` and the containerized harness migration service without leaking the generic Compose variable into OpenCode or consumer commands;
 7. exposes `AGENT_HARNESS_COMPOSE_PROJECT_NAME` as the only intentional project-name override.
 
 An inherited generic `COMPOSE_PROJECT_NAME` is not authority and is overwritten. The top-level fixed `name:` is removed from `compose.yaml`. Named volumes remain ordinary non-external Compose volumes so the selected project name scopes them automatically.

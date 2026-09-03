@@ -31,7 +31,7 @@ npm run harness:opencode
 npm run harness:clean
 ```
 
-Those are intentionally the only public package scripts. Versioned R12–R17 contract commands are not part of the standalone public API.
+Those are intentionally the only public package scripts. Versioned R12–R17 contract commands are not part of the standalone public API. `harness:migrate` is submodule-safe: it runs the harness-owned migration script inside the consumer-scoped `database-migrate` Compose service, so a clean `.harness` checkout does not need its own `node_modules`.
 
 ## Two-root model
 

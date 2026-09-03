@@ -158,6 +158,8 @@ test("public lifecycle commands always use the consumer-scoped Compose project i
   assert.match(launcher, /case "up": compose\(/);
   assert.match(launcher, /case "down": compose\(/);
   assert.match(launcher, /case "logs": compose\(/);
+  assert.match(launcher, /case "migrate": compose\(\["--profile", "runtime", "run", "--rm", "--build", "database-migrate"\]\)/);
+  assert.doesNotMatch(launcher, /case "migrate": run\(process\.execPath, \[resolve\(harnessRoot, "scripts\/harness-migrate\.mjs"\)/);
   assert.doesNotMatch(compose, /^name:\s*agentic-harness\s*$/m);
   assert.match(compose, /^\s{2}agent-harness-postgres:\s*\{\}\s*$/m);
   assert.match(compose, /^\s{2}agent-harness-rabbitmq:\s*\{\}\s*$/m);
@@ -165,6 +167,23 @@ test("public lifecycle commands always use the consumer-scoped Compose project i
   assert.doesNotMatch(compose, /^\s+name:\s*agent-harness-(?:postgres|rabbitmq|redis)/m);
 });
 
+
+
+
+test("public migrate is submodule-safe and executes the containerized migrator instead of importing host pg", () => {
+  const launcher = readFileSync(resolve(root, "bin", "harness.mjs"), "utf8");
+  const dockerfile = readFileSync(resolve(root, "apps", "context-engine", "Dockerfile"), "utf8");
+  const compose = readFileSync(resolve(root, "compose.yaml"), "utf8");
+  const migrator = readFileSync(resolve(root, "scripts", "harness-migrate.mjs"), "utf8");
+
+  assert.match(launcher, /case "migrate": compose\(\["--profile", "runtime", "run", "--rm", "--build", "database-migrate"\]\)/);
+  assert.doesNotMatch(launcher, /case "migrate": run\(process\.execPath/);
+  assert.match(compose, /^  database-migrate:/m);
+  assert.match(compose, /command: \["node", "scripts\/harness-migrate\.mjs"\]/);
+  assert.match(dockerfile, /RUN npm ci/);
+  assert.match(dockerfile, /COPY scripts\/harness-migrate\.mjs \.\/scripts\/harness-migrate\.mjs/);
+  assert.match(migrator, /import pg from "pg"/);
+});
 
 test("OpenCode effective config is generated under the consuming project runtime root", () => {
   const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-consumer with space-"));

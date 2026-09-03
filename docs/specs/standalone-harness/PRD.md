@@ -21,6 +21,7 @@ Provide one official, project-agnostic Git repository that can be mounted as a s
 - **HARNESS-9:** the promoted R17.4.5 source/recovery evidence is retained as immutable lineage but is not represented as qualification of the genericized repository.
 - **HARNESS-10:** a standalone contract suite proves the reusable boundary before distribution.
 - **HARNESS-11:** each consuming project receives an independent Docker Compose runtime namespace so containers, networks and named durable volumes cannot be silently shared across unrelated consumers.
+- **HARNESS-12:** the public migration surface works from a clean Git submodule without consumer-local `node_modules`; migration execution uses the consumer-scoped runtime image/network while preserving the single harness-owned SQL migration implementation.
 
 ## Non-goals
 

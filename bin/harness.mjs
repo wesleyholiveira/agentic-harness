@@ -61,7 +61,7 @@ switch (cmd) {
   case "up": compose(["--profile", "runtime", "up", "-d", "--build", ...rest]); break;
   case "down": compose(["--profile", "runtime", "down", ...rest]); break;
   case "logs": compose(["--profile", "runtime", "logs", "--tail", "200", ...rest]); break;
-  case "migrate": run(process.execPath, [resolve(harnessRoot, "scripts/harness-migrate.mjs")], { env: { AGENT_HARNESS_COMPOSE_PROJECT_NAME: composeProject.name } }); break;
+  case "migrate": compose(["--profile", "runtime", "run", "--rm", "--build", "database-migrate"]); break;
   case "test": run(process.execPath, [resolve(harnessRoot, "scripts/harness-test.mjs")]); break;
   case "qualify": run(process.execPath, [resolve(harnessRoot, "scripts/harness-qualify.mjs")]); break;
   case "opencode": run(process.execPath, [resolve(harnessRoot, "scripts/opencode-run.mjs"), ...rest], { cwd: projectRoot }); break;

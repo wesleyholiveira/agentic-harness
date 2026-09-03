@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-03T01:56:36Z",
+  "generatedAt": "2026-09-03T02:55:34Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 481,
-  "treeSha256": "sha256:212e7268babb250f2080567563606bbaaec108fcf56ffd1dabaa6b3448e75c3f",
+  "fileCount": 482,
+  "treeSha256": "sha256:b5d3fb4fc162a6bf4adaf434de2039665f4af41074805a296584875ffa1663f6",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -1193,9 +1193,9 @@
       "sha256": "sha256:2bff460dff0b44124573ae08f82053393089470047d661fdcff2165c5a39ef15"
     },
     {
-      "bytes": 3809,
+      "bytes": 3742,
       "path": "bin/harness.mjs",
-      "sha256": "sha256:db4b00bddcdf389e64a9e6002958b635bcbe0d3e08d5dff04ccaaee6598d9a94"
+      "sha256": "sha256:4448ed9223bf02094db48c71e305f5f401b24a8a32cfeb4119d5efd6b2d96bc9"
     },
     {
       "bytes": 5878,
@@ -1208,9 +1208,9 @@
       "sha256": "sha256:19db88b7ddc6902d55c006b381e9a1fe6a4af472f37942d768aab876b329b353"
     },
     {
-      "bytes": 12033,
+      "bytes": 13404,
       "path": "DISTRIBUTION-REPORT.md",
-      "sha256": "sha256:e8757e342cdd5ecda6b699366d44fa6be032e22c1f5f8e50f44bd302ee3c9db2"
+      "sha256": "sha256:e3e1a6c72c3ca2a92a10d6f94484668668c14257a3fc5c7c881eade4c30d934a"
     },
     {
       "bytes": 1650,
@@ -1238,9 +1238,14 @@
       "sha256": "sha256:7b30d47c80f8800105cf46591ca5c802136fd6fee97238a1af2d0598f15cdb15"
     },
     {
-      "bytes": 2572,
+      "bytes": 2590,
       "path": "docs/adr/0006-consumer-scoped-compose-runtime-identity.md",
-      "sha256": "sha256:4aab93387bee3ade60c2de48ffeda0bee8e28d5eb95eaf97583f1653ec7b9294"
+      "sha256": "sha256:44e8e4184fe4e082fc4bcccdc2a7cf26e3211227b8971d93a4280d6b5bb93e07"
+    },
+    {
+      "bytes": 2162,
+      "path": "docs/adr/0007-submodule-safe-containerized-migrations.md",
+      "sha256": "sha256:b9b8876b156f386f2f910f21911a6344e8b5a04e8fa55fe09a64953473f246d6"
     },
     {
       "bytes": 888,
@@ -1353,9 +1358,9 @@
       "sha256": "sha256:6e3cacde6dd1e1926f05e510ecf95b1ad7295a4f6475a875d58c81859a456ead"
     },
     {
-      "bytes": 890,
+      "bytes": 1114,
       "path": "docs/specs/standalone-harness/context-packets/w4.md",
-      "sha256": "sha256:fe8b917e692ff3b919b4564c094c3a4664dfdc4bf43d06b4b21822fa8afbb953"
+      "sha256": "sha256:9317f690aad814735df7e896064d107d9e2e00c6751248a3d6bce6112949b4f6"
     },
     {
       "bytes": 665,
@@ -1368,19 +1373,19 @@
       "sha256": "sha256:fbb594bde0b35a377a447f3a266931008d9f96fa0d6c782933c8c14174ef65f4"
     },
     {
-      "bytes": 3317,
+      "bytes": 3784,
       "path": "docs/specs/standalone-harness/DESIGN.md",
-      "sha256": "sha256:c75e7c0ab089ffa42126031ac0437db23c301bc7ce2009bda6264f1ef3df3394"
+      "sha256": "sha256:f756af3f248f3b0d1ea607c3edab3553a7b963214abefd74fa765da3f9ab065a"
     },
     {
-      "bytes": 1006,
+      "bytes": 1035,
       "path": "docs/specs/standalone-harness/IMPLEMENTATION-PLAN.md",
-      "sha256": "sha256:51388069fc3c7191cfca03c730a41053a69c224423c6c8867c18604e45de4e1e"
+      "sha256": "sha256:bbb4957f160d072a499821dd8c9807429aa5c19cdf072b4e91155e23e45851a0"
     },
     {
-      "bytes": 2570,
+      "bytes": 2828,
       "path": "docs/specs/standalone-harness/PRD.md",
-      "sha256": "sha256:9dc254082d81dd17e4dfb84d943a0978b73cec3f05d70f93a921f9078e0f17e6"
+      "sha256": "sha256:8f97a4a37e5089195576ec55144d2b8f1458808e9ced7f16d6e376d566aa2f17"
     },
     {
       "bytes": 598,
@@ -1408,9 +1413,9 @@
       "sha256": "sha256:ef215ca433145f2fde28d4d6a033bb9dc356221840226cb0a79af261ac870520"
     },
     {
-      "bytes": 1015,
+      "bytes": 1244,
       "path": "docs/specs/standalone-harness/task-briefs/w4.md",
-      "sha256": "sha256:c6be6820cfe21ebed4158eeb95e3b28eb3c6939570d4e393e1002ab1a1dab64c"
+      "sha256": "sha256:8dd3039a11896abae8265dc0ea44cfe66859c02212e3e49c6d1b7ca873634c51"
     },
     {
       "bytes": 562,
@@ -1423,9 +1428,9 @@
       "sha256": "sha256:ce7ff803949f3782c35e5db028a79a6215aeb49e7fa3a3231218856f4d6b5a54"
     },
     {
-      "bytes": 1514,
+      "bytes": 1719,
       "path": "docs/specs/standalone-harness/TEST-PLAN.md",
-      "sha256": "sha256:8fb62c16e2876a2f0a81a52e5041d52bfebaa24067736790db84cc1d46c22850"
+      "sha256": "sha256:b55d32b58191a1723f51a411527f678df18c8b074a6bdffaf53704bb0ed6cb3a"
     },
     {
       "bytes": 145,
@@ -1973,9 +1978,9 @@
       "sha256": "sha256:a356cd51ed50911ef091fc68ee1a704cebbadc2892d5d1fa99e3c72d6a0bab66"
     },
     {
-      "bytes": 4035,
+      "bytes": 4247,
       "path": "README.md",
-      "sha256": "sha256:79a7afd76b57a3e1ab5779177d8322ba6b529080ca88b60fe12db07eb73a8152"
+      "sha256": "sha256:41c87fb4427509ef48a9f1e52f6ace05f59a17e3a6710db8fe2146d2fcacb311"
     },
     {
       "bytes": 3043,
@@ -2088,9 +2093,9 @@
       "sha256": "sha256:58f9cb34276192e9c57547d18fc1d52e0c860fddb0cce18e05ce1fa3593af1fc"
     },
     {
-      "bytes": 2826,
+      "bytes": 3057,
       "path": "SOURCE-OF-TRUTH.md",
-      "sha256": "sha256:2d0ab304a57591afab6586d33ab44d171de0cb684672be1551afb5520988c9f7"
+      "sha256": "sha256:50847c7d1d2f0a7c326602d5fd9d656f82cfa2811fb128151b5db77c58069905"
     },
     {
       "bytes": 840,
@@ -2098,9 +2103,9 @@
       "sha256": "sha256:f4b3ef794acd858e00bfeddf99e084066260481d66950686e4f00d7abb9ff3e7"
     },
     {
-      "bytes": 18971,
+      "bytes": 20223,
       "path": "tests/contracts/config.test.mjs",
-      "sha256": "sha256:2841c983056b6b06722f5e829d6d77897789782439e86e6928b16eb5979c8029"
+      "sha256": "sha256:158185880e987e45217ccee2cb7a73b218f04ecc4b34136560216b609be53d8c"
     },
     {
       "bytes": 1117,

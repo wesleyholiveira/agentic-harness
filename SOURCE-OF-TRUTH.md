@@ -37,7 +37,7 @@ Never collapse these roots in code that reads project context or writes project 
 
 ## Stable public interface
 
-The supported CLI surface is the ten `harness:*` commands in `package.json` / `bin/harness.mjs`. Internal migration, executor, replay and readiness helpers are implementation details and may evolve without becoming public aliases.
+The supported CLI surface is the ten `harness:*` commands in `package.json` / `bin/harness.mjs`. `harness:migrate` is the supported submodule-facing migration entrypoint and executes the internal migrator through the consumer-scoped `database-migrate` Compose service; direct host execution of the migration helper is internal. Internal migration, executor, replay and readiness helpers are implementation details and may evolve without becoming public aliases.
 
 ## Promotion rule
 

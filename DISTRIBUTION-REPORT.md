@@ -37,6 +37,7 @@ The consuming project owns its product code and project-specific PRDs, ADRs, des
 5. Generic SDD authority for the harness itself is in `docs/specs/standalone-harness/`; historical qualification material is provenance only.
 6. Docker Compose runtime resources are consumer-scoped. The launcher derives a deterministic project name from the canonical `AGENT_HARNESS_PROJECT_ROOT`, preventing unrelated consumers from sharing containers, networks or named durable volumes.
 7. Public launcher root resolution is consumer-safe: a stale inherited `AGENT_HARNESS_PROJECT_ROOT` that resolves to harness source, including another outer checkout, cannot override an external Git consumer cwd containing the active harness submodule. The correction is surfaced by bootstrap/doctor diagnostics.
+8. Public migration is submodule-safe: `harness:migrate` runs the existing migrator in the consumer-scoped `database-migrate` Compose service instead of importing host `pg` from a clean `.harness` checkout.
 
 ## Distribution inventory
 
@@ -45,7 +46,7 @@ The consuming project owns its product code and project-specific PRDs, ADRs, des
 - Artifact schemas: 11
 - PostgreSQL harness migrations: 11
 - Public `package.json` scripts: 10
-- Standalone contract files: 11 (27 current Node subtests)
+- Standalone contract files: 11 (28 current Node subtests)
 - Superpowers expected by lock: 14
 - Superpowers skill trees physically vendorized in this archive: 14
 
@@ -89,6 +90,14 @@ This revision centralizes public-launcher project-root resolution. An explicit `
 
 Because this is tracked source remediation after an R-3 HOLD, the full standalone qualification must restart at PRE-R0/R-0; no R-3+ PASS is claimed by this report.
 
+## Target-host R-4B submodule migration remediation
+
+A subsequent fresh qualification passed PRE-R0, R-0 through R-3B, R-4 and R-4A, then correctly held at R-4B. From the external consumer, `node .harness/bin/harness.mjs migrate` spawned `<consumer>/.harness/scripts/harness-migrate.mjs` directly on the host. That clean Git submodule intentionally had no `node_modules`, so the migrator's `import pg from "pg"` failed with `ERR_MODULE_NOT_FOUND`. Installing/copying dependencies into every submodule would violate the reusable-source boundary.
+
+This revision routes the public migration command through the consumer-scoped Compose `database-migrate` service. The image is built from the harness lockfile, runs `npm ci`, contains the same migration implementation and reaches PostgreSQL through the internal `postgres` service name. A focused contract prevents the launcher from regressing to host-spawning the migrator. Migration SQL remains single-sourced; only the execution boundary changes.
+
+Because this is tracked source remediation after an R-4B HOLD, the full standalone qualification must restart at PRE-R0/R-0; no R-4B+ PASS is claimed by this report.
+
 ## Validation performed in the build environment
 
 The distribution is checked with `node scripts/harness-test.mjs`, syntax/JSON/TypeScript-transpile checks, OpenCode effective-config generation and YAML parsing of `compose.yaml`.
@@ -114,7 +123,7 @@ before the first stable repository tag is promoted.
 
 | Check | Result |
 |---|---|
-| Standalone contracts | PASS — 27/27 current subtests |
+| Standalone contracts | PASS — 28/28 current subtests |
 | Node syntax | PASS — 126 files |
 | JSON parse | PASS — 72 files |
 | TypeScript transpile/syntax | PASS — 108 files, 0 parse errors |
