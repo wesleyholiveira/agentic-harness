@@ -43,6 +43,9 @@ switch (cmd) {
   case "test": run(process.execPath, [resolve(harnessRoot, "scripts/harness-test.mjs")]); break;
   case "qualify": run(process.execPath, [resolve(harnessRoot, "scripts/harness-qualify.mjs")]); break;
   case "opencode": run(process.execPath, [resolve(harnessRoot, "scripts/opencode-run.mjs"), ...rest], { cwd: projectRoot }); break;
-  case "clean": rmSync(resolve(projectRoot, ".runtime", "agents"), { recursive: true, force: true }); break;
+  case "clean":
+    rmSync(resolve(projectRoot, ".runtime", "agents"), { recursive: true, force: true });
+    rmSync(resolve(projectRoot, ".runtime", "opencode.effective.json"), { force: true });
+    break;
   default: console.error(`unknown harness command: ${cmd}`); process.exit(2);
 }

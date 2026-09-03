@@ -5,18 +5,24 @@ import process from "node:process";
 
 const PLUGIN_ID = "agentic-harness.runtime-invocation-provenance";
 const LIVE_SCHEMA = "runtime-invocation-provenance-live/v1";
-const root = resolve(process.env.AGENT_HARNESS_REPOSITORY_ROOT?.trim() || process.cwd());
-const pluginPath = resolve(root, ".opencode/plugins/runtime-invocation-provenance.js");
+const projectRoot = resolve(
+  process.env.AGENT_HARNESS_PROJECT_ROOT?.trim()
+    || process.env.AGENT_HARNESS_REPOSITORY_ROOT?.trim()
+    || process.cwd(),
+);
+const harnessRoot = resolve(process.env.AGENT_HARNESS_ROOT?.trim() || projectRoot);
+const pluginPath = resolve(harnessRoot, ".opencode/plugins/runtime-invocation-provenance.js");
 const recordPath = resolve(
   process.env.AGENT_HARNESS_RUNTIME_PROVENANCE_LIVE_RECORD?.trim()
-    || resolve(root, ".runtime/agents/runtime-invocation-provenance-live.json"),
+    || resolve(projectRoot, ".runtime/agents/runtime-invocation-provenance-live.json"),
 );
 
 function fail(code, details = {}) {
   process.stderr.write(`${JSON.stringify({
     ok: false,
     code,
-    repositoryRoot: root,
+    repositoryRoot: projectRoot,
+    harnessRoot,
     pluginPath,
     recordPath,
     operatorAction: "Restart the persistent OpenCode host after source/plugin changes, then attach a fresh TUI session before R-0.",
@@ -36,10 +42,11 @@ function processAlive(pid) {
 }
 
 try {
-  const [pluginBytes, rawRecord, canonicalRoot, canonicalPlugin] = await Promise.all([
+  const [pluginBytes, rawRecord, canonicalProjectRoot, canonicalHarnessRoot, canonicalPlugin] = await Promise.all([
     readFile(pluginPath),
     readFile(recordPath, "utf8"),
-    realpath(root),
+    realpath(projectRoot),
+    realpath(harnessRoot),
     realpath(pluginPath),
   ]);
   const record = JSON.parse(rawRecord);
@@ -50,7 +57,8 @@ try {
     schema: record?.schemaVersion === LIVE_SCHEMA,
     pluginId: record?.pluginId === PLUGIN_ID,
     sourceSha: record?.pluginSourceSha256 === expectedSourceSha256,
-    repositoryRoot: String(record?.repositoryRoot ?? "") === canonicalRoot,
+    repositoryRoot: String(record?.repositoryRoot ?? "") === canonicalProjectRoot,
+    harnessRoot: String(record?.harnessRoot ?? "") === canonicalHarnessRoot,
     pluginPath: String(record?.pluginPath ?? "") === canonicalPlugin,
     processId: Number.isInteger(processId) && processId > 0,
     processAlive: Number.isInteger(processId) && processId > 0 && processAlive(processId),
@@ -69,7 +77,8 @@ try {
     process.stdout.write(`${JSON.stringify({
       ok: true,
       code: "agent_runtime_invocation_provenance_live_identity_ready",
-      repositoryRoot: canonicalRoot,
+      repositoryRoot: canonicalProjectRoot,
+      harnessRoot: canonicalHarnessRoot,
       pluginPath: canonicalPlugin,
       recordPath,
       pluginSourceSha256: expectedSourceSha256,

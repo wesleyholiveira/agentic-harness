@@ -4,7 +4,7 @@
 
 ## Decision
 
-Keep one project-agnostic non-auto-discovered template at `config/opencode.template.jsonc` in the harness and generate runtime-effective configuration with absolute harness/project roots. The consuming project's cwd remains the OpenCode cwd.
+Keep one project-agnostic non-auto-discovered template at `config/opencode.template.jsonc` in the harness and generate runtime-effective configuration with absolute harness/project roots. The consuming project's cwd remains the OpenCode cwd, and the effective file is written only to `<AGENT_HARNESS_PROJECT_ROOT>/.runtime/opencode.effective.json`. Harness `.opencode` remains executable/plugin authority; consumer `.runtime` remains generated-evidence authority.
 
 Pinned integrations:
 

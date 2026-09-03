@@ -43,24 +43,17 @@ The consuming project owns its product code and project-specific PRDs, ADRs, des
 - Artifact schemas: 11
 - PostgreSQL harness migrations: 11
 - Public `package.json` scripts: 10
-- Standalone contract tests: 14
+- Standalone contract files: 11 (23 current Node subtests)
 - Superpowers expected by lock: 14
-- Superpowers skill trees physically recovered/vendorized in this archive: 10
+- Superpowers skill trees physically vendorized in this archive: 14
 
-## Superpowers vendor caveat
+## Superpowers vendor status
 
-Ten real Superpowers skill trees were recovered from the user's prior source checkpoint and are included under `vendor/superpowers/skills`. The following four v5.1.0 directories were not present in any source archive available while building this package:
-
-- `dispatching-parallel-agents`
-- `requesting-code-review`
-- `using-git-worktrees`
-- `using-superpowers`
-
-They were **not fabricated**. `vendor/superpowers/lock.json` pins the full v5.1.0 set and `scripts/vendor-superpowers.mjs` clones the exact tag, replaces the vendor tree, verifies all 14 skills and copies upstream license/readme. On a networked host, run that command once in the official harness repository and commit the resulting vendor tree; consumers are then fully offline for Superpowers skills.
+The complete Superpowers `v5.1.0` set pinned by `vendor/superpowers/lock.json` is physically present: **14/14** directories with `SKILL.md`, including the four that were absent from the earliest extraction checkpoint (`dispatching-parallel-agents`, `requesting-code-review`, `using-git-worktrees`, and `using-superpowers`). `scripts/vendor-superpowers.mjs` remains a pinned refresh/verification utility; consumers do not need it to resolve the committed skills.
 
 ## OpenCode configuration portability hardening
 
-The reusable OpenCode template lives at `config/opencode.template.jsonc`, intentionally outside every filename/location that OpenCode auto-discovers as a project config. This is required on Windows: OpenCode performs `{env:...}` substitution while loading project configs, so a value such as `D:\\agentic-harness` can become an invalid JSON escape before parsing. The harness generator expands paths itself, normalizes Windows separators to `/`, serializes the effective config with `JSON.stringify`, and writes only `.runtime/opencode.effective.json`.
+The reusable OpenCode template lives at `config/opencode.template.jsonc`, intentionally outside every filename/location that OpenCode auto-discovers as a project config. This is required on Windows: OpenCode performs `{env:...}` substitution while loading project configs, so a value such as `D:\\agentic-harness` can become an invalid JSON escape before parsing. The harness generator expands paths itself, normalizes Windows separators to `/`, serializes the effective config with `JSON.stringify`, and writes only `<AGENT_HARNESS_PROJECT_ROOT>/.runtime/opencode.effective.json`. Generated runtime state never belongs to the reusable harness root.
 
 `opencode.json` and `opencode.jsonc` at the harness root are forbidden legacy artifacts. The launcher fails closed if either is present. Context7 is disabled in the generated config when `CONTEXT7_API_KEY` is absent; Context Engine defaults to `http://127.0.0.1:8789/mcp` when no explicit URL is configured. Host executable launchers use `shell: false` so Windows paths containing spaces are not truncated by `cmd.exe`.
 
@@ -70,7 +63,13 @@ The generated OpenCode config no longer relies on a bare `codebase-memory-mcp` c
 
 Headroom uses two distinct pinned surfaces: `headroom-ai[proxy]==0.36.5` for the wrapper proxy and the canonical `headroom-ai[mcp]==0.36.5` package for `headroom mcp serve`. The generated MCP command receives the same explicit `--proxy-url http://127.0.0.1:${HEADROOM_PROXY_PORT:-8793}` owned by the wrapper, so MCP retrieval/stats cannot silently point at Headroom's unrelated default proxy port.
 
-A plain `opencode mcp list` outside `harness:opencode` may exercise the user's global OpenCode config instead of `.runtime/opencode.effective.json`; standalone qualification must therefore prove MCP connectivity from the harness-launched OpenCode process/config, not infer it from the global list.
+A plain `opencode mcp list` outside `harness:opencode` may exercise the user's global OpenCode config instead of the consumer-owned `.runtime/opencode.effective.json`; standalone qualification must therefore prove MCP connectivity from the harness-launched OpenCode process/config, not infer it from the global list.
+
+## Target-host R-5 remediation
+
+The first independent Windows target-host qualification of this standalone tree passed PRE-R0 and R-0 through R-4, then correctly held at R-5 because `scripts/generate-opencode-config.mjs` wrote generated OpenCode state under `AGENT_HARNESS_ROOT/.runtime`. That violated ADR 0001: `.runtime` evidence belongs to the consuming project.
+
+This source revision fixes the ownership boundary by writing the effective config to `<AGENT_HARNESS_PROJECT_ROOT>/.runtime/opencode.effective.json`, strengthens the contract test to prove no harness-root output is created, aligns persistent provenance identity with harness-plugin/project-evidence dual roots, and makes `harness:clean` remove the generated effective config from the project runtime directory. Because this is a source change, R-0 onward must be rerun before promotion; R-6 through R-10 are not claimed by this report.
 
 ## Validation performed in the build environment
 
@@ -97,7 +96,7 @@ No fabricated `package-lock.json` is included. Direct npm dependencies are exact
 
 | Check | Result |
 |---|---|
-| Standalone contracts | PASS — 14/14 |
+| Standalone contracts | PASS — 23/23 current subtests |
 | Node syntax | PASS — 115 files |
 | JSON parse | PASS — 70 files |
 | TypeScript transpile/syntax | PASS — 107 files, 0 parse errors |
@@ -109,4 +108,4 @@ No fabricated `package-lock.json` is included. Direct npm dependencies are exact
 | Credential-token scan | PASS — 0 matches |
 | `harness:qualify` | contracts PASS, then BLOCKED_ENVIRONMENT because Cargo is unavailable |
 
-Machine-readable evidence: `validation/source-candidate-20260902.json`.
+Machine-readable evidence: `validation/source-candidate-20260902.json`. That file is retained as historical pre-target-host extraction evidence and therefore still records the earlier 10/14 Superpowers snapshot and 14-subtest run; it is not rewritten to pretend those observations occurred after the R-5 source fix.

@@ -27,7 +27,7 @@ Context Engine creates authoritative preparation/finalization state. PostgreSQL/
 
 ## OpenCode
 
-The host launcher generates `.runtime/opencode.effective.json` from `config/opencode.template.jsonc`, expands absolute roots, starts the Headroom wrapper by default and exposes the session host on port 4096. Runtime child OpenCode disables nested MCPs that should not be recursively launched inside worker execution.
+The host launcher generates `<AGENT_HARNESS_PROJECT_ROOT>/.runtime/opencode.effective.json` from `config/opencode.template.jsonc`, expands absolute roots, starts the Headroom wrapper by default and exposes the session host on port 4096. The plugin/config source remains harness-owned while generated runtime evidence remains project-owned. Runtime child OpenCode disables nested MCPs that should not be recursively launched inside worker execution.
 
 ## Extensibility
 

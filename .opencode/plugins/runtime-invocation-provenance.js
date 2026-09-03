@@ -196,13 +196,18 @@ async function latestUserMessage({ serverUrl, directory, sessionID, client, fetc
 }
 
 function writeLivePluginIdentity(directory) {
-  const root = String(directory ?? "").trim();
-  if (!root) return null;
+  // Runtime-child OpenCode executions are ephemeral specialists. They must not
+  // overwrite the persistent host identity record used by continuation gates.
+  if (process.env.AGENT_HARNESS_OPENCODE_RUNTIME_CHILD === "1") return null;
+
+  const projectRoot = String(process.env.AGENT_HARNESS_PROJECT_ROOT ?? directory ?? "").trim();
+  const harnessRoot = String(process.env.AGENT_HARNESS_ROOT ?? projectRoot).trim();
+  if (!projectRoot || !harnessRoot) return null;
   try {
-    const expectedPluginPath = resolve(root, ".opencode/plugins/runtime-invocation-provenance.js");
+    const expectedPluginPath = resolve(harnessRoot, ".opencode/plugins/runtime-invocation-provenance.js");
     if (!existsSync(expectedPluginPath)) return null;
     if (realpathSync(expectedPluginPath) !== realpathSync(PLUGIN_SOURCE_PATH)) return null;
-    const target = resolve(root, LIVE_IDENTITY_RELATIVE_PATH);
+    const target = resolve(projectRoot, LIVE_IDENTITY_RELATIVE_PATH);
     mkdirSync(dirname(target), { recursive: true });
     const temporary = `${target}.${process.pid}.tmp`;
     const loadedAt = new Date().toISOString();
@@ -211,7 +216,8 @@ function writeLivePluginIdentity(directory) {
       pluginId: PLUGIN_ID,
       pluginSourceSha256: PLUGIN_SOURCE_SHA256,
       pluginPath: realpathSync(PLUGIN_SOURCE_PATH),
-      repositoryRoot: realpathSync(root),
+      harnessRoot: realpathSync(harnessRoot),
+      repositoryRoot: realpathSync(projectRoot),
       processId: process.pid,
       loadedAt,
     }, null, 2)}\n`, "utf8");

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-03T00:06:30Z",
+  "generatedAt": "2026-09-03T00:37:33Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 478,
-  "treeSha256": "sha256:9589a53c1ca51dfb70109483d4c7bfcd84bdad471139cadc131e6b835c6ef7ce",
+  "treeSha256": "sha256:b06798edc2ff15b7ca6a59cba22e6f4bb248df4e1be25212c5bedcb0dd17b7aa",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -928,9 +928,9 @@
       "sha256": "sha256:f4c652227c84363b1464293cc3c4f25cac7a308028c49a54eac97e66252b9fd0"
     },
     {
-      "bytes": 16732,
+      "bytes": 17192,
       "path": ".opencode/plugins/runtime-invocation-provenance.js",
-      "sha256": "sha256:1c2fe9659eb6d9baf8c6a1f3353fa3a6c8746f238d4aceee4f9569013f07fc89"
+      "sha256": "sha256:c23eadc9984fd2c457c17588e7d2154717b751abb937e6296636fda6cb7b1402"
     },
     {
       "bytes": 21828,
@@ -953,14 +953,14 @@
       "sha256": "sha256:ced1b8832a4eb7ec17205eb2b2084810db5fbbbef4d5e00a0f7aa1a7d22abc11"
     },
     {
-      "bytes": 28,
+      "bytes": 26,
       "path": ".serena/.gitignore",
-      "sha256": "sha256:441f89b8bba2252c9f7797ebc2fca741b760712e1c8261a7ad5c282175dd52f2"
+      "sha256": "sha256:21d5dcb497df8b257d94919bdadcfe75b75d085d0f7b77ac2d8a813a9ca6e758"
     },
     {
-      "bytes": 9962,
+      "bytes": 9793,
       "path": ".serena/project.yml",
-      "sha256": "sha256:143f8bb8cb67f3f76b693b2b00ed21441395d1991e31a2fddca66611f2fd06cd"
+      "sha256": "sha256:cb1cce37cb8d0b703f9df22d1d921e856170e8761ce0146eeffc7092c5f1b66a"
     },
     {
       "bytes": 909,
@@ -1193,9 +1193,9 @@
       "sha256": "sha256:2bff460dff0b44124573ae08f82053393089470047d661fdcff2165c5a39ef15"
     },
     {
-      "bytes": 2656,
+      "bytes": 2754,
       "path": "bin/harness.mjs",
-      "sha256": "sha256:99a34e907dc892de196a2151c7d9a5495daf093d05da2f1daa0418131e6a94b4"
+      "sha256": "sha256:dc8304059a5860fef69e989c9ff7431038b38364c0d06014512a71956155abf8"
     },
     {
       "bytes": 5900,
@@ -1208,9 +1208,9 @@
       "sha256": "sha256:19db88b7ddc6902d55c006b381e9a1fe6a4af472f37942d768aab876b329b353"
     },
     {
-      "bytes": 7692,
+      "bytes": 8687,
       "path": "DISTRIBUTION-REPORT.md",
-      "sha256": "sha256:23dca16c0b1636df6fd680a2c512680174df97c27c389373855f5bceb0f2052f"
+      "sha256": "sha256:55508a3a0ffdb96e549ad16139aa2407243bfb53937a3d0d49f2337fce99128a"
     },
     {
       "bytes": 961,
@@ -1228,9 +1228,9 @@
       "sha256": "sha256:db6580250b89ffb5a4fe0335edbd09da169b573ec435b4f7a842f38517ae3707"
     },
     {
-      "bytes": 878,
+      "bytes": 1100,
       "path": "docs/adr/0004-portable-opencode-integrations.md",
-      "sha256": "sha256:50ca05d888eda2860e36c2eb55b2607a949af6700036ee16f1055d78c2d9971a"
+      "sha256": "sha256:b86e242706ad66f133dba3063ea50c470a989eca4cf64d867572658e82a3add2"
     },
     {
       "bytes": 771,
@@ -1318,9 +1318,9 @@
       "sha256": "sha256:e78c09aedb6a7bddd7098d9f6060b4edb152b800097e57ecc6065ec7646a495a"
     },
     {
-      "bytes": 3629,
+      "bytes": 3830,
       "path": "docs/sdd/SUBMODULE-INTEGRATION.md",
-      "sha256": "sha256:a987f44624b4e4d556a9251c11614a68782d1ae1dc7d0123a8cc75f86be4a96d"
+      "sha256": "sha256:12d29a53eac8485e2e4a71b5f9f2d16026b3140a1966a0e6310383af2ffe2dcb"
     },
     {
       "bytes": 466,
@@ -1363,9 +1363,9 @@
       "sha256": "sha256:fbb594bde0b35a377a447f3a266931008d9f96fa0d6c782933c8c14174ef65f4"
     },
     {
-      "bytes": 2052,
+      "bytes": 2184,
       "path": "docs/specs/standalone-harness/DESIGN.md",
-      "sha256": "sha256:0d691ea204e42ead6f861935d210e577511eed9c07b04dddc015dd328616512d"
+      "sha256": "sha256:4ee3316b152a67307fcc0c685f2b124d93f9ed1b9ed846f9c051385ff9eed5af"
     },
     {
       "bytes": 926,
@@ -1968,14 +1968,14 @@
       "sha256": "sha256:a356cd51ed50911ef091fc68ee1a704cebbadc2892d5d1fa99e3c72d6a0bab66"
     },
     {
-      "bytes": 3266,
+      "bytes": 3329,
       "path": "README.md",
-      "sha256": "sha256:19ad1ec978f1a1209505398887dac37f39be7d55630f7b73c23a8865088e495a"
+      "sha256": "sha256:82c62a5a9a8d2b42e5583c284bbb29795245ed275edc41fc7e5002d6b7c32a83"
     },
     {
-      "bytes": 3009,
+      "bytes": 3043,
       "path": "scripts/generate-opencode-config.mjs",
-      "sha256": "sha256:c5606ddea4d1f60ffd82001b92c14743f06f190803ef2ab7db9752115cff5b08"
+      "sha256": "sha256:b37fddd3355cb9cab912b282fc3a857906e5fb759d9824d54a183470828f8347"
     },
     {
       "bytes": 846,
@@ -2008,9 +2008,9 @@
       "sha256": "sha256:ea52d1ddef5fbe0828f4245293d6d9ac3c8f506d71a95ef8206f8128cc6c5c73"
     },
     {
-      "bytes": 3194,
+      "bytes": 3581,
       "path": "scripts/internal/agent-runtime-invocation-provenance-live-check.mjs",
-      "sha256": "sha256:190964ba07efe7fc78c288246715a671be3052d98bb34c979d9f86ca84f66658"
+      "sha256": "sha256:30596b9143f982fec0aa6c9bc6d652cbc5fe799ed83a961686ead84efdb66d29"
     },
     {
       "bytes": 5103,
@@ -2083,9 +2083,9 @@
       "sha256": "sha256:f4b3ef794acd858e00bfeddf99e084066260481d66950686e4f00d7abb9ff3e7"
     },
     {
-      "bytes": 6690,
+      "bytes": 11673,
       "path": "tests/contracts/config.test.mjs",
-      "sha256": "sha256:3265af8c18350af9bc7538759884b22cd07c13e669bd48bfd031dbbaa7a8db24"
+      "sha256": "sha256:3c001dc349f7e8279b849073ebef3894d31c10b8dce36de27c7d57123c3c5d81"
     },
     {
       "bytes": 1117,
@@ -2103,14 +2103,14 @@
       "sha256": "sha256:c8d780bd3f8593cdc4f3848245dea3e382814da7cb5af120a68430a315d0ac39"
     },
     {
-      "bytes": 1875,
+      "bytes": 1716,
       "path": "tests/contracts/skills.test.mjs",
-      "sha256": "sha256:35b7d9d46f865a57d5d85bac26932476bbd5c03446a670241a0d9e49967e6056"
+      "sha256": "sha256:75eeba024a0cd0e517320e8aefcbcb11585ca045900f7cee8b60a8a36cc0d7a4"
     },
     {
-      "bytes": 1363,
+      "bytes": 1478,
       "path": "tests/contracts/source-inventory.test.mjs",
-      "sha256": "sha256:0d2c48e074fbeb890aad3309a93c0d10264d9622151efd3e2543dc19c2e87d9e"
+      "sha256": "sha256:f7f9b179bb931c1a0c08f65f94893b068e659c9f969d0665c324fddd61d249f6"
     },
     {
       "bytes": 2213,
@@ -2163,14 +2163,14 @@
       "sha256": "sha256:80953ff02094e94bce4153b3d64d0d2c21626774eb2a3b4ca31962aa32726598"
     },
     {
-      "bytes": 1122,
+      "bytes": 1158,
       "path": "vendor/superpowers/README.md",
-      "sha256": "sha256:d2ace9379bbcc2f016bf5a042916141523aa82112263bdc6a3543c983f9322f7"
+      "sha256": "sha256:9470b3c56e02b80048cb2a37099af68d900363bae23fa9e437488c40b772d4e3"
     },
     {
-      "bytes": 7917,
+      "bytes": 7703,
       "path": "vendor/superpowers/skills/brainstorming/scripts/frame-template.html",
-      "sha256": "sha256:7c3a788b6fe3f66c4e87db0e756f0f60bce14d58585e3fc6a8d835cde701bfad"
+      "sha256": "sha256:fb22ba9d47f3b83b56e0a95d52a3c2727db03b0d4365078d92c850293a62457b"
     },
     {
       "bytes": 2707,
@@ -2178,9 +2178,9 @@
       "sha256": "sha256:e763d82f32b4ebb320be2f0d08449d3e5a0585778edf5c407c1fdab3f39976a5"
     },
     {
-      "bytes": 11572,
+      "bytes": 11218,
       "path": "vendor/superpowers/skills/brainstorming/scripts/server.cjs",
-      "sha256": "sha256:4b951e038fdf624b4b2b4afa9ea4eec0c49a0fea253ed9c5e305b57eb3be495d"
+      "sha256": "sha256:ea81185f581897c67d4b417eeb9bc7a158c50e0932c73047054fe53efc2683ef"
     },
     {
       "bytes": 4606,
@@ -2373,9 +2373,9 @@
       "sha256": "sha256:0b379a3415e185d3c434b3ad283d8aa132f3022c2a4f210f168865b5986bcef0"
     },
     {
-      "bytes": 6141,
+      "bytes": 5970,
       "path": "vendor/superpowers/skills/writing-skills/graphviz-conventions.dot",
-      "sha256": "sha256:b18a02773875f6c7b92f2a260e88550c92a62549b0009df9d680f7e9541d0ecc"
+      "sha256": "sha256:e2890a593c91370e384b42f2f67b1a6232c9e69dddea7891a0c1c46d7b20b694"
     },
     {
       "bytes": 5908,
@@ -2398,9 +2398,9 @@
       "sha256": "sha256:c711346852c911b24a84aa161e0cff06a4cd7f4e2fa9e9c0a266cead5afcbade"
     },
     {
-      "bytes": 1091,
+      "bytes": 1070,
       "path": "vendor/superpowers/UPSTREAM-LICENSE",
-      "sha256": "sha256:0da33ed814ee87e72db078f489c4447af72f13d9f25d9e17476f32efd77705fc"
+      "sha256": "sha256:a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400"
     },
     {
       "bytes": 8354,

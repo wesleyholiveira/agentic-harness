@@ -12,7 +12,7 @@ The consuming repository owns product/domain code and specification. This reposi
 - **Context Engine:** PostgreSQL Project Memory, Redis exact/semantic cache, optional TEI embeddings, CBM/Context7/Serena adapters.
 - **Portable OpenCode surface:** Main Orchestrator and specialist definitions, project plugins, progress/provenance/continuation tooling and the `sdd` command.
 - **Tool integrations:** Headroom 0.36.5 wrapper/MCP, Serena 1.7.0, Context7, codebase-memory-mcp, optional Caveman and RTK guidance.
-- **Skills:** harness-owned skills are fully local. Superpowers is pinned at v5.1.0 and its locally recovered skill trees live under `vendor/superpowers/skills`; `scripts/vendor-superpowers.mjs` completes/refreshes the upstream vendor tree on a networked machine.
+- **Skills:** harness-owned skills are fully local. Superpowers is pinned at v5.1.0 and the complete 14/14 locked skill tree is vendored under `vendor/superpowers/skills`; `scripts/vendor-superpowers.mjs` is an explicit refresh/verification path, not a bootstrap requirement.
 - **Generic SDD artifacts:** schemas and editable templates for PRD, ADR, Design, Test Plan, Runbook, Task Brief, Context Packet, Implementation Plan, Handoff Result, Replay Capsule and related runtime artifacts. The repository’s own current PRD/design/plan/briefs/packets live under `docs/specs/standalone-harness/`.
 - **Qualification lineage:** the immutable R17.4.5 promotion evidence is retained under `qualification/baseline/r17.4.5/` and is not operational source.
 
@@ -35,10 +35,10 @@ Those are intentionally the only public package scripts. Versioned R12–R17 con
 
 ## Two-root model
 
-`AGENT_HARNESS_ROOT` points at this repository/submodule. `AGENT_HARNESS_PROJECT_ROOT` points at the consuming repository. Runtime code, agent manifests, schemas and OpenCode plugins come from the harness root; workspaces, project PRDs/ADRs/code and run evidence come from the consuming project root.
+`AGENT_HARNESS_ROOT` points at this repository/submodule. `AGENT_HARNESS_PROJECT_ROOT` points at the consuming repository. Runtime code, agent manifests, schemas and OpenCode plugins come from the harness root; workspaces, project PRDs/ADRs/code and all generated `.runtime` evidence—including `opencode.effective.json`—come from the consuming project root.
 
 See `docs/sdd/SUBMODULE-INTEGRATION.md` for installation and `docs/architecture/DECISIONS.md` for the current reusable architecture.
 
 ## Distribution status
 
-See [`DISTRIBUTION-REPORT.md`](DISTRIBUTION-REPORT.md) for the standalone extraction boundary, promoted R17.4.5 lineage, validation evidence and the one-time Superpowers vendor-completion step required before the first stable tag.
+See [`DISTRIBUTION-REPORT.md`](DISTRIBUTION-REPORT.md) for the standalone extraction boundary, promoted R17.4.5 lineage, validation evidence, complete Superpowers vendor status and target-host qualification requirements.

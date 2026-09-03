@@ -66,10 +66,10 @@ if (process.env.AGENT_HARNESS_OPENCODE_RUNTIME_CHILD === "1") {
 }
 config.agent = expand(JSON.parse(await readFile(resolve(root, ".opencode", "agents.generated.json"), "utf8")));
 
-// The generated config is runtime state. Keeping it under the harness .runtime
-// directory avoids modifying the consuming repository while still allowing the
-// TUI process to run with the consuming repository as cwd.
-const runtimeDir = resolve(root, ".runtime");
+// The generated config is project runtime evidence, not reusable harness source.
+// Keep it under the consuming repository so the harness submodule remains immutable
+// and every .runtime artifact shares the AGENT_HARNESS_PROJECT_ROOT authority.
+const runtimeDir = resolve(projectRoot, ".runtime");
 await mkdir(runtimeDir, { recursive: true });
 const output = resolve(runtimeDir, "opencode.effective.json");
 await writeFile(output, `${JSON.stringify(config, null, 2)}\n`);

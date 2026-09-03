@@ -29,7 +29,7 @@ If OpenCode OAuth credentials exist at `~/.local/share/opencode/auth.json`, the 
 node .harness/bin/harness.mjs opencode
 ```
 
-The launcher keeps the OpenCode `cwd` at the consuming project while generating the effective configuration from the submodule. The source template is `config/opencode.template.jsonc`; do not place `opencode.json` or `opencode.jsonc` at the harness root, because those names are auto-discovered by OpenCode and can make Windows `{env:...}` path substitution invalid before the generated config is applied. By default it starts the pinned Headroom proxy/wrapper and exposes the OpenCode server on `0.0.0.0:4096`. Disable only when desired:
+The launcher keeps the OpenCode `cwd` at the consuming project while generating the effective configuration from the submodule. The generated file is project runtime evidence and is written to `<consumer>/.runtime/opencode.effective.json`; the harness submodule is never used as a runtime-output directory. The source template is `config/opencode.template.jsonc`; do not place `opencode.json` or `opencode.jsonc` at the harness root, because those names are auto-discovered by OpenCode and can make Windows `{env:...}` path substitution invalid before the generated config is applied. By default it starts the pinned Headroom proxy/wrapper and exposes the OpenCode server on `0.0.0.0:4096`. Disable only when desired:
 
 ```bash
 AGENT_HARNESS_HEADROOM_ENABLED=false node .harness/bin/harness.mjs opencode
@@ -39,7 +39,7 @@ When the OpenCode server is password protected, set `OPENCODE_SERVER_PASSWORD` b
 
 ## Superpowers
 
-The official harness repository should commit the complete pinned `vendor/superpowers/skills` tree. If the vendor tree is incomplete or intentionally refreshed, run once on a networked machine:
+The official harness repository commits the complete pinned 14/14 `vendor/superpowers/skills` tree. To intentionally refresh or independently re-verify it against the pinned upstream tag, run on a networked machine:
 
 ```bash
 node .harness/scripts/vendor-superpowers.mjs

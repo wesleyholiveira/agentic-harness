@@ -23,11 +23,13 @@ test("every agent skill reference resolves to a local harness skill or pinned Su
   assert.deepEqual(missing, []);
 });
 
-test("recovered Superpowers skills are vendored locally and the full upstream set is locked", () => {
-  const vendored = new Set(readdirSync(resolve(root, "vendor/superpowers/skills"), { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name));
-  for (const skill of ["brainstorming", "executing-plans", "finishing-a-development-branch", "receiving-code-review", "subagent-driven-development", "systematic-debugging", "test-driven-development", "verification-before-completion", "writing-plans", "writing-skills"]) {
-    assert.ok(vendored.has(skill), skill);
-  }
+test("the complete pinned Superpowers v5.1.0 skill tree is vendored locally", () => {
+  const vendorRoot = resolve(root, "vendor/superpowers/skills");
+  const vendored = readdirSync(vendorRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && existsSync(resolve(vendorRoot, entry.name, "SKILL.md")))
+    .map((entry) => entry.name)
+    .sort();
   assert.equal(lock.version, "v5.1.0");
   assert.equal(lock.skills.length, 14);
+  assert.deepEqual(vendored, [...lock.skills].sort());
 });

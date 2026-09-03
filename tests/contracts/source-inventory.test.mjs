@@ -21,6 +21,8 @@ test("source inventory counts harness-owned skills independently from vendored S
   assert.ok(inventory.harnessSkills.includes("use-rtk"));
   assert.equal(inventory.superpowers.version, "v5.1.0");
   assert.equal(inventory.superpowers.lockedCount, 14);
+  assert.equal(inventory.actual.superpowersSkills, 14);
+  assert.equal(inventory.superpowers.vendored.length, 14);
   assert.equal(inventory.expected.schemas, 11);
   assert.equal(inventory.actual.schemas, 11);
   assert.equal(inventory.expected.migrations, 11);
