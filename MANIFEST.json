@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-02T23:27:23Z",
+  "generatedAt": "2026-09-03T00:06:30Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 473,
-  "treeSha256": "sha256:c860200bc89dc0c73c74c6493106e3322db98308a56058b2a4214fcfba07b4ae",
+  "fileCount": 478,
+  "treeSha256": "sha256:9589a53c1ca51dfb70109483d4c7bfcd84bdad471139cadc131e6b835c6ef7ce",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -968,14 +968,14 @@
       "sha256": "sha256:967e10b25cca28ee1cbcd16af68f13333268de9f40f8ab6d2abc14f317457498"
     },
     {
-      "bytes": 482,
+      "bytes": 532,
       "path": "apps/context-engine/Dockerfile",
-      "sha256": "sha256:3f1244e46ad5a822e1fc5e74a55a81982ccd5b7415d5437d110547d078321ee6"
+      "sha256": "sha256:8bcbfc2a075c188dfdcc4dfa721c6c2239c2ce71d62f74b9f1d46a5010bd9e64"
     },
     {
-      "bytes": 682,
+      "bytes": 719,
       "path": "apps/context-engine/package.json",
-      "sha256": "sha256:97a0ed233f752c61d5b91bd322ad464a0c9e732bce8931c789f3540626c15d3d"
+      "sha256": "sha256:e93396d406390e7f644c7182698f530bdb3c119fdcef64c55cb478f52bcf8067"
     },
     {
       "bytes": 4998,
@@ -1198,9 +1198,9 @@
       "sha256": "sha256:99a34e907dc892de196a2151c7d9a5495daf093d05da2f1daa0418131e6a94b4"
     },
     {
-      "bytes": 5758,
+      "bytes": 5900,
       "path": "compose.yaml",
-      "sha256": "sha256:fed50d6ad900b1e9c673af96afa3676df95a3075c467f6756c5ac5ef9653e83c"
+      "sha256": "sha256:bf6318d4cc782bad9673a01d260ea3cd9661a236b41a940e093933d053d9fa3a"
     },
     {
       "bytes": 2309,
@@ -1523,9 +1523,9 @@
       "sha256": "sha256:04dabfcfbed006bd52a76a35fc7304a644f98902e1eecd107859e5f83e71c9e5"
     },
     {
-      "bytes": 121972,
+      "bytes": 122607,
       "path": "package-lock.json",
-      "sha256": "sha256:8885b04a8cb14c912ac6eb5948797ac2586a06a16bd518f90a5d9035d5968472"
+      "sha256": "sha256:d9e76a4c646027119042adbc395d47de70d115ba3f8dbeaffbb02767f57c6806"
     },
     {
       "bytes": 963,
@@ -2043,9 +2043,19 @@
       "sha256": "sha256:e43c0f492b191281633e8617aae99178a99c8f86873b653bbcc9f4fc7fce1766"
     },
     {
+      "bytes": 2787,
+      "path": "scripts/internal/source-inventory.mjs",
+      "sha256": "sha256:afa6a35d9a7b62043c5314e4d1a2e98e39bae9c2e0ee4955720b6b9efa468a82"
+    },
+    {
       "bytes": 6269,
       "path": "scripts/internal/source-manifest.mjs",
       "sha256": "sha256:cca3b8f124dcaa67844792a5da54d1797d85ddd1f972c835e89af89caf209b93"
+    },
+    {
+      "bytes": 752,
+      "path": "scripts/internal/tcp-port.mjs",
+      "sha256": "sha256:e5f0cbe698d6f7670c4788a599a4ed16ee75beb4c53fdc9b14c9bfd8aa084f54"
     },
     {
       "bytes": 1692,
@@ -2053,9 +2063,9 @@
       "sha256": "sha256:1af162ab5629f93bc4bf3fe448d403f8174c9dbe4d78e3c1f78f919c9969d6de"
     },
     {
-      "bytes": 2012,
+      "bytes": 2574,
       "path": "scripts/opencode-run.mjs",
-      "sha256": "sha256:f9d881cdc2018644e435094161d88fbaa4973ffc6d74fb658530c790ea7816b8"
+      "sha256": "sha256:19dd2d31e1425a4d4c7b520f9c6e91aa4d251884874772f5fd8dace1d8d8466c"
     },
     {
       "bytes": 1892,
@@ -2078,6 +2088,11 @@
       "sha256": "sha256:3265af8c18350af9bc7538759884b22cd07c13e669bd48bfd031dbbaa7a8db24"
     },
     {
+      "bytes": 1117,
+      "path": "tests/contracts/context-engine-container-deps.test.mjs",
+      "sha256": "sha256:fe1ee5f4a3aefa07bacf925625b3288da069a89d5648477c3f1f7401553f8a59"
+    },
+    {
       "bytes": 867,
       "path": "tests/contracts/internal-module-layout.test.mjs",
       "sha256": "sha256:45ffd768720e38ad8e2f56dd7f528e90cf8f542eb3fa55b89c027da51b73d4d4"
@@ -2093,9 +2108,19 @@
       "sha256": "sha256:35b7d9d46f865a57d5d85bac26932476bbd5c03446a670241a0d9e49967e6056"
     },
     {
+      "bytes": 1363,
+      "path": "tests/contracts/source-inventory.test.mjs",
+      "sha256": "sha256:0d2c48e074fbeb890aad3309a93c0d10264d9622151efd3e2543dc19c2e87d9e"
+    },
+    {
       "bytes": 2213,
       "path": "tests/contracts/structure.test.mjs",
       "sha256": "sha256:cae6c5f5fd8fd09705ac1cad4d93416d80c5a3efb18821b32291ca1d80a9dffe"
+    },
+    {
+      "bytes": 846,
+      "path": "tests/contracts/tcp-port.test.mjs",
+      "sha256": "sha256:1585400c555a33d9d38653bd031e1960c8367e009b8ddfa43a7acfa6ee8d797a"
     },
     {
       "bytes": 1335,

@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runHeadroomOpenCode } from "./internal/headroom-opencode.mjs";
+import { isTcpPortAvailable, parseTcpPort } from "./internal/tcp-port.mjs";
 
 const root = resolve(process.env.AGENT_HARNESS_ROOT || resolve(dirname(fileURLToPath(import.meta.url)), ".."));
 const project = resolve(process.env.AGENT_HARNESS_PROJECT_ROOT || process.cwd());
@@ -35,7 +36,17 @@ const env = {
 };
 const args = process.argv.slice(2);
 if (!args.includes("--hostname")) args.push("--hostname", "0.0.0.0");
-if (!args.includes("--port")) args.push("--port", env.OPENCODE_PORT || "4096");
+const explicitPortIndex = args.indexOf("--port");
+const requestedPort = parseTcpPort(
+  explicitPortIndex >= 0 ? args[explicitPortIndex + 1] : (env.OPENCODE_PORT || "4096"),
+  "opencode_port",
+);
+if (explicitPortIndex < 0) args.push("--port", String(requestedPort));
+if (!(await isTcpPortAvailable(requestedPort))) {
+  console.error(`agent_harness_opencode_port_unavailable:${requestedPort}`);
+  console.error(`Stop the verified owner or launch this TUI with OPENCODE_PORT=<free-port>; qualification should use a dedicated port such as 4097.`);
+  process.exit(2);
+}
 
 if (String(env.AGENT_HARNESS_HEADROOM_ENABLED ?? "true").toLowerCase() !== "false") {
   process.exitCode = await runHeadroomOpenCode(args, env);
