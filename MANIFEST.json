@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-03T04:17:40Z",
+  "generatedAt": "2026-09-04T00:49:44Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 483,
-  "treeSha256": "sha256:7ea1ff96d450fe2549267f3ffe4beda0597a0880392d764b4ef2e3b2d9e92702",
+  "treeSha256": "sha256:7ce32e6ef518d0f8c43e11f0e07eb03d7c96470485d4b3fce85eac27a4d06c9b",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -928,9 +928,9 @@
       "sha256": "sha256:f4c652227c84363b1464293cc3c4f25cac7a308028c49a54eac97e66252b9fd0"
     },
     {
-      "bytes": 18055,
+      "bytes": 19087,
       "path": ".opencode/plugins/runtime-invocation-provenance.js",
-      "sha256": "sha256:841ee49f680691bc1ffb34a2c846516a86c657c0863a935895e789803d6556e8"
+      "sha256": "sha256:d6749ec1384c81cb3d7062664e69a3cdec21e541d6aea4c5f40cd263ac8da90c"
     },
     {
       "bytes": 21828,
@@ -993,9 +993,9 @@
       "sha256": "sha256:cd8bb0759335e5f09c0e1e7cbe2233491b9b6fceb418bf467b8392dfcafd494d"
     },
     {
-      "bytes": 21254,
+      "bytes": 23748,
       "path": "apps/context-engine/src/http.ts",
-      "sha256": "sha256:f359aa146b91baf817e6a9ca8e2721b4d3195cc409e72188ee71e50742b4188f"
+      "sha256": "sha256:4c8cfa40cb4cef68be1b4da1168ded5352d2d4891d64e0fbadfae467a0740aa4"
     },
     {
       "bytes": 279,
@@ -1193,14 +1193,14 @@
       "sha256": "sha256:2bff460dff0b44124573ae08f82053393089470047d661fdcff2165c5a39ef15"
     },
     {
-      "bytes": 3742,
+      "bytes": 4257,
       "path": "bin/harness.mjs",
-      "sha256": "sha256:4448ed9223bf02094db48c71e305f5f401b24a8a32cfeb4119d5efd6b2d96bc9"
+      "sha256": "sha256:d624de43a211fb866298d57eb63f15d6d1552cd90d7a658329f1ce2093c13b87"
     },
     {
-      "bytes": 5878,
+      "bytes": 6006,
       "path": "compose.yaml",
-      "sha256": "sha256:23147fd55f589ca28a99a2d7aa702066433917207e8aef99b82d9202d069e91a"
+      "sha256": "sha256:643065f5e73db563e1617b382335eccc5a2f4dfeb79557b39f21c9ad9e28c0ea"
     },
     {
       "bytes": 2309,
@@ -1208,9 +1208,9 @@
       "sha256": "sha256:19db88b7ddc6902d55c006b381e9a1fe6a4af472f37942d768aab876b329b353"
     },
     {
-      "bytes": 13613,
+      "bytes": 13662,
       "path": "DISTRIBUTION-REPORT.md",
-      "sha256": "sha256:d2a99890706f2da2872202d1c17c0fe71144f6f4452fcc865e7f65730dfd6821"
+      "sha256": "sha256:443bac73a5d518d770560c73db5dfbb2de1f5d5c1fbc80ed46166c5f26369d4a"
     },
     {
       "bytes": 1650,
@@ -1248,9 +1248,9 @@
       "sha256": "sha256:b9b8876b156f386f2f910f21911a6344e8b5a04e8fa55fe09a64953473f246d6"
     },
     {
-      "bytes": 2035,
+      "bytes": 3015,
       "path": "docs/adr/0008-runtime-invocation-provenance-endpoint-authority.md",
-      "sha256": "sha256:489e49df899a6b371d3017ce93dcb176ac12efe6bf50c250601ffd28da2ccbd4"
+      "sha256": "sha256:efb5a355caf65042ec5870c60e2f724acaa7209a0b896e1c413b8c6a9b9152e6"
     },
     {
       "bytes": 888,
@@ -1378,9 +1378,9 @@
       "sha256": "sha256:fbb594bde0b35a377a447f3a266931008d9f96fa0d6c782933c8c14174ef65f4"
     },
     {
-      "bytes": 4071,
+      "bytes": 4273,
       "path": "docs/specs/standalone-harness/DESIGN.md",
-      "sha256": "sha256:0ab36a9bc6d4730daea7b3405d809d3bf87d79e5ba0e724273de24e484a0a0be"
+      "sha256": "sha256:927baba73586c1c6ec521f2e821952f91edabfd55ba37fa6fa2382a45c9c86c7"
     },
     {
       "bytes": 1035,
@@ -1433,9 +1433,9 @@
       "sha256": "sha256:ce7ff803949f3782c35e5db028a79a6215aeb49e7fa3a3231218856f4d6b5a54"
     },
     {
-      "bytes": 1993,
+      "bytes": 2079,
       "path": "docs/specs/standalone-harness/TEST-PLAN.md",
-      "sha256": "sha256:58f88ac1b67068984f9209e925a45c0937ca0b04ea5df3d1c8a20b90a80fb2fb"
+      "sha256": "sha256:8d799b3b0644f52ab1da6aa35b5ccbb1615478047148bd501ce78cdb3ef85cf8"
     },
     {
       "bytes": 145,
@@ -2098,9 +2098,9 @@
       "sha256": "sha256:58f9cb34276192e9c57547d18fc1d52e0c860fddb0cce18e05ce1fa3593af1fc"
     },
     {
-      "bytes": 3273,
+      "bytes": 3409,
       "path": "SOURCE-OF-TRUTH.md",
-      "sha256": "sha256:4e02dc2cce827f5edcc5bc5b35818ef63423bfd5489c94e45b7cae3d7d51dc39"
+      "sha256": "sha256:6b3bd39e1777f57b8e88f404a48418efbd5f600f28844550dc62b7a1eef9a2a3"
     },
     {
       "bytes": 840,
@@ -2108,9 +2108,9 @@
       "sha256": "sha256:f4b3ef794acd858e00bfeddf99e084066260481d66950686e4f00d7abb9ff3e7"
     },
     {
-      "bytes": 23466,
+      "bytes": 27248,
       "path": "tests/contracts/config.test.mjs",
-      "sha256": "sha256:e3215e46d571c160df07367b22c96c048deebbd2477cef6bd736f28b17768a46"
+      "sha256": "sha256:c5288cfc688ceac9927459eae71ef8b20a4b059195ecb2f185d62df1b1f746fc"
     },
     {
       "bytes": 1117,

@@ -32,9 +32,21 @@ const runtimeProgressObservations: Array<Record<string, unknown>> = [];
 const MAX_RUNTIME_PROGRESS_OBSERVATIONS = 512;
 const invocationProvenanceRegistry = new InvocationProvenanceRegistry();
 const invocationProvenancePluginPath = resolve(harnessRoot, ".opencode/plugins/runtime-invocation-provenance.js");
+const bundledInvocationProvenancePluginSourceSha256 = `sha256:${createHash("sha256").update(readFileSync(invocationProvenancePluginPath)).digest("hex")}`;
+const configuredInvocationProvenancePluginSourceSha256 = process.env.AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256?.trim() || null;
+const expectedInvocationProvenancePluginSourceSha256 = configuredInvocationProvenancePluginSourceSha256
+  ?? bundledInvocationProvenancePluginSourceSha256;
+const invocationProvenancePluginSourceIdentityOk = !configuredInvocationProvenancePluginSourceSha256
+  || configuredInvocationProvenancePluginSourceSha256 === bundledInvocationProvenancePluginSourceSha256;
 
-function currentInvocationProvenancePluginSourceSha256(): string {
-  return `sha256:${createHash("sha256").update(readFileSync(invocationProvenancePluginPath)).digest("hex")}`;
+function invocationProvenancePluginIdentity(): Record<string, unknown> {
+  return {
+    ready: invocationProvenancePluginSourceIdentityOk,
+    expectedPluginSourceSha256: expectedInvocationProvenancePluginSourceSha256,
+    configuredPluginSourceSha256: configuredInvocationProvenancePluginSourceSha256,
+    bundledPluginSourceSha256: bundledInvocationProvenancePluginSourceSha256,
+    source: configuredInvocationProvenancePluginSourceSha256 ? "host-projected-and-bundle-verified" : "container-bundle-fallback",
+  };
 }
 
 interface ContextEngineStartupState {
@@ -66,6 +78,11 @@ let shuttingDown = false;
 async function bootstrapContextEngine(): Promise<void> {
   const startedAt = Date.now();
   startupState.bootstrapAttempts += 1;
+  if (!invocationProvenancePluginSourceIdentityOk) {
+    throw new Error(
+      `runtime_invocation_provenance_container_source_mismatch:expected=${expectedInvocationProvenancePluginSourceSha256}:bundled=${bundledInvocationProvenancePluginSourceSha256}`,
+    );
+  }
   startupState.retryScheduledAt = null;
   contextEngineLog("info", "cbm.bootstrap_started", {
     repositoryRoot: projectRoot,
@@ -214,6 +231,15 @@ export function createContextEngineHttpServer() {
   return createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
+      if (url.pathname === "/runtime-invocation-provenance/identity") {
+        if (request.method !== "GET") {
+          response.setHeader("allow", "GET");
+          json(response, 405, { error: "method_not_allowed" });
+          return;
+        }
+        json(response, invocationProvenancePluginSourceIdentityOk ? 200 : 503, invocationProvenancePluginIdentity());
+        return;
+      }
       if (url.pathname === "/runtime-invocation-provenance") {
         if (request.method !== "POST") {
           response.setHeader("allow", "POST");
@@ -240,7 +266,21 @@ export function createContextEngineHttpServer() {
           json(response, 400, { error: "runtime_invocation_provenance_invalid" });
           return;
         }
-        const expectedPluginSourceSha256 = currentInvocationProvenancePluginSourceSha256();
+        const expectedPluginSourceSha256 = expectedInvocationProvenancePluginSourceSha256;
+        if (!invocationProvenancePluginSourceIdentityOk) {
+          contextEngineLog("error", "mcp.invocation_provenance_container_source_mismatch", {
+            agentId, toolName, sessionId, callId,
+            expectedPluginSourceSha256,
+            bundledPluginSourceSha256: bundledInvocationProvenancePluginSourceSha256,
+          });
+          json(response, 503, {
+            error: "runtime_invocation_provenance_container_source_mismatch",
+            expectedPluginSourceSha256,
+            bundledPluginSourceSha256: bundledInvocationProvenancePluginSourceSha256,
+            receivedPluginSourceSha256: pluginSourceSha256,
+          });
+          return;
+        }
         if (!pluginSourceSha256 || pluginSourceSha256 !== expectedPluginSourceSha256) {
           contextEngineLog("warn", "mcp.invocation_provenance_plugin_source_mismatch", {
             agentId, toolName, sessionId, callId, pluginSourceSha256, expectedPluginSourceSha256,
@@ -248,6 +288,7 @@ export function createContextEngineHttpServer() {
           json(response, 409, {
             error: "runtime_invocation_provenance_plugin_source_mismatch",
             expectedPluginSourceSha256,
+            bundledPluginSourceSha256: bundledInvocationProvenancePluginSourceSha256,
             receivedPluginSourceSha256: pluginSourceSha256,
           });
           return;
@@ -355,6 +396,7 @@ export function createContextEngineHttpServer() {
           service: "agentic-harness-context-engine",
           transport: "streamable-http",
           agentControlEnabled: Boolean(services.agentControl),
+          invocationProvenance: invocationProvenancePluginIdentity(),
           cbm: {
             ready: startupState.ready,
             indexedOnStartup: startupState.cbmIndexed,

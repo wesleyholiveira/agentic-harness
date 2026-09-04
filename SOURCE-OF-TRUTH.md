@@ -23,7 +23,7 @@ A consuming repository remains authoritative for its domain code, product requir
 - Semantic retry identity is `attempt`; physical replacement advances `dispatchGeneration` and `fencingToken` while preserving the semantic attempt when checkpoint repair is valid.
 - Context Engine owns context construction/finalization; Redis/TEI remain reconstructible dependencies.
 - OpenCode/model output proposes work and handoffs; durable Runtime evidence proves completion.
-- Runtime invocation provenance must register against the same effective Context Engine authority used by the OpenCode MCP configuration; the Context Engine validates the exact packaged provenance-plugin source SHA.
+- Runtime invocation provenance must register against the same effective Context Engine authority used by the OpenCode MCP configuration. The launcher projects one exact provenance-plugin SHA from the active harness source; the OpenCode plugin must self-match it, and the Context Engine must prove its packaged plugin copy matches it before readiness.
 
 ## Dynamic agent topology
 

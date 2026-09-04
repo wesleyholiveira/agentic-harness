@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { existsSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,10 +34,16 @@ if (!env.AGENT_HARNESS_OPENCODE_CONTINUATION_USERNAME && env.OPENCODE_SERVER_USE
   env.AGENT_HARNESS_OPENCODE_CONTINUATION_USERNAME = env.OPENCODE_SERVER_USERNAME;
 }
 
+function invocationProvenancePluginSourceSha256() {
+  const pluginPath = resolve(harnessRoot, ".opencode/plugins/runtime-invocation-provenance.js");
+  return `sha256:${createHash("sha256").update(readFileSync(pluginPath)).digest("hex")}`;
+}
+
 function compose(args = []) {
   run("docker", ["compose", "-p", composeProject.name, "-f", composeFile, ...args], {
     env: {
       AGENT_HARNESS_COMPOSE_PROJECT_NAME: composeProject.name,
+      AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256: invocationProvenancePluginSourceSha256(),
       // Scope the generic Compose override to Docker itself. Do not leak it into
       // OpenCode or consumer commands, where it could rename the consumer's own stack.
       COMPOSE_PROJECT_NAME: composeProject.name,
@@ -64,7 +71,7 @@ switch (cmd) {
   case "migrate": compose(["--profile", "runtime", "run", "--rm", "--build", "database-migrate"]); break;
   case "test": run(process.execPath, [resolve(harnessRoot, "scripts/harness-test.mjs")]); break;
   case "qualify": run(process.execPath, [resolve(harnessRoot, "scripts/harness-qualify.mjs")]); break;
-  case "opencode": run(process.execPath, [resolve(harnessRoot, "scripts/opencode-run.mjs"), ...rest], { cwd: projectRoot }); break;
+  case "opencode": run(process.execPath, [resolve(harnessRoot, "scripts/opencode-run.mjs"), ...rest], { cwd: projectRoot, env: { AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256: invocationProvenancePluginSourceSha256() } }); break;
   case "clean":
     rmSync(resolve(projectRoot, ".runtime", "agents"), { recursive: true, force: true });
     rmSync(resolve(projectRoot, ".runtime", "opencode.effective.json"), { force: true });

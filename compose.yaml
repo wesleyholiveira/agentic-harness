@@ -60,6 +60,7 @@ services:
     environment:
       AGENT_HARNESS_ROOT: /workspace/harness
       AGENT_HARNESS_PROJECT_ROOT: /workspace/repository
+      AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256: ${AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256:-}
       AGENT_POSTGRES_URL: postgresql://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent}@postgres:5432/${POSTGRES_DB:-agent_harness}
       CONTEXT_ENGINE_PROJECT_MEMORY_POSTGRES_URL: postgresql://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent}@postgres:5432/${POSTGRES_DB:-agent_harness}
       CONTEXT_EXACT_REDIS_URL: redis://redis:6379

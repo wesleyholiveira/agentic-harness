@@ -4,6 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpat
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { deriveComposeProjectName, resolveComposeProjectIdentity } from "../../scripts/internal/compose-project-identity.mjs";
 import { resolveHarnessProjectRoot } from "../../scripts/internal/project-root-resolution.mjs";
@@ -260,6 +261,9 @@ test("harness clean removes only harness-owned runtime artifacts from the consum
 test("runtime invocation provenance follows the effective Context Engine endpoint and image source", () => {
   const plugin = readFileSync(resolve(root, ".opencode/plugins/runtime-invocation-provenance.js"), "utf8");
   const launcher = readFileSync(resolve(root, "scripts/opencode-run.mjs"), "utf8");
+  const publicLauncher = readFileSync(resolve(root, "bin/harness.mjs"), "utf8");
+  const compose = readFileSync(resolve(root, "compose.yaml"), "utf8");
+  const contextHttp = readFileSync(resolve(root, "apps/context-engine/src/http.ts"), "utf8");
   const dockerfile = readFileSync(resolve(root, "apps/context-engine/Dockerfile"), "utf8");
 
   assert.match(plugin, /AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL/);
@@ -269,6 +273,14 @@ test("runtime invocation provenance follows the effective Context Engine endpoin
   assert.match(launcher, /AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL/);
   assert.match(launcher, /provenanceUrlFromMcp/);
   assert.match(dockerfile, /COPY \.opencode\/plugins\/runtime-invocation-provenance\.js \.\/\.opencode\/plugins\/runtime-invocation-provenance\.js/);
+  assert.match(publicLauncher, /AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256/);
+  assert.match(publicLauncher, /createHash\("sha256"\)/);
+  assert.match(compose, /AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256/);
+  assert.match(plugin, /runtime_invocation_provenance_plugin_source_env_mismatch/);
+  assert.match(plugin, /expectedPluginSourceSha256/);
+  assert.match(contextHttp, /host-projected-and-bundle-verified/);
+  assert.match(contextHttp, /runtime_invocation_provenance_container_source_mismatch/);
+  assert.match(contextHttp, /\/runtime-invocation-provenance\/identity/);
 
   const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-provenance-port-consumer-"));
   try {
@@ -306,6 +318,54 @@ test("runtime invocation provenance follows the effective Context Engine endpoin
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.match(result.stdout, /127\.0\.0\.1:28789\/runtime-invocation-provenance/);
     assert.doesNotMatch(result.stdout, /127\.0\.0\.1:8789\/runtime-invocation-provenance/);
+  } finally {
+    rmSync(consumerRoot, { recursive: true, force: true });
+  }
+});
+
+test("provenance 409 reports exact expected received and bundled source identities", () => {
+  const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-provenance-mismatch-consumer-"));
+  try {
+    const pluginUrl = pathToFileURL(resolve(root, ".opencode/plugins/runtime-invocation-provenance.js")).href;
+    const pluginSha = `sha256:${createHash("sha256").update(readFileSync(resolve(root, ".opencode/plugins/runtime-invocation-provenance.js"))).digest("hex")}`;
+    const script = `
+      globalThis.fetch = async (input) => {
+        const url = new URL(String(input));
+        if (url.port === "4096" && url.pathname.includes("/session/")) {
+          return new Response(JSON.stringify([{ info: { id: "msg-user-1", role: "user", time: { created: 1 } }, parts: [{ type: "text", text: "qualify" }] }]), { status: 200, headers: { "content-type": "application/json" } });
+        }
+        if (url.port === "28789" && url.pathname === "/runtime-invocation-provenance") {
+          return new Response(JSON.stringify({
+            error: "runtime_invocation_provenance_plugin_source_mismatch",
+            expectedPluginSourceSha256: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            receivedPluginSourceSha256: ${JSON.stringify(pluginSha)},
+            bundledPluginSourceSha256: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }), { status: 409, headers: { "content-type": "application/json" } });
+        }
+        return new Response("{}", { status: 599, headers: { "content-type": "application/json" } });
+      };
+      const { RuntimeInvocationProvenance } = await import(${JSON.stringify(pluginUrl)});
+      const hooks = await RuntimeInvocationProvenance({ serverUrl: new URL("http://127.0.0.1:4096"), directory: process.env.AGENT_HARNESS_PROJECT_ROOT, client: {} });
+      await hooks["tool.execute.before"]({ tool: "agent_start", sessionID: "session-1", callID: "call-1" }, { args: { request: "fixture" } });
+    `;
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+      cwd: consumerRoot,
+      env: {
+        ...process.env,
+        AGENT_HARNESS_ROOT: root,
+        AGENT_HARNESS_PROJECT_ROOT: consumerRoot,
+        AGENT_HARNESS_CONTEXT_ENGINE_MCP_URL: "http://127.0.0.1:28789/mcp",
+        AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL: "",
+        AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256: pluginSha,
+      },
+      encoding: "utf8",
+      shell: false,
+    });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /runtime_invocation_provenance_http:409/);
+    assert.match(result.stderr, /expected=sha256:aaaaaaaa/);
+    assert.match(result.stderr, /received=sha256:/);
+    assert.match(result.stderr, /bundled=sha256:bbbbbbbb/);
   } finally {
     rmSync(consumerRoot, { recursive: true, force: true });
   }

@@ -25,6 +25,10 @@ const LIVE_IDENTITY_SCHEMA = "runtime-invocation-provenance-live/v1";
 const LIVE_IDENTITY_RELATIVE_PATH = ".runtime/agents/runtime-invocation-provenance-live.json";
 const PLUGIN_SOURCE_PATH = fileURLToPath(import.meta.url);
 const PLUGIN_SOURCE_SHA256 = `sha256:${createHash("sha256").update(readFileSync(PLUGIN_SOURCE_PATH)).digest("hex")}`;
+const CONFIGURED_PLUGIN_SOURCE_SHA256 = String(process.env.AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256 ?? "").trim();
+if (CONFIGURED_PLUGIN_SOURCE_SHA256 && CONFIGURED_PLUGIN_SOURCE_SHA256 !== PLUGIN_SOURCE_SHA256) {
+  throw new Error(`runtime_invocation_provenance_plugin_source_env_mismatch:expected=${CONFIGURED_PLUGIN_SOURCE_SHA256}:loaded=${PLUGIN_SOURCE_SHA256}`);
+}
 
 function canonicalFsPath(value) {
   const input = resolve(String(value ?? "").trim());
@@ -316,7 +320,23 @@ async function registerProvenance({ sessionID, callID, toolName, args, origin, u
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(2_000),
   });
-  if (!response.ok) throw new Error(`runtime_invocation_provenance_http:${response.status}`);
+  if (!response.ok) {
+    let detail = "";
+    try {
+      const payload = await response.json();
+      const error = boundedText(payload?.error, 160);
+      const expected = boundedText(payload?.expectedPluginSourceSha256, 96);
+      const received = boundedText(payload?.receivedPluginSourceSha256, 96);
+      const bundled = boundedText(payload?.bundledPluginSourceSha256, 96);
+      detail = [
+        error ? `error=${error}` : "",
+        expected ? `expected=${expected}` : "",
+        received ? `received=${received}` : "",
+        bundled ? `bundled=${bundled}` : "",
+      ].filter(Boolean).join(":");
+    } catch {}
+    throw new Error(`runtime_invocation_provenance_http:${response.status}${detail ? `:${detail}` : ""}`);
+  }
 }
 
 export const RuntimeInvocationProvenance = async ({ serverUrl, directory, client }) => {
