@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-04T00:49:44Z",
+  "generatedAt": "2026-09-05T04:36:22Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 483,
-  "treeSha256": "sha256:7ce32e6ef518d0f8c43e11f0e07eb03d7c96470485d4b3fce85eac27a4d06c9b",
+  "treeSha256": "sha256:24deb843272c7bd8d30be540afa9f127b8878c111b6a3534b7e60d0011acee64",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -468,14 +468,14 @@
       "sha256": "sha256:117f76363425ca4837bd1d1345430a6736c7d8458c4e775cdedbbab6fe1c909f"
     },
     {
-      "bytes": 2596,
+      "bytes": 2600,
       "path": ".agents/runtime/mcp/agent-tools.mjs",
-      "sha256": "sha256:46d07cc64de6b032089f1ded601cb7d47ea6c09d43c31c651a8a32deb05d9ba2"
+      "sha256": "sha256:781a48200b16594c75c6ab54061c1cb336b9d72ca9b0844b52a0926d09923302"
     },
     {
-      "bytes": 9290,
+      "bytes": 9060,
       "path": ".agents/runtime/metrics.mjs",
-      "sha256": "sha256:3bde3d9412e9db124be3997146f5f8c2977fe12b43df3af91cd4c1764b35bcac"
+      "sha256": "sha256:5bbe4583779137397fe3ac5dcca167e2be7b0215abc73f390c6fe80fc541d51f"
     },
     {
       "bytes": 2978,
@@ -663,9 +663,9 @@
       "sha256": "sha256:25306fc9107b65b10cf0dc60a3e88c8d3cad7fcebb27b0815a555f14f30a878c"
     },
     {
-      "bytes": 6345,
+      "bytes": 6346,
       "path": ".agents/runtime/validation-command.mjs",
-      "sha256": "sha256:43fc0623cbf61332cb5b9224ebd094fccbbe9495cb503dca6cb85eec73e549fe"
+      "sha256": "sha256:5d47f352bc500aa49e40a49b6ed428ea5971e380e86e7e0b20c3d59de3eae875"
     },
     {
       "bytes": 4518,
@@ -1208,9 +1208,9 @@
       "sha256": "sha256:19db88b7ddc6902d55c006b381e9a1fe6a4af472f37942d768aab876b329b353"
     },
     {
-      "bytes": 13662,
+      "bytes": 14502,
       "path": "DISTRIBUTION-REPORT.md",
-      "sha256": "sha256:443bac73a5d518d770560c73db5dfbb2de1f5d5c1fbc80ed46166c5f26369d4a"
+      "sha256": "sha256:56b272f85f8a1f885aaad01f47ebccf25c4b5db53f8bce60509b0b061a978400"
     },
     {
       "bytes": 1650,
@@ -1378,9 +1378,9 @@
       "sha256": "sha256:fbb594bde0b35a377a447f3a266931008d9f96fa0d6c782933c8c14174ef65f4"
     },
     {
-      "bytes": 4273,
+      "bytes": 4611,
       "path": "docs/specs/standalone-harness/DESIGN.md",
-      "sha256": "sha256:927baba73586c1c6ec521f2e821952f91edabfd55ba37fa6fa2382a45c9c86c7"
+      "sha256": "sha256:794a096378a3eba2b2e819e796a04b71e660932783c69012457e2778a25c748d"
     },
     {
       "bytes": 1035,
@@ -2098,9 +2098,9 @@
       "sha256": "sha256:58f9cb34276192e9c57547d18fc1d52e0c860fddb0cce18e05ce1fa3593af1fc"
     },
     {
-      "bytes": 3409,
+      "bytes": 3707,
       "path": "SOURCE-OF-TRUTH.md",
-      "sha256": "sha256:6b3bd39e1777f57b8e88f404a48418efbd5f600f28844550dc62b7a1eef9a2a3"
+      "sha256": "sha256:6830d852b2afaa5e3bbc5114320c5126cf477a94cfe13af4037cd60f4350a480"
     },
     {
       "bytes": 840,
@@ -2123,9 +2123,9 @@
       "sha256": "sha256:45ffd768720e38ad8e2f56dd7f528e90cf8f542eb3fa55b89c027da51b73d4d4"
     },
     {
-      "bytes": 914,
+      "bytes": 999,
       "path": "tests/contracts/migrations.test.mjs",
-      "sha256": "sha256:c8d780bd3f8593cdc4f3848245dea3e382814da7cb5af120a68430a315d0ac39"
+      "sha256": "sha256:7f8eadec83654ffd37f54d82bd53c25ba7db879bd6943ef2fef52ab88507f2d1"
     },
     {
       "bytes": 1716,
@@ -2138,9 +2138,9 @@
       "sha256": "sha256:f7f9b179bb931c1a0c08f65f94893b068e659c9f969d0665c324fddd61d249f6"
     },
     {
-      "bytes": 2213,
+      "bytes": 2816,
       "path": "tests/contracts/structure.test.mjs",
-      "sha256": "sha256:cae6c5f5fd8fd09705ac1cad4d93416d80c5a3efb18821b32291ca1d80a9dffe"
+      "sha256": "sha256:d480c0698cf13af52b17927deba486adeaf65c6f502c7f31d27696e115ea4e9f"
     },
     {
       "bytes": 846,

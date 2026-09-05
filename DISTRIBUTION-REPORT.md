@@ -32,7 +32,7 @@ The consuming project owns its product code and project-specific PRDs, ADRs, des
 
 1. `AGENT_HARNESS_ROOT` and `AGENT_HARNESS_PROJECT_ROOT` are distinct authorities. Harness source comes from the submodule; project source/workspaces/evidence remain in the consumer repository.
 2. The former monolithic `.agents/registry.json` is removed. Capabilities are discovered from `.agents/agents/<agent>/agent.json`; dependency order is compiled at runtime from Technical Refinement `implementationPlan`.
-3. Product-specific specialists and Clip Compass application/runtime surfaces are excluded from the operational harness.
+3. Product-specific specialists and upstream application/runtime surfaces are excluded from the operational harness.
 4. Historical R12–R17 qualification scripts are not public package scripts. The public operational surface is intentionally bounded to ten stable `harness:*` commands.
 5. Generic SDD authority for the harness itself is in `docs/specs/standalone-harness/`; historical qualification material is provenance only.
 6. Docker Compose runtime resources are consumer-scoped. The launcher derives a deterministic project name from the canonical `AGENT_HARNESS_PROJECT_ROOT`, preventing unrelated consumers from sharing containers, networks or named durable volumes.
@@ -137,3 +137,9 @@ before the first stable repository tag is promoted.
 | `harness:qualify` | contracts PASS, then BLOCKED_ENVIRONMENT because Cargo is unavailable |
 
 Machine-readable evidence: `validation/source-candidate-20260902.json`. That file is retained as historical pre-target-host extraction evidence and therefore still records the earlier 10/14 Superpowers snapshot and 14-subtest run; it is not rewritten to pretend those observations occurred after the R-5 source fix.
+
+## Operational namespace genericization closure
+
+A fresh standalone R-0 qualification detected pre-standalone product-lineage identifiers that survived genericization in operational MCP tool names, Prometheus metric families and a Runtime validation marker. The standalone namespace is now `agent_harness_*` for all three surfaces. No compatibility aliases are retained because this is the first standalone stable-tag candidate; historical identifiers remain only in immutable `qualification/baseline/**` provenance. The project-agnostic source contract now detects the legacy product namespace case-insensitively across operational source without embedding it as a supported public identifier.
+
+This is a tracked source remediation after an R-0 HOLD. Full standalone qualification must restart at PRE-R0/R-0; no downstream PASS is inherited.

@@ -15,5 +15,6 @@ test("standalone migrations include runtime authority and durable continuation",
   assert.match(sql, /agent_runtime_outbox/);
   assert.match(sql, /agent_continuations/);
   assert.match(sql, /agent_runtime_inbox/);
-  assert.equal(/clip_compass|transcription|semantic_analysis/i.test(sql), false);
+  const legacyProductToken = ["clip", "compass"].join("_");
+  assert.equal(new RegExp(`${legacyProductToken}|transcription|semantic_analysis`, "i").test(sql), false);
 });

@@ -23,53 +23,53 @@ function family(lines, name, help, type, samples) {
 export async function renderMetrics(store) {
   const aggregate = await store.aggregate();
   const lines = [];
-  family(lines, "clip_compass_agent_runs_total", "Runs multiagente por estado.", "counter",
-    aggregate.runsByStatus.map((row) => sample("clip_compass_agent_runs_total", row.count, { status: row.status })));
-  family(lines, "clip_compass_agent_tasks_total", "Tarefas multiagente por agente e estado.", "counter",
-    aggregate.tasksByAgentStatus.map((row) => sample("clip_compass_agent_tasks_total", row.count, { agent: row.agent_id, status: row.status })));
-  family(lines, "clip_compass_agent_task_duration_seconds_sum", "Soma da duração das tarefas por agente.", "counter",
-    aggregate.durationByAgent.map((row) => sample("clip_compass_agent_task_duration_seconds_sum", Number(row.sum_ms) / 1000, { agent: row.agent_id })));
-  family(lines, "clip_compass_agent_task_duration_seconds_count", "Quantidade de tarefas com duração observada por agente.", "counter",
-    aggregate.durationByAgent.map((row) => sample("clip_compass_agent_task_duration_seconds_count", row.count, { agent: row.agent_id })));
-  family(lines, "clip_compass_agent_context_bytes_total", "Bytes de contexto enviados por agente.", "counter",
-    aggregate.contextByAgent.map((row) => sample("clip_compass_agent_context_bytes_total", row.bytes, { agent: row.agent_id })));
-  family(lines, "clip_compass_agent_context_documents_total", "Documentos de contexto enviados por agente.", "counter",
-    aggregate.contextByAgent.map((row) => sample("clip_compass_agent_context_documents_total", row.documents, { agent: row.agent_id })));
-  family(lines, "clip_compass_agent_context_estimated_tokens_total", "Tokens de contexto estimados por agente.", "counter",
-    aggregate.contextByAgent.map((row) => sample("clip_compass_agent_context_estimated_tokens_total", row.tokens, { agent: row.agent_id })));
-  family(lines, "clip_compass_agent_retries_total", "Retentativas de tarefas por agente.", "counter",
-    aggregate.retriesByAgent.map((row) => sample("clip_compass_agent_retries_total", row.retries, { agent: row.agent_id })));
-  family(lines, "clip_compass_agent_reasoning_tasks_total", "Tarefas por nível de raciocínio efetivamente selecionado.", "counter",
-    aggregate.reasoningLevels.map((row) => sample("clip_compass_agent_reasoning_tasks_total", row.count, { level: row.reasoning_level })));
-  family(lines, "clip_compass_agent_reasoning_promotions_total", "Promoções adaptativas de raciocínio entre níveis.", "counter",
-    aggregate.reasoningPromotions.map((row) => sample("clip_compass_agent_reasoning_promotions_total", row.count, { from: row.from, to: row.to })));
-  family(lines, "clip_compass_agent_conflicts_total", "Conflitos de integração por tipo.", "counter",
-    aggregate.conflicts.map((row) => sample("clip_compass_agent_conflicts_total", row.count, { type: row.conflict_type })));
-  family(lines, "clip_compass_agent_findings_total", "Achados reportados por handoffs.", "counter",
-    [sample("clip_compass_agent_findings_total", aggregate.findings?.count ?? 0)]);
-  family(lines, "clip_compass_agent_parallelism_peak", "Maior paralelismo observado entre runs.", "gauge",
-    [sample("clip_compass_agent_parallelism_peak", aggregate.peakParallel?.value ?? 0)]);
+  family(lines, "agent_harness_runs_total", "Runs multiagente por estado.", "counter",
+    aggregate.runsByStatus.map((row) => sample("agent_harness_runs_total", row.count, { status: row.status })));
+  family(lines, "agent_harness_tasks_total", "Tarefas multiagente por agente e estado.", "counter",
+    aggregate.tasksByAgentStatus.map((row) => sample("agent_harness_tasks_total", row.count, { agent: row.agent_id, status: row.status })));
+  family(lines, "agent_harness_task_duration_seconds_sum", "Soma da duração das tarefas por agente.", "counter",
+    aggregate.durationByAgent.map((row) => sample("agent_harness_task_duration_seconds_sum", Number(row.sum_ms) / 1000, { agent: row.agent_id })));
+  family(lines, "agent_harness_task_duration_seconds_count", "Quantidade de tarefas com duração observada por agente.", "counter",
+    aggregate.durationByAgent.map((row) => sample("agent_harness_task_duration_seconds_count", row.count, { agent: row.agent_id })));
+  family(lines, "agent_harness_context_bytes_total", "Bytes de contexto enviados por agente.", "counter",
+    aggregate.contextByAgent.map((row) => sample("agent_harness_context_bytes_total", row.bytes, { agent: row.agent_id })));
+  family(lines, "agent_harness_context_documents_total", "Documentos de contexto enviados por agente.", "counter",
+    aggregate.contextByAgent.map((row) => sample("agent_harness_context_documents_total", row.documents, { agent: row.agent_id })));
+  family(lines, "agent_harness_context_estimated_tokens_total", "Tokens de contexto estimados por agente.", "counter",
+    aggregate.contextByAgent.map((row) => sample("agent_harness_context_estimated_tokens_total", row.tokens, { agent: row.agent_id })));
+  family(lines, "agent_harness_retries_total", "Retentativas de tarefas por agente.", "counter",
+    aggregate.retriesByAgent.map((row) => sample("agent_harness_retries_total", row.retries, { agent: row.agent_id })));
+  family(lines, "agent_harness_reasoning_tasks_total", "Tarefas por nível de raciocínio efetivamente selecionado.", "counter",
+    aggregate.reasoningLevels.map((row) => sample("agent_harness_reasoning_tasks_total", row.count, { level: row.reasoning_level })));
+  family(lines, "agent_harness_reasoning_promotions_total", "Promoções adaptativas de raciocínio entre níveis.", "counter",
+    aggregate.reasoningPromotions.map((row) => sample("agent_harness_reasoning_promotions_total", row.count, { from: row.from, to: row.to })));
+  family(lines, "agent_harness_conflicts_total", "Conflitos de integração por tipo.", "counter",
+    aggregate.conflicts.map((row) => sample("agent_harness_conflicts_total", row.count, { type: row.conflict_type })));
+  family(lines, "agent_harness_findings_total", "Achados reportados por handoffs.", "counter",
+    [sample("agent_harness_findings_total", aggregate.findings?.count ?? 0)]);
+  family(lines, "agent_harness_parallelism_peak", "Maior paralelismo observado entre runs.", "gauge",
+    [sample("agent_harness_parallelism_peak", aggregate.peakParallel?.value ?? 0)]);
   const graphEventCount = (type) => aggregate.graphEvents.find((row) => row.event_type === type)?.count ?? 0;
-  family(lines, "clip_compass_agent_dag_compiles_total", "DAGs de implementação compilados a partir de implementationPlan aprovado.", "counter",
-    [sample("clip_compass_agent_dag_compiles_total", graphEventCount("dag.compiled"))]);
-  family(lines, "clip_compass_agent_completion_rejections_total", "Conclusões rejeitadas por falta de evidência ou gate final.", "counter",
-    [sample("clip_compass_agent_completion_rejections_total", graphEventCount("completion.rejected"))]);
-  family(lines, "clip_compass_agent_completion_proven_total", "Conclusões provadas pelo completion gate.", "counter",
-    [sample("clip_compass_agent_completion_proven_total", graphEventCount("completion.proven"))]);
-  family(lines, "clip_compass_agent_model_cost_usd_total", "Custo observado pelo OpenCode por modelo.", "counter",
-    aggregate.modelUsage.map((row) => sample("clip_compass_agent_model_cost_usd_total", row.cost_usd, { model: row.model_id })));
-  family(lines, "clip_compass_agent_model_input_tokens_total", "Tokens de entrada observados por modelo.", "counter",
-    aggregate.modelUsage.map((row) => sample("clip_compass_agent_model_input_tokens_total", row.input_tokens, { model: row.model_id })));
-  family(lines, "clip_compass_agent_model_cached_input_tokens_total", "Tokens de cache-read observados por modelo.", "counter",
-    aggregate.modelUsage.map((row) => sample("clip_compass_agent_model_cached_input_tokens_total", row.cached_input_tokens, { model: row.model_id })));
-  family(lines, "clip_compass_agent_model_output_tokens_total", "Tokens de saída observados por modelo.", "counter",
-    aggregate.modelUsage.map((row) => sample("clip_compass_agent_model_output_tokens_total", row.output_tokens, { model: row.model_id })));
-  family(lines, "clip_compass_agent_model_accepted_tasks_total", "Tasks provadas e integradas/verificadas por modelo.", "counter",
-    aggregate.modelUsage.map((row) => sample("clip_compass_agent_model_accepted_tasks_total", row.accepted_tasks, { model: row.model_id })));
-  family(lines, "clip_compass_agent_model_step_limit_reached_total", "Tasks que alcançaram o limite de steps por modelo.", "counter",
-    aggregate.modelUsage.map((row) => sample("clip_compass_agent_model_step_limit_reached_total", row.step_limit_reached, { model: row.model_id })));
-  family(lines, "clip_compass_agent_metrics_exporter_up", "Saúde do exporter de métricas multiagente.", "gauge",
-    [sample("clip_compass_agent_metrics_exporter_up", 1)]);
+  family(lines, "agent_harness_dag_compiles_total", "DAGs de implementação compilados a partir de implementationPlan aprovado.", "counter",
+    [sample("agent_harness_dag_compiles_total", graphEventCount("dag.compiled"))]);
+  family(lines, "agent_harness_completion_rejections_total", "Conclusões rejeitadas por falta de evidência ou gate final.", "counter",
+    [sample("agent_harness_completion_rejections_total", graphEventCount("completion.rejected"))]);
+  family(lines, "agent_harness_completion_proven_total", "Conclusões provadas pelo completion gate.", "counter",
+    [sample("agent_harness_completion_proven_total", graphEventCount("completion.proven"))]);
+  family(lines, "agent_harness_model_cost_usd_total", "Custo observado pelo OpenCode por modelo.", "counter",
+    aggregate.modelUsage.map((row) => sample("agent_harness_model_cost_usd_total", row.cost_usd, { model: row.model_id })));
+  family(lines, "agent_harness_model_input_tokens_total", "Tokens de entrada observados por modelo.", "counter",
+    aggregate.modelUsage.map((row) => sample("agent_harness_model_input_tokens_total", row.input_tokens, { model: row.model_id })));
+  family(lines, "agent_harness_model_cached_input_tokens_total", "Tokens de cache-read observados por modelo.", "counter",
+    aggregate.modelUsage.map((row) => sample("agent_harness_model_cached_input_tokens_total", row.cached_input_tokens, { model: row.model_id })));
+  family(lines, "agent_harness_model_output_tokens_total", "Tokens de saída observados por modelo.", "counter",
+    aggregate.modelUsage.map((row) => sample("agent_harness_model_output_tokens_total", row.output_tokens, { model: row.model_id })));
+  family(lines, "agent_harness_model_accepted_tasks_total", "Tasks provadas e integradas/verificadas por modelo.", "counter",
+    aggregate.modelUsage.map((row) => sample("agent_harness_model_accepted_tasks_total", row.accepted_tasks, { model: row.model_id })));
+  family(lines, "agent_harness_model_step_limit_reached_total", "Tasks que alcançaram o limite de steps por modelo.", "counter",
+    aggregate.modelUsage.map((row) => sample("agent_harness_model_step_limit_reached_total", row.step_limit_reached, { model: row.model_id })));
+  family(lines, "agent_harness_metrics_exporter_up", "Saúde do exporter de métricas multiagente.", "gauge",
+    [sample("agent_harness_metrics_exporter_up", 1)]);
   return `${lines.join("\n")}\n`;
 }
 

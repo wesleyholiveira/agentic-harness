@@ -11,6 +11,7 @@ The harness is authoritative for:
 - Runtime V2 control/execution plane implementation;
 - Context Engine and ProjectMemory integration;
 - OpenCode configuration/plugins and external-tool wiring;
+- Operational MCP tool names, Prometheus metric families and Runtime validation markers use the project-agnostic `agent_harness_*` namespace. Product-lineage identifiers from the pre-standalone product are permitted only inside immutable qualification provenance under `qualification/baseline/**`.
 - harness-owned database migrations and operational entrypoints.
 
 A consuming repository remains authoritative for its domain code, product requirements, project ADRs/designs/runbooks, and run-specific Task Briefs/Context Packets.

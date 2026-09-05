@@ -28,7 +28,8 @@ test("package exposes a bounded stable command surface", () => {
 });
 
 test("operational source is project-agnostic", () => {
-  const forbidden = /Clip Compass|clip-compass|CLIP_COMPASS|api-media-gateway|semantic-intelligence|temporal-intelligence|learning-model-lifecycle|transcription-ml/;
+  const legacyProductPattern = ["clip", "compass"].join("[ _-]");
+  const forbidden = new RegExp(`${legacyProductPattern}|api-media-gateway|semantic-intelligence|temporal-intelligence|learning-model-lifecycle|transcription-ml`, "i");
   const failures = [];
   for (const path of walk(root)) {
     if (path.includes(`${resolve(root, "tests")}`)) continue;
@@ -38,6 +39,18 @@ test("operational source is project-agnostic", () => {
     if (forbidden.test(text)) failures.push(relative(root, path));
   }
   assert.deepEqual(failures, []);
+
+  const agentTools = readFileSync(resolve(root, ".agents/runtime/mcp/agent-tools.mjs"), "utf8");
+  for (const tool of [
+    "agent_harness_agents_status",
+    "agent_harness_agents_summary",
+    "agent_harness_agents_validate_artifact",
+    "agent_harness_agents_doctor",
+  ]) assert.match(agentTools, new RegExp(`\\b${tool}\\b`));
+
+  const metrics = readFileSync(resolve(root, ".agents/runtime/metrics.mjs"), "utf8");
+  assert.match(metrics, /agent_harness_runs_total/);
+  assert.match(metrics, /agent_harness_metrics_exporter_up/);
 });
 
 test("qualification baseline preserves promoted fingerprint", () => {

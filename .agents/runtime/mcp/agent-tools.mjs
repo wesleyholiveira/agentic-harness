@@ -16,7 +16,7 @@ function failure(error) {
 }
 
 export function registerAgentTools(server, config) {
-  if (config.actions.has("status")) server.registerTool("clip_compass_agents_status", {
+  if (config.actions.has("status")) server.registerTool("agent_harness_agents_status", {
     description: "Consulta runs e tasks do runtime multiagente sem expor requests ou comandos.",
     annotations: readOnly,
     inputSchema: { runId: Identifier.optional() },
@@ -25,7 +25,7 @@ export function registerAgentTools(server, config) {
     try { return success(await runtimeStatus(config, runId ?? null)); } catch (error) { return failure(error); }
   });
 
-  if (config.actions.has("summary")) server.registerTool("clip_compass_agents_summary", {
+  if (config.actions.has("summary")) server.registerTool("agent_harness_agents_summary", {
     description: "Consulta métricas agregadas e summary sanitizado do runtime multiagente.",
     annotations: readOnly,
     inputSchema: { runId: Identifier.optional() },
@@ -34,7 +34,7 @@ export function registerAgentTools(server, config) {
     try { return success(await runtimeSummary(config, runId ?? null)); } catch (error) { return failure(error); }
   });
 
-  if (config.actions.has("validate")) server.registerTool("clip_compass_agents_validate_artifact", {
+  if (config.actions.has("validate")) server.registerTool("agent_harness_agents_validate_artifact", {
     description: "Valida um objeto fornecido pelo cliente contra um schema existente, sem ler paths arbitrários.",
     annotations: readOnly,
     inputSchema: {
@@ -46,7 +46,7 @@ export function registerAgentTools(server, config) {
     try { return success(await validateRuntimeArtifact(config, schemaName, artifact)); } catch (error) { return failure(error); }
   });
 
-  if (config.actions.has("doctor")) server.registerTool("clip_compass_agents_doctor", {
+  if (config.actions.has("doctor")) server.registerTool("agent_harness_agents_doctor", {
     description: "Executa os diagnósticos read-only do runtime multiagente.",
     annotations: readOnly,
     outputSchema: Output,

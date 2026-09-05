@@ -60,7 +60,7 @@ export function classifyValidationExecutionScope(command) {
   if (/runtime:agent-live-projector:probe|\bopencode\s+attach\b|runtime-progress-observation/.test(text)) return "live";
   if (/runtime:agent-authoritative:readiness/.test(text)) return "authoritative-host";
   if (/runtime:agent-harness:validate/.test(text) && /--mode(?:=|\s+)authoritative/.test(text)) return "authoritative-host";
-  if (/clip_compass_opencode_continuation_host_probe_url|127\.0\.0\.1:4096|localhost:4096/.test(text)) return "authoritative-host";
+  if (/agent_harness_opencode_continuation_host_probe_url|127\.0\.0\.1:4096|localhost:4096/.test(text)) return "authoritative-host";
   return "workspace";
 }
 
