@@ -72,11 +72,36 @@ test("qualification process runner resolves Windows .cmd shims without shell:tru
     assert.equal(invocation.resolvedCommand, shim);
     assert.equal(invocation.command, "C:\\Windows\\System32\\cmd.exe");
     assert.equal(invocation.wrapper, "cmd.exe");
-    assert.deepEqual(invocation.args.slice(0, 3), ["/d", "/v:off", "/c"]);
-    assert.match(invocation.args[3], /call/);
-    assert.match(invocation.args[3], /npm\.CMD/i);
-    assert.match(invocation.args[3], /"ci"/);
+    assert.equal(invocation.windowsVerbatimArguments, true);
+    assert.deepEqual(invocation.args.slice(0, 4), ["/d", "/v:off", "/s", "/c"]);
+    assert.equal(invocation.args[4], `""${shim}" "ci""`);
+    assert.doesNotMatch(invocation.args[4], /\bcall\b/i);
   } finally {
     rmSync(shimDir, { recursive: true, force: true });
+  }
+});
+
+
+test("Windows batch invocation uses cmd /S /C outer quoting without backslash-escaped executable quotes", async () => {
+  const { resolveSpawnInvocation } = await import("../../scripts/qualification/lib/process.mjs");
+  const tempRoot = mkdtempSync(join(tmpdir(), "agentic-harness-win space-"));
+  try {
+    const { writeFileSync } = await import("node:fs");
+    const shim = resolve(tempRoot, "npm.CMD");
+    writeFileSync(shim, "@echo off\r\n", "utf8");
+    const invocation = resolveSpawnInvocation("npm", ["--version"], {
+      platform: "win32",
+      env: {
+        Path: tempRoot,
+        PATHEXT: ".COM;.EXE;.BAT;.CMD",
+        ComSpec: "C:\\Windows\\System32\\cmd.exe",
+      },
+    });
+    assert.equal(invocation.windowsVerbatimArguments, true);
+    assert.deepEqual(invocation.args.slice(0, 4), ["/d", "/v:off", "/s", "/c"]);
+    assert.equal(invocation.args[4], `""${shim}" "--version""`);
+    assert.doesNotMatch(invocation.args[4], /\\"/u);
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true });
   }
 });

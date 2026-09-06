@@ -42,8 +42,17 @@ function quoteCmdToken(value) {
   if (/[\0\r\n"]/u.test(text)) {
     throw new Error(`qualification_windows_cmd_argument_unsupported:${JSON.stringify(text)}`);
   }
-  // %VAR% expansion occurs even inside quotes. Doubling % keeps the literal value.
+  // cmd.exe expands %VAR% before execution. Doubling % preserves a literal percent.
   return `"${text.replaceAll("%", "%%")}"`;
+}
+
+function windowsBatchCommandLine(resolvedCommand, args) {
+  const inner = [quoteCmdToken(resolvedCommand), ...args.map(quoteCmdToken)].join(" ");
+  // With cmd.exe /S /C, the canonical safe shape for a quoted batch path is
+  // an outer quote pair around the complete command string, leaving the
+  // executable path itself quoted inside it:
+  //   cmd.exe /d /v:off /s /c ""C:\\Program Files\\nodejs\\npm.cmd" "--version""
+  return `"${inner}"`;
 }
 
 export function resolveSpawnInvocation(command, args = [], { env = process.env, platform = process.platform } = {}) {
@@ -61,12 +70,13 @@ export function resolveSpawnInvocation(command, args = [], { env = process.env, 
   const extension = extname(resolvedCommand).toLowerCase();
   if (extension === ".cmd" || extension === ".bat") {
     const comspec = String(env.ComSpec ?? env.COMSPEC ?? "cmd.exe").trim() || "cmd.exe";
-    const commandLine = ["call", quoteCmdToken(resolvedCommand), ...args.map(quoteCmdToken)].join(" ");
+    const commandLine = windowsBatchCommandLine(resolvedCommand, args);
     return {
       command: comspec,
-      args: ["/d", "/v:off", "/c", commandLine],
+      args: ["/d", "/v:off", "/s", "/c", commandLine],
       resolvedCommand,
       wrapper: "cmd.exe",
+      windowsVerbatimArguments: true,
     };
   }
 
@@ -108,6 +118,7 @@ export class ProcessRunner {
       timeout,
       windowsHide: true,
       shell: false,
+      windowsVerbatimArguments: invocation.windowsVerbatimArguments === true,
     });
     const stdout = String(result.stdout ?? "");
     const stderr = String(result.stderr ?? "");
@@ -123,6 +134,7 @@ export class ProcessRunner {
       `spawnCommand=${invocation.command}`,
       `spawnArgs=${JSON.stringify(invocation.args)}`,
       `wrapper=${invocation.wrapper ?? ""}`,
+      `windowsVerbatimArguments=${invocation.windowsVerbatimArguments === true}`,
       `exitCode=${exitCode}`,
       result.error ? `spawnError=${result.error.message}` : "",
       "--- stdout ---",
@@ -137,6 +149,7 @@ export class ProcessRunner {
       spawnCommand: invocation.command,
       spawnArgs: invocation.args,
       wrapper: invocation.wrapper,
+      windowsVerbatimArguments: invocation.windowsVerbatimArguments === true,
       cwd,
       exitCode,
       stdout,
@@ -163,13 +176,14 @@ export class ProcessRunner {
     const cwd = options.cwd || process.cwd();
     const env = { ...this.baseEnv, ...(options.env || {}) };
     const invocation = resolveSpawnInvocation(command, args, { env });
-    writeFileSync(logPath, `startedAt=${new Date().toISOString()}\ncwd=${cwd}\ncommand=${command}\nargs=${JSON.stringify(args)}\nresolvedCommand=${invocation.resolvedCommand ?? ""}\nspawnCommand=${invocation.command}\nspawnArgs=${JSON.stringify(invocation.args)}\nwrapper=${invocation.wrapper ?? ""}\n--- output ---\n`, "utf8");
+    writeFileSync(logPath, `startedAt=${new Date().toISOString()}\ncwd=${cwd}\ncommand=${command}\nargs=${JSON.stringify(args)}\nresolvedCommand=${invocation.resolvedCommand ?? ""}\nspawnCommand=${invocation.command}\nspawnArgs=${JSON.stringify(invocation.args)}\nwrapper=${invocation.wrapper ?? ""}\nwindowsVerbatimArguments=${invocation.windowsVerbatimArguments === true}\n--- output ---\n`, "utf8");
     const child = spawn(invocation.command, invocation.args, {
       cwd,
       env,
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
       shell: false,
+      windowsVerbatimArguments: invocation.windowsVerbatimArguments === true,
       detached: false,
     });
     let spawnError = null;
@@ -180,7 +194,7 @@ export class ProcessRunner {
     for (const stream of [child.stdout, child.stderr]) {
       stream?.on("data", (chunk) => appendFileSync(logPath, chunk));
     }
-    return { child, logPath, command, args, resolvedCommand: invocation.resolvedCommand, spawnCommand: invocation.command, spawnArgs: invocation.args, wrapper: invocation.wrapper, cwd, env, get spawnError() { return spawnError; } };
+    return { child, logPath, command, args, resolvedCommand: invocation.resolvedCommand, spawnCommand: invocation.command, spawnArgs: invocation.args, wrapper: invocation.wrapper, windowsVerbatimArguments: invocation.windowsVerbatimArguments === true, cwd, env, get spawnError() { return spawnError; } };
   }
 }
 

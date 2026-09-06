@@ -124,8 +124,8 @@ before the first stable repository tag is promoted.
 
 | Check | Result |
 |---|---|
-| Standalone contracts | PASS — 31/31 current subtests |
-| Node syntax | PASS — 126 files |
+| Standalone contracts | PASS — 34/34 current subtests |
+| Node syntax | PASS — 132 files |
 | JSON parse | PASS — 72 files |
 | TypeScript transpile/syntax | PASS — 108 files, 0 parse errors |
 | `tsc --noEmit` | BLOCKED_ENVIRONMENT — `node_modules` / `@types/node` unavailable |
@@ -155,3 +155,9 @@ Because this is tracked source remediation after an R-7 HOLD, the complete stand
 ## Deterministic standalone qualification controller
 
 The natural-language outer-controller runbook has been replaced as the execution authority by the versioned host CLI behind `npm run harness:qualify`. The controller runs outside the 20-agent catalog and therefore does not require restoring shell/edit permissions to the persistent Main Orchestrator. PRE-R0–R-6 and R-8–R-11 are deterministic host/code gates; R-7 is the deliberate live OpenCode/Main-Orchestrator boundary and must produce `agent_start` provenance plus a Runtime `runId` before implementation. The controller writes a versioned JSON report, Markdown summary and per-command logs outside tracked source by default, stops at first divergence, and always runs isolated cleanup/source-equality checks.
+
+## Windows qualification-controller command resolution
+
+The first live run of the deterministic controller on Windows exposed a portability defect before `npm ci` executed: `spawnSync("npm", ..., { shell: false })` returned `ENOENT` because the Node installation exposes npm through a Windows `.cmd` shim. The controller now resolves commands through the effective `PATH` and `PATHEXT`. Native executables continue to launch directly with `shell: false`; `.cmd`/`.bat` shims are invoked through the resolved `ComSpec` explicitly, also with `shell: false`, and command evidence records the requested command, resolved path, actual spawn command, wrapper and spawn arguments.
+
+`Q-ENTRY` now exercises `npm --version` through the same `ProcessRunner`, so this class of Windows command-resolution failure is detected before PRE-R0. A focused contract simulates an `npm.CMD` shim and proves the wrapper resolution without requiring a Windows host. This is a tracked qualification-controller source remediation; the full live qualification must restart from Q-ENTRY/PRE-R0 after the patch is committed.
