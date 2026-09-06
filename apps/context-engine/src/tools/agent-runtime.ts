@@ -23,6 +23,21 @@ function assertControlCaller(): void {
   }
 }
 
+function assertRuntimeIngressProvenance(toolName: string): void {
+  const requestContext = getContextEngineRequestContext();
+  if (requestContext?.transport !== "http") return;
+  const agentId = requestContext.agentId?.trim() || null;
+  if (agentId !== "main-orchestrator") return;
+
+  const missing: string[] = [];
+  if (requestContext.invocationProvenanceSource !== "opencode-plugin-sidechannel") missing.push("provenanceSource");
+  if (!requestContext.invocationSessionId) missing.push("sessionId");
+  if (!requestContext.invocationUserMessageId) missing.push("userMessageId");
+  if (missing.length > 0) {
+    throw new Error(`agent_control_invocation_provenance_required:${toolName}:${missing.join(",")}`);
+  }
+}
+
 async function assertObservationAllowed(
   control: AgentRuntimeControlAdapter,
   toolName: string,
@@ -75,6 +90,7 @@ export function registerAgentRuntimeTools(
     },
     async (args) => {
       assertControlCaller();
+      assertRuntimeIngressProvenance("agent_start");
       const data = await control.start(args);
       return result(data, "agent-run-started", "AGENT RUN STARTED · Dynamic DAG V2 persisted and executing");
     },

@@ -838,7 +838,7 @@ async function waitForRunId(sessionId, {
       : [];
     const continuations = sqlRows(`SELECT run_id,status,created_at FROM agent_continuations WHERE opencode_session_id='${sqlQuote(sessionId)}' ORDER BY created_at DESC LIMIT 5;`);
     const logs = composeCommand(["logs", "--no-color", "context-engine"], { label: `${gate.toLowerCase()}-run-id-timeout-context-engine-logs` }).stdout;
-    const provenanceRegistered = logs.includes("mcp.invocation_provenance_registered")
+    const provenanceLogHint = logs.includes("mcp.invocation_provenance_registered")
       && logs.includes(sessionId)
       && logs.includes("agent_start");
 
@@ -853,8 +853,8 @@ async function waitForRunId(sessionId, {
     const runtimeValidationText = recentAssistantTexts.find((text) => /schema_validation_failed|additional property not allowed|executionPlan\./i.test(text)) ?? null;
     const message = runtimeValidationText && agentStartAttempted
       ? "r7_agent_start_rejected_by_runtime_validation"
-      : provenanceRegistered
-        ? "r7_agent_start_provenance_registered_but_run_not_materialized"
+      : provenanceLogHint
+        ? "r7_agent_start_provenance_log_seen_but_run_not_materialized"
         : agentStartAttempted
           ? "r7_agent_start_attempted_but_no_run_materialized"
           : "r7_main_orchestrator_failed_to_enter_runtime";
@@ -870,7 +870,7 @@ async function waitForRunId(sessionId, {
         assistantTexts: recentAssistantTexts,
         recentRuns,
         continuations,
-        provenanceRegistered,
+        provenanceLogHint,
         agentStartAttempted,
         runtimeValidationText,
       },
@@ -918,15 +918,20 @@ async function r7() {
   const runId = await waitForRunId(sessionId, { gate: "R-7", baselineWorktree, request: workload });
   const continuation = await requireDurableContinuation(runId, sessionId, { gate: "R-7" });
   if (continuation.sessionId !== sessionId) hold("R-7", "RUNTIME", "r7_continuation_session_identity_mismatch", { runId, sessionId, continuation });
-  const logs = composeCommand(["logs", "--no-color", "context-engine"], { label: "r7-context-engine-logs" }).stdout;
-  if (!logs.includes("mcp.invocation_provenance_registered") || !logs.includes(sessionId) || !logs.includes(userMessageId) || !logs.includes("agent_start")) hold("R-7", "RUNTIME", "r7_provenance_registration_not_proven", { sessionId, userMessageId });
+  const provenance = {
+    authority: "context-engine-agent-start-fail-closed",
+    source: "opencode-plugin-sidechannel",
+    sessionId,
+    userMessageId,
+    runId,
+  };
   const terminal = await waitForTerminalRun(runId, { gate: "R-7" });
   if (terminal.status !== "closed") hold("R-7", "RUNTIME", "r7_runtime_not_closed", { runId, terminal });
   mustRun("R-7", "RUNTIME", "npm", ["--prefix", state.consumers.A, "test"], { label: "r7-consumer-validation" });
   const replay = mustRun("R-7", "RUNTIME", process.execPath, [resolve(state.consumers.A, ".harness/scripts/internal/agent-runtime-replay.mjs"), "--capsule", resolve(state.consumers.A, ".runtime", "agents", "runs", runId, "replay-capsule.json"), "--repository", resolve(state.consumers.A, ".harness"), "--json"], { cwd: state.consumers.A, env: state.consumerEnv, label: "r7-replay", timeoutMs: 2 * 60_000 });
   const replayJson = parseJsonOutput(replay.stdout);
   if (replayJson.ok !== true) hold("R-7", "RUNTIME", "r7_replay_verification_failed", { replay: replayJson });
-  state.r7 = { sessionId, userMessageId, runId, continuation, terminal, workload };
+  state.r7 = { sessionId, userMessageId, runId, continuation, provenance, terminal, workload };
   return state.r7;
 }
 

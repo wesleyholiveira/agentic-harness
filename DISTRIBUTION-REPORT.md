@@ -187,3 +187,7 @@ The persistent Main Orchestrator contract now explicitly calls the local `runtim
 ## R-7 Security Review execution-plan schema parity remediation
 
 A fresh standalone qualification reached R-7 with the correct `runtime-continuation -> context-engine_agent_start` tool sequence, but Context Engine rejected the planner-produced execution plan because `workflow.requiresSecurity` was emitted by the planner while absent from the v2 execution-plan schema. This revision makes the security review projection schema-required, keeps provisional/refined topology projections coherent, and improves R-7 classification for Runtime validation rejection before run materialization.
+
+## R-7 provenance authority remediation
+
+R-7 previously searched Context Engine logs for `mcp.invocation_provenance_registered`, but structured logging is `off` by default. The gate therefore produced a false Runtime HOLD after a run and Durable Continuation had already materialized. `agent_start` now fails closed for HTTP Main Orchestrator calls unless the Context Engine request context contains consumed OpenCode sidechannel provenance with session and user-message identity. R-7 uses that server-enforced boundary as its provenance authority; logs are diagnostic only.

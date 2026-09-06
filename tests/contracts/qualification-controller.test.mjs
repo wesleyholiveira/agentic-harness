@@ -208,7 +208,7 @@ test("R-7 discovers Runtime run identity independently of durable continuation a
   assert.match(controller, /requireDurableContinuation\(runId, sessionId/);
   assert.match(controller, /r7_run_created_without_durable_continuation/);
   assert.match(controller, /r7_main_orchestrator_failed_to_enter_runtime/);
-  assert.match(controller, /r7_agent_start_provenance_registered_but_run_not_materialized/);
+  assert.match(controller, /r7_agent_start_provenance_log_seen_but_run_not_materialized/);
 });
 
 test("persistent Main Orchestrator captures runtime-continuation before agent_start", () => {
@@ -233,4 +233,21 @@ test("R-7 classifies attempted agent_start schema rejection separately from miss
   assert.match(controller, /r7_agent_start_attempted_but_no_run_materialized/);
   assert.match(controller, /agentStartAttempted/);
   assert.match(controller, /additional property not allowed/);
+});
+
+
+test("R-7 provenance proof is server-enforced and does not depend on optional Context Engine logs", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const runtimeTool = readFileSync(resolve(root, "apps/context-engine/src/tools/agent-runtime.ts"), "utf8");
+
+  assert.doesNotMatch(controller, /r7_provenance_registration_not_proven/);
+  assert.match(controller, /context-engine-agent-start-fail-closed/);
+  assert.match(controller, /opencode-plugin-sidechannel/);
+
+  assert.match(runtimeTool, /function assertRuntimeIngressProvenance/);
+  assert.match(runtimeTool, /invocationProvenanceSource !== "opencode-plugin-sidechannel"/);
+  assert.match(runtimeTool, /invocationSessionId/);
+  assert.match(runtimeTool, /invocationUserMessageId/);
+  assert.match(runtimeTool, /agent_control_invocation_provenance_required/);
+  assert.match(runtimeTool, /assertRuntimeIngressProvenance\("agent_start"\)/);
 });
