@@ -69,3 +69,28 @@ The controller writes:
 - `qualification-report.json` — machine-readable `agentic-harness-standalone-qualification/v1` evidence;
 - `qualification-report.md` — concise promotion report;
 - `logs/*.log` — per-command captured evidence.
+
+## Long-running R-7 behavior
+
+R-7 does not use a fixed 45-minute whole-run timeout. The controller observes the Runtime's own PostgreSQL liveness authorities and emits a concise progress checkpoint to stderr every 60 seconds with the current task/stage, attempt, model, elapsed time and heartbeat/idle state.
+
+A healthy task may continue while its persisted Runtime hard/soft/stall budgets remain valid. A HOLD is produced when the Runtime violates one of those budgets or when worker/lease, queue, scheduler or post-execution finalization liveness becomes invalid. The HOLD evidence includes the exact `runId`, task states, worker heartbeat, recent Runtime events, outbox state and pending execution results.
+
+The final machine-readable qualification JSON remains on stdout.
+
+## Source manifest after applying a differential
+
+`MANIFEST.json` is derived from the **Git-tracked worktree**. When a differential adds new files, those paths must be staged before manifest generation or they are intentionally invisible to the manifest script.
+
+Use this order:
+
+```bash
+git add -A
+node scripts/internal/source-manifest.mjs --write
+git add MANIFEST.json
+node scripts/internal/source-manifest.mjs --check
+git diff --cached --check
+git commit -m "<candidate change>"
+```
+
+Running `--write` before staging newly added files produces a manifest that becomes stale as soon as those files are committed.

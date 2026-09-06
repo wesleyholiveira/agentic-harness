@@ -191,3 +191,15 @@ A fresh standalone qualification reached R-7 with the correct `runtime-continuat
 ## R-7 provenance authority remediation
 
 R-7 previously searched Context Engine logs for `mcp.invocation_provenance_registered`, but structured logging is `off` by default. The gate therefore produced a false Runtime HOLD after a run and Durable Continuation had already materialized. `agent_start` now fails closed for HTTP Main Orchestrator calls unless the Context Engine request context contains consumed OpenCode sidechannel provenance with session and user-message identity. R-7 uses that server-enforced boundary as its provenance authority; logs are diagnostic only.
+
+## R-7 progress-aware terminal-watch remediation
+
+A live target-host qualification passed Q-ENTRY through R-6 and reached R-7 with Runtime ingress already proven. The controller then held after a fixed 45-minute wait for terminal `agent_runs.status`.
+
+That was a qualification-procedure defect: Runtime permits one-hour task hard deadlines and governance-specific soft/stall budgets, so a multi-stage healthy workflow can exceed 45 minutes. The old timeout also discarded the exact run/task liveness evidence needed for diagnosis.
+
+R-7 now uses a progress-aware watchdog backed by one structured PostgreSQL observation per poll. It captures run/task state, latest executor heartbeat, worker heartbeat, execution leases, recent Runtime events, outbox rows and pending execution results, derives task liveness from Runtime's own policy, emits 60-second stderr progress checkpoints, and fails only when an actual Runtime liveness invariant is exceeded. A six-hour emergency ceiling remains only as a qualification-procedure safety bound.
+
+## Differential manifest staging rule
+
+The source manifest reads the Git-tracked worktree. For differentials that add files, new paths must be staged with `git add -A` before `source-manifest.mjs --write`; otherwise the new files are absent from the generated file count/tree hash and R-0 will correctly reject the subsequent committed candidate.

@@ -16,3 +16,5 @@ A distribution may report environment-unavailable gates separately, but must nev
 
 
 9. deterministic qualification-controller gate — `harness:qualify -- --self-test` must pass without invoking Docker/OpenCode/model execution, preserve the ten-command public surface, prove the controller is a host process rather than an operational agent, and emit the versioned qualification report contract. Full target-host promotion uses that controller for Q-ENTRY/PRE-R0/R-0–R-11; only R-7 sends a normal consumer request to the qualified Main Orchestrator.
+
+10. R-7 progress-aware terminal watchdog — prove a healthy non-governance task may run beyond 45 minutes while still below its persisted hard timeout; prove governance soft/stall overruns, stale worker/lease authority, unclaimed queue state and scheduler inactivity fail closed with structured evidence; prove long-running observation emits stderr checkpoints without contaminating the final stdout JSON contract.

@@ -37,6 +37,8 @@ import {
 } from "./lib/util.mjs";
 import { assertFixtureComplete, fixtureIdentity, materializeFixture } from "./lib/fixture.mjs";
 import { basicAuthHeaders, requestJson, waitForJsonReady } from "./lib/http.mjs";
+import { evaluateRuntimeObservation, formatRuntimeProgress } from "./lib/runtime-watchdog.mjs";
+import { resolveExecutionLivenessPolicy } from "../../.agents/runtime/execution-liveness.mjs";
 
 const scriptRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const args = parseArgs(process.argv.slice(2));
@@ -899,13 +901,233 @@ async function requireDurableContinuation(runId, sessionId, { gate = "R-7", time
   }
 }
 
-async function waitForTerminalRun(runId, { gate, timeoutMs = 45 * 60_000 } = {}) {
-  return await waitFor(() => {
-    const rows = sqlRows(`SELECT status,coalesce(error_code,''),coalesce(error_message,'') FROM agent_runs WHERE run_id='${sqlQuote(runId)}';`);
-    if (rows.length === 0) return null;
-    const [status, errorCode, errorMessage] = rows[0];
-    return ["closed", "failed", "blocked", "cancelled"].includes(status) ? { status, errorCode, errorMessage } : null;
-  }, { timeoutMs, intervalMs: 2_000, label: `${gate}-terminal-run` });
+function runtimeRunObservation(runId) {
+  const quotedRunId = sqlQuote(runId);
+  const raw = sqlScalar(`
+WITH latest_heartbeats AS (
+  SELECT DISTINCT ON (task_id)
+    task_id,
+    created_at,
+    COALESCE(payload_json::jsonb->>'elapsedMs','') AS elapsed_ms,
+    COALESCE(payload_json::jsonb->>'idleMs','') AS idle_ms,
+    COALESCE(payload_json::jsonb->>'stdoutBytes','') AS stdout_bytes,
+    COALESCE(payload_json::jsonb->>'stderrBytes','') AS stderr_bytes,
+    COALESCE(payload_json::jsonb->>'dispatchGeneration','') AS dispatch_generation,
+    COALESCE(payload_json::jsonb->>'fencingToken','') AS fencing_token
+  FROM agent_events
+  WHERE run_id='${quotedRunId}' AND event_type='executor.heartbeat' AND task_id IS NOT NULL
+  ORDER BY task_id, created_at DESC
+),
+latest_task_events AS (
+  SELECT DISTINCT ON (task_id)
+    task_id,
+    event_type,
+    created_at,
+    COALESCE(payload_json::jsonb->>'code','') AS code,
+    COALESCE(payload_json::jsonb->>'status','') AS status
+  FROM agent_events
+  WHERE run_id='${quotedRunId}' AND task_id IS NOT NULL AND event_type<>'executor.heartbeat'
+  ORDER BY task_id, created_at DESC
+)
+SELECT json_build_object(
+  'run', (
+    SELECT json_build_object(
+      'status', status,
+      'stateVersion', state_version,
+      'startedAt', started_at,
+      'completedAt', completed_at,
+      'taskTimeoutMs', task_timeout_ms,
+      'maxParallel', max_parallel,
+      'errorCode', error_code,
+      'errorMessage', error_message,
+      'planJson', plan_json
+    )
+    FROM agent_runs
+    WHERE run_id='${quotedRunId}'
+  ),
+  'tasks', COALESCE((
+    SELECT json_agg(json_build_object(
+      'taskId', t.task_id,
+      'agentId', t.agent_id,
+      'role', t.role,
+      'status', t.status,
+      'attempt', t.attempt,
+      'maxAttempts', t.max_attempts,
+      'startedAt', t.started_at,
+      'completedAt', t.completed_at,
+      'modelId', t.model_id,
+      'queuedAt', t.queued_at,
+      'retryNotBefore', t.retry_not_before,
+      'leaseOwner', t.lease_owner,
+      'leaseExpiresAt', t.lease_expires_at,
+      'dispatchGeneration', t.dispatch_generation,
+      'fencingToken', t.fencing_token,
+      'stateVersion', t.state_version,
+      'heartbeat', CASE WHEN h.task_id IS NULL THEN NULL ELSE json_build_object(
+        'at', h.created_at,
+        'elapsedMs', NULLIF(h.elapsed_ms,'')::bigint,
+        'idleMs', NULLIF(h.idle_ms,'')::bigint,
+        'stdoutBytes', NULLIF(h.stdout_bytes,'')::bigint,
+        'stderrBytes', NULLIF(h.stderr_bytes,'')::bigint,
+        'dispatchGeneration', NULLIF(h.dispatch_generation,'')::bigint,
+        'fencingToken', NULLIF(h.fencing_token,'')::bigint
+      ) END,
+      'latestEvent', CASE WHEN e.task_id IS NULL THEN NULL ELSE json_build_object(
+        'type', e.event_type,
+        'at', e.created_at,
+        'code', NULLIF(e.code,''),
+        'status', NULLIF(e.status,'')
+      ) END
+    ) ORDER BY t.task_id)
+    FROM agent_tasks t
+    LEFT JOIN latest_heartbeats h ON h.task_id=t.task_id
+    LEFT JOIN latest_task_events e ON e.task_id=t.task_id
+    WHERE t.run_id='${quotedRunId}'
+  ), '[]'::json),
+  'worker', (
+    SELECT json_build_object(
+      'workerId', worker_id,
+      'heartbeatAt', heartbeat_at,
+      'hostname', hostname,
+      'pid', pid,
+      'concurrency', concurrency
+    )
+    FROM agent_runtime_workers
+    WHERE stopped_at IS NULL
+    ORDER BY heartbeat_at DESC
+    LIMIT 1
+  ),
+  'recentEvents', COALESCE((
+    SELECT json_agg(event_json ORDER BY created_at)
+    FROM (
+      SELECT json_build_object(
+        'type', event_type,
+        'taskId', task_id,
+        'at', created_at,
+        'code', NULLIF(COALESCE(payload_json::jsonb->>'code',''),''),
+        'status', NULLIF(COALESCE(payload_json::jsonb->>'status',''),'')
+      ) AS event_json, created_at
+      FROM agent_events
+      WHERE run_id='${quotedRunId}' AND event_type<>'executor.heartbeat'
+      ORDER BY created_at DESC
+      LIMIT 16
+    ) recent
+  ), '[]'::json),
+  'outbox', COALESCE((
+    SELECT json_agg(json_build_object(
+      'kind', message_kind,
+      'taskId', task_id,
+      'dispatchGeneration', dispatch_generation,
+      'publishedAt', published_at,
+      'publishCount', publish_count,
+      'lastError', last_error,
+      'terminalAt', terminal_at,
+      'terminalReason', terminal_reason
+    ) ORDER BY created_at DESC)
+    FROM (
+      SELECT *
+      FROM agent_runtime_outbox
+      WHERE run_id='${quotedRunId}'
+      ORDER BY created_at DESC
+      LIMIT 16
+    ) o
+  ), '[]'::json),
+  'pendingExecutionResults', COALESCE((
+    SELECT json_agg(json_build_object(
+      'resultId', result_id,
+      'taskId', task_id,
+      'attempt', attempt,
+      'dispatchGeneration', dispatch_generation,
+      'createdAt', created_at
+    ) ORDER BY created_at DESC)
+    FROM agent_execution_results
+    WHERE run_id='${quotedRunId}' AND consumed_at IS NULL
+  ), '[]'::json)
+)::text;
+  `);
+  if (!raw) throw new Error(`qualification_runtime_observation_missing:${runId}`);
+  const observation = JSON.parse(raw);
+  if (!observation.run) throw new Error(`qualification_runtime_run_missing:${runId}`);
+
+  let plan = {};
+  try { plan = JSON.parse(String(observation.run.planJson ?? "{}")); }
+  catch { plan = {}; }
+  const taskPlans = new Map((Array.isArray(plan.tasks) ? plan.tasks : []).map((task) => [task.taskId, task]));
+  const hardTimeoutMs = Number(observation.run.taskTimeoutMs) || 3_600_000;
+  observation.tasks = (Array.isArray(observation.tasks) ? observation.tasks : []).map((task) => {
+    const taskPlan = taskPlans.get(task.taskId) ?? {};
+    return {
+      ...task,
+      stage: taskPlan.stage ?? null,
+      livenessPolicy: resolveExecutionLivenessPolicy({
+        task: taskPlan,
+        attempt: Number(task.attempt) || 1,
+        hardTimeoutMs,
+      }),
+    };
+  });
+  delete observation.run.planJson;
+  return observation;
+}
+
+function runtimeObservationEvidence(observation) {
+  return {
+    run: observation?.run ?? null,
+    tasks: observation?.tasks ?? [],
+    worker: observation?.worker ?? null,
+    recentEvents: observation?.recentEvents ?? [],
+    outbox: observation?.outbox ?? [],
+    pendingExecutionResults: observation?.pendingExecutionResults ?? [],
+  };
+}
+
+async function waitForTerminalRun(runId, { gate } = {}) {
+  const startedAtMs = Date.now();
+  const emergencyCeilingMs = 6 * 60 * 60_000;
+  let inactiveSinceMs = null;
+  let nextProgressLogAt = 0;
+  let lastObservation = null;
+
+  while (true) {
+    const nowMs = Date.now();
+    const observation = runtimeRunObservation(runId);
+    lastObservation = observation;
+    const assessment = evaluateRuntimeObservation(observation, { nowMs, inactiveSinceMs });
+    inactiveSinceMs = assessment.inactiveSinceMs;
+
+    if (assessment.terminal) {
+      return {
+        ...assessment.terminal,
+        observation: runtimeObservationEvidence(observation),
+      };
+    }
+
+    if (assessment.violation) {
+      const gateToken = String(gate ?? "runtime").toLowerCase().replaceAll("-", "");
+      hold(gate, "RUNTIME", `${gateToken}_${assessment.violation.message}`, {
+        runId,
+        watchdog: assessment.violation.evidence,
+        observation: runtimeObservationEvidence(observation),
+      });
+    }
+
+    if (nowMs >= nextProgressLogAt) {
+      console.error(`[qualification][${gate}] ${runId} ${formatRuntimeProgress(observation, nowMs)}`);
+      nextProgressLogAt = nowMs + 60_000;
+    }
+
+    if (nowMs - startedAtMs > emergencyCeilingMs) {
+      const gateToken = String(gate ?? "runtime").toLowerCase().replaceAll("-", "");
+      hold(gate, "QUALIFICATION PROCEDURE", `${gateToken}_progress_aware_watch_safety_ceiling`, {
+        runId,
+        elapsedMs: nowMs - startedAtMs,
+        emergencyCeilingMs,
+        observation: runtimeObservationEvidence(lastObservation),
+      });
+    }
+
+    await sleep(5_000);
+  }
 }
 
 async function r7() {
@@ -1100,6 +1322,7 @@ async function selfTest() {
     "scripts/qualification/lib/report.mjs",
     "scripts/qualification/lib/fixture.mjs",
     "scripts/qualification/lib/http.mjs",
+    "scripts/qualification/lib/runtime-watchdog.mjs",
     "scripts/qualification/lib/util.mjs",
   ];
   for (const path of requiredFiles) if (!existsSync(resolve(harnessRoot, path))) throw new Error(`qualification_self_test_missing:${path}`);

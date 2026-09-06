@@ -17,6 +17,7 @@ The harness is authoritative for:
 A consuming repository remains authoritative for its domain code, product requirements, project ADRs/designs/runbooks, and run-specific Task Briefs/Context Packets.
 
 ## Runtime invariants
+- Qualification R-7 terminal observation is progress-aware: it follows persisted Runtime task liveness budgets, worker/lease heartbeats and scheduler/finalizer activity instead of imposing a 45-minute whole-run deadline; long waits emit 60-second stderr checkpoints and any watchdog HOLD carries structured PostgreSQL evidence.
 - Execution-plan workflow review projections include `requiresSecurity` as a schema-required boolean; provisional bootstrap forces it false and refined topology derives it from the selected `security-review` capability.
 - Persistent Main Orchestrator delivery ingress is `runtime-continuation` → `agent_start({ continuation })`; `agent_runs` proves run existence and `agent_continuations` separately proves durable OpenCode session binding.
 - Qualification R-4 treats container `Running` and application HTTP readiness as separate proofs; Context Engine, RabbitMQ Management and embeddings must pass bounded HTTP readiness with preserved transport-cause evidence.
@@ -47,6 +48,8 @@ Never collapse these roots in code that reads project context or writes project 
 The supported CLI surface is the ten `harness:*` commands in `package.json` / `bin/harness.mjs`. `harness:migrate` is the supported submodule-facing migration entrypoint and executes the internal migrator through the consumer-scoped `database-migrate` Compose service; direct host execution of the migration helper is internal. Internal migration, executor, replay and readiness helpers are implementation details and may evolve without becoming public aliases.
 
 ## Promotion rule
+
+- Source-manifest regeneration after a differential with new paths is stage-aware: run `git add -A` before `source-manifest.mjs --write` because manifest authority is the Git-tracked worktree; then stage the regenerated `MANIFEST.json`, verify `--check`, and commit.
 
 A new harness tag is promoted only from an immutable source tree after the standalone contract suite and target-host qualification pass. `npm run harness:qualify` is the deterministic outer qualification authority; it is not an OpenCode agent and never delegates the runbook itself to Runtime V2. The persistent Main Orchestrator stays control-plane only and is exercised as a normal consumer-facing agent only at the live R-7 workload boundary. Historical Runtime qualification under `qualification/baseline/` is lineage evidence, not permission to skip qualification after genericization or future source changes.
 

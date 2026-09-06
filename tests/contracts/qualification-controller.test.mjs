@@ -251,3 +251,114 @@ test("R-7 provenance proof is server-enforced and does not depend on optional Co
   assert.match(runtimeTool, /agent_control_invocation_provenance_required/);
   assert.match(runtimeTool, /assertRuntimeIngressProvenance\("agent_start"\)/);
 });
+
+
+test("R-7 terminal wait is progress-aware instead of using a blind 45-minute wall-clock deadline", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  assert.match(controller, /runtimeRunObservation/);
+  assert.match(controller, /evaluateRuntimeObservation/);
+  assert.match(controller, /formatRuntimeProgress/);
+  assert.match(controller, /progress_aware_watch_safety_ceiling/);
+  assert.match(controller, /console\.error\(`\[qualification\]\[\$\{gate\}\]/);
+  assert.doesNotMatch(controller, /timeoutMs\s*=\s*45\s*\*\s*60_000/);
+  assert.doesNotMatch(controller, /qualification_wait_timeout:R-7-terminal-run/);
+});
+
+test("R-7 watchdog permits a healthy long-running non-governance task below the Runtime hard timeout", async () => {
+  const { evaluateRuntimeObservation } = await import("../../scripts/qualification/lib/runtime-watchdog.mjs");
+  const nowMs = Date.parse("2026-09-06T03:00:00.000Z");
+  const observation = {
+    run: { status: "running" },
+    worker: { workerId: "worker-1", heartbeatAt: new Date(nowMs - 5_000).toISOString() },
+    tasks: [{
+      taskId: "run:implementation",
+      stage: "implementation",
+      status: "running",
+      attempt: 1,
+      maxAttempts: 2,
+      startedAt: new Date(nowMs - 50 * 60_000).toISOString(),
+      leaseOwner: "worker-1",
+      leaseExpiresAt: new Date(nowMs + 30_000).toISOString(),
+      heartbeat: {
+        at: new Date(nowMs - 5_000).toISOString(),
+        idleMs: 50 * 60_000,
+        elapsedMs: 50 * 60_000,
+      },
+      latestEvent: { type: "task.running", at: new Date(nowMs - 50 * 60_000).toISOString() },
+      livenessPolicy: {
+        hardTimeoutMs: 60 * 60_000,
+        softTimeoutMs: null,
+        stallTimeoutMs: null,
+      },
+    }],
+  };
+
+  const result = evaluateRuntimeObservation(observation, { nowMs });
+  assert.equal(result.terminal, null);
+  assert.equal(result.violation, null);
+});
+
+test("R-7 watchdog fails when Runtime leaves a task running beyond its own soft timeout", async () => {
+  const { evaluateRuntimeObservation } = await import("../../scripts/qualification/lib/runtime-watchdog.mjs");
+  const nowMs = Date.parse("2026-09-06T03:00:00.000Z");
+  const observation = {
+    run: { status: "running" },
+    worker: { workerId: "worker-1", heartbeatAt: new Date(nowMs - 5_000).toISOString() },
+    tasks: [{
+      taskId: "run:architecture-review",
+      stage: "architecture-review",
+      status: "running",
+      attempt: 1,
+      maxAttempts: 2,
+      startedAt: new Date(nowMs - 32 * 60_000).toISOString(),
+      leaseOwner: "worker-1",
+      leaseExpiresAt: new Date(nowMs + 30_000).toISOString(),
+      heartbeat: {
+        at: new Date(nowMs - 5_000).toISOString(),
+        idleMs: 60_000,
+        elapsedMs: 32 * 60_000,
+      },
+      latestEvent: { type: "task.running", at: new Date(nowMs - 32 * 60_000).toISOString() },
+      livenessPolicy: {
+        hardTimeoutMs: 60 * 60_000,
+        softTimeoutMs: 30 * 60_000,
+        stallTimeoutMs: 12 * 60_000,
+      },
+    }],
+  };
+
+  const result = evaluateRuntimeObservation(observation, { nowMs });
+  assert.equal(result.terminal, null);
+  assert.equal(result.violation?.message, "runtime_task_exceeded_soft_timeout");
+});
+
+test("R-7 watchdog exposes terminal state and detects scheduler inactivity", async () => {
+  const { evaluateRuntimeObservation } = await import("../../scripts/qualification/lib/runtime-watchdog.mjs");
+  const nowMs = Date.parse("2026-09-06T03:00:00.000Z");
+
+  const terminal = evaluateRuntimeObservation({
+    run: { status: "closed", errorCode: "", errorMessage: "" },
+    tasks: [],
+  }, { nowMs });
+  assert.equal(terminal.terminal?.status, "closed");
+  assert.equal(terminal.violation, null);
+
+  const inactiveSinceMs = nowMs - 4 * 60_000;
+  const stalled = evaluateRuntimeObservation({
+    run: { status: "running" },
+    worker: { workerId: "worker-1", heartbeatAt: new Date(nowMs - 5_000).toISOString() },
+    tasks: [{
+      taskId: "run:technical-refinement",
+      stage: "technical-refinement",
+      status: "routed",
+      attempt: 0,
+      maxAttempts: 2,
+      retryNotBefore: null,
+      latestEvent: { type: "task.routed", at: new Date(inactiveSinceMs).toISOString() },
+    }],
+    recentEvents: [],
+  }, { nowMs, inactiveSinceMs });
+
+  assert.equal(stalled.terminal, null);
+  assert.equal(stalled.violation?.message, "runtime_scheduler_stalled_without_active_execution");
+});
