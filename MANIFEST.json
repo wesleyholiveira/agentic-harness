@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-06T01:17:35Z",
+  "generatedAt": "2026-09-06T01:24:20Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 493,
-  "treeSha256": "sha256:c1bb6fd56dba23ec122d6a8f8d3cae2d8ded3cda025d1e367d0b081659948cc3",
+  "treeSha256": "sha256:3a697fcf86b345fb3d0612eca337bbcb195e024a73e2cf657af9645c16e35c34",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -1208,9 +1208,9 @@
       "sha256": "sha256:19db88b7ddc6902d55c006b381e9a1fe6a4af472f37942d768aab876b329b353"
     },
     {
-      "bytes": 17500,
+      "bytes": 18216,
       "path": "DISTRIBUTION-REPORT.md",
-      "sha256": "sha256:76182863fb4244e154e260226cd769f5bc9f825bea99c999f33bcff45a71e343"
+      "sha256": "sha256:981b7f1450bc89df940aedfcfec565af76c4eba4003a64358f551afcb495d5fb"
     },
     {
       "bytes": 1650,
@@ -1393,9 +1393,9 @@
       "sha256": "sha256:fbb594bde0b35a377a447f3a266931008d9f96fa0d6c782933c8c14174ef65f4"
     },
     {
-      "bytes": 6244,
+      "bytes": 6500,
       "path": "docs/specs/standalone-harness/DESIGN.md",
-      "sha256": "sha256:ad538bdc8dbea613ef7d34b86b9c1443de3b298047acb66e194473001d418a77"
+      "sha256": "sha256:4c5b571f32e4f97edf5ee1866f9cd9503e6fd54b4d2081e850274195e357f0a5"
     },
     {
       "bytes": 1218,
@@ -2133,9 +2133,9 @@
       "sha256": "sha256:02561e785ef0db3b2b7595cc43160ce3c8cec37d8e185b8c6cbec863e2388d14"
     },
     {
-      "bytes": 61475,
+      "bytes": 61665,
       "path": "scripts/qualification/standalone-v1.mjs",
-      "sha256": "sha256:9d57cad33d3bb53a583a74802524fbd6eb3e8203bd445e7b4ddc28c7d167558c"
+      "sha256": "sha256:dc9db866b8cf14509816cac89bae70814845aa1335bc9c0450f4f71a2d984681"
     },
     {
       "bytes": 1892,
@@ -2143,9 +2143,9 @@
       "sha256": "sha256:58f9cb34276192e9c57547d18fc1d52e0c860fddb0cce18e05ce1fa3593af1fc"
     },
     {
-      "bytes": 4519,
+      "bytes": 4692,
       "path": "SOURCE-OF-TRUTH.md",
-      "sha256": "sha256:8596513e6d083addc097e37ce4d2ba8077726672536354dc35c83e7d267ecf92"
+      "sha256": "sha256:4c14d1666e63c80e4824254d9d1ba42a45f4e9bed42fd2c6022333134701ed5e"
     },
     {
       "bytes": 840,
@@ -2173,9 +2173,9 @@
       "sha256": "sha256:7f8eadec83654ffd37f54d82bd53c25ba7db879bd6943ef2fef52ab88507f2d1"
     },
     {
-      "bytes": 5186,
+      "bytes": 5786,
       "path": "tests/contracts/qualification-controller.test.mjs",
-      "sha256": "sha256:da5d298a4d735182fa9427e21b591abc4871e3ac6eb98f4d4d7cd94538539bae"
+      "sha256": "sha256:7ad16747b11ad0b7a899ba0980c4eb22678bd7dde2e4aa071b16b99744d50355"
     },
     {
       "bytes": 1716,

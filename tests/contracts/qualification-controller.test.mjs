@@ -105,3 +105,28 @@ test("Windows batch invocation uses cmd /S /C outer quoting without backslash-es
     rmSync(tempRoot, { recursive: true, force: true });
   }
 });
+
+test("qualification product-namespace scanner does not self-match outside historical baseline", () => {
+  const pattern = [
+    ["clip", "compass"].join("-"),
+    ["Clip", "Compass"].join(" "),
+    ["clip", "compass"].join("_"),
+    ["CLIP", "COMPASS"].join("_"),
+  ].join("|");
+  const result = spawnSync("git", [
+    "-C",
+    root,
+    "grep",
+    "-niE",
+    pattern,
+    "--",
+    ":!qualification/baseline/r17.4.5/**",
+  ], {
+    cwd: root,
+    encoding: "utf8",
+    shell: false,
+  });
+  assert.equal(result.status, 1, result.stderr || result.stdout);
+  assert.equal(result.stdout, "");
+});
+

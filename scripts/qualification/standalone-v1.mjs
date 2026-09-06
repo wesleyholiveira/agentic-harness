@@ -128,6 +128,15 @@ try {
   process.exitCode = report.firstDivergence ? 1 : 0;
 }
 
+function legacyProductNamespacePattern() {
+  return [
+    ["clip", "compass"].join("-"),
+    ["Clip", "Compass"].join(" "),
+    ["clip", "compass"].join("_"),
+    ["CLIP", "COMPASS"].join("_"),
+  ].join("|");
+}
+
 function parseArgs(argv) {
   const out = { output: null, selfTest: false, runId: null };
   for (let i = 0; i < argv.length; i += 1) {
@@ -354,7 +363,7 @@ async function r0() {
   const workflowText = readFileSync(resolve(harnessRoot, ".agents/workflow.json"), "utf8");
   if (!workflowText.includes("technical-refinement") || !workflowText.includes("implementationPlan")) hold("R-0", "SOURCE", "r0_dynamic_dag_authority_missing");
 
-  const grep = runner.run("git", ["-C", harnessRoot, "grep", "-niE", "clip-compass|Clip Compass|clip_compass|CLIP_COMPASS", "--", ":!qualification/baseline/r17.4.5/**"], { label: "r0-product-namespace", allowExitCodes: [0, 1] });
+  const grep = runner.run("git", ["-C", harnessRoot, "grep", "-niE", legacyProductNamespacePattern(), "--", ":!qualification/baseline/r17.4.5/**"], { label: "r0-product-namespace", allowExitCodes: [0, 1] });
   if (grep.exitCode === 0 && grep.stdout.trim()) hold("R-0", "SOURCE", "r0_product_specific_operational_reference", { matches: grep.stdout.trim().split(/\r?\n/u) });
 
   const agents = JSON.parse(readFileSync(resolve(harnessRoot, ".opencode/agents.generated.json"), "utf8"));

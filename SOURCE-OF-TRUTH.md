@@ -17,7 +17,7 @@ The harness is authoritative for:
 A consuming repository remains authoritative for its domain code, product requirements, project ADRs/designs/runbooks, and run-specific Task Briefs/Context Packets.
 
 ## Runtime invariants
-- The deterministic qualification controller is host-side and cross-platform: on Windows it resolves `PATH`/`PATHEXT`, directly spawns native executables, and explicitly wraps `.cmd/.bat` shims through `ComSpec` without enabling `shell:true`.
+- The deterministic qualification controller is host-side and cross-platform: on Windows it resolves `PATH`/`PATHEXT`, directly spawns native executables, and explicitly wraps `.cmd/.bat` shims through `ComSpec` without enabling `shell:true`; batch shims use the `cmd.exe /S /C` outer-quote form with `windowsVerbatimArguments=true` so paths containing spaces are preserved without literal backslash-escaped quotes.
 - The persistent Main Orchestrator is control-plane only: delivery/change requests must enter through Context Engine `agent_start`; direct edit/write/patch/bash/task/Serena execution is fail-closed, while Runtime child specialists retain implementation tools.
 
 - PostgreSQL is durable run/task/checkpoint/continuation/ProjectMemory authority.

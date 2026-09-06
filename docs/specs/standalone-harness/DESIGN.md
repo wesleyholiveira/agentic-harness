@@ -45,3 +45,5 @@ The host launcher generates `<AGENT_HARNESS_PROJECT_ROOT>/.runtime/opencode.effe
 ## Extensibility
 
 A consuming project may add domain-specific agents in its own source or in a future extension layer, but the base harness does not carry product agents. New capability manifests must not encode static dependencies.
+
+The deterministic R-0 product-lineage scanner composes its forbidden legacy namespace variants from fragments at runtime. This preserves the scan while preventing the qualification implementation from becoming an operational match of its own prohibition.
