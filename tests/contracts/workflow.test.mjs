@@ -40,3 +40,15 @@ test("execution-plan schema requires requiresSecurity alongside other workflow r
   assert.ok(schema.properties.workflow.required.includes("requiresSecurity"));
   assert.deepEqual(schema.properties.workflow.properties.requiresSecurity, { type: "boolean" });
 });
+
+
+test("Task Brief workflowSkill emitted by context builder matches schema authority", () => {
+  const schema = JSON.parse(readFileSync(resolve(root, ".agents/schemas/task-brief.schema.json"), "utf8"));
+  const expectedWorkflowSkill = schema.properties.sdd.properties.workflowSkill.const;
+  const contextBuilderSource = readFileSync(resolve(root, ".agents/runtime/context-builder.mjs"), "utf8");
+  const emitted = contextBuilderSource.match(/workflowSkill:\s*"([^"]+)"/);
+  assert.ok(emitted, "context-builder must emit Task Brief sdd.workflowSkill");
+  assert.equal(emitted[1], expectedWorkflowSkill);
+  assert.equal(expectedWorkflowSkill, "agent-harness-sdd-workflow");
+  assert.equal(contextBuilderSource.includes("agentic-harness-sdd-workflow"), false);
+});

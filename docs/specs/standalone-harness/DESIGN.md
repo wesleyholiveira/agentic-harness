@@ -61,3 +61,7 @@ R-7 terminal observation is progress-aware. The qualification controller reads s
 ### Agent Input dual-root authority
 
 Standalone execution never assumes `<consumer>/.agents` exists. Runtime schemas, agent metadata and policies are harness-owned and resolve from `AGENT_HARNESS_ROOT`; Task Briefs, Context Packets, manifests, workspaces and generated evidence are consumer-owned and resolve from `AGENT_HARNESS_PROJECT_ROOT`. Agent Input schema attachments may therefore be absolute harness paths while the manifest itself remains under consumer `.runtime/**`.
+
+### Task Brief SDD workflow marker authority
+
+`task-brief.schema.json` is the serialized authority for `taskBrief.sdd.workflowSkill`. Runtime Task Brief construction must emit the exact canonical value `agent-harness-sdd-workflow`; standalone preparation fails closed on any drift before dispatch. Contract tests require builder/schema parity so namespace refactors cannot silently reintroduce an invalid Task Brief marker.

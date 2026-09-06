@@ -213,3 +213,7 @@ Source review identified a residual monorepo assumption in Agent Input preparati
 The remediation makes harnessRoot the schema authority in Agent Input preparation and in the OpenCode Runtime child executor, while preserving repositoryRoot for consumer-owned Task Briefs, Context Packets, workspaces and runtime evidence. Reconcile failure events now persist code+message and qualification snapshots retain the message.
 
 Focused dual-root contracts and the complete public harness contract suite pass after this change.
+
+## R-7 Task Brief SDD workflow-skill schema parity remediation
+
+After the standalone dual-root Agent Input fix, live R-7 preparation reached Task Brief validation and repeatedly failed with `taskBrief.sdd.workflowSkill: expected const "agent-harness-sdd-workflow"`. The builder still emitted the stale literal `agentic-harness-sdd-workflow`. This revision aligns `buildTaskBrief()` with the schema authority and adds a parity contract so the invalid namespace cannot recur silently.

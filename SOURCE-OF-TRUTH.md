@@ -63,3 +63,7 @@ A new harness tag is promoted only from an immutable source tree after the stand
 - `AGENT_HARNESS_ROOT` is harness authority for `.agents/**`, including all Runtime JSON Schemas.
 - Agent Input Manifest preparation and Runtime child executors must read harness-owned schemas from `AGENT_HARNESS_ROOT`; a standalone consumer is not required or allowed to carry a copied `.agents` tree as a compatibility dependency.
 - `runtime.reconcile_failed` evidence must preserve structured failure code/message so scheduler liveness HOLDs retain the causal preparation error.
+
+## Task Brief SDD workflow marker
+
+The canonical serialized Task Brief SDD workflow marker is the `task-brief.schema.json` constant `agent-harness-sdd-workflow`. `buildTaskBrief()` must emit that exact value. A mismatched alias is a Runtime source defect because Task Brief schema validation happens before physical dispatch.

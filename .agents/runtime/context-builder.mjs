@@ -307,7 +307,7 @@ export async function buildTaskBrief({ repositoryRoot, registry, plan, task, con
       ...(task.stage === "technical-refinement" ? ["implementationPlan"] : []),
     ])],
     validation: taskValidation, validationExecutionScope: task.validationExecutionScope ?? "workspace", executionMode: task.executionMode ?? "agent", contextPacketId: contextPacket.packetId, attemptBudget: maxAttempts, deadlineOrBudget: null,
-    sdd: { role: task.sddRole ?? "developer", stage: task.stage ?? "implementation", workItemId: task.workItemId ?? plan.runId, workflowSkill: "agentic-harness-sdd-workflow", requiredSuperpowers: agent.superpowersSkills ?? ["verification-before-completion"], reviewedRevision: authoritativeReviewRevisionFromContext({ stage: task.stage ?? "implementation", contextPacket }) },
+    sdd: { role: task.sddRole ?? "developer", stage: task.stage ?? "implementation", workItemId: task.workItemId ?? plan.runId, workflowSkill: "agent-harness-sdd-workflow", requiredSuperpowers: agent.superpowersSkills ?? ["verification-before-completion"], reviewedRevision: authoritativeReviewRevisionFromContext({ stage: task.stage ?? "implementation", contextPacket }) },
     modelRouting,
     executionTopology: taskExecutionTopologyForAgent(agent),
     ...(reasoning ? { reasoning } : {}),

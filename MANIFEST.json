@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-06T04:16:39Z",
+  "generatedAt": "2026-09-06T04:38:35Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 499,
-  "treeSha256": "sha256:a0d32dbf366715dd2a400a1730cb3ebf5d5c5f5881182550a2ccd5552352d1b6",
+  "fileCount": 500,
+  "treeSha256": "sha256:5101b18df594fba6d676397cb7501caa6d6ef55af82e0c56a333e4f3e9fbd409",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -298,9 +298,9 @@
       "sha256": "sha256:179e6449bb66752be6bcbd43fc78ac91444e768373cf04d6a356522d9ebc9916"
     },
     {
-      "bytes": 19260,
+      "bytes": 19258,
       "path": ".agents/runtime/context-builder.mjs",
-      "sha256": "sha256:504ecfdfe4c7b1b45b73773139fe7707195ef3c3b6b2b62c3906349eb2ff21f9"
+      "sha256": "sha256:66d8c5ba18a03df22d67b8fac4e1e6712b3f3e13a51f60a515b5201bbbdc5e83"
     },
     {
       "bytes": 1030,
@@ -1208,9 +1208,9 @@
       "sha256": "sha256:19db88b7ddc6902d55c006b381e9a1fe6a4af472f37942d768aab876b329b353"
     },
     {
-      "bytes": 24463,
+      "bytes": 24947,
       "path": "DISTRIBUTION-REPORT.md",
-      "sha256": "sha256:abc4538437add448731b368170a1240bf8486467e3d35ae1ce9abf41d645ec86"
+      "sha256": "sha256:83be7148800d7b8f7e12d8e4ed597219638f6cab2228d1251b431a9a651eab74"
     },
     {
       "bytes": 1650,
@@ -1286,6 +1286,11 @@
       "bytes": 3127,
       "path": "docs/adr/0015-dual-root-agent-input-schema-authority.md",
       "sha256": "sha256:78fb0f1cdb12fbc8d039cf468e0408913e6b578e0cd5c40b7c75e859d1c58a6d"
+    },
+    {
+      "bytes": 1425,
+      "path": "docs/adr/0016-task-brief-sdd-workflow-skill-schema-parity.md",
+      "sha256": "sha256:f899f74c356bc7c69c7fa072ca736fb65ebafe09dec80096128533be7d184032"
     },
     {
       "bytes": 888,
@@ -1418,9 +1423,9 @@
       "sha256": "sha256:fbb594bde0b35a377a447f3a266931008d9f96fa0d6c782933c8c14174ef65f4"
     },
     {
-      "bytes": 9138,
+      "bytes": 9563,
       "path": "docs/specs/standalone-harness/DESIGN.md",
-      "sha256": "sha256:cb2d73f6fcd4b78f229de70423ee7442ebc5d160a05c86fbfe8893388e40d1c1"
+      "sha256": "sha256:5ac589e1e30b513c195917aed8358e05910b3a6e04a85f6ac0238b214f9cf24b"
     },
     {
       "bytes": 1218,
@@ -2173,9 +2178,9 @@
       "sha256": "sha256:58f9cb34276192e9c57547d18fc1d52e0c860fddb0cce18e05ce1fa3593af1fc"
     },
     {
-      "bytes": 7073,
+      "bytes": 7400,
       "path": "SOURCE-OF-TRUTH.md",
-      "sha256": "sha256:83feb1bd4aaeb208221b5950b931fa6dd663a729529affffd5ac7cc754c0bdda"
+      "sha256": "sha256:ad14faadce102ab3ecce64b74f7ae11ab204430f19853a760e128c18ed74fb05"
     },
     {
       "bytes": 840,
@@ -2233,9 +2238,9 @@
       "sha256": "sha256:0866c42670f9a961f16b56951eaaefb7a1d1377f47b18a29faedc91bc68fba62"
     },
     {
-      "bytes": 2340,
+      "bytes": 3102,
       "path": "tests/contracts/workflow.test.mjs",
-      "sha256": "sha256:e3424b87151cec5e25de5bceb3b9264e6a78a9fd5ecf98004c55be15c3795e18"
+      "sha256": "sha256:e78eaf08e449b8a4a2d1745a84c34f8d506de519e6c5d0e8b829964cb5c968e6"
     },
     {
       "bytes": 1049,
