@@ -18,10 +18,12 @@ For any user request whose fulfillment would change project files, execute imple
 
 1. Do not edit, write, patch, shell-execute, or delegate through OpenCode's built-in task/subagent path.
 2. Do not use Serena or another MCP as an alternate implementation path.
-3. Send the complete implementation request through the Context Engine MCP `agent_start` tool.
-4. Treat the returned Runtime `runId` and PostgreSQL-backed DAG as the only delivery authority.
-5. After `agent_start` requests a durable session-resume event, stop same-turn work and allow the Runtime continuation contract to resume this session.
-6. On a terminal continuation, observe the authoritative Runtime state (`agent_summary`, `context_efficiency`, and other allowed Runtime control tools) rather than implementing directly.
+3. Call the local OpenCode `runtime-continuation` custom tool to capture the current session continuation context. Never guess the session id, directory or wake events.
+4. Send the complete implementation request through the Context Engine MCP `agent_start` tool and pass the captured `continuation` object in the same call.
+5. Treat the returned Runtime `runId` and PostgreSQL-backed DAG as the only delivery authority.
+6. Require `agent_start.next = "session-resume-event"` for a normal persistent delivery workload. If a run is created without a continuation, fail closed instead of switching to `agent_wait` as the normal orchestration path.
+7. After `agent_start` requests the durable session-resume event, stop same-turn work and allow the Runtime continuation contract to resume this session.
+8. On a terminal continuation, observe the authoritative Runtime state (`agent_summary`, `context_efficiency`, and other allowed Runtime control tools) rather than implementing directly.
 
 Read-only inspection may be used to answer non-change questions or to establish whether clarification is required, but it must never become a substitute implementation path.
 

@@ -6,7 +6,7 @@ Use this skill when a repository change must be planned, executed, resumed, retr
 
 ## Persistent Main Orchestrator boundary
 
-The persistent Main Orchestrator must route delivery work through `agent_start`.
+The persistent Main Orchestrator must capture the current session with `runtime-continuation` and then route delivery work through `agent_start` with that continuation bound in the same call.
 It must never fall back to OpenCode `write`, `edit`, `apply_patch`, `bash`, built-in `task`, or Serena mutation tools.
 Those execution capabilities belong to Runtime-dispatched specialist children, not the persistent control-plane session.
 
@@ -14,15 +14,17 @@ If Runtime ingress is unavailable, stop fail-closed instead of implementing dire
 
 ## Normal agent-driven procedure
 
-1. Use the Context Engine MCP tool `agent_start` with the complete implementation request. This persists the run and returns immediately.
-2. Let Product Owner, governance reviews and Technical Lead run through the persisted bootstrap. The Technical Lead `implementationPlan` is compiled into the authoritative implementation DAG.
-3. Use `agent_wait` for bounded long-polling, `agent_get_dag` when the compiled DAG itself is needed, and `agent_status` for point-in-time lifecycle/task state. Do not busy-poll.
-4. The runtime builds every Context Packet through the **same in-process Context Engine provider** used by `context_get_task_context`, including L1/L2 cache and `ctxref` storage. A subprocess context bridge is prohibited.
-5. Use `agent_retry` only for a failed/blocked/cancelled task within its attempt budget. Model escalation is selected by the runtime.
-6. Use `agent_resume` after an interrupted Context Engine/OpenCode session.
-7. Use `agent_cancel` to stop a run; persisted cancellation is authoritative and active executor subprocesses observe it.
-8. Use `agent_summary` for acceptance/retry/model/cost telemetry before tuning model policy or parallelism.
-9. Never claim completion unless the runtime reaches product acceptance and its completion gates prove every blocking criterion.
+1. Call the local OpenCode `runtime-continuation` custom tool and capture its `continuation` object for the current persistent Main Orchestrator session.
+2. Use the Context Engine MCP tool `agent_start` with the complete implementation request **and that continuation object in the same call**. This persists the run, binds the durable session target atomically, and returns immediately.
+3. Require the normal persistent-session result to report `next = "session-resume-event"`. A run that returns `next = "agent_wait"` is not correctly bound for the normal Main Orchestrator workflow; fail closed rather than busy-polling.
+4. Let Product Owner, governance reviews and Technical Lead run through the persisted bootstrap. The Technical Lead `implementationPlan` is compiled into the authoritative implementation DAG.
+5. Use `agent_wait` for bounded long-polling, `agent_get_dag` when the compiled DAG itself is needed, and `agent_status` for point-in-time lifecycle/task state. Do not busy-poll.
+6. The runtime builds every Context Packet through the **same in-process Context Engine provider** used by `context_get_task_context`, including L1/L2 cache and `ctxref` storage. A subprocess context bridge is prohibited.
+7. Use `agent_retry` only for a failed/blocked/cancelled task within its attempt budget. Model escalation is selected by the runtime.
+8. Use `agent_resume` after an interrupted Context Engine/OpenCode session.
+9. Use `agent_cancel` to stop a run; persisted cancellation is authoritative and active executor subprocesses observe it.
+10. Use `agent_summary` for acceptance/retry/model/cost telemetry before tuning model policy or parallelism.
+11. Never claim completion unless the runtime reaches product acceptance and its completion gates prove every blocking criterion.
 
 ## Break-glass CLI
 

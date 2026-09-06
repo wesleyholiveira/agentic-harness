@@ -201,3 +201,27 @@ test("R-4 uses bounded HTTP readiness for Context Engine, RabbitMQ management, a
     /await requestJson\(`http:\/\/127\.0\.0\.1:\$\{state\.ports\.rabbitmqManagement\}\/api\/overview`/,
   );
 });
+
+test("R-7 discovers Runtime run identity independently of durable continuation and then requires the binding", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  assert.match(controller, /SELECT run_id,status,created_at FROM agent_runs WHERE request=/);
+  assert.match(controller, /requireDurableContinuation\(runId, sessionId/);
+  assert.match(controller, /r7_run_created_without_durable_continuation/);
+  assert.match(controller, /r7_main_orchestrator_failed_to_enter_runtime/);
+  assert.match(controller, /r7_agent_start_provenance_registered_but_run_not_materialized/);
+});
+
+test("persistent Main Orchestrator captures runtime-continuation before agent_start", () => {
+  const prompt = readFileSync(resolve(root, ".agents/agents/main-orchestrator/AGENT.md"), "utf8");
+  const skill = readFileSync(resolve(root, ".agents/skills/operate-multi-agent-runtime/SKILL.md"), "utf8");
+  const promptContinuation = prompt.indexOf("`runtime-continuation`");
+  const promptStart = prompt.indexOf("`agent_start`");
+  assert.ok(promptContinuation >= 0 && promptContinuation < promptStart);
+  assert.match(prompt, /pass the captured `continuation` object in the same call/);
+  assert.match(prompt, /next = "session-resume-event"/);
+
+  const skillContinuation = skill.indexOf("`runtime-continuation`");
+  const skillStart = skill.indexOf("`agent_start`");
+  assert.ok(skillContinuation >= 0 && skillContinuation < skillStart);
+  assert.match(skill, /that continuation object in the same call/);
+});

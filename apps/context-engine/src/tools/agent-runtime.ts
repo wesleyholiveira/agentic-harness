@@ -70,7 +70,7 @@ export function registerAgentRuntimeTools(
         maxParallel: z.number().int().min(1).max(16).optional(),
         maxAttempts: z.number().int().min(1).max(9).optional(),
         contextBudgetBytes: z.number().int().min(10_000).max(2_000_000).optional(),
-        continuation: Continuation.optional().describe("OpenCode session context returned by the local runtime-continuation custom tool; the server URL is configuration-owned and must not be supplied by the LLM"),
+        continuation: Continuation.optional().describe("OpenCode session context returned by the local runtime-continuation custom tool. The persistent Main Orchestrator MUST supply this for normal delivery workloads so agent_start atomically binds the durable session and returns next=session-resume-event; omission is reserved for non-session/operator control flows. The server URL is configuration-owned and must not be supplied by the LLM"),
       },
     },
     async (args) => {

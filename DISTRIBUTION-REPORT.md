@@ -175,3 +175,11 @@ The first live deterministic-controller run to reach R-4 stopped on a bare `Type
 The qualification HTTP layer now preserves URL, method, timeout and nested transport-cause fields. R-4 uses bounded readiness polling for Context Engine, RabbitMQ Management and embeddings. Connection refusal, timeout, HTTP 5xx, 408 and 429 are retryable until the bounded deadline; deterministic non-retryable HTTP 4xx responses fail immediately with SOURCE-oriented evidence.
 
 This removes the race between Docker container state and application HTTP readiness without weakening fail-closed qualification.
+
+## R-7 Runtime run-discovery and continuation-binding remediation
+
+A fresh deterministic qualification passed Q-ENTRY through R-6 and timed out in R-7 while waiting for the Runtime `runId`. The controller was incorrectly using `agent_continuations` as the sole run-discovery authority even though `agent_start.continuation` is optional and a valid `agent_runs` row can exist without that binding.
+
+R-7 now discovers a run from PostgreSQL `agent_runs` using the exact fresh synthetic workload request and independently requires an `agent_continuations` row bound to the exact qualified OpenCode session. Timeout diagnostics distinguish no Runtime ingress, provenance-without-run, and run-without-continuation.
+
+The persistent Main Orchestrator contract now explicitly calls the local `runtime-continuation` tool before `agent_start` and passes the returned continuation object in the same call. Normal persistent delivery therefore expects `next=session-resume-event`, preserving the Durable Continuation semantics qualified in R-8.

@@ -45,6 +45,8 @@ test("persistent Main Orchestrator cannot bypass Runtime V2 with direct executio
   const prompt = readFileSync(resolve(root, ".agents", "agents", "main-orchestrator", "AGENT.md"), "utf8");
   assert.match(prompt, /control-plane agent, not an implementation agent/);
   assert.match(prompt, /Context Engine MCP `agent_start`/);
+  assert.match(prompt, /local OpenCode `runtime-continuation` custom tool/);
+  assert.match(prompt, /pass the captured `continuation` object in the same call/);
   assert.match(prompt, /Never fall back to direct implementation/);
 
   const plugin = readFileSync(resolve(root, ".opencode", "plugins", "runtime-invocation-provenance.js"), "utf8");

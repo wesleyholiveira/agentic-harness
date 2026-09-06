@@ -784,25 +784,108 @@ function toolNames(history) {
   return [...new Set(names)];
 }
 
+function assistantTexts(history) {
+  const values = [];
+  for (const message of history) {
+    if (message?.info?.role !== "assistant") continue;
+    for (const part of message?.parts ?? []) {
+      if (part?.type === "text" && typeof part?.text === "string" && part.text.trim()) values.push(part.text.trim());
+    }
+  }
+  return values;
+}
+
 function worktreeFingerprint() {
   const status = runner.run("git", ["-C", state.consumers.A, "status", "--porcelain=v1", "--untracked-files=all"], { label: "consumer-worktree-status" }).stdout;
   const diff = runner.run("git", ["-C", state.consumers.A, "diff", "--no-ext-diff", "--binary", "HEAD", "--"], { label: "consumer-worktree-diff" }).stdout;
   return `sha256:${createHash("sha256").update(status).update("\0").update(diff).digest("hex")}`;
 }
 
-async function waitForRunId(sessionId, { timeoutMs = 90_000, gate = "R-7", baselineWorktree = worktreeFingerprint() } = {}) {
+async function waitForRunId(sessionId, {
+  timeoutMs = 90_000,
+  gate = "R-7",
+  baselineWorktree = worktreeFingerprint(),
+  request = null,
+} = {}) {
   const direct = new Set(["write", "edit", "apply_patch", "bash", "task"]);
-  return await waitFor(async () => {
-    const runId = sqlScalar(`SELECT run_id FROM agent_continuations WHERE opencode_session_id='${sqlQuote(sessionId)}' ORDER BY created_at DESC LIMIT 1;`);
-    if (runId) return runId;
-    const currentWorktree = worktreeFingerprint();
-    if (currentWorktree !== baselineWorktree) hold(gate, "RUNTIME", "persistent_main_orchestrator_mutated_consumer_before_run_id", { sessionId, baselineWorktree, currentWorktree });
-    const history = await openCodeHistory(sessionId);
+  try {
+    return await waitFor(async () => {
+      const continuationRunId = sqlScalar(`SELECT run_id FROM agent_continuations WHERE opencode_session_id='${sqlQuote(sessionId)}' ORDER BY created_at DESC LIMIT 1;`);
+      if (continuationRunId) return continuationRunId;
+
+      if (request) {
+        const runs = sqlRows(`SELECT run_id,status,created_at FROM agent_runs WHERE request='${sqlQuote(request)}' ORDER BY created_at DESC LIMIT 2;`);
+        if (runs.length > 1) hold(gate, "RUNTIME", "multiple_runtime_runs_for_single_qualification_request", { sessionId, request, runs });
+        if (runs.length === 1) return runs[0][0];
+      }
+
+      const currentWorktree = worktreeFingerprint();
+      if (currentWorktree !== baselineWorktree) hold(gate, "RUNTIME", "persistent_main_orchestrator_mutated_consumer_before_run_id", { sessionId, baselineWorktree, currentWorktree });
+      const history = await openCodeHistory(sessionId);
+      const tools = toolNames(history);
+      const bypass = tools.find((name) => direct.has(name) || name.startsWith("serena_"));
+      if (bypass) hold(gate, "RUNTIME", "main_orchestrator_routing_violation", { bypass, tools, sessionId });
+      return null;
+    }, { timeoutMs, intervalMs: 750, label: `${gate}-agent-start-run-id` });
+  } catch (error) {
+    if (!String(error?.message ?? error).startsWith("qualification_wait_timeout:")) throw error;
+
+    const history = await openCodeHistory(sessionId).catch(() => []);
     const tools = toolNames(history);
-    const bypass = tools.find((name) => direct.has(name) || name.startsWith("serena_"));
-    if (bypass) hold(gate, "RUNTIME", "main_orchestrator_routing_violation", { bypass, tools, sessionId });
-    return null;
-  }, { timeoutMs, intervalMs: 750, label: `${gate}-agent-start-run-id` });
+    const currentWorktree = worktreeFingerprint();
+    const recentRuns = request
+      ? sqlRows(`SELECT run_id,status,created_at FROM agent_runs WHERE request='${sqlQuote(request)}' ORDER BY created_at DESC LIMIT 5;`)
+      : [];
+    const continuations = sqlRows(`SELECT run_id,status,created_at FROM agent_continuations WHERE opencode_session_id='${sqlQuote(sessionId)}' ORDER BY created_at DESC LIMIT 5;`);
+    const logs = composeCommand(["logs", "--no-color", "context-engine"], { label: `${gate.toLowerCase()}-run-id-timeout-context-engine-logs` }).stdout;
+    const provenanceRegistered = logs.includes("mcp.invocation_provenance_registered")
+      && logs.includes(sessionId)
+      && logs.includes("agent_start");
+
+    if (currentWorktree !== baselineWorktree) {
+      hold(gate, "RUNTIME", "persistent_main_orchestrator_mutated_consumer_before_run_id", {
+        sessionId, baselineWorktree, currentWorktree, tools,
+      });
+    }
+
+    hold(
+      gate,
+      "RUNTIME",
+      provenanceRegistered
+        ? "r7_agent_start_provenance_registered_but_run_not_materialized"
+        : "r7_main_orchestrator_failed_to_enter_runtime",
+      {
+        sessionId,
+        request,
+        tools,
+        assistantTexts: assistantTexts(history).slice(-5),
+        recentRuns,
+        continuations,
+        provenanceRegistered,
+      },
+    );
+  }
+}
+
+async function requireDurableContinuation(runId, sessionId, { gate = "R-7", timeoutMs = 30_000 } = {}) {
+  try {
+    return await waitFor(() => {
+      const rows = sqlRows(`SELECT run_id,opencode_session_id,status,created_at FROM agent_continuations WHERE run_id='${sqlQuote(runId)}' LIMIT 1;`);
+      if (!rows.length) return null;
+      const [observedRunId, observedSessionId, status, createdAt] = rows[0];
+      return { runId: observedRunId, sessionId: observedSessionId, status, createdAt };
+    }, { timeoutMs, intervalMs: 500, label: `${gate}-durable-continuation-binding` });
+  } catch (error) {
+    if (!String(error?.message ?? error).startsWith("qualification_wait_timeout:")) throw error;
+    const history = await openCodeHistory(sessionId).catch(() => []);
+    hold(gate, "RUNTIME", "r7_run_created_without_durable_continuation", {
+      runId,
+      sessionId,
+      tools: toolNames(history),
+      assistantTexts: assistantTexts(history).slice(-5),
+      expectedFlow: "runtime-continuation -> agent_start({ continuation }) -> next=session-resume-event",
+    });
+  }
 }
 
 async function waitForTerminalRun(runId, { gate, timeoutMs = 45 * 60_000 } = {}) {
@@ -821,7 +904,9 @@ async function r7() {
   const workload = "Implemente integralmente os requisitos definidos em docs/specs/example/PRD.md.\n\nUse docs/adr/0001-example.md como restrição arquitetural.\n\nMantenha o escopo limitado ao projeto consumidor atual e execute a validação especificada no PRD antes de concluir.";
   const baselineWorktree = worktreeFingerprint();
   const userMessageId = await sendWorkload(sessionId, workload);
-  const runId = await waitForRunId(sessionId, { gate: "R-7", baselineWorktree });
+  const runId = await waitForRunId(sessionId, { gate: "R-7", baselineWorktree, request: workload });
+  const continuation = await requireDurableContinuation(runId, sessionId, { gate: "R-7" });
+  if (continuation.sessionId !== sessionId) hold("R-7", "RUNTIME", "r7_continuation_session_identity_mismatch", { runId, sessionId, continuation });
   const logs = composeCommand(["logs", "--no-color", "context-engine"], { label: "r7-context-engine-logs" }).stdout;
   if (!logs.includes("mcp.invocation_provenance_registered") || !logs.includes(sessionId) || !logs.includes(userMessageId) || !logs.includes("agent_start")) hold("R-7", "RUNTIME", "r7_provenance_registration_not_proven", { sessionId, userMessageId });
   const terminal = await waitForTerminalRun(runId, { gate: "R-7" });
@@ -830,7 +915,7 @@ async function r7() {
   const replay = mustRun("R-7", "RUNTIME", process.execPath, [resolve(state.consumers.A, ".harness/scripts/internal/agent-runtime-replay.mjs"), "--capsule", resolve(state.consumers.A, ".runtime", "agents", "runs", runId, "replay-capsule.json"), "--repository", resolve(state.consumers.A, ".harness"), "--json"], { cwd: state.consumers.A, env: state.consumerEnv, label: "r7-replay", timeoutMs: 2 * 60_000 });
   const replayJson = parseJsonOutput(replay.stdout);
   if (replayJson.ok !== true) hold("R-7", "RUNTIME", "r7_replay_verification_failed", { replay: replayJson });
-  state.r7 = { sessionId, userMessageId, runId, terminal, workload };
+  state.r7 = { sessionId, userMessageId, runId, continuation, terminal, workload };
   return state.r7;
 }
 
