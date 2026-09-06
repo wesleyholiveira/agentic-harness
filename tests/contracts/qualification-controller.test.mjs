@@ -53,3 +53,30 @@ test("qualification controller self-test is shell-independent from the Main Orch
     rmSync(output, { recursive: true, force: true });
   }
 });
+
+test("qualification process runner resolves Windows .cmd shims without shell:true", async () => {
+  const shimDir = mkdtempSync(join(tmpdir(), "agentic-harness-win-shim-"));
+  try {
+    const shim = resolve(shimDir, "npm.CMD");
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(shim, "@echo off\r\n", "utf8");
+    const { resolveSpawnInvocation } = await import("../../scripts/qualification/lib/process.mjs");
+    const invocation = resolveSpawnInvocation("npm", ["ci"], {
+      platform: "win32",
+      env: {
+        Path: shimDir,
+        PATHEXT: ".COM;.EXE;.BAT;.CMD",
+        ComSpec: "C:\\Windows\\System32\\cmd.exe",
+      },
+    });
+    assert.equal(invocation.resolvedCommand, shim);
+    assert.equal(invocation.command, "C:\\Windows\\System32\\cmd.exe");
+    assert.equal(invocation.wrapper, "cmd.exe");
+    assert.deepEqual(invocation.args.slice(0, 3), ["/d", "/v:off", "/c"]);
+    assert.match(invocation.args[3], /call/);
+    assert.match(invocation.args[3], /npm\.CMD/i);
+    assert.match(invocation.args[3], /"ci"/);
+  } finally {
+    rmSync(shimDir, { recursive: true, force: true });
+  }
+});

@@ -1,6 +1,77 @@
 import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync, appendFileSync } from "node:fs";
-import { basename, resolve } from "node:path";
+import { existsSync, mkdirSync, writeFileSync, appendFileSync } from "node:fs";
+import { basename, extname, isAbsolute, resolve } from "node:path";
+
+
+function windowsPathValue(env) {
+  return String(env.Path ?? env.PATH ?? "");
+}
+
+function windowsPathExt(env) {
+  const raw = String(env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD");
+  return raw.split(";").map((value) => value.trim()).filter(Boolean);
+}
+
+function resolveWindowsExecutable(command, env) {
+  const requested = String(command ?? "").trim();
+  if (!requested) return null;
+
+  const hasSeparator = /[\\/]/u.test(requested);
+  const explicitExtension = extname(requested) !== "";
+  const names = explicitExtension
+    ? [requested]
+    : windowsPathExt(env).map((extension) => `${requested}${extension}`);
+
+  if (hasSeparator || isAbsolute(requested)) {
+    const candidates = explicitExtension ? [requested] : names;
+    return candidates.map((candidate) => resolve(candidate)).find((candidate) => existsSync(candidate)) ?? null;
+  }
+
+  const directories = windowsPathValue(env).split(";").map((value) => value.trim()).filter(Boolean);
+  for (const directory of directories) {
+    for (const name of names) {
+      const candidate = resolve(directory, name);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
+function quoteCmdToken(value) {
+  const text = String(value);
+  if (/[\0\r\n"]/u.test(text)) {
+    throw new Error(`qualification_windows_cmd_argument_unsupported:${JSON.stringify(text)}`);
+  }
+  // %VAR% expansion occurs even inside quotes. Doubling % keeps the literal value.
+  return `"${text.replaceAll("%", "%%")}"`;
+}
+
+export function resolveSpawnInvocation(command, args = [], { env = process.env, platform = process.platform } = {}) {
+  const requested = String(command ?? "").trim();
+  if (!requested) throw new Error("qualification_command_missing");
+  if (platform !== "win32") {
+    return { command: requested, args: [...args], resolvedCommand: requested, wrapper: null };
+  }
+
+  const resolvedCommand = resolveWindowsExecutable(requested, env);
+  if (!resolvedCommand) {
+    return { command: requested, args: [...args], resolvedCommand: null, wrapper: null };
+  }
+
+  const extension = extname(resolvedCommand).toLowerCase();
+  if (extension === ".cmd" || extension === ".bat") {
+    const comspec = String(env.ComSpec ?? env.COMSPEC ?? "cmd.exe").trim() || "cmd.exe";
+    const commandLine = ["call", quoteCmdToken(resolvedCommand), ...args.map(quoteCmdToken)].join(" ");
+    return {
+      command: comspec,
+      args: ["/d", "/v:off", "/c", commandLine],
+      resolvedCommand,
+      wrapper: "cmd.exe",
+    };
+  }
+
+  return { command: resolvedCommand, args: [...args], resolvedCommand, wrapper: null };
+}
 
 function cleanName(value) {
   return String(value).replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "command";
@@ -27,7 +98,8 @@ export class ProcessRunner {
     const cwd = options.cwd || process.cwd();
     const env = { ...this.baseEnv, ...(options.env || {}) };
     const timeout = options.timeoutMs ?? 0;
-    const result = spawnSync(command, args, {
+    const invocation = resolveSpawnInvocation(command, args, { env });
+    const result = spawnSync(invocation.command, invocation.args, {
       cwd,
       env,
       encoding: "utf8",
@@ -47,6 +119,10 @@ export class ProcessRunner {
       `cwd=${cwd}`,
       `command=${command}`,
       `args=${JSON.stringify(args)}`,
+      `resolvedCommand=${invocation.resolvedCommand ?? ""}`,
+      `spawnCommand=${invocation.command}`,
+      `spawnArgs=${JSON.stringify(invocation.args)}`,
+      `wrapper=${invocation.wrapper ?? ""}`,
       `exitCode=${exitCode}`,
       result.error ? `spawnError=${result.error.message}` : "",
       "--- stdout ---",
@@ -57,6 +133,10 @@ export class ProcessRunner {
     const evidence = {
       command,
       args,
+      resolvedCommand: invocation.resolvedCommand,
+      spawnCommand: invocation.command,
+      spawnArgs: invocation.args,
+      wrapper: invocation.wrapper,
       cwd,
       exitCode,
       stdout,
@@ -82,8 +162,9 @@ export class ProcessRunner {
     const logPath = this.logPath(label);
     const cwd = options.cwd || process.cwd();
     const env = { ...this.baseEnv, ...(options.env || {}) };
-    writeFileSync(logPath, `startedAt=${new Date().toISOString()}\ncwd=${cwd}\ncommand=${command}\nargs=${JSON.stringify(args)}\n--- output ---\n`, "utf8");
-    const child = spawn(command, args, {
+    const invocation = resolveSpawnInvocation(command, args, { env });
+    writeFileSync(logPath, `startedAt=${new Date().toISOString()}\ncwd=${cwd}\ncommand=${command}\nargs=${JSON.stringify(args)}\nresolvedCommand=${invocation.resolvedCommand ?? ""}\nspawnCommand=${invocation.command}\nspawnArgs=${JSON.stringify(invocation.args)}\nwrapper=${invocation.wrapper ?? ""}\n--- output ---\n`, "utf8");
+    const child = spawn(invocation.command, invocation.args, {
       cwd,
       env,
       stdio: ["ignore", "pipe", "pipe"],
@@ -99,7 +180,7 @@ export class ProcessRunner {
     for (const stream of [child.stdout, child.stderr]) {
       stream?.on("data", (chunk) => appendFileSync(logPath, chunk));
     }
-    return { child, logPath, command, args, cwd, env, get spawnError() { return spawnError; } };
+    return { child, logPath, command, args, resolvedCommand: invocation.resolvedCommand, spawnCommand: invocation.command, spawnArgs: invocation.args, wrapper: invocation.wrapper, cwd, env, get spawnError() { return spawnError; } };
   }
 }
 

@@ -196,6 +196,7 @@ async function qEntry() {
   for (const [name, command, commandArgs] of [
     ["git", "git", ["--version"]],
     ["node", process.execPath, ["--version"]],
+    ["npm", "npm", ["--version"]],
     ["docker", "docker", ["--version"]],
   ]) {
     const result = mustRun("Q-ENTRY", "QUALIFICATION ENVIRONMENT", command, commandArgs, { label: `qentry-${name}` });
