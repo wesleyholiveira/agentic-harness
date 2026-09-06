@@ -228,7 +228,22 @@ test("public lifecycle commands always use the consumer-scoped Compose project i
   assert.match(compose, /^\s{2}agent-harness-postgres:\s*\{\}\s*$/m);
   assert.match(compose, /^\s{2}agent-harness-rabbitmq:\s*\{\}\s*$/m);
   assert.match(compose, /^\s{2}agent-harness-redis:\s*\{\}\s*$/m);
-  assert.doesNotMatch(compose, /^\s+name:\s*agent-harness-(?:postgres|rabbitmq|redis)/m);
+  assert.match(compose, /^\s{2}agent-harness-agent-workspaces:\s*\{\}\s*$/m);
+  assert.doesNotMatch(compose, /^\s+name:\s*agent-harness-(?:postgres|rabbitmq|redis|agent-workspaces)/m);
+
+  const serviceBlock = (service) => {
+    const marker = `  ${service}:\n`;
+    const start = compose.indexOf(marker);
+    assert.ok(start >= 0, `compose service missing: ${service}`);
+    const remainder = compose.slice(start + marker.length);
+    const next = remainder.search(/^  [a-z0-9][a-z0-9-]*:\n/m);
+    return next >= 0 ? remainder.slice(0, next) : remainder;
+  };
+  for (const service of ["context-engine", "agent-runtime-worker"]) {
+    const block = serviceBlock(service);
+    assert.match(block, /AGENT_HARNESS_AGENT_WORKSPACE_ROOT:\s*\/workspace\/agent-workspaces/);
+    assert.match(block, /type:\s*volume[\s\S]*source:\s*agent-harness-agent-workspaces[\s\S]*target:\s*\/workspace\/agent-workspaces/);
+  }
 });
 
 

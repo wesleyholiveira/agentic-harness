@@ -53,3 +53,9 @@ for the worktree and consumer root. Matching canonical blob identities prove the
 same Git content was materialized without treating CRLF/LF conversion as a
 conflict. Missing files or unequal canonical blobs remain fail-closed.
 
+
+## Qualification attribution correction
+
+A later live qualification exposed the actual event-driven filesystem topology: `event-driven-preparation.mjs` deliberately projects mutable task workspaces as `mode=copy`, and the Rust worker materializes them outside `/workspace/repository`. Therefore the earlier live QA symptom that motivated this ADR was not caused by the detached-worktree patch path in the Docker event-driven run.
+
+This ADR remains valid hardening for the Runtime's Git-worktree integration mode and for the general post-integration materialization invariant. The causal remediation for the live event-driven `missing_in_workspace` / downstream-missing-files symptom is ADR 0020: Context Engine and the Rust worker must share the same out-of-repository workspace volume authority.

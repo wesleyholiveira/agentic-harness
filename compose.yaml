@@ -60,6 +60,7 @@ services:
     environment:
       AGENT_HARNESS_ROOT: /workspace/harness
       AGENT_HARNESS_PROJECT_ROOT: /workspace/repository
+      AGENT_HARNESS_AGENT_WORKSPACE_ROOT: /workspace/agent-workspaces
       AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256: ${AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256:-}
       AGENT_POSTGRES_URL: postgresql://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent}@postgres:5432/${POSTGRES_DB:-agent_harness}
       CONTEXT_ENGINE_PROJECT_MEMORY_POSTGRES_URL: postgresql://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent}@postgres:5432/${POSTGRES_DB:-agent_harness}
@@ -87,6 +88,9 @@ services:
       - type: bind
         source: ${AGENT_HARNESS_PROJECT_ROOT:-.}
         target: /workspace/repository
+      - type: volume
+        source: agent-harness-agent-workspaces
+        target: /workspace/agent-workspaces
 
   agent-runtime-worker:
     build:
@@ -96,6 +100,7 @@ services:
     environment:
       AGENT_HARNESS_ROOT: /workspace/harness
       AGENT_HARNESS_PROJECT_ROOT: /workspace/repository
+      AGENT_HARNESS_AGENT_WORKSPACE_ROOT: /workspace/agent-workspaces
       AGENT_HARNESS_CONTEXT_ENGINE_INTERNAL_URL: http://context-engine:8789/mcp
       AGENT_POSTGRES_URL: postgresql://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent}@postgres:5432/${POSTGRES_DB:-agent_harness}
       AGENT_HARNESS_RUNTIME_RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-agent}:${RABBITMQ_DEFAULT_PASS:-agent}@rabbitmq:5672/%2f
@@ -113,6 +118,9 @@ services:
       - type: bind
         source: ${AGENT_HARNESS_PROJECT_ROOT:-.}
         target: /workspace/repository
+      - type: volume
+        source: agent-harness-agent-workspaces
+        target: /workspace/agent-workspaces
       - type: bind
         source: ${AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE:-./vendor/empty-opencode-auth.json}
         target: /root/.local/share/opencode/auth.json
@@ -122,3 +130,4 @@ volumes:
   agent-harness-postgres: {}
   agent-harness-rabbitmq: {}
   agent-harness-redis: {}
+  agent-harness-agent-workspaces: {}

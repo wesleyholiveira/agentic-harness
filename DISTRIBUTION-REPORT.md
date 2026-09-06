@@ -226,3 +226,17 @@ A live standalone R-7 reached physical Product Discovery execution but OpenCode 
 ## R-7 Technical Refinement admissibility hardening
 
 Fresh standalone qualification advanced through real Product Discovery and Architecture Review, then exposed two deterministic Technical Refinement blockers: pathless generic coder ownership and a Product Owner catalog with no implementation-proof criterion. ADR 0018 resolves both without weakening domain ownership. `coding-fast`/`coding-pro` are explicit `fallback-unclaimed-primary` owners, blocked whenever a non-fallback implementation/platform agent has matching primary ownership. Completed Product Discovery now requires at least one `proofStage=implementation` criterion and same-attempt criteria projection may repair only the proof-stage classification of an existing grounded criterion. Packaging-workspace validation after the change: `npm run harness:test` 58/58 PASS; `harness:qualify -- --self-test` PASS. Full target-host TypeScript/live qualification remain target-host authority.
+
+
+## R-7 worktree integration materialization hardening
+
+A live standalone run reached Product Discovery, Architecture Review, Technical Refinement, and Implementation integration, then QA correctly reported that the implementation/test files were absent and that zero tests were discovered. Initial source review identified a genuine independent worktree edge: `git diff --binary HEAD -- <changedPaths>` omits brand-new untracked files. The resulting ADR 0019 hardens Git-worktree integration with intent-to-add, untracked discovery, and post-integration materialization proof.
+
+A later qualification/source reconstruction established that Docker event-driven tasks are materialized as `mode=copy`, not `worktree`; therefore ADR 0019 was not the causal fix for that specific live QA symptom. ADR 0020 records the actual live root cause: the Rust worker's out-of-repository copy workspace was container-local and invisible to Context Engine finalization. ADR 0019 remains valid coverage for worktree mode and for the general integration materialization invariant. Packaging-workspace validation after ADR 0019: `npm run harness:test` **59/59 PASS**, `harness:qualify -- --self-test` **PASS**.
+
+
+## R-7 shared Runtime workspace authority remediation
+
+A fresh live standalone qualification completed Product Discovery model execution and `completion.proven`, then failed finalization with `handoff_reused_paths_invalid: docs/specs/example/PRD.md:missing_in_workspace`. The PRD was a valid consumer file, but the Rust worker had materialized the mutable task workspace outside `/workspace/repository` in worker-local container storage. Context Engine finalization runs in a different container and therefore could not inspect the `workspace.path` returned by the worker. The same topology also made copy-workspace integration incapable of reading worker-created implementation files.
+
+The standalone Compose topology now mounts one consumer-scoped named `agent-harness-agent-workspaces` volume at `/workspace/agent-workspaces` in both Context Engine and the Rust worker and pins `AGENT_HARNESS_AGENT_WORKSPACE_ROOT` to that shared authority. Qualification R-4 inspects both containers and fails closed unless the environment root, mount destination, mount type and Docker volume source are identical. The volume remains non-external and is isolated by the existing deterministic consumer-scoped Compose project name.

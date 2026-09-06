@@ -31,6 +31,14 @@ A consuming repository remains authoritative for its domain code, product requir
 - Context Engine owns context construction/finalization; Redis/TEI remain reconstructible dependencies.
 - OpenCode/model output proposes work and handoffs; durable Runtime evidence proves completion.
 - Runtime invocation provenance must register against the same effective Context Engine authority used by the OpenCode MCP configuration. The launcher projects one exact provenance-plugin SHA from the active harness source; the OpenCode plugin must self-match it, and the Context Engine must prove its packaged plugin copy matches it before readiness.
+- Workspace integration must materialize the complete reconciled change-set into the consumer root before a task can become `integrated`. New untracked files are included in Git-worktree patches, and post-integration materialization must match the task workspace either byte-for-byte or by canonical Git blob identity when working-tree filters such as `core.autocrlf` legitimately transform bytes.
+
+## Shared execution-workspace authority
+
+- Event-driven mutable task workspaces remain outside the consumer repository but are cross-container Runtime state.
+- Standalone Compose mounts one consumer-scoped `agent-harness-agent-workspaces` named volume at `/workspace/agent-workspaces` in both Context Engine and the Rust worker.
+- Both services use `AGENT_HARNESS_AGENT_WORKSPACE_ROOT=/workspace/agent-workspaces`; the execution-result `workspace.path` is valid finalizer authority only because R-4 proves the mount source is identical on both containers.
+- The workspace volume is non-external and inherits the deterministic consumer-scoped Compose namespace; unrelated consumers must never share it.
 
 ## Dynamic agent topology
 

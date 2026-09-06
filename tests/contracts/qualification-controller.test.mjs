@@ -202,6 +202,17 @@ test("R-4 uses bounded HTTP readiness for Context Engine, RabbitMQ management, a
   );
 });
 
+
+test("R-4 proves Context Engine and Runtime worker share the same execution-workspace volume authority", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  assert.match(controller, /const workspaceDestination = "\/workspace\/agent-workspaces"/);
+  assert.match(controller, /runtime_workspace_root_authority_mismatch/);
+  assert.match(controller, /runtime_workspace_shared_volume_missing/);
+  assert.match(controller, /runtime_workspace_volume_not_shared/);
+  assert.match(controller, /contextEngineWorkspaceMount\.Source !== workerWorkspaceMount\.Source/);
+  assert.match(controller, /workspaceAuthority/);
+});
+
 test("R-7 discovers Runtime run identity independently of durable continuation and then requires the binding", () => {
   const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
   assert.match(controller, /SELECT run_id,status,created_at FROM agent_runs WHERE request=/);

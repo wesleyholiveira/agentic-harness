@@ -587,14 +587,55 @@ async function r4() {
 
   const services = ["postgres", "rabbitmq", "redis", "context-embeddings", "context-engine", "agent-runtime-worker"];
   const containerEvidence = {};
+  const containerInspects = {};
   for (const service of services) {
     const id = composeCommand(["ps", "-q", service], { label: `r4-${service}-id` }).stdout.trim();
     if (!id) hold("R-4", "ENVIRONMENT", "runtime_service_container_missing", { service });
     const inspect = JSON.parse(runner.run("docker", ["inspect", id], { label: `r4-${service}-inspect` }).stdout)[0];
     if (inspect.State?.Running !== true) hold("R-4", "ENVIRONMENT", "runtime_service_not_running", { service, state: inspect.State });
     if (service === "postgres" && inspect.State?.Health?.Status !== "healthy") hold("R-4", "ENVIRONMENT", "postgres_not_healthy", { health: inspect.State?.Health });
+    containerInspects[service] = inspect;
     containerEvidence[service] = { id, pid: inspect.State?.Pid, health: inspect.State?.Health?.Status ?? "running", restartCount: inspect.RestartCount ?? 0 };
   }
+
+  const workspaceDestination = "/workspace/agent-workspaces";
+  const environmentMap = (inspect) => Object.fromEntries((inspect?.Config?.Env ?? []).map((entry) => {
+    const separator = entry.indexOf("=");
+    return separator < 0 ? [entry, ""] : [entry.slice(0, separator), entry.slice(separator + 1)];
+  }));
+  const contextEngineEnv = environmentMap(containerInspects["context-engine"]);
+  const workerEnv = environmentMap(containerInspects["agent-runtime-worker"]);
+  if (contextEngineEnv.AGENT_HARNESS_AGENT_WORKSPACE_ROOT !== workspaceDestination || workerEnv.AGENT_HARNESS_AGENT_WORKSPACE_ROOT !== workspaceDestination) {
+    hold("R-4", "SOURCE", "runtime_workspace_root_authority_mismatch", {
+      expected: workspaceDestination,
+      contextEngine: contextEngineEnv.AGENT_HARNESS_AGENT_WORKSPACE_ROOT ?? null,
+      worker: workerEnv.AGENT_HARNESS_AGENT_WORKSPACE_ROOT ?? null,
+    });
+  }
+  const workspaceMountFor = (inspect) => (inspect?.Mounts ?? []).find((mount) => mount.Destination === workspaceDestination);
+  const contextEngineWorkspaceMount = workspaceMountFor(containerInspects["context-engine"]);
+  const workerWorkspaceMount = workspaceMountFor(containerInspects["agent-runtime-worker"]);
+  if (!contextEngineWorkspaceMount || !workerWorkspaceMount) {
+    hold("R-4", "SOURCE", "runtime_workspace_shared_volume_missing", {
+      destination: workspaceDestination,
+      contextEngineMount: contextEngineWorkspaceMount ?? null,
+      workerMount: workerWorkspaceMount ?? null,
+    });
+  }
+  if (contextEngineWorkspaceMount.Type !== "volume" || workerWorkspaceMount.Type !== "volume"
+      || contextEngineWorkspaceMount.Source !== workerWorkspaceMount.Source) {
+    hold("R-4", "SOURCE", "runtime_workspace_volume_not_shared", {
+      destination: workspaceDestination,
+      contextEngineMount: contextEngineWorkspaceMount,
+      workerMount: workerWorkspaceMount,
+    });
+  }
+  const workspaceAuthority = {
+    root: workspaceDestination,
+    volume: contextEngineWorkspaceMount.Source,
+    contextEngineMountType: contextEngineWorkspaceMount.Type,
+    workerMountType: workerWorkspaceMount.Type,
+  };
   composeCommand(["exec", "-T", "redis", "redis-cli", "ping"], { label: "r4-redis-ping" });
   const rabbitmqReadiness = await requireHttpReady("R-4", {
     service: "rabbitmq-management",
@@ -632,7 +673,7 @@ async function r4() {
   if (existsSync(resolve(state.consumers.A, ".harness/node_modules"))) hold("R-4", "SOURCE", "submodule_node_modules_created");
   const volumes = runner.run("docker", ["volume", "ls", "--filter", `label=com.docker.compose.project=${state.composeProject.name}`, "--format", "{{.Name}}"], { label: "r4-compose-volumes" }).stdout.trim().split(/\r?\n/u).filter(Boolean);
   if (volumes.some((name) => state.preexistingDocker.volumes.includes(name))) hold("R-4", "SOURCE", "preexisting_volume_reused", { volumes });
-  return { composeProject: state.composeProject.name, services: containerEvidence, readiness: { contextEngine: contextEngineReadiness, rabbitmq: rabbitmqReadiness, embeddings: embeddingsReadiness }, migrations: migrationCount, workerHeartbeat, volumes };
+  return { composeProject: state.composeProject.name, services: containerEvidence, workspaceAuthority, readiness: { contextEngine: contextEngineReadiness, rabbitmq: rabbitmqReadiness, embeddings: embeddingsReadiness }, migrations: migrationCount, workerHeartbeat, volumes };
 }
 
 function sqlScalar(sql) {
