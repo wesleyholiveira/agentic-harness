@@ -70,7 +70,7 @@ switch (cmd) {
   case "logs": compose(["--profile", "runtime", "logs", "--tail", "200", ...rest]); break;
   case "migrate": compose(["--profile", "runtime", "run", "--rm", "--build", "database-migrate"]); break;
   case "test": run(process.execPath, [resolve(harnessRoot, "scripts/harness-test.mjs")]); break;
-  case "qualify": run(process.execPath, [resolve(harnessRoot, "scripts/harness-qualify.mjs")]); break;
+  case "qualify": run(process.execPath, [resolve(harnessRoot, "scripts/harness-qualify.mjs"), ...rest]); break;
   case "opencode": run(process.execPath, [resolve(harnessRoot, "scripts/opencode-run.mjs"), ...rest], { cwd: projectRoot, env: { AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256: invocationProvenancePluginSourceSha256() } }); break;
   case "clean":
     rmSync(resolve(projectRoot, ".runtime", "agents"), { recursive: true, force: true });

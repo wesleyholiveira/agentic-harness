@@ -13,3 +13,6 @@ The distribution gate is layered:
 A distribution may report environment-unavailable gates separately, but must never claim they executed locally.
 
 8. Main Orchestrator runtime-ingress gate — generate the effective OpenCode config and prove the persistent Main Orchestrator denies `edit`, `bash`, built-in `task` and `serena_*`; invoke the host provenance plugin against representative direct-execution tools and prove typed fail-closed rejection, while proving `AGENT_HARNESS_OPENCODE_RUNTIME_CHILD=1` specialists are not fenced. A live consumer change request must create `agent_start` provenance and a Runtime `runId` before any implementation occurs.
+
+
+9. deterministic qualification-controller gate — `harness:qualify -- --self-test` must pass without invoking Docker/OpenCode/model execution, preserve the ten-command public surface, prove the controller is a host process rather than an operational agent, and emit the versioned qualification report contract. Full target-host promotion uses that controller for Q-ENTRY/PRE-R0/R-0–R-11; only R-7 sends a normal consumer request to the qualified Main Orchestrator.

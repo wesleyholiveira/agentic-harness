@@ -151,3 +151,7 @@ A fresh standalone qualification passed PRE-R0 through R-6 and reached the first
 This revision makes the persistent Main Orchestrator control-plane only. Its OpenCode permissions deny edit/write/apply-patch, shell, built-in task delegation and Serena tool access. The provenance plugin independently rejects those same direct-execution paths on the persistent host and exempts Runtime child OpenCode processes. Prompt/skill contracts now require delivery workloads to enter through `agent_start` and fail closed when Runtime ingress is unavailable.
 
 Because this is tracked source remediation after an R-7 HOLD, the complete standalone qualification must restart from PRE-R0/R-0. No R-7+ PASS is inherited from the failed run.
+
+## Deterministic standalone qualification controller
+
+The natural-language outer-controller runbook has been replaced as the execution authority by the versioned host CLI behind `npm run harness:qualify`. The controller runs outside the 20-agent catalog and therefore does not require restoring shell/edit permissions to the persistent Main Orchestrator. PRE-R0–R-6 and R-8–R-11 are deterministic host/code gates; R-7 is the deliberate live OpenCode/Main-Orchestrator boundary and must produce `agent_start` provenance plus a Runtime `runId` before implementation. The controller writes a versioned JSON report, Markdown summary and per-command logs outside tracked source by default, stops at first divergence, and always runs isolated cleanup/source-equality checks.

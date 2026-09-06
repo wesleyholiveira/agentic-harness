@@ -44,4 +44,4 @@ The supported CLI surface is the ten `harness:*` commands in `package.json` / `b
 
 ## Promotion rule
 
-A new harness tag is promoted only from an immutable source tree after the standalone contract suite and target-host qualification pass. Historical Runtime qualification under `qualification/baseline/` is lineage evidence, not permission to skip qualification after genericization or future source changes.
+A new harness tag is promoted only from an immutable source tree after the standalone contract suite and target-host qualification pass. `npm run harness:qualify` is the deterministic outer qualification authority; it is not an OpenCode agent and never delegates the runbook itself to Runtime V2. The persistent Main Orchestrator stays control-plane only and is exercised as a normal consumer-facing agent only at the live R-7 workload boundary. Historical Runtime qualification under `qualification/baseline/` is lineage evidence, not permission to skip qualification after genericization or future source changes.
