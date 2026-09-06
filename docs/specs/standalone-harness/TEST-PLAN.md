@@ -22,3 +22,11 @@ A distribution may report environment-unavailable gates separately, but must nev
 ### Dual-root Agent Input schema proof
 
 Create a temporary consumer with no `.agents` tree and use the real harness as a separate `harnessRoot`. Prepare a Technical Refinement Agent Input Manifest and require both `schema:handoff-result` and `schema:implementation-plan` entries to resolve to the harness tree. The Runtime child executor contract must likewise resolve `agent-input-manifest.schema.json` and implementation-plan schemas from `AGENT_HARNESS_ROOT`, never the consumer/workspace root.
+
+
+### Host / Runtime-child OpenCode config isolation
+
+- Prove host generation still writes `<consumer>/.runtime/opencode.effective.json`.
+- Seed that host file, generate a Runtime-child config through `AGENT_HARNESS_OPENCODE_CONFIG_OUTPUT`, and prove the host file is byte/JSON unchanged.
+- Prove the worker entrypoint pins the child config outside `/workspace/repository`.
+- Live R-7 must reach Runtime child OpenCode without host-native `{file:...}` references being resolved inside the Linux container.

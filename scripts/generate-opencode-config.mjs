@@ -66,11 +66,15 @@ if (process.env.AGENT_HARNESS_OPENCODE_RUNTIME_CHILD === "1") {
 }
 config.agent = expand(JSON.parse(await readFile(resolve(root, ".opencode", "agents.generated.json"), "utf8")));
 
-// The generated config is project runtime evidence, not reusable harness source.
-// Keep it under the consuming repository so the harness submodule remains immutable
-// and every .runtime artifact shares the AGENT_HARNESS_PROJECT_ROOT authority.
+// Host effective configuration is project-owned runtime evidence under <consumer>/.runtime.
+// Runtime children may provide AGENT_HARNESS_OPENCODE_CONFIG_OUTPUT to keep their
+// container-specific config outside the bind-mounted consumer tree, preventing a
+// later host regeneration from replacing Linux /workspace/* references with host paths.
+const explicitOutput = process.env.AGENT_HARNESS_OPENCODE_CONFIG_OUTPUT?.trim();
 const runtimeDir = resolve(projectRoot, ".runtime");
-await mkdir(runtimeDir, { recursive: true });
-const output = resolve(runtimeDir, "opencode.effective.json");
+const output = explicitOutput
+  ? resolve(explicitOutput)
+  : resolve(runtimeDir, "opencode.effective.json");
+await mkdir(dirname(output), { recursive: true });
 await writeFile(output, `${JSON.stringify(config, null, 2)}\n`);
 console.log(output);

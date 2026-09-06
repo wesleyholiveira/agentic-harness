@@ -217,3 +217,8 @@ Focused dual-root contracts and the complete public harness contract suite pass 
 ## R-7 Task Brief SDD workflow-skill schema parity remediation
 
 After the standalone dual-root Agent Input fix, live R-7 preparation reached Task Brief validation and repeatedly failed with `taskBrief.sdd.workflowSkill: expected const "agent-harness-sdd-workflow"`. The builder still emitted the stale literal `agentic-harness-sdd-workflow`. This revision aligns `buildTaskBrief()` with the schema authority and adds a parity contract so the invalid namespace cannot recur silently.
+
+
+## Runtime-child OpenCode config isolation qualification fix
+
+A live standalone R-7 reached physical Product Discovery execution but OpenCode exited non-zero because the worker consumed the host-generated Windows effective config through the consumer bind mount. The worker had generated a Linux config earlier at the same `<consumer>/.runtime/opencode.effective.json` path; R-5 host generation later overwrote it. Source now gives Runtime children a container-private effective config (`/tmp/agentic-harness/opencode.effective.json`) via `AGENT_HARNESS_OPENCODE_CONFIG_OUTPUT`, while host effective config remains consumer-owned evidence. Contracts prove the child generation cannot clobber an existing host config.

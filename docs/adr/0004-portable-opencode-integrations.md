@@ -18,3 +18,6 @@ Pinned integrations:
 - Superpowers pinned to `v5.1.0`, with local vendored skills preferred.
 
 Secrets are environment/runtime state and must never be committed. Durable continuation reuses OpenCode server authentication without embedding credentials in URLs.
+
+
+> Runtime-child exception: ADR 0017 separates the Linux worker effective config into container-private ephemeral state. The project `.runtime/opencode.effective.json` authority described here applies to the persistent host OpenCode configuration/evidence.

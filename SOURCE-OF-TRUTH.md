@@ -67,3 +67,8 @@ A new harness tag is promoted only from an immutable source tree after the stand
 ## Task Brief SDD workflow marker
 
 The canonical serialized Task Brief SDD workflow marker is the `task-brief.schema.json` constant `agent-harness-sdd-workflow`. `buildTaskBrief()` must emit that exact value. A mismatched alias is a Runtime source defect because Task Brief schema validation happens before physical dispatch.
+
+
+## OpenCode effective-config authority split
+
+Persistent host OpenCode owns `<consumer>/.runtime/opencode.effective.json`. Runtime task OpenCode inside the Linux worker owns an ephemeral container-private `/tmp/agentic-harness/opencode.effective.json`, generated with `AGENT_HARNESS_OPENCODE_CONFIG_OUTPUT`. The two must never share one bind-mounted file. See ADR 0017.

@@ -302,6 +302,54 @@ test("OpenCode effective config is generated under the consuming project runtime
   }
 });
 
+test("runtime-child OpenCode effective config is container-private and cannot clobber host config", () => {
+  const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-runtime-child-consumer-"));
+  const childRoot = mkdtempSync(join(tmpdir(), "agentic-harness-runtime-child-config-"));
+  try {
+    const hostConfig = resolve(consumerRoot, ".runtime", "opencode.effective.json");
+    mkdirSync(dirname(hostConfig), { recursive: true });
+    writeFileSync(hostConfig, JSON.stringify({ authority: "host-windows" }) + "\n");
+
+    const childConfig = resolve(childRoot, "opencode.effective.json");
+    const result = spawnSync(process.execPath, [resolve(root, "scripts", "generate-opencode-config.mjs")], {
+      cwd: consumerRoot,
+      env: {
+        ...process.env,
+        AGENT_HARNESS_ROOT: root,
+        AGENT_HARNESS_PROJECT_ROOT: consumerRoot,
+        AGENT_HARNESS_OPENCODE_RUNTIME_CHILD: "1",
+        AGENT_HARNESS_OPENCODE_CONFIG_OUTPUT: childConfig,
+        AGENT_HARNESS_CONTEXT_ENGINE_MCP_URL: "http://context-engine:8789/mcp",
+        CONTEXT7_API_KEY: "",
+        CODEBASE_MEMORY_MCP_COMMAND: process.execPath,
+      },
+      encoding: "utf8",
+      shell: false,
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const output = (result.stdout || "").trim().split(/\r?\n/).at(-1);
+    assert.equal(resolve(output), childConfig);
+    assert.equal(existsSync(childConfig), true);
+    assert.deepEqual(JSON.parse(readFileSync(hostConfig, "utf8")), { authority: "host-windows" });
+
+    const child = JSON.parse(readFileSync(childConfig, "utf8"));
+    assert.equal(child.mcp.serena.enabled, false);
+    assert.equal(child.mcp.headroom.enabled, false);
+    assert.equal(child.mcp["codebase-memory-mcp"].enabled, false);
+    assert.equal(child.mcp["context-engine"].url, "http://context-engine:8789/mcp");
+  } finally {
+    rmSync(consumerRoot, { recursive: true, force: true });
+    rmSync(childRoot, { recursive: true, force: true });
+  }
+});
+
+test("runtime worker pins child effective config outside the consumer bind mount", () => {
+  const entrypoint = readFileSync(resolve(root, "apps", "runtime-worker", "entrypoint.sh"), "utf8");
+  assert.match(entrypoint, /AGENT_HARNESS_OPENCODE_CONFIG_OUTPUT=.*\/tmp\/agentic-harness\/opencode\.effective\.json/);
+  assert.match(entrypoint, /OPENCODE_CONFIG=.*generate-opencode-config\.mjs/);
+  assert.doesNotMatch(entrypoint, /AGENT_HARNESS_OPENCODE_CONFIG_OUTPUT=.*\/workspace\/repository\/\.runtime/);
+});
+
 test("harness clean removes only harness-owned runtime artifacts from the consuming project", () => {
   const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-clean-consumer-"));
   try {
