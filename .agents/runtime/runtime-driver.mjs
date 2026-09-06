@@ -196,7 +196,10 @@ export class AgentRuntimeEventDriver {
       runtimeLog("error", "semantic_driver.reconcile_failed", { runId, durationMs: Date.now() - startedAt, error: error instanceof Error ? error.message : String(error) }, "agent-runtime.driver");
       await this.withStore(async (store) => {
         const run = await store.getRun(runId);
-        if (run) await store.event(runId, null, "runtime.reconcile_failed", { message: error instanceof Error ? error.message : String(error) });
+        if (run) await store.event(runId, null, "runtime.reconcile_failed", {
+          code: error && typeof error === "object" && "code" in error ? String(error.code ?? "") || null : null,
+          message: error instanceof Error ? error.message : String(error),
+        });
       }).catch(() => {});
       const presentationService = this.presentationService;
       if (presentationService) presentationService.notify(runId);

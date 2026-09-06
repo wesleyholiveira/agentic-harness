@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { deriveComposeProjectName, resolveComposeProjectIdentity } from "../../scripts/internal/compose-project-identity.mjs";
 import { resolveHarnessProjectRoot } from "../../scripts/internal/project-root-resolution.mjs";
+import { prepareAgentInputManifest } from "../../.agents/runtime/agent-input-preparation.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -547,4 +548,60 @@ test("Git checkout normalization preserves cross-platform source fingerprints", 
   const attributes = readFileSync(resolve(root, ".gitattributes"), "utf8");
   assert.match(attributes, /^\* text=auto eol=lf$/m);
   assert.match(attributes, /^\*\.zip binary$/m);
+});
+
+
+test("standalone Agent Input Manifest reads harness-owned schemas from harnessRoot", async () => {
+  const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-dual-root-input-"));
+  try {
+    const taskDirectory = resolve(consumerRoot, ".runtime", "agents", "runs", "run-dual-root", "tasks", "technical-refinement");
+    mkdirSync(taskDirectory, { recursive: true });
+    const briefPath = resolve(taskDirectory, "task-brief.json");
+    const contextPath = resolve(taskDirectory, "context-packet.json");
+    writeFileSync(briefPath, JSON.stringify({
+      taskId: "run-dual-root:technical-refinement",
+      acceptanceCriteria: [],
+      sdd: { stage: "technical-refinement" },
+    }));
+    writeFileSync(contextPath, JSON.stringify({ contractVersion: "fixture" }));
+
+    const { manifest } = await prepareAgentInputManifest({
+      repositoryRoot: consumerRoot,
+      harnessRoot: root,
+      taskDirectory,
+      runId: "run-dual-root",
+      taskId: "run-dual-root:technical-refinement",
+      agentId: "technical-lead",
+      attempt: 1,
+      stage: "technical-refinement",
+      brief: {
+        taskId: "run-dual-root:technical-refinement",
+        acceptanceCriteria: [],
+        sdd: { stage: "technical-refinement" },
+      },
+      briefPath,
+      contextPath,
+      registry: { agents: [] },
+      schemas: { agentInputManifest: null },
+    });
+
+    assert.equal(existsSync(resolve(consumerRoot, ".agents")), false, "consumer fixture must not contain a copied harness .agents tree");
+    const handoff = manifest.entries.find((entry) => entry.sourceRef === "schema:handoff-result");
+    const implementation = manifest.entries.find((entry) => entry.sourceRef === "schema:implementation-plan");
+    assert.ok(handoff, "handoff schema must be attached");
+    assert.ok(implementation, "implementation-plan schema must be attached for Technical Refinement");
+    assert.equal(handoff.path.replaceAll("\\\\", "/"), resolve(root, ".agents", "schemas", "handoff-result.schema.json").replaceAll("\\\\", "/"));
+    assert.equal(implementation.path.replaceAll("\\\\", "/"), resolve(root, ".agents", "schemas", "implementation-plan.schema.json").replaceAll("\\\\", "/"));
+  } finally {
+    rmSync(consumerRoot, { recursive: true, force: true });
+  }
+});
+
+test("OpenCode Runtime child resolves harness-owned schemas from AGENT_HARNESS_ROOT", () => {
+  const executor = readFileSync(resolve(root, "scripts/internal/opencode-task-executor.mjs"), "utf8");
+  assert.match(executor, /const harnessRoot = resolve\(process\.env\.AGENT_HARNESS_ROOT\?\.trim\(\) \|\| repositoryRoot\)/);
+  assert.match(executor, /readJson\(resolve\(harnessRoot, "\.agents", "schemas", "agent-input-manifest\.schema\.json"\)\)/);
+  assert.equal((executor.match(/readJson\(resolve\(harnessRoot, "\.agents", "schemas", "implementation-plan\.schema\.json"\)\)/g) ?? []).length, 2);
+  assert.doesNotMatch(executor, /readJson\(resolve\(repositoryRoot, "\.agents", "schemas", "agent-input-manifest\.schema\.json"\)\)/);
+  assert.doesNotMatch(executor, /readJson\(resolve\(workspace, "\.agents", "schemas", "implementation-plan\.schema\.json"\)\)/);
 });

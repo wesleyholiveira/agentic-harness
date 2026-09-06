@@ -56,3 +56,10 @@ A new harness tag is promoted only from an immutable source tree after the stand
 - The R-0 legacy product-namespace scan must not embed its own forbidden identifier as a literal; the pattern is composed from fragments at runtime and a contract proves zero operational self-matches outside historical baseline provenance.
 
 - HTTP `main-orchestrator` `agent_start` is fail-closed on consumed OpenCode provenance (`opencode-plugin-sidechannel`, session id, user message id). Runtime run materialization therefore proves provenance without relying on optional logs.
+
+## Dual-root Agent Input authority
+
+- `AGENT_HARNESS_PROJECT_ROOT` is consumer authority for source, product docs, workspaces and `.runtime/**` evidence.
+- `AGENT_HARNESS_ROOT` is harness authority for `.agents/**`, including all Runtime JSON Schemas.
+- Agent Input Manifest preparation and Runtime child executors must read harness-owned schemas from `AGENT_HARNESS_ROOT`; a standalone consumer is not required or allowed to carry a copied `.agents` tree as a compatibility dependency.
+- `runtime.reconcile_failed` evidence must preserve structured failure code/message so scheduler liveness HOLDs retain the causal preparation error.

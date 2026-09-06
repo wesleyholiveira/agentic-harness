@@ -203,3 +203,13 @@ R-7 now uses a progress-aware watchdog backed by one structured PostgreSQL obser
 ## Differential manifest staging rule
 
 The source manifest reads the Git-tracked worktree. For differentials that add files, new paths must be staged with `git add -A` before `source-manifest.mjs --write`; otherwise the new files are absent from the generated file count/tree hash and R-0 will correctly reject the subsequent committed candidate.
+
+## R-7 standalone dual-root Agent Input remediation
+
+A live progress-aware R-7 run proved a real Runtime preparation loop: `product-discovery` remained `routed` at attempt 0 while each repair sweep emitted `policy_allowed -> task.preparation.started -> runtime.reconcile_failed`. No execution lease, model route materialization or executor heartbeat was created, while the Runtime worker heartbeat remained healthy.
+
+Source review identified a residual monorepo assumption in Agent Input preparation. Harness-owned schemas were read from `<consumer>/.agents/schemas`, but standalone consumers expose those schemas through the harness/submodule root. Exact `readFile` therefore failed before `dispatchPreparedTask`.
+
+The remediation makes harnessRoot the schema authority in Agent Input preparation and in the OpenCode Runtime child executor, while preserving repositoryRoot for consumer-owned Task Briefs, Context Packets, workspaces and runtime evidence. Reconcile failure events now persist code+message and qualification snapshots retain the message.
+
+Focused dual-root contracts and the complete public harness contract suite pass after this change.

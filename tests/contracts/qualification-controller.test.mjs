@@ -362,3 +362,12 @@ test("R-7 watchdog exposes terminal state and detects scheduler inactivity", asy
   assert.equal(stalled.terminal, null);
   assert.equal(stalled.violation?.message, "runtime_scheduler_stalled_without_active_execution");
 });
+
+
+test("qualification Runtime observations preserve reconcile failure code and message", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const driver = readFileSync(resolve(root, ".agents/runtime/runtime-driver.mjs"), "utf8");
+  assert.match(controller, /payload_json::jsonb->>'message'/);
+  assert.match(controller, /'message', NULLIF\(COALESCE\(payload_json::jsonb->>'message',''\),''\)/);
+  assert.match(driver, /"runtime\.reconcile_failed", \{[\s\S]*?code:[\s\S]*?message:/);
+});

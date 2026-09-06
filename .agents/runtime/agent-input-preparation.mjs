@@ -10,6 +10,7 @@ import { writeJson } from "./utils.mjs";
 
 export async function prepareAgentInputManifest({
   repositoryRoot,
+  harnessRoot = process.env.AGENT_HARNESS_ROOT ?? repositoryRoot,
   taskDirectory,
   runId,
   taskId,
@@ -65,7 +66,7 @@ export async function prepareAgentInputManifest({
     sourceRef: `runtime:executor-contract:${taskId}:${attempt}`,
   }));
 
-  const handoffSchemaPath = join(repositoryRoot, ".agents", "schemas", "handoff-result.schema.json");
+  const handoffSchemaPath = join(harnessRoot, ".agents", "schemas", "handoff-result.schema.json");
   entries.push(await manifestEntryFromFile({
     repositoryRoot,
     category: "schemas",
@@ -75,7 +76,7 @@ export async function prepareAgentInputManifest({
   }));
 
   if (stage === "technical-refinement") {
-    const implementationSchemaPath = join(repositoryRoot, ".agents", "schemas", "implementation-plan.schema.json");
+    const implementationSchemaPath = join(harnessRoot, ".agents", "schemas", "implementation-plan.schema.json");
     entries.push(await manifestEntryFromFile({
       repositoryRoot,
       category: "schemas",

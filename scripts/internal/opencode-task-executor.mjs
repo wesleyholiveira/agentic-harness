@@ -486,7 +486,8 @@ async function main() {
   for (const key of required) if (!args[key]) throw new Error(`opencode_task_executor_missing_arg:${key}`);
   const manifestPath = resolve(String(args.agentInputManifest));
   const repositoryRoot = manifestRepositoryRoot(manifestPath);
-  const manifestSchema = await readJson(resolve(repositoryRoot, ".agents", "schemas", "agent-input-manifest.schema.json"));
+  const harnessRoot = resolve(process.env.AGENT_HARNESS_ROOT?.trim() || repositoryRoot);
+  const manifestSchema = await readJson(resolve(harnessRoot, ".agents", "schemas", "agent-input-manifest.schema.json"));
   const manifest = await loadAndVerifyAgentInputManifest(manifestPath, manifestSchema);
   const entryByCategory = (category) => (manifest.entries ?? []).filter((entry) => entry.category === category);
   const taskEntry = entryByCategory("task_contract").find((entry) => entry.attach);
@@ -914,7 +915,7 @@ async function main() {
 
   if (shouldSynthesizeTechnicalPlan({ brief, handoff })) {
     try {
-      const implementationPlanSchema = await readJson(resolve(workspace, ".agents", "schemas", "implementation-plan.schema.json"));
+      const implementationPlanSchema = await readJson(resolve(harnessRoot, ".agents", "schemas", "implementation-plan.schema.json"));
       const synthesis = await synthesizeMissingImplementationPlan({ workspace, brief, handoff, implementationPlanSchema, structuredRunner });
       handoff = synthesis.handoff;
       if (synthesis.attempted) {
@@ -1019,7 +1020,7 @@ async function main() {
     && resumeCheckpoint?.repairKind === "technical-review-semantic";
   if (brief.sdd?.stage === "technical-refinement" && handoff.status === "complete"
       && handoff.sddReview?.decision === "changes_requested" && !exhaustedTechnicalReviewCheckpoint) {
-    const implementationPlanSchema = await readJson(resolve(workspace, ".agents", "schemas", "implementation-plan.schema.json"));
+    const implementationPlanSchema = await readJson(resolve(harnessRoot, ".agents", "schemas", "implementation-plan.schema.json"));
     const configuredRepairPasses = Number(process.env.AGENT_HARNESS_TECHNICAL_REVIEW_REPAIR_PASSES ?? 2);
     const repairPassLimit = Math.max(1, Math.min(3, Number.isFinite(configuredRepairPasses) ? Math.trunc(configuredRepairPasses) : 2));
     const taskAttempt = Number(brief.modelRouting?.attempt ?? 1);

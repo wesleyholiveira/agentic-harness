@@ -924,7 +924,8 @@ latest_task_events AS (
     event_type,
     created_at,
     COALESCE(payload_json::jsonb->>'code','') AS code,
-    COALESCE(payload_json::jsonb->>'status','') AS status
+    COALESCE(payload_json::jsonb->>'status','') AS status,
+    COALESCE(payload_json::jsonb->>'message','') AS message
   FROM agent_events
   WHERE run_id='${quotedRunId}' AND task_id IS NOT NULL AND event_type<>'executor.heartbeat'
   ORDER BY task_id, created_at DESC
@@ -976,7 +977,8 @@ SELECT json_build_object(
         'type', e.event_type,
         'at', e.created_at,
         'code', NULLIF(e.code,''),
-        'status', NULLIF(e.status,'')
+        'status', NULLIF(e.status,''),
+        'message', NULLIF(e.message,'')
       ) END
     ) ORDER BY t.task_id)
     FROM agent_tasks t
@@ -1005,7 +1007,8 @@ SELECT json_build_object(
         'taskId', task_id,
         'at', created_at,
         'code', NULLIF(COALESCE(payload_json::jsonb->>'code',''),''),
-        'status', NULLIF(COALESCE(payload_json::jsonb->>'status',''),'')
+        'status', NULLIF(COALESCE(payload_json::jsonb->>'status',''),''),
+        'message', NULLIF(COALESCE(payload_json::jsonb->>'message',''),'')
       ) AS event_json, created_at
       FROM agent_events
       WHERE run_id='${quotedRunId}' AND event_type<>'executor.heartbeat'

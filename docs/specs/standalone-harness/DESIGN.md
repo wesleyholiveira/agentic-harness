@@ -57,3 +57,7 @@ Security Review is a first-class bootstrap review capability. The execution-plan
 Runtime ingress provenance is enforced at `agent_start`, not inferred from optional logs. For HTTP Main Orchestrator calls, Context Engine must have consumed the OpenCode provenance sidechannel and populated the exact session/user-message identity before the control plane can create a run.
 
 R-7 terminal observation is progress-aware. The qualification controller reads structured PostgreSQL run/task/heartbeat/outbox/result evidence and evaluates each active task against the Runtime's own liveness policy instead of applying a shorter whole-run wall-clock timeout. Healthy long-running tasks remain eligible; stale worker/lease state, Runtime budget overruns, scheduler inactivity and post-execution finalizer stalls fail closed with a structured snapshot. A concise progress checkpoint is emitted to stderr every 60 seconds while stdout remains reserved for the final JSON report.
+
+### Agent Input dual-root authority
+
+Standalone execution never assumes `<consumer>/.agents` exists. Runtime schemas, agent metadata and policies are harness-owned and resolve from `AGENT_HARNESS_ROOT`; Task Briefs, Context Packets, manifests, workspaces and generated evidence are consumer-owned and resolve from `AGENT_HARNESS_PROJECT_ROOT`. Agent Input schema attachments may therefore be absolute harness paths while the manifest itself remains under consumer `.runtime/**`.

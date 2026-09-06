@@ -255,6 +255,7 @@ export async function prepareTaskExecution({ repositoryRoot, plan, taskPlan, reg
   if (!reusedPreparation) {
     const preparedInput = await prepareAgentInputManifest({
       repositoryRoot,
+      harnessRoot: options.harnessRoot ?? process.env.AGENT_HARNESS_ROOT ?? repositoryRoot,
       taskDirectory: paths.taskDirectory,
       runId: plan.runId,
       taskId: taskPlan.taskId,
