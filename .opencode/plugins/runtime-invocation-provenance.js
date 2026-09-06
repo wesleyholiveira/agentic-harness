@@ -55,8 +55,28 @@ const PROVENANCE_TOOLS = new Set([
   "agent_continuation_status",
   "agent_wait",
   "agent_get_dag",
+  "agent_resume",
+  "agent_retry",
+  "agent_cancel",
   "agent_summary",
 ]);
+
+const MAIN_ORCHESTRATOR_DIRECT_EXECUTION_TOOLS = new Set([
+  "write",
+  "edit",
+  "apply_patch",
+  "bash",
+  "task",
+]);
+
+function assertPersistentMainOrchestratorRuntimeIngress(toolName) {
+  if (process.env.AGENT_HARNESS_OPENCODE_RUNTIME_CHILD === "1") return;
+  const normalized = String(toolName ?? "").trim();
+  const directExecution = MAIN_ORCHESTRATOR_DIRECT_EXECUTION_TOOLS.has(normalized)
+    || normalized.startsWith("serena_");
+  if (!directExecution) return;
+  throw new Error(`agent_runtime_main_orchestrator_direct_execution_denied:${normalized}:agent_start_required`);
+}
 
 function stableValue(value) {
   if (Array.isArray(value)) return value.map(stableValue);
@@ -347,6 +367,7 @@ export const RuntimeInvocationProvenance = async ({ serverUrl, directory, client
   return {
     "tool.execute.before": async (input, output) => {
       const toolName = normalizeToolName(input?.tool);
+      assertPersistentMainOrchestratorRuntimeIngress(toolName);
       const sessionID = String(input?.sessionID ?? "").trim();
       if (!sessionID) return;
 

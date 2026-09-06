@@ -9,6 +9,7 @@ This repository is a project-agnostic agent harness. A consuming project is the 
 4. This harness's schemas/runtime contracts.
 
 ## Rules
+- The persistent Main Orchestrator is control-plane only: delivery/change requests must enter Runtime V2 through `agent_start`; direct edit/write/patch/bash/task/Serena implementation is forbidden.
 - The dynamic DAG is runtime authority. Agent manifests describe capabilities/ownership hints only.
 - Do not create a static call graph in an agent manifest.
 - Use SDD for non-trivial changes.

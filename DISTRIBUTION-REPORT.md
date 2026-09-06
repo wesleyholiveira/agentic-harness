@@ -124,7 +124,7 @@ before the first stable repository tag is promoted.
 
 | Check | Result |
 |---|---|
-| Standalone contracts | PASS — 28/28 current subtests |
+| Standalone contracts | PASS — 31/31 current subtests |
 | Node syntax | PASS — 126 files |
 | JSON parse | PASS — 72 files |
 | TypeScript transpile/syntax | PASS — 108 files, 0 parse errors |
@@ -143,3 +143,11 @@ Machine-readable evidence: `validation/source-candidate-20260902.json`. That fil
 A fresh standalone R-0 qualification detected pre-standalone product-lineage identifiers that survived genericization in operational MCP tool names, Prometheus metric families and a Runtime validation marker. The standalone namespace is now `agent_harness_*` for all three surfaces. No compatibility aliases are retained because this is the first standalone stable-tag candidate; historical identifiers remain only in immutable `qualification/baseline/**` provenance. The project-agnostic source contract now detects the legacy product namespace case-insensitively across operational source without embedding it as a supported public identifier.
 
 This is a tracked source remediation after an R-0 HOLD. Full standalone qualification must restart at PRE-R0/R-0; no downstream PASS is inherited.
+
+## Target-host R-7 Main Orchestrator Runtime-ingress remediation
+
+A fresh standalone qualification passed PRE-R0 through R-6 and reached the first real consumer workload at R-7. The qualified persistent Main Orchestrator performed direct file/tool work and returned an assistant handoff without invoking Context Engine `agent_start`; therefore no Runtime invocation provenance or `runId` existed. This is a source/runtime boundary defect, not a qualification-procedure failure.
+
+This revision makes the persistent Main Orchestrator control-plane only. Its OpenCode permissions deny edit/write/apply-patch, shell, built-in task delegation and Serena tool access. The provenance plugin independently rejects those same direct-execution paths on the persistent host and exempts Runtime child OpenCode processes. Prompt/skill contracts now require delivery workloads to enter through `agent_start` and fail closed when Runtime ingress is unavailable.
+
+Because this is tracked source remediation after an R-7 HOLD, the complete standalone qualification must restart from PRE-R0/R-0. No R-7+ PASS is inherited from the failed run.

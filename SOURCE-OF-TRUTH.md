@@ -17,6 +17,7 @@ The harness is authoritative for:
 A consuming repository remains authoritative for its domain code, product requirements, project ADRs/designs/runbooks, and run-specific Task Briefs/Context Packets.
 
 ## Runtime invariants
+- The persistent Main Orchestrator is control-plane only: delivery/change requests must enter through Context Engine `agent_start`; direct edit/write/patch/bash/task/Serena execution is fail-closed, while Runtime child specialists retain implementation tools.
 
 - PostgreSQL is durable run/task/checkpoint/continuation/ProjectMemory authority.
 - RabbitMQ is at-least-once transport, never completion authority.

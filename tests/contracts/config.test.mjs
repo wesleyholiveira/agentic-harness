@@ -33,6 +33,66 @@ test("OpenCode config is portable and uses pinned integrations", () => {
   assert.equal(/COPY .*opencode\.jsonc/.test(dockerfile), false);
 });
 
+test("persistent Main Orchestrator cannot bypass Runtime V2 with direct execution tools", () => {
+  const agents = JSON.parse(readFileSync(resolve(root, ".opencode", "agents.generated.json"), "utf8"));
+  const main = agents["main-orchestrator"];
+  assert.equal(main.permission.edit, "deny");
+  assert.equal(main.permission.bash, "deny");
+  assert.deepEqual(main.permission.task, { "*": "deny" });
+  assert.equal(main.permission["serena_*"], "deny");
+  assert.deepEqual(main.permission.skill, { "*": "allow" });
+
+  const prompt = readFileSync(resolve(root, ".agents", "agents", "main-orchestrator", "AGENT.md"), "utf8");
+  assert.match(prompt, /control-plane agent, not an implementation agent/);
+  assert.match(prompt, /Context Engine MCP `agent_start`/);
+  assert.match(prompt, /Never fall back to direct implementation/);
+
+  const plugin = readFileSync(resolve(root, ".opencode", "plugins", "runtime-invocation-provenance.js"), "utf8");
+  assert.match(plugin, /MAIN_ORCHESTRATOR_DIRECT_EXECUTION_TOOLS/);
+  assert.match(plugin, /agent_runtime_main_orchestrator_direct_execution_denied/);
+  assert.match(plugin, /AGENT_HARNESS_OPENCODE_RUNTIME_CHILD === "1"/);
+
+  const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-main-boundary-consumer-"));
+  try {
+    const pluginUrl = pathToFileURL(resolve(root, ".opencode/plugins/runtime-invocation-provenance.js")).href;
+    const deniedScript = `
+      const { RuntimeInvocationProvenance } = await import(${JSON.stringify(pluginUrl)});
+      const hooks = await RuntimeInvocationProvenance({ serverUrl: new URL("http://127.0.0.1:4096"), directory: process.env.AGENT_HARNESS_PROJECT_ROOT, client: {} });
+      for (const tool of ["write", "edit", "apply_patch", "bash", "task", "serena_replace_symbol_body"]) {
+        let denied = false;
+        try {
+          await hooks["tool.execute.before"]({ tool, sessionID: "session-1", callID: "call-1" }, { args: {} });
+        } catch (error) {
+          denied = String(error?.message ?? error).includes("agent_runtime_main_orchestrator_direct_execution_denied");
+        }
+        if (!denied) throw new Error("direct_execution_not_denied:" + tool);
+      }
+    `;
+    let result = spawnSync(process.execPath, ["--input-type=module", "-e", deniedScript], {
+      cwd: consumerRoot,
+      env: { ...process.env, AGENT_HARNESS_ROOT: root, AGENT_HARNESS_PROJECT_ROOT: consumerRoot, AGENT_HARNESS_OPENCODE_RUNTIME_CHILD: "" },
+      encoding: "utf8",
+      shell: false,
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const childScript = `
+      const { RuntimeInvocationProvenance } = await import(${JSON.stringify(pluginUrl)});
+      const hooks = await RuntimeInvocationProvenance({ serverUrl: new URL("http://127.0.0.1:4096"), directory: process.env.AGENT_HARNESS_PROJECT_ROOT, client: {} });
+      await hooks["tool.execute.before"]({ tool: "edit", sessionID: "session-1", callID: "call-1" }, { args: {} });
+    `;
+    result = spawnSync(process.execPath, ["--input-type=module", "-e", childScript], {
+      cwd: consumerRoot,
+      env: { ...process.env, AGENT_HARNESS_ROOT: root, AGENT_HARNESS_PROJECT_ROOT: consumerRoot, AGENT_HARNESS_OPENCODE_RUNTIME_CHILD: "1" },
+      encoding: "utf8",
+      shell: false,
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+  } finally {
+    rmSync(consumerRoot, { recursive: true, force: true });
+  }
+});
+
 test("host and consuming-project roots are distinct runtime concepts", () => {
   const server = readFileSync(resolve(root, "apps/context-engine/src/server.ts"), "utf8");
   const control = readFileSync(resolve(root, ".agents/runtime/control-plane.mjs"), "utf8");
@@ -215,6 +275,10 @@ test("OpenCode effective config is generated under the consuming project runtime
     const config = JSON.parse(readFileSync(output, "utf8"));
     assert.equal(config.default_agent, "main-orchestrator");
     assert.equal(Object.keys(config.agent ?? {}).length, 20);
+    assert.equal(config.agent["main-orchestrator"].permission.edit, "deny");
+    assert.equal(config.agent["main-orchestrator"].permission.bash, "deny");
+    assert.deepEqual(config.agent["main-orchestrator"].permission.task, { "*": "deny" });
+    assert.equal(config.agent["main-orchestrator"].permission["serena_*"], "deny");
     assert.deepEqual(config.skills.paths, [
       resolve(root, ".agents/skills").replaceAll("\\", "/"),
       resolve(root, "vendor/superpowers/skills").replaceAll("\\", "/"),

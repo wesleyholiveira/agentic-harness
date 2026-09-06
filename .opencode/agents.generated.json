@@ -7,10 +7,12 @@
     "temperature": 0.1,
     "steps": 140,
     "permission": {
+      "edit": "deny",
+      "bash": "deny",
       "task": {
-        "*": "deny",
-        "explore": "allow"
+        "*": "deny"
       },
+      "serena_*": "deny",
       "skill": {
         "*": "allow"
       }

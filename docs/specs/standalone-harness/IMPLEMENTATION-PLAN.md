@@ -8,6 +8,7 @@
 | W3 | devops | W2 | portable OpenCode/MCP/Headroom/RTK/Superpowers integration |
 | W4 | database + runtime | W2 | standalone consumer-scoped Compose identity, submodule-safe containerized migrations and Rust worker packaging |
 | W5 | structural-modernization | W1,W3,W4 | delete product artifacts, legacy registry and public command sprawl |
-| W6 | verification | W3,W4,W5 | contract/static/toolchain validation, manifest and distribution ZIP |
+| W6 | agent-runtime + OpenCode | W3,W5 | enforce persistent Main Orchestrator Runtime ingress with permission, prompt and plugin fences while preserving Runtime-child execution |
+| W7 | verification | W3,W4,W5,W6 | contract/static/toolchain validation, manifest and distribution ZIP |
 
 This plan is illustrative SDD evidence for the harness repository itself. Future project work gets a fresh runtime-generated `implementationPlan` from Technical Refinement.

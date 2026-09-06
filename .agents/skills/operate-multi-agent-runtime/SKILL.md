@@ -4,6 +4,14 @@
 
 Use this skill when a repository change must be planned, executed, resumed, retried, observed or summarized through Dynamic DAG V2.
 
+## Persistent Main Orchestrator boundary
+
+The persistent Main Orchestrator must route delivery work through `agent_start`.
+It must never fall back to OpenCode `write`, `edit`, `apply_patch`, `bash`, built-in `task`, or Serena mutation tools.
+Those execution capabilities belong to Runtime-dispatched specialist children, not the persistent control-plane session.
+
+If Runtime ingress is unavailable, stop fail-closed instead of implementing directly.
+
 ## Normal agent-driven procedure
 
 1. Use the Context Engine MCP tool `agent_start` with the complete implementation request. This persists the run and returns immediately.

@@ -23,6 +23,8 @@ Provide one official, project-agnostic Git repository that can be mounted as a s
 - **HARNESS-11:** each consuming project receives an independent Docker Compose runtime namespace so containers, networks and named durable volumes cannot be silently shared across unrelated consumers.
 - **HARNESS-12:** the public migration surface works from a clean Git submodule without consumer-local `node_modules`; migration execution uses the consumer-scoped runtime image/network while preserving the single harness-owned SQL migration implementation.
 
+- **HARNESS-13:** the persistent Main Orchestrator is control-plane only: delivery/change requests must enter Runtime V2 through `agent_start`, and direct edit/write/patch/bash/task/Serena implementation paths are fail-closed without restricting Runtime child specialists.
+
 ## Non-goals
 
 The repository does not prescribe a product architecture, business domain, deployment cloud or project acceptance criteria. It does not promote alternative LLMs without project-local qualification. It does not turn RabbitMQ, Redis, TEI or OpenCode into durable state authority.

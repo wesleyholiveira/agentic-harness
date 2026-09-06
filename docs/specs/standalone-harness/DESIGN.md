@@ -36,6 +36,8 @@ Context Engine creates authoritative preparation/finalization state. PostgreSQL/
 
 ## OpenCode
 
+The persistent Main Orchestrator is a control-plane-only session. For delivery/change requests, it must enter Runtime V2 through Context Engine `agent_start`; direct `write`/`edit`/`apply_patch`, `bash`, built-in `task`, and Serena mutation paths are denied in agent permissions and independently fenced by the provenance plugin. Runtime child specialists are explicitly exempt from that host fence so implementation remains possible only after Runtime dispatch.
+
 The host launcher generates `<AGENT_HARNESS_PROJECT_ROOT>/.runtime/opencode.effective.json` from `config/opencode.template.jsonc`, expands absolute roots, starts the Headroom wrapper by default and exposes the session host on port 4096. The plugin/config source remains harness-owned while generated runtime evidence remains project-owned. Runtime invocation provenance is routed to the same effective Context Engine authority as the generated MCP configuration (including qualification-specific ports). The public launcher hashes the active provenance plugin once and projects that identity to both the OpenCode host and Context Engine; the host plugin self-verifies it and the Context Engine verifies its bundled copy before readiness, so the first live registration is not the first point where revision skew can be detected. Runtime child OpenCode disables nested MCPs that should not be recursively launched inside worker execution.
 
 ## Extensibility
