@@ -43,3 +43,13 @@ After integration, Runtime must compare each changed path's workspace fingerprin
 - A task can no longer be reported as `integrated` when its declared/reconciled change-set is absent or byte-different in the consumer repository.
 - Workspace isolation remains intact; downstream tasks still receive fresh workspaces derived from the integrated consumer root.
 - Fail-closed conflict and ownership rules remain unchanged.
+## Working-tree filters and EOL normalization
+
+The post-integration proof is byte-exact for copy workspaces. For Git worktrees,
+raw bytes can legitimately differ after materialization because Git may apply
+`core.autocrlf` or `.gitattributes` clean/smudge filters. When raw fingerprints
+differ and both files exist, Runtime compares `git hash-object --path=<path>`
+for the worktree and consumer root. Matching canonical blob identities prove the
+same Git content was materialized without treating CRLF/LF conversion as a
+conflict. Missing files or unequal canonical blobs remain fail-closed.
+

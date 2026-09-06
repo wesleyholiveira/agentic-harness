@@ -144,6 +144,7 @@ test("worktree integration materializes newly created implementation files for d
       [["init", "--quiet"], "git-init"],
       [["config", "user.email", "qualification@example.invalid"], "git-email"],
       [["config", "user.name", "Qualification"], "git-name"],
+      [["config", "core.autocrlf", "true"], "git-autocrlf"],
     ]) {
       const result = await runProcess("git", args, { cwd: repositoryRoot });
       assert.equal(result.status, 0, `${label}: ${result.stderr || result.stdout}`);
@@ -194,8 +195,8 @@ test("worktree integration materializes newly created implementation files for d
     });
 
     assert.deepEqual(integratedInspection.changedPaths, ["src/format-name.mjs", "test/format-name.test.mjs"]);
-    assert.equal(await readFile(join(repositoryRoot, "src", "format-name.mjs"), "utf8"), "export const formatName = (name) => name || 'Anonymous';\n");
-    assert.equal(await readFile(join(repositoryRoot, "test", "format-name.test.mjs"), "utf8"), "export const fixture = true;\n");
+    assert.equal((await readFile(join(repositoryRoot, "src", "format-name.mjs"), "utf8")).replaceAll("\r\n", "\n"), "export const formatName = (name) => name || 'Anonymous';\n");
+    assert.equal((await readFile(join(repositoryRoot, "test", "format-name.test.mjs"), "utf8")).replaceAll("\r\n", "\n"), "export const fixture = true;\n");
     assert.equal(conflicts.length, 0);
     assert.match(integrated.get("src/format-name.mjs") ?? "", /^[a-f0-9]{64}$/);
     assert.match(integrated.get("test/format-name.test.mjs") ?? "", /^[a-f0-9]{64}$/);

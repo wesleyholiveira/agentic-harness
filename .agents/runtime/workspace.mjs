@@ -274,6 +274,54 @@ export async function inspectWorkspaceChanges(workspace, task) {
   return { changedPaths, unauthorized, toolingSideEffects, observedPaths };
 }
 
+async function gitCanonicalBlobFingerprint(cwd, path) {
+  const absolute = join(cwd, path);
+  if (!(await exists(absolute))) return null;
+  const result = await runProcess("git", ["hash-object", `--path=${path}`, "--", path], { cwd });
+  if (result.status !== 0) throw new Error(`worktree_git_fingerprint_failed:${path}:${result.stderr || result.stdout}`);
+  return result.stdout.trim() || null;
+}
+
+async function materializationProof({ repositoryRoot, workspace, path }) {
+  const expectedFingerprint = await fileFingerprint(join(workspace.path, path));
+  const actualFingerprint = await fileFingerprint(join(repositoryRoot, path));
+  if (sameFileFingerprint(expectedFingerprint, actualFingerprint)) {
+    return { matches: true, expectedFingerprint, actualFingerprint, authority: "raw-file-fingerprint" };
+  }
+
+  // Git worktrees can legitimately materialize different working-tree bytes for
+  // the same canonical content because of core.autocrlf/.gitattributes filters.
+  // Compare the Git-cleaned blob identity before declaring an integration
+  // mismatch. Copy workspaces remain byte-exact because no Git transform is
+  // involved in their integration path.
+  if (workspace.mode === "worktree" && expectedFingerprint && actualFingerprint) {
+    const [expectedGitBlob, actualGitBlob] = await Promise.all([
+      gitCanonicalBlobFingerprint(workspace.path, path),
+      gitCanonicalBlobFingerprint(repositoryRoot, path),
+    ]);
+    if (expectedGitBlob && expectedGitBlob === actualGitBlob) {
+      return {
+        matches: true,
+        expectedFingerprint,
+        actualFingerprint,
+        expectedGitBlob,
+        actualGitBlob,
+        authority: "git-canonical-blob",
+      };
+    }
+    return {
+      matches: false,
+      expectedFingerprint,
+      actualFingerprint,
+      expectedGitBlob,
+      actualGitBlob,
+      authority: "git-canonical-blob",
+    };
+  }
+
+  return { matches: false, expectedFingerprint, actualFingerprint, authority: "raw-file-fingerprint" };
+}
+
 export async function integrateWorkspace({ repositoryRoot, workspace, task, store, runId, inspection: authoritativeInspection = null, approvedChangedPaths = null }) {
   // Event-driven execution already produced an attempt/fence-scoped Rust change-set
   // and the semantic finalizer reconciled handoff disposition against the
@@ -349,16 +397,15 @@ export async function integrateWorkspace({ repositoryRoot, workspace, task, stor
   const materializedFingerprints = new Map();
   const materializationMismatches = [];
   for (const path of changedPaths) {
-    const expected = await fileFingerprint(join(workspace.path, path));
-    const actual = await fileFingerprint(join(repositoryRoot, path));
-    if (!sameFileFingerprint(expected, actual)) {
-      const details = { expectedFingerprint: expected, actualFingerprint: actual, workspaceMode: workspace.mode };
+    const proof = await materializationProof({ repositoryRoot, workspace, path });
+    if (!proof.matches) {
+      const details = { ...proof, workspaceMode: workspace.mode };
       await store.event?.(runId, task.taskId, "workspace.integration_materialization_mismatch", { path, ...details });
       await store.addConflict({ runId, taskId: task.taskId, path, type: "integration_materialization_mismatch", details });
       materializationMismatches.push(path);
       continue;
     }
-    materializedFingerprints.set(path, actual);
+    materializedFingerprints.set(path, proof.actualFingerprint);
   }
   if (materializationMismatches.length > 0) {
     throw new Error(`workspace_integration_materialization_mismatch:${materializationMismatches.join(",")}`);
