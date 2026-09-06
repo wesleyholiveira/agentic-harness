@@ -47,3 +47,5 @@ The host launcher generates `<AGENT_HARNESS_PROJECT_ROOT>/.runtime/opencode.effe
 A consuming project may add domain-specific agents in its own source or in a future extension layer, but the base harness does not carry product agents. New capability manifests must not encode static dependencies.
 
 The deterministic R-0 product-lineage scanner composes its forbidden legacy namespace variants from fragments at runtime. This preserves the scan while preventing the qualification implementation from becoming an operational match of its own prohibition.
+
+The deterministic qualification controller separates Docker container lifecycle from application HTTP readiness. R-4 performs bounded readiness polling for Context Engine, RabbitMQ Management, and embeddings and preserves transport-layer causes (for example connection refusal or timeout) in the qualification evidence. A container being `Running` is not sufficient evidence that its HTTP endpoint is ready.

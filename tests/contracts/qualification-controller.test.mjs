@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { createServer } from "node:http";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -130,3 +131,73 @@ test("qualification product-namespace scanner does not self-match outside histor
   assert.equal(result.stdout, "");
 });
 
+
+
+test("qualification HTTP layer preserves transport cause and request authority", async () => {
+  const { requestJson } = await import("../../scripts/qualification/lib/http.mjs");
+  const server = createServer();
+  await new Promise((resolvePromise) => server.listen(0, "127.0.0.1", resolvePromise));
+  const address = server.address();
+  const port = typeof address === "object" && address ? address.port : null;
+  await new Promise((resolvePromise) => server.close(resolvePromise));
+
+  await assert.rejects(
+    requestJson(`http://127.0.0.1:${port}/healthz`, {
+      timeoutMs: 500,
+      allowStatuses: [200],
+    }),
+    (error) => {
+      assert.equal(error.code, "qualification_http_transport_failed");
+      assert.equal(error.evidence.url, `http://127.0.0.1:${port}/healthz`);
+      assert.equal(error.evidence.method, "GET");
+      assert.equal(error.evidence.timeoutMs, 500);
+      assert.equal(typeof error.evidence.cause?.code, "string");
+      return true;
+    },
+  );
+});
+
+test("qualification HTTP readiness retries transient 503 and records attempt evidence", async () => {
+  const { waitForJsonReady } = await import("../../scripts/qualification/lib/http.mjs");
+  let requests = 0;
+  const server = createServer((request, response) => {
+    requests += 1;
+    response.setHeader("Content-Type", "application/json");
+    if (requests < 3) {
+      response.statusCode = 503;
+      response.end(JSON.stringify({ ready: false }));
+      return;
+    }
+    response.statusCode = 200;
+    response.end(JSON.stringify({ ready: true }));
+  });
+
+  await new Promise((resolvePromise) => server.listen(0, "127.0.0.1", resolvePromise));
+  const address = server.address();
+  const port = typeof address === "object" && address ? address.port : null;
+  try {
+    const result = await waitForJsonReady(`http://127.0.0.1:${port}/ready`, {
+      request: { allowStatuses: [200], timeoutMs: 500 },
+      timeoutMs: 2_000,
+      intervalMs: 10,
+      label: "test-service",
+    });
+    assert.equal(result.response.status, 200);
+    assert.equal(result.attempts, 3);
+    assert.equal(requests, 3);
+  } finally {
+    await new Promise((resolvePromise) => server.close(resolvePromise));
+  }
+});
+
+test("R-4 uses bounded HTTP readiness for Context Engine, RabbitMQ management, and embeddings", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  assert.match(controller, /service:\s*"context-engine"/);
+  assert.match(controller, /service:\s*"rabbitmq-management"/);
+  assert.match(controller, /service:\s*"context-embeddings"/);
+  assert.match(controller, /qualification_http_readiness_rejected/);
+  assert.doesNotMatch(
+    controller,
+    /await requestJson\(`http:\/\/127\.0\.0\.1:\$\{state\.ports\.rabbitmqManagement\}\/api\/overview`/,
+  );
+});

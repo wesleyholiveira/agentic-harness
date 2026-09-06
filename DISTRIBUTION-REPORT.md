@@ -163,3 +163,15 @@ The first live run of the deterministic controller on Windows exposed a portabil
 A second live Q-ENTRY run proved that shim discovery alone was insufficient: passing a command string such as `call "C:\\Program Files\\nodejs\\npm.CMD" "--version"` through Node's default Windows argument escaping caused `cmd.exe` to receive backslash-escaped quote characters as part of the batch filename. The controller now uses the documented `cmd.exe /S /C` outer-quote shape for batch paths with spaces, invokes that wrapper with `windowsVerbatimArguments=true`, and does not use `call`. The resulting command line is semantically `cmd.exe /d /v:off /s /c ""C:\\Program Files\\nodejs\\npm.CMD" "--version""`. Normal native executables remain non-verbatim and `shell:false`.
 
 `Q-ENTRY` exercises `npm --version` through the same `ProcessRunner`, so both Windows command discovery and batch-wrapper quoting are validated before PRE-R0. Focused contracts simulate `npm.CMD`, including a shim path containing spaces, and assert that no backslash-escaped executable quotes are emitted. This is a tracked qualification-controller source remediation; the full live qualification must restart from Q-ENTRY/PRE-R0 after the patch is committed.
+
+## R-0 qualification scanner self-match remediation
+
+The deterministic qualification runner previously embedded the complete legacy product-namespace regular expression as a literal in its own operational source. R-0 correctly scanned operational source and therefore matched the scanner itself. The scanner now composes the forbidden legacy namespace variants from fragments at runtime, preserving the exact detection semantics without materializing the forbidden identifier in operational source. A contract executes the same Git scan and requires zero matches outside immutable historical baseline provenance.
+
+## R-4 HTTP readiness and transport-evidence remediation
+
+The first live deterministic-controller run to reach R-4 stopped on a bare `TypeError: fetch failed`. Container state had already been proven, but the controller performed one-shot RabbitMQ Management and embeddings HTTP requests immediately after containers became `Running`, and the HTTP helper discarded the transport cause.
+
+The qualification HTTP layer now preserves URL, method, timeout and nested transport-cause fields. R-4 uses bounded readiness polling for Context Engine, RabbitMQ Management and embeddings. Connection refusal, timeout, HTTP 5xx, 408 and 429 are retryable until the bounded deadline; deterministic non-retryable HTTP 4xx responses fail immediately with SOURCE-oriented evidence.
+
+This removes the race between Docker container state and application HTTP readiness without weakening fail-closed qualification.

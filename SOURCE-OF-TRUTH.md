@@ -17,6 +17,7 @@ The harness is authoritative for:
 A consuming repository remains authoritative for its domain code, product requirements, project ADRs/designs/runbooks, and run-specific Task Briefs/Context Packets.
 
 ## Runtime invariants
+- Qualification R-4 treats container `Running` and application HTTP readiness as separate proofs; Context Engine, RabbitMQ Management and embeddings must pass bounded HTTP readiness with preserved transport-cause evidence.
 - The deterministic qualification controller is host-side and cross-platform: on Windows it resolves `PATH`/`PATHEXT`, directly spawns native executables, and explicitly wraps `.cmd/.bat` shims through `ComSpec` without enabling `shell:true`; batch shims use the `cmd.exe /S /C` outer-quote form with `windowsVerbatimArguments=true` so paths containing spaces are preserved without literal backslash-escaped quotes.
 - The persistent Main Orchestrator is control-plane only: delivery/change requests must enter through Context Engine `agent_start`; direct edit/write/patch/bash/task/Serena execution is fail-closed, while Runtime child specialists retain implementation tools.
 
@@ -46,3 +47,5 @@ The supported CLI surface is the ten `harness:*` commands in `package.json` / `b
 ## Promotion rule
 
 A new harness tag is promoted only from an immutable source tree after the standalone contract suite and target-host qualification pass. `npm run harness:qualify` is the deterministic outer qualification authority; it is not an OpenCode agent and never delegates the runbook itself to Runtime V2. The persistent Main Orchestrator stays control-plane only and is exercised as a normal consumer-facing agent only at the live R-7 workload boundary. Historical Runtime qualification under `qualification/baseline/` is lineage evidence, not permission to skip qualification after genericization or future source changes.
+
+- The R-0 legacy product-namespace scan must not embed its own forbidden identifier as a literal; the pattern is composed from fragments at runtime and a contract proves zero operational self-matches outside historical baseline provenance.

@@ -36,7 +36,7 @@ import {
   writeJson,
 } from "./lib/util.mjs";
 import { assertFixtureComplete, fixtureIdentity, materializeFixture } from "./lib/fixture.mjs";
-import { basicAuthHeaders, requestJson } from "./lib/http.mjs";
+import { basicAuthHeaders, requestJson, waitForJsonReady } from "./lib/http.mjs";
 
 const scriptRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const args = parseArgs(process.argv.slice(2));
@@ -535,15 +535,53 @@ function pluginSha() {
   return `sha256:${createHash("sha256").update(readFileSync(resolve(state.consumers.A || harnessRoot, state.consumers.A ? ".harness/.opencode/plugins/runtime-invocation-provenance.js" : ".opencode/plugins/runtime-invocation-provenance.js"))).digest("hex")}`;
 }
 
+async function requireHttpReady(gate, {
+  service,
+  url,
+  request = {},
+  timeoutMs = 120_000,
+  intervalMs = 1_000,
+}) {
+  try {
+    const readiness = await waitForJsonReady(url, {
+      request,
+      timeoutMs,
+      intervalMs,
+      label: service,
+    });
+    return {
+      service,
+      url,
+      attempts: readiness.attempts,
+      elapsedMs: readiness.elapsedMs,
+      status: readiness.response.status,
+    };
+  } catch (error) {
+    const classification =
+      error?.code === "qualification_http_readiness_rejected"
+        ? "SOURCE"
+        : "ENVIRONMENT";
+    hold(gate, classification, error instanceof Error ? error.message : String(error), {
+      service,
+      url,
+      ...(error?.evidence ?? {}),
+    });
+  }
+}
+
 async function r4() {
   const env = buildConsumerEnv();
   state.pluginSha = pluginSha();
   for (const [name, port] of Object.entries(state.ports)) if (!(await isPortFree(port))) hold("R-4", "ENVIRONMENT", "qualification_port_race", { name, port });
   mustRun("R-4", "SOURCE", process.execPath, [resolve(state.consumers.A, ".harness/bin/harness.mjs"), "up"], { cwd: state.consumers.A, env: { ...env, AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256: state.pluginSha }, label: "r4-harness-up", timeoutMs: 30 * 60_000 });
 
-  await waitFor(async () => {
-    try { return (await requestJson(`http://127.0.0.1:${state.ports.contextEngine}/healthz`, { timeoutMs: 5_000, allowStatuses: [200] })).body; } catch { return null; }
-  }, { timeoutMs: 5 * 60_000, intervalMs: 2_000, label: "context-engine-health" });
+  const contextEngineReadiness = await requireHttpReady("R-4", {
+    service: "context-engine",
+    url: `http://127.0.0.1:${state.ports.contextEngine}/healthz`,
+    request: { timeoutMs: 5_000, allowStatuses: [200] },
+    timeoutMs: 5 * 60_000,
+    intervalMs: 2_000,
+  });
 
   const services = ["postgres", "rabbitmq", "redis", "context-embeddings", "context-engine", "agent-runtime-worker"];
   const containerEvidence = {};
@@ -556,8 +594,29 @@ async function r4() {
     containerEvidence[service] = { id, pid: inspect.State?.Pid, health: inspect.State?.Health?.Status ?? "running", restartCount: inspect.RestartCount ?? 0 };
   }
   composeCommand(["exec", "-T", "redis", "redis-cli", "ping"], { label: "r4-redis-ping" });
-  await requestJson(`http://127.0.0.1:${state.ports.rabbitmqManagement}/api/overview`, { headers: basicAuthHeaders("agent", "agent"), timeoutMs: 10_000, allowStatuses: [200] });
-  await requestJson(`http://127.0.0.1:${state.ports.embeddings}/embed`, { method: "POST", body: { inputs: "qualification" }, timeoutMs: 10_000, allowStatuses: [200] });
+  const rabbitmqReadiness = await requireHttpReady("R-4", {
+    service: "rabbitmq-management",
+    url: `http://127.0.0.1:${state.ports.rabbitmqManagement}/api/overview`,
+    request: {
+      headers: basicAuthHeaders("agent", "agent"),
+      timeoutMs: 10_000,
+      allowStatuses: [200],
+    },
+    timeoutMs: 2 * 60_000,
+    intervalMs: 1_000,
+  });
+  const embeddingsReadiness = await requireHttpReady("R-4", {
+    service: "context-embeddings",
+    url: `http://127.0.0.1:${state.ports.embeddings}/embed`,
+    request: {
+      method: "POST",
+      body: { inputs: "qualification" },
+      timeoutMs: 10_000,
+      allowStatuses: [200],
+    },
+    timeoutMs: 5 * 60_000,
+    intervalMs: 2_000,
+  });
 
   for (let i = 0; i < 2; i += 1) {
     mustRun("R-4", "SOURCE", process.execPath, [resolve(state.consumers.A, ".harness/bin/harness.mjs"), "migrate"], { cwd: state.consumers.A, env: { ...env, AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256: state.pluginSha }, label: `r4-migrate-${i + 1}`, timeoutMs: 10 * 60_000 });
@@ -571,7 +630,7 @@ async function r4() {
   if (existsSync(resolve(state.consumers.A, ".harness/node_modules"))) hold("R-4", "SOURCE", "submodule_node_modules_created");
   const volumes = runner.run("docker", ["volume", "ls", "--filter", `label=com.docker.compose.project=${state.composeProject.name}`, "--format", "{{.Name}}"], { label: "r4-compose-volumes" }).stdout.trim().split(/\r?\n/u).filter(Boolean);
   if (volumes.some((name) => state.preexistingDocker.volumes.includes(name))) hold("R-4", "SOURCE", "preexisting_volume_reused", { volumes });
-  return { composeProject: state.composeProject.name, services: containerEvidence, migrations: migrationCount, workerHeartbeat, volumes };
+  return { composeProject: state.composeProject.name, services: containerEvidence, readiness: { contextEngine: contextEngineReadiness, rabbitmq: rabbitmqReadiness, embeddings: embeddingsReadiness }, migrations: migrationCount, workerHeartbeat, volumes };
 }
 
 function sqlScalar(sql) {
