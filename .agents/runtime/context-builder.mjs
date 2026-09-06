@@ -277,7 +277,7 @@ export async function buildTaskBrief({ repositoryRoot, registry, plan, task, con
       ...(task.stage === "product-discovery" ? [
         "Product Discovery is upstream of all governance reviews, Technical Refinement, QA/readiness and Product Acceptance. Pending downstream stages are expected and cannot block this task.",
         "Task Brief.acceptanceCriteria are Runtime process gates (PROC-PO-*). Prove them only in handoff.criterionResults; never copy those process IDs into handoff.acceptanceCriteria.",
-        "handoff.acceptanceCriteria is exclusively the Product Owner product-behavior catalog. Every emitted product criterion requires an explicit proofStage and must not use a PROC-* process ID.",
+        "handoff.acceptanceCriteria is exclusively the Product Owner product-behavior catalog. Every emitted product criterion requires an explicit proofStage, at least one product criterion must use proofStage=implementation, and no product criterion may use a PROC-* process ID.",
         "A generic docs:check or repository-wide validation absent from Task Brief.validation cannot block Product Discovery.",
         "Product Discovery must emit bootstrapReviewAssessment using bootstrap-review-assessment/v1. The Runtime treats it as the authority that refines review capabilities and fact dependencies before downstream dispatch.",
         "Classify each required cross-review fact as authoritative-context with concrete evidence, or as review-provided with exactly one providerCapabilityId. Never serialize reviews merely because they both exist.",
@@ -289,7 +289,7 @@ export async function buildTaskBrief({ repositoryRoot, registry, plan, task, con
         "Classify domain impact from the scoped increment itself. Requirements to preserve an existing invariant are constraints for downstream planning, not evidence that this increment changes that domain.",
         "This review produces constraints for downstream Technical Refinement; it does not validate a future implementation plan, implementation, QA, readiness, rollout or terminal run.",
       ] : []),
-      ...(task.stage === "technical-refinement" ? ["The attached ownership projection is the planning view. The Runtime compiler retains the full .agents/agents/*/agent.json as final ownership authority; every implementationPlan ownedPath must still pass compiler ownership validation."] : []),
+      ...(task.stage === "technical-refinement" ? ["The attached ownership projection is the planning view. The Runtime compiler retains the full .agents/agents/*/agent.json as final ownership authority. Explicit path rules remain fail-closed; ownershipMode=fallback-unclaimed-primary is allowed only where no non-fallback implementation agent has matching primaryPaths, and concrete primary domain ownership always wins."] : []),
     ],
     ownedPaths, readOnlyContextPaths, sharedPathOwner: plan.sharedPathOwner, inputs: [], dependencies: task.dependencies, changeProvenance,
     outOfScope: [

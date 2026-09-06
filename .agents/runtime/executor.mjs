@@ -533,6 +533,7 @@ export async function stageContractFailure(taskPlan, handoff, schemas, registry,
         product_acceptance_criterion_invalid: `Product acceptance criterion ${criteriaIssue.criterionId ?? "unknown"} requires id, source, statement, blocking and verification`,
         product_acceptance_proof_stage_missing: `Product acceptance criterion ${criteriaIssue.criterionId ?? "unknown"} must emit explicit proofStage`,
         product_acceptance_proof_stage_invalid: `Product acceptance criterion ${criteriaIssue.criterionId ?? "unknown"} has invalid proofStage`,
+        product_acceptance_implementation_proof_missing: "Product Discovery must classify at least one product criterion as proofStage=implementation so Technical Refinement can compile implementation work",
         product_acceptance_criterion_duplicate: `Duplicate product acceptance criterion: ${criteriaIssue.criterionId ?? "unknown"}`,
       };
       return {

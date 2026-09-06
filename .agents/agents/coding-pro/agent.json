@@ -35,5 +35,6 @@
   "validationCommands": [],
   "canDelegateTo": [],
   "dependsOn": [],
-  "manifest": ".agents/agents/coding-pro/AGENT.md"
+  "manifest": ".agents/agents/coding-pro/AGENT.md",
+  "ownershipMode": "fallback-unclaimed-primary"
 }

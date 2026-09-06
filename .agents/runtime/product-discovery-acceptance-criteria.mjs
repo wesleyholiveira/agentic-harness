@@ -54,6 +54,13 @@ export function productDiscoveryAcceptanceCriteriaIssue({ brief, handoff, requir
     }
     ids.add(id);
   }
+  if (!criteria.some((criterion) => text(criterion?.proofStage) === "implementation")) {
+    return {
+      code: "product_acceptance_implementation_proof_missing",
+      reason: "implementation_proof_stage_missing",
+      criterionId: null,
+    };
+  }
   return null;
 }
 

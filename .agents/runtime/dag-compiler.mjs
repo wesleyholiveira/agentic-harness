@@ -36,6 +36,23 @@ function agentOwnedPatterns(agent) {
   return unique([...(agent.primaryPaths ?? []), ...(agent.sharedPaths ?? []), ...(agent.collaborativePaths ?? [])]);
 }
 
+function primaryImplementationOwnersForPath(registry, path) {
+  return (registry?.agents ?? [])
+    .filter((candidate) => IMPLEMENTATION_EXECUTION_ROLES.has(candidate.executionRole))
+    .filter((candidate) => candidate.ownershipMode !== "fallback-unclaimed-primary")
+    .filter((candidate) => anyPatternMatches(candidate.primaryPaths ?? [], path));
+}
+
+function agentCanOwnPath(registry, agent, path) {
+  if (anyPatternMatches(agentOwnedPatterns(agent), path)) return true;
+  if (agent?.ownershipMode !== "fallback-unclaimed-primary") return false;
+  // Generic coding agents are a project-agnostic fallback only when no domain
+  // implementer declares primary ownership for the path. Shared/collaborative
+  // patterns do not reserve a path; primary ownership remains the stronger
+  // authority and therefore blocks fallback routing.
+  return primaryImplementationOwnersForPath(registry, path).length === 0;
+}
+
 function collectCycleIssues(workItems) {
   const byId = new Map();
   for (const item of workItems ?? []) {
@@ -169,9 +186,8 @@ function inspectImplementationPlan(plan, registry, { validationDirective = null 
       issues.push(`implementation_plan_agent_not_implementer:${item.ownerAgentId}`);
     }
 
-    const allowed = agent ? agentOwnedPatterns(agent) : [];
     for (const path of item.ownedPaths ?? []) {
-      if (agent && !anyPatternMatches(allowed, path)) {
+      if (agent && !agentCanOwnPath(registry, agent, path)) {
         issues.push(`implementation_plan_path_outside_agent_ownership:${item.id}:${item.ownerAgentId}:${path}`);
       }
       for (const prior of claimedPaths) {

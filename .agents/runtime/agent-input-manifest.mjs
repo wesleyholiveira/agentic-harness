@@ -124,7 +124,12 @@ export function projectOwnershipRegistry(registry) {
       ...(agent.sharedPaths ?? []).map((pattern) => ({ pattern, ownershipClass: "shared", provenance: `registry:${agent.id}:sharedPaths` })),
       ...(agent.collaborativePaths ?? []).map((pattern) => ({ pattern, ownershipClass: "collaborative", provenance: `registry:${agent.id}:collaborativePaths` })),
     ].sort((left, right) => `${left.ownershipClass}:${left.pattern}`.localeCompare(`${right.ownershipClass}:${right.pattern}`));
-    return { agentId: agent.id, executionRole: agent.executionRole, matchingRules };
+    return {
+      agentId: agent.id,
+      executionRole: agent.executionRole,
+      ownershipMode: agent.ownershipMode ?? "explicit-patterns",
+      matchingRules,
+    };
   }).sort((a, b) => a.agentId.localeCompare(b.agentId));
   return {
     contractVersion: "agent-ownership-projection/v1",

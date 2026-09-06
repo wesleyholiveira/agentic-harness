@@ -64,6 +64,7 @@ function registrySummary(registry) {
       primaryPaths: agent.primaryPaths ?? [],
       sharedPaths: agent.sharedPaths ?? [],
       collaborativePaths: agent.collaborativePaths ?? [],
+      ownershipMode: agent.ownershipMode ?? "explicit-patterns",
     }));
 }
 
@@ -125,7 +126,8 @@ Hard requirements:
 - every blocking product criterion whose proofStage resolves to implementation must be covered by at least one work item.
 - product criteria with proofStage quality-assurance or product-acceptance are downstream runtime gates and MUST NOT be assigned to implementation workItems.
 - every work item must name exactly one implementation-capable owner whose registry ownership covers every ownedPath. Treat implementationAgentOwnership as exact runtime authority: never infer a neighboring path, package path, test path, or similarly named file that is absent from that owner's primary/shared/collaborative patterns.
-- primaryPaths are the domain-authority preference when more than one implementation-capable agent can touch the same path through shared/collaborative boundaries. Do not route a no-impact Runtime marker to an unrelated specialist merely because that specialist has a broad collaborative docs pattern.
+- ownershipMode=fallback-unclaimed-primary is the only exception to an explicit path pattern: that owner may own a path only when NO non-fallback implementation agent has a matching primaryPaths rule for it. Use this for generic consumer paths such as src/foo or test/foo when the catalog has no primary domain owner.
+- primaryPaths are the domain-authority preference and block fallback ownership. Shared/collaborative patterns permit cooperation but do not reserve a path against the fallback owner. Do not route a path with a concrete primary owner to coding-fast/coding-pro.
 - dependencies must refer only to work item IDs and must form an acyclic graph.
 - validation must contain executable shell commands that prove the work item and assigned acceptance criteria. Never place prose/evidence descriptions in validation. The runtime executes each string via the shell. Runtime-owned diff-isolation evidence belongs in criteria/findings, not in workItems[*].validation.
 - if an implementation product criterion uses an executable shell command in its verification field, every work item that claims that criterion must preserve that exact command in validation rather than replacing it with an ad-hoc equivalent.

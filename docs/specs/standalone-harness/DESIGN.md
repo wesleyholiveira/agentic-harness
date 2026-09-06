@@ -28,7 +28,7 @@ The public migration surface is also containerized under that same Compose ident
 
 ## Agent discovery
 
-`loadAgentCatalog()` discovers `.agents/agents/*/agent.json`; no monolithic registry file or static graph exists. Manifests contain capabilities/ownership hints. The run DAG is synthesized from impact-selected reviews plus the schema-valid Technical Refinement implementation plan.
+`loadAgentCatalog()` discovers `.agents/agents/*/agent.json`; no monolithic registry file or static graph exists. Manifests contain capabilities/ownership hints. The run DAG is synthesized from impact-selected reviews plus the schema-valid Technical Refinement implementation plan. Domain `primaryPaths` are stronger than generic fallback ownership: `coding-fast`/`coding-pro` may own otherwise-unclaimed consumer paths but cannot supersede a non-fallback primary owner. Product Discovery must emit at least one implementation-proof product criterion before downstream planning.
 
 ## Execution plane
 

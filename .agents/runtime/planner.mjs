@@ -231,7 +231,7 @@ export function createExecutionPlan({
     capabilityId: "process.product-discovery",
     objective: `Create or refine the PRD with stable, binary acceptance criteria for: ${request}`,
     acceptanceCriteria: [
-      criterion("PROC-PO-1", "runtime", "The PRD exposes stable product acceptance-criterion IDs with binary observable outcomes.", "handoff.acceptanceCriteria is non-empty, contains only product criteria (never Task Brief PROC-PO-* process gates), and every criterion is testable with an explicit proofStage"),
+      criterion("PROC-PO-1", "runtime", "The PRD exposes stable product acceptance-criterion IDs with binary observable outcomes.", "handoff.acceptanceCriteria is non-empty, contains only product criteria (never Task Brief PROC-PO-* process gates), every criterion is testable with an explicit proofStage, and at least one product criterion has proofStage=implementation"),
       criterion("PROC-PO-2", "runtime", "Business scope and non-goals are explicit enough that downstream roles do not infer product behavior.", "PRD evidence and zero open blocking product ambiguity"),
       criterion("PROC-PO-3", "runtime", "Product Discovery classifies required bootstrap review capabilities, preserves explicit request-scoped capability/fact dependency requirements, and resolves or delegates every cross-review fact dependency.", "handoff.bootstrapReviewAssessment uses bootstrap-review-assessment/v1 with explicit requiredCapabilities and factRequirements, including any request-declared producer->consumer fact relation"),
     ],

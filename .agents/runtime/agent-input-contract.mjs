@@ -13,7 +13,7 @@ export function buildConciseExecutorContract({ brief }) {
     `Blocking Task Brief criterion IDs: ${blockingIds.join(", ") || "none"}. criterionResults must contain each ID exactly once before status=complete.`,
   ];
   if (stage === "product-discovery") lines.push(
-    "Product Discovery: PROC-PO-* are process gates and belong only in criterionResults. acceptanceCriteria is product-only and every item requires proofStage. Emit bootstrapReviewAssessment/v1.",
+    "Product Discovery: PROC-PO-* are process gates and belong only in criterionResults. acceptanceCriteria is product-only, every item requires proofStage, and at least one product criterion must use proofStage=implementation so downstream Technical Refinement has implementation proof authority. Emit bootstrapReviewAssessment/v1.",
   );
   if (["architecture-review", "database-review", "infrastructure-review", "ai-llmops-review"].includes(stage)) lines.push(
     "Bootstrap review: review only current Product Discovery scope and required facts; future Technical Refinement/implementation/QA evidence is downstream and cannot block this review.",
