@@ -80,3 +80,11 @@ The canonical serialized Task Brief SDD workflow marker is the `task-brief.schem
 ## OpenCode effective-config authority split
 
 Persistent host OpenCode owns `<consumer>/.runtime/opencode.effective.json`. Runtime task OpenCode inside the Linux worker owns an ephemeral container-private `/tmp/agentic-harness/opencode.effective.json`, generated with `AGENT_HARNESS_OPENCODE_CONFIG_OUTPUT`. The two must never share one bind-mounted file. See ADR 0017.
+
+## Non-evidentiary phantom reuse normalization
+
+- `reusedPaths` is bookkeeping, not evidence authority. Workspace + baseline existence remains authoritative.
+- A zero-file `role=contract` `*-review` may drop an owned `reusedPaths` entry only when the path exists in neither workspace nor baseline and is not referenced anywhere else in the handoff evidence.
+- The Runtime emits `workspace.phantom_reused_paths_dropped` for that deterministic normalization.
+- Missing baseline artifacts, evidentiary phantom paths, and all non-governance/implementation/verification cases remain fail-closed.
+- See ADR 0021.

@@ -464,6 +464,7 @@ export async function finalizeExecutionResult({ repositoryRoot, plan, taskPlan, 
       workspace,
       task: taskPlan,
       inspection,
+      handoff,
       changedPaths: handoff.changedPaths ?? [],
       reusedPaths: handoff.reusedPaths ?? [],
       contextReferencePaths: brief.readOnlyContextPaths ?? [],
@@ -498,6 +499,13 @@ export async function finalizeExecutionResult({ repositoryRoot, plan, taskPlan, 
         paths: disposition.baselineDetectedChanges,
         collector: inspection.source ?? "unknown",
         authority: "workspace_baseline_fingerprint",
+      });
+    }
+    if ((disposition.droppedPhantomReusedPaths ?? []).length > 0) {
+      await store.event(plan.runId, taskPlan.taskId, "workspace.phantom_reused_paths_dropped", {
+        paths: disposition.droppedPhantomReusedPaths,
+        authority: "workspace_and_baseline_absence",
+        scope: "zero-file-governance-review-non-evidentiary-bookkeeping",
       });
     }
     if (disposition.invalidReused.length > 0) {

@@ -39,3 +39,13 @@ Create a clean temporary Git consumer, fork a real detached implementation workt
 ## Shared event-driven workspace proof
 
 On a Docker-enabled host, create a Runtime task whose worker workspace is outside `/workspace/repository`. Before live R-7 execution, R-4 must inspect `context-engine` and `agent-runtime-worker` and prove both mount the same Docker volume source at `/workspace/agent-workspaces`. A worker-created workspace file must be readable by Context Engine finalization before cleanup; copy-workspace integration must then materialize an implementation file into the consumer root and make it visible to the next QA workspace.
+
+### Phantom reuse normalization contracts
+
+The contract suite must prove all of the following:
+
+- a zero-file bootstrap governance review may drop an owned path that is absent from both workspace and baseline when the path appears only in `reusedPaths`;
+- the same phantom path remains invalid when any handoff evidence references it;
+- a path that existed in baseline but is missing from the workspace remains invalid;
+- implementation/non-review tasks never receive phantom-reuse normalization;
+- the bootstrap governance executor prompt explicitly forbids invented `changedPaths`/`reusedPaths` artifacts.

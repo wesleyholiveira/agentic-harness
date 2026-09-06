@@ -33,10 +33,16 @@ async function verifyReusablePath(workspace, task, path, changedSet) {
 
   const workspacePath = join(workspace.path, path);
   const current = await fileFingerprint(workspacePath);
-  if (!current) return { path, valid: false, reason: "missing_in_workspace" };
 
   if (workspace.mode === "worktree") {
     const baseline = await runProcess("git", ["cat-file", "-e", `HEAD:${path}`], { cwd: workspace.path });
+    if (!current) {
+      return {
+        path,
+        valid: false,
+        reason: baseline.status === 0 ? "missing_in_workspace" : "missing_in_workspace_and_baseline",
+      };
+    }
     if (baseline.status !== 0) return { path, valid: false, reason: "missing_in_baseline" };
     const diff = await runProcess("git", ["diff", "--quiet", "HEAD", "--", path], { cwd: workspace.path });
     if (diff.status !== 0) return { path, valid: false, reason: "changed_in_attempt" };
@@ -44,9 +50,41 @@ async function verifyReusablePath(workspace, task, path, changedSet) {
   }
 
   const baseline = workspace.baseline?.get(path) ?? null;
+  if (!current) {
+    return {
+      path,
+      valid: false,
+      reason: baseline ? "missing_in_workspace" : "missing_in_workspace_and_baseline",
+    };
+  }
   if (!baseline) return { path, valid: false, reason: "missing_in_baseline" };
   if (!sameFileFingerprint(baseline, current)) return { path, valid: false, reason: "changed_in_attempt" };
   return { path, valid: true, fingerprint: current };
+}
+
+function handoffReferencesPathOutsideDisposition(handoff, path) {
+  if (!handoff || typeof handoff !== "object") return false;
+  const normalizedPath = String(path).replaceAll("\\", "/");
+  const ignoredRootKeys = new Set(["changedPaths", "reusedPaths"]);
+
+  function contains(value, rootKey = null) {
+    if (rootKey && ignoredRootKeys.has(rootKey)) return false;
+    if (typeof value === "string") return value.replaceAll("\\", "/").includes(normalizedPath);
+    if (Array.isArray(value)) return value.some((entry) => contains(entry, rootKey));
+    if (!value || typeof value !== "object") return false;
+    return Object.entries(value).some(([key, entry]) => contains(entry, rootKey ?? key));
+  }
+
+  return Object.entries(handoff).some(([key, value]) => contains(value, key));
+}
+
+function canDropPhantomGovernanceReuse({ task, handoff, result }) {
+  return result?.reason === "missing_in_workspace_and_baseline"
+    && task?.role === "contract"
+    && String(task?.stage ?? "").endsWith("-review")
+    && Number(task?.estimatedFiles ?? -1) === 0
+    && handoff?.status === "complete"
+    && !handoffReferencesPathOutsideDisposition(handoff, result.path);
 }
 
 async function verifyReadOnlyContextPath(workspace, path, changedSet) {
@@ -71,7 +109,7 @@ async function verifyReadOnlyContextPath(workspace, path, changedSet) {
   return { path, valid: true, fingerprint: current };
 }
 
-export async function reconcileHandoffPathDisposition({ workspace, task, inspection, changedPaths = [], reusedPaths = [], contextReferencePaths = [] }) {
+export async function reconcileHandoffPathDisposition({ workspace, task, inspection, handoff = null, changedPaths = [], reusedPaths = [], contextReferencePaths = [] }) {
   const actualChanged = normalizeDeclaredPaths(inspection?.changedPaths ?? []);
   const actualSet = new Set(actualChanged);
   const declaredChanged = normalizeDeclaredPaths(changedPaths);
@@ -84,6 +122,7 @@ export async function reconcileHandoffPathDisposition({ workspace, task, inspect
   const reuseCandidates = [];
   const verifiedReused = [];
   const verifiedContextOnly = [];
+  const droppedPhantomReusedPaths = [];
   const invalidReused = [];
 
   for (const path of explicitReused) {
@@ -133,6 +172,13 @@ export async function reconcileHandoffPathDisposition({ workspace, task, inspect
       normalizedChangedSet.add(path);
       if (!reclassifiedReusedToChanged.includes(path)) reclassifiedReusedToChanged.push(path);
       if (!baselineDetectedChanges.includes(path)) baselineDetectedChanges.push(path);
+    } else if (canDropPhantomGovernanceReuse({ task, handoff, result })) {
+      // A zero-file governance review can accidentally place an invented owned
+      // artifact in reusedPaths even though the artifact never existed. The
+      // workspace/baseline is authoritative for path existence. Dropping this
+      // impossible bookkeeping claim is safe only when no handoff evidence
+      // references the path; evidentiary phantom paths remain fail-closed.
+      droppedPhantomReusedPaths.push(path);
     } else {
       invalidReused.push(result);
     }
@@ -150,6 +196,7 @@ export async function reconcileHandoffPathDisposition({ workspace, task, inspect
     ghostDeclarations,
     reclassifiedReusedToChanged,
     baselineDetectedChanges,
+    droppedPhantomReusedPaths,
     invalidReused,
     missingDeclaredChanges,
   };

@@ -12,7 +12,7 @@ import { provisionalizeBootstrapPlan } from "../../.agents/runtime/bootstrap-top
 import { collectImplementationPlanValidationIssues } from "../../.agents/runtime/dag-compiler.mjs";
 import { projectOwnershipRegistry } from "../../.agents/runtime/agent-input-manifest.mjs";
 import { productDiscoveryAcceptanceCriteriaIssue } from "../../.agents/runtime/product-discovery-acceptance-criteria.mjs";
-import { cleanupWorkspace, createIsolatedWorkspace, inspectWorkspaceChanges, integrateWorkspace } from "../../.agents/runtime/workspace.mjs";
+import { cleanupWorkspace, createIsolatedWorkspace, inspectWorkspaceChanges, integrateWorkspace, reconcileHandoffPathDisposition } from "../../.agents/runtime/workspace.mjs";
 import { runProcess } from "../../.agents/runtime/process.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -204,4 +204,164 @@ test("worktree integration materializes newly created implementation files for d
     if (workspace) await cleanupWorkspace(repositoryRoot, workspace).catch(() => {});
     await rm(tempRoot, { recursive: true, force: true });
   }
+});
+
+
+test("zero-file governance review drops non-evidentiary phantom reused path absent from workspace and baseline", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "agent-harness-phantom-reuse-"));
+  try {
+    const phantomPath = "docs/architecture/example-anonymous-fallback.md";
+    const task = {
+      taskId: "run-test:architecture-review",
+      agentId: "architecture-governance",
+      role: "contract",
+      stage: "architecture-review",
+      estimatedFiles: 0,
+      ownedPaths: ["docs/architecture/**", "docs/adr/**", "docs/specs/**"],
+    };
+    const handoff = {
+      status: "complete",
+      changedPaths: [],
+      reusedPaths: [phantomPath],
+      usedContextPaths: ["docs/specs/example/PRD.md"],
+      criterionResults: [{
+        criterionId: "PROC-ARCH-1",
+        result: "passed",
+        evidence: "Reviewed the approved Product Discovery scope and its boundary constraints.",
+      }],
+      validation: [],
+      assumptions: [],
+      contractChanges: [],
+      residualRisks: [],
+      followUps: [],
+    };
+    const disposition = await reconcileHandoffPathDisposition({
+      workspace: { mode: "copy", path: tempRoot, baseline: new Map() },
+      task,
+      inspection: { changedPaths: [] },
+      handoff,
+      changedPaths: handoff.changedPaths,
+      reusedPaths: handoff.reusedPaths,
+      contextReferencePaths: handoff.usedContextPaths,
+    });
+
+    assert.deepEqual(disposition.changedPaths, []);
+    assert.deepEqual(disposition.reusedPaths, []);
+    assert.deepEqual(disposition.droppedPhantomReusedPaths, [phantomPath]);
+    assert.deepEqual(disposition.invalidReused, []);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("governance phantom reused path remains fail-closed when handoff evidence references it", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "agent-harness-phantom-evidence-"));
+  try {
+    const phantomPath = "docs/architecture/example-anonymous-fallback.md";
+    const task = {
+      taskId: "run-test:architecture-review",
+      agentId: "architecture-governance",
+      role: "contract",
+      stage: "architecture-review",
+      estimatedFiles: 0,
+      ownedPaths: ["docs/architecture/**"],
+    };
+    const handoff = {
+      status: "complete",
+      changedPaths: [],
+      reusedPaths: [phantomPath],
+      criterionResults: [{
+        criterionId: "PROC-ARCH-1",
+        result: "passed",
+        evidence: `Architecture proof is recorded in ${phantomPath}.`,
+      }],
+      validation: [],
+    };
+    const disposition = await reconcileHandoffPathDisposition({
+      workspace: { mode: "copy", path: tempRoot, baseline: new Map() },
+      task,
+      inspection: { changedPaths: [] },
+      handoff,
+      reusedPaths: handoff.reusedPaths,
+    });
+
+    assert.deepEqual(disposition.droppedPhantomReusedPaths, []);
+    assert.deepEqual(disposition.invalidReused, [{
+      path: phantomPath,
+      valid: false,
+      reason: "missing_in_workspace_and_baseline",
+    }]);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("missing pre-existing reused artifact is never normalized as a phantom", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "agent-harness-missing-baseline-reuse-"));
+  try {
+    const path = "docs/architecture/existing.md";
+    const task = {
+      taskId: "run-test:architecture-review",
+      agentId: "architecture-governance",
+      role: "contract",
+      stage: "architecture-review",
+      estimatedFiles: 0,
+      ownedPaths: ["docs/architecture/**"],
+    };
+    const handoff = { status: "complete", changedPaths: [], reusedPaths: [path], criterionResults: [], validation: [] };
+    const disposition = await reconcileHandoffPathDisposition({
+      workspace: {
+        mode: "copy",
+        path: tempRoot,
+        baseline: new Map([[path, { sha256: "baseline", bytes: 8 }]]),
+      },
+      task,
+      inspection: { changedPaths: [] },
+      handoff,
+      reusedPaths: handoff.reusedPaths,
+    });
+
+    assert.deepEqual(disposition.droppedPhantomReusedPaths, []);
+    assert.deepEqual(disposition.invalidReused, [{ path, valid: false, reason: "missing_in_workspace" }]);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("phantom reused paths remain fail-closed outside zero-file governance reviews", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "agent-harness-implementation-phantom-reuse-"));
+  try {
+    const path = "src/format-name.mjs";
+    const task = {
+      taskId: "run-test:implementation:format-name",
+      agentId: "coding-fast",
+      role: "implementation",
+      stage: "implementation",
+      estimatedFiles: 1,
+      ownedPaths: ["src/**"],
+    };
+    const handoff = { status: "complete", changedPaths: [], reusedPaths: [path], criterionResults: [], validation: [] };
+    const disposition = await reconcileHandoffPathDisposition({
+      workspace: { mode: "copy", path: tempRoot, baseline: new Map() },
+      task,
+      inspection: { changedPaths: [] },
+      handoff,
+      reusedPaths: handoff.reusedPaths,
+    });
+
+    assert.deepEqual(disposition.droppedPhantomReusedPaths, []);
+    assert.deepEqual(disposition.invalidReused, [{
+      path,
+      valid: false,
+      reason: "missing_in_workspace_and_baseline",
+    }]);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("bootstrap governance prompt forbids invented changed/reused artifact paths for zero-file reviews", () => {
+  const source = readFileSync(resolve(root, "scripts/internal/opencode-task-executor.mjs"), "utf8");
+  assert.match(source, /do not invent an architecture\/ADR\/review artifact path merely to populate changedPaths or reusedPaths/);
+  assert.match(source, /if no pre-existing owned artifact was actually verified as output, reusedPaths must be \[\]/);
 });
