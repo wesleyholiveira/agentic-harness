@@ -848,20 +848,31 @@ async function waitForRunId(sessionId, {
       });
     }
 
+    const recentAssistantTexts = assistantTexts(history).slice(-5);
+    const agentStartAttempted = tools.some((name) => name === "agent_start" || name.endsWith("_agent_start"));
+    const runtimeValidationText = recentAssistantTexts.find((text) => /schema_validation_failed|additional property not allowed|executionPlan\./i.test(text)) ?? null;
+    const message = runtimeValidationText && agentStartAttempted
+      ? "r7_agent_start_rejected_by_runtime_validation"
+      : provenanceRegistered
+        ? "r7_agent_start_provenance_registered_but_run_not_materialized"
+        : agentStartAttempted
+          ? "r7_agent_start_attempted_but_no_run_materialized"
+          : "r7_main_orchestrator_failed_to_enter_runtime";
+
     hold(
       gate,
       "RUNTIME",
-      provenanceRegistered
-        ? "r7_agent_start_provenance_registered_but_run_not_materialized"
-        : "r7_main_orchestrator_failed_to_enter_runtime",
+      message,
       {
         sessionId,
         request,
         tools,
-        assistantTexts: assistantTexts(history).slice(-5),
+        assistantTexts: recentAssistantTexts,
         recentRuns,
         continuations,
         provenanceRegistered,
+        agentStartAttempted,
+        runtimeValidationText,
       },
     );
   }

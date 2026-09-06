@@ -183,3 +183,7 @@ A fresh deterministic qualification passed Q-ENTRY through R-6 and timed out in 
 R-7 now discovers a run from PostgreSQL `agent_runs` using the exact fresh synthetic workload request and independently requires an `agent_continuations` row bound to the exact qualified OpenCode session. Timeout diagnostics distinguish no Runtime ingress, provenance-without-run, and run-without-continuation.
 
 The persistent Main Orchestrator contract now explicitly calls the local `runtime-continuation` tool before `agent_start` and passes the returned continuation object in the same call. Normal persistent delivery therefore expects `next=session-resume-event`, preserving the Durable Continuation semantics qualified in R-8.
+
+## R-7 Security Review execution-plan schema parity remediation
+
+A fresh standalone qualification reached R-7 with the correct `runtime-continuation -> context-engine_agent_start` tool sequence, but Context Engine rejected the planner-produced execution plan because `workflow.requiresSecurity` was emitted by the planner while absent from the v2 execution-plan schema. This revision makes the security review projection schema-required, keeps provisional/refined topology projections coherent, and improves R-7 classification for Runtime validation rejection before run materialization.

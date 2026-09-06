@@ -225,3 +225,12 @@ test("persistent Main Orchestrator captures runtime-continuation before agent_st
   assert.ok(skillContinuation >= 0 && skillContinuation < skillStart);
   assert.match(skill, /that continuation object in the same call/);
 });
+
+
+test("R-7 classifies attempted agent_start schema rejection separately from missing Runtime ingress", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  assert.match(controller, /r7_agent_start_rejected_by_runtime_validation/);
+  assert.match(controller, /r7_agent_start_attempted_but_no_run_materialized/);
+  assert.match(controller, /agentStartAttempted/);
+  assert.match(controller, /additional property not allowed/);
+});

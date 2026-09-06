@@ -17,6 +17,7 @@ The harness is authoritative for:
 A consuming repository remains authoritative for its domain code, product requirements, project ADRs/designs/runbooks, and run-specific Task Briefs/Context Packets.
 
 ## Runtime invariants
+- Execution-plan workflow review projections include `requiresSecurity` as a schema-required boolean; provisional bootstrap forces it false and refined topology derives it from the selected `security-review` capability.
 - Persistent Main Orchestrator delivery ingress is `runtime-continuation` → `agent_start({ continuation })`; `agent_runs` proves run existence and `agent_continuations` separately proves durable OpenCode session binding.
 - Qualification R-4 treats container `Running` and application HTTP readiness as separate proofs; Context Engine, RabbitMQ Management and embeddings must pass bounded HTTP readiness with preserved transport-cause evidence.
 - The deterministic qualification controller is host-side and cross-platform: on Windows it resolves `PATH`/`PATHEXT`, directly spawns native executables, and explicitly wraps `.cmd/.bat` shims through `ComSpec` without enabling `shell:true`; batch shims use the `cmd.exe /S /C` outer-quote form with `windowsVerbatimArguments=true` so paths containing spaces are preserved without literal backslash-escaped quotes.
