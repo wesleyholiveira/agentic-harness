@@ -34,7 +34,7 @@ A consuming repository remains authoritative for its domain code, product requir
 
 ## Dynamic agent topology
 
-`.agents/agents/<id>/agent.json` describes capability and ownership hints only. There is no monolithic static call graph. Technical Refinement emits the implementation plan and the Runtime compiler derives the task DAG for the current request.
+`.agents/agents/<id>/agent.json` describes capability and ownership hints only. There is no monolithic static call graph. Technical Refinement emits the implementation plan and the Runtime compiler derives the task DAG for the current request. Explicit primary ownership remains the strongest path authority; `coding-fast` and `coding-pro` are project-agnostic `fallback-unclaimed-primary` owners and may touch a path only when no non-fallback implementation/platform agent has a matching primary rule. Product Discovery must also provide at least one `proofStage=implementation` product criterion so the implementation DAG has proof authority.
 
 ## Submodule roots
 

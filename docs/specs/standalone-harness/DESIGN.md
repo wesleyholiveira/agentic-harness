@@ -65,3 +65,12 @@ Standalone execution never assumes `<consumer>/.agents` exists. Runtime schemas,
 ### Task Brief SDD workflow marker authority
 
 `task-brief.schema.json` is the serialized authority for `taskBrief.sdd.workflowSkill`. Runtime Task Brief construction must emit the exact canonical value `agent-harness-sdd-workflow`; standalone preparation fails closed on any drift before dispatch. Contract tests require builder/schema parity so namespace refactors cannot silently reintroduce an invalid Task Brief marker.
+
+
+## R-7 worktree integration materialization remediation
+
+Fresh standalone qualification advanced through Product Discovery, Architecture Review, Technical Refinement, and a real implementation task. The implementation task was marked `integrated`, but QA blocked because the newly created implementation and test files were absent from its workspace; the required test command therefore discovered zero tests.
+
+The Runtime integration path for detached Git worktrees used `git diff --binary HEAD -- <changedPaths>`. Git omits brand-new untracked files from that diff, so an authoritative semantic/Rust change-set could name new files while the generated patch failed to materialize them in the consumer root.
+
+Worktree integration now marks only the reconciled changed paths as intent-to-add inside the disposable worktree before generating the binary patch. Worktree inspection also includes untracked files. After applying/copying integration, Runtime verifies the consumer-root fingerprint of every changed path against the task workspace and fails closed with `workspace_integration_materialization_mismatch` on any discrepancy. A task becomes `integrated` only after byte-equivalent materialization is proven.

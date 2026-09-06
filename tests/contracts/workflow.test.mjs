@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { loadAgentCatalog } from "../../.agents/runtime/agent-catalog.mjs";
 import { loadSchemas, validateAgainstSchema } from "../../.agents/runtime/schema-validator.mjs";
@@ -10,6 +12,8 @@ import { provisionalizeBootstrapPlan } from "../../.agents/runtime/bootstrap-top
 import { collectImplementationPlanValidationIssues } from "../../.agents/runtime/dag-compiler.mjs";
 import { projectOwnershipRegistry } from "../../.agents/runtime/agent-input-manifest.mjs";
 import { productDiscoveryAcceptanceCriteriaIssue } from "../../.agents/runtime/product-discovery-acceptance-criteria.mjs";
+import { cleanupWorkspace, createIsolatedWorkspace, inspectWorkspaceChanges, integrateWorkspace } from "../../.agents/runtime/workspace.mjs";
+import { runProcess } from "../../.agents/runtime/process.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -126,4 +130,77 @@ test("Product Discovery cannot complete without an implementation-proof product 
     requireComplete: true,
   });
   assert.equal(issue?.code, "product_acceptance_implementation_proof_missing");
+});
+
+
+test("worktree integration materializes newly created implementation files for downstream workspaces", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "agent-harness-worktree-integration-"));
+  const repositoryRoot = join(tempRoot, "consumer");
+  const workspacePath = join(tempRoot, "implementation-worktree");
+  await mkdir(repositoryRoot, { recursive: true });
+  let workspace = null;
+  try {
+    for (const [args, label] of [
+      [["init", "--quiet"], "git-init"],
+      [["config", "user.email", "qualification@example.invalid"], "git-email"],
+      [["config", "user.name", "Qualification"], "git-name"],
+    ]) {
+      const result = await runProcess("git", args, { cwd: repositoryRoot });
+      assert.equal(result.status, 0, `${label}: ${result.stderr || result.stdout}`);
+    }
+    await writeFile(join(repositoryRoot, "README.md"), "baseline\n", "utf8");
+    let result = await runProcess("git", ["add", "README.md"], { cwd: repositoryRoot });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    result = await runProcess("git", ["commit", "--quiet", "-m", "baseline"], { cwd: repositoryRoot });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const task = {
+      taskId: "run-test:implementation:format-name",
+      agentId: "coding-fast",
+      dependencies: [],
+      ownedPaths: ["src/**", "test/**"],
+    };
+    workspace = await createIsolatedWorkspace({
+      repositoryRoot,
+      runDirectory: join(repositoryRoot, ".runtime", "agents", "runs", "run-test"),
+      task,
+      mode: "worktree",
+      workspacePath,
+    });
+    await mkdir(join(workspace.path, "src"), { recursive: true });
+    await mkdir(join(workspace.path, "test"), { recursive: true });
+    await writeFile(join(workspace.path, "src", "format-name.mjs"), "export const formatName = (name) => name || 'Anonymous';\n", "utf8");
+    await writeFile(join(workspace.path, "test", "format-name.test.mjs"), "export const fixture = true;\n", "utf8");
+
+    const inspection = await inspectWorkspaceChanges(workspace, task);
+    assert.deepEqual(inspection.changedPaths, ["src/format-name.mjs", "test/format-name.test.mjs"]);
+
+    const conflicts = [];
+    const integrated = new Map();
+    const store = {
+      async integratedPath() { return null; },
+      async addConflict(entry) { conflicts.push(entry); },
+      async markIntegratedPath(_runId, _taskId, path, fingerprint) { integrated.set(path, fingerprint); },
+      async event() {},
+    };
+    const integratedInspection = await integrateWorkspace({
+      repositoryRoot,
+      workspace,
+      task,
+      store,
+      runId: "run-test",
+      inspection,
+      approvedChangedPaths: inspection.changedPaths,
+    });
+
+    assert.deepEqual(integratedInspection.changedPaths, ["src/format-name.mjs", "test/format-name.test.mjs"]);
+    assert.equal(await readFile(join(repositoryRoot, "src", "format-name.mjs"), "utf8"), "export const formatName = (name) => name || 'Anonymous';\n");
+    assert.equal(await readFile(join(repositoryRoot, "test", "format-name.test.mjs"), "utf8"), "export const fixture = true;\n");
+    assert.equal(conflicts.length, 0);
+    assert.match(integrated.get("src/format-name.mjs") ?? "", /^[a-f0-9]{64}$/);
+    assert.match(integrated.get("test/format-name.test.mjs") ?? "", /^[a-f0-9]{64}$/);
+  } finally {
+    if (workspace) await cleanupWorkspace(repositoryRoot, workspace).catch(() => {});
+    await rm(tempRoot, { recursive: true, force: true });
+  }
 });

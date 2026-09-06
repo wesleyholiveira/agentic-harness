@@ -30,3 +30,7 @@ Create a temporary consumer with no `.agents` tree and use the real harness as a
 - Seed that host file, generate a Runtime-child config through `AGENT_HARNESS_OPENCODE_CONFIG_OUTPUT`, and prove the host file is byte/JSON unchanged.
 - Prove the worker entrypoint pins the child config outside `/workspace/repository`.
 - Live R-7 must reach Runtime child OpenCode without host-native `{file:...}` references being resolved inside the Linux container.
+
+### Worktree integration materialization proof
+
+Create a clean temporary Git consumer, fork a real detached implementation worktree, create brand-new `src/**` and `test/**` files, and require `inspectWorkspaceChanges()` to report them. Integrate the reconciled change-set and prove the exact bytes exist in the consumer root before integration succeeds. The Runtime must record conflicts/fail closed if any changed path is absent or fingerprint-divergent after integration; downstream QA must never receive a task marked `integrated` without the corresponding materialized source/test files.

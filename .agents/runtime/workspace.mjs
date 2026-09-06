@@ -255,9 +255,16 @@ async function changedPathsForCopy(workspace, task) {
 }
 
 async function changedPathsForWorktree(workspace) {
-  const result = await runProcess("git", ["diff", "--name-only", "--diff-filter=ACDMRTUXB", "HEAD", "--"], { cwd: workspace.path });
-  if (result.status !== 0) throw new Error(`worktree_diff_failed:${result.stderr}`);
-  return result.stdout.split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
+  const [tracked, untracked] = await Promise.all([
+    runProcess("git", ["diff", "--name-only", "--diff-filter=ACDMRTUXB", "HEAD", "--"], { cwd: workspace.path }),
+    runProcess("git", ["ls-files", "--others", "--exclude-standard"], { cwd: workspace.path }),
+  ]);
+  if (tracked.status !== 0) throw new Error(`worktree_diff_failed:${tracked.stderr}`);
+  if (untracked.status !== 0) throw new Error(`worktree_untracked_scan_failed:${untracked.stderr}`);
+  return [...new Set([tracked.stdout, untracked.stdout]
+    .flatMap((output) => output.split(/\r?\n/))
+    .map((value) => value.trim())
+    .filter(Boolean))].sort();
 }
 
 export async function inspectWorkspaceChanges(workspace, task) {
@@ -301,6 +308,14 @@ export async function integrateWorkspace({ repositoryRoot, workspace, task, stor
   }
   if (workspace.mode === "worktree") {
     const patchPath = join(dirname(workspace.path), `${runtimeTaskDirectoryName(task.taskId, task.agentId)}.patch`);
+    if (changedPaths.length > 0) {
+      // `git diff HEAD -- <paths>` omits brand-new untracked files. Mark the
+      // reconciled change-set as intent-to-add inside the isolated worktree so
+      // the binary patch contains creations as well as modifications/deletions.
+      // This mutates only the disposable worktree index after agent execution.
+      const intent = await runProcess("git", ["add", "-N", "--", ...changedPaths], { cwd: workspace.path });
+      if (intent.status !== 0) throw new Error(`worktree_intent_to_add_failed:${intent.stderr || intent.stdout}`);
+    }
     const diffArgs = ["diff", "--binary", "HEAD", "--", ...changedPaths];
     const diff = await runProcess("git", diffArgs, { cwd: workspace.path });
     if (diff.status !== 0) throw new Error(`worktree_patch_failed:${diff.stderr}`);
@@ -331,8 +346,25 @@ export async function integrateWorkspace({ repositoryRoot, workspace, task, stor
       }
     }
   }
+  const materializedFingerprints = new Map();
+  const materializationMismatches = [];
   for (const path of changedPaths) {
-    const fingerprint = await fileFingerprint(join(repositoryRoot, path));
+    const expected = await fileFingerprint(join(workspace.path, path));
+    const actual = await fileFingerprint(join(repositoryRoot, path));
+    if (!sameFileFingerprint(expected, actual)) {
+      const details = { expectedFingerprint: expected, actualFingerprint: actual, workspaceMode: workspace.mode };
+      await store.event?.(runId, task.taskId, "workspace.integration_materialization_mismatch", { path, ...details });
+      await store.addConflict({ runId, taskId: task.taskId, path, type: "integration_materialization_mismatch", details });
+      materializationMismatches.push(path);
+      continue;
+    }
+    materializedFingerprints.set(path, actual);
+  }
+  if (materializationMismatches.length > 0) {
+    throw new Error(`workspace_integration_materialization_mismatch:${materializationMismatches.join(",")}`);
+  }
+  for (const path of changedPaths) {
+    const fingerprint = materializedFingerprints.get(path) ?? null;
     await store.markIntegratedPath(runId, task.taskId, path, fingerprint?.sha256 ?? null);
   }
   return { ...inspection, changedPaths, unauthorized: [] };
