@@ -88,3 +88,7 @@ Persistent host OpenCode owns `<consumer>/.runtime/opencode.effective.json`. Run
 - The Runtime emits `workspace.phantom_reused_paths_dropped` for that deterministic normalization.
 - Missing baseline artifacts, evidentiary phantom paths, and all non-governance/implementation/verification cases remain fail-closed.
 - See ADR 0021.
+
+## R-8 Durable Continuation qualification authority
+
+The authoritative standalone R-8 gate is progress-aware. It must respect the effective Rust worker continuation completion timeout (default 900000 ms), require exact deterministic wake materialization for `acceptedAt`, require a terminal parented assistant child for `observedAt`, and preserve delivery/session/assistant evidence on HOLD. A fixed ten-minute `acceptedAt + observedAt` wall-clock timeout is not authoritative.

@@ -94,3 +94,7 @@ git commit -m "<candidate change>"
 ```
 
 Running `--write` before staging newly added files produces a manifest that becomes stale as soon as those files are committed.
+
+## Progress-aware R-8 Durable Continuation behavior
+
+R-8 must not use a fixed wall-clock deadline shorter than the Runtime's own continuation assistant-completion budget. It reads the effective worker `AGENT_HARNESS_OPENCODE_CONTINUATION_COMPLETION_TIMEOUT_MS` (default 900000 ms), observes the durable delivery/session/assistant state, and emits a stderr checkpoint every 30 seconds. `acceptedAt` proves exact deterministic wake materialization; `observedAt` proves terminal assistant-child completion. Explicit `dead`/`ambiguous`/`manual_review` dispositions fail immediately; a healthy accepted/pending assistant remains eligible through the Runtime completion window.

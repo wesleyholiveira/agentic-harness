@@ -49,3 +49,7 @@ The contract suite must prove all of the following:
 - a path that existed in baseline but is missing from the workspace remains invalid;
 - implementation/non-review tasks never receive phantom-reuse normalization;
 - the bootstrap governance executor prompt explicitly forbids invented `changedPaths`/`reusedPaths` artifacts.
+
+## R-8 continuation liveness contracts
+
+The qualification contract suite must prove that a continuation accepted at ten minutes is still eligible when the Rust worker completion budget is fifteen minutes; that explicit ambiguous/manual-review delivery fails immediately; that completion beyond the Runtime deadline is rejected; and that success requires ordered `acceptedAt <= observedAt`. The live gate must also prove exactly one deterministic wake message, one wake-materialized event, one delivered event, and a completed assistant child parented by the deterministic wake message.

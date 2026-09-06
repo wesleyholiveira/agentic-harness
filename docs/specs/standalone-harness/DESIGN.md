@@ -80,3 +80,7 @@ Worktree integration now marks only the reconciled changed paths as intent-to-ad
 ### Zero-file governance review path disposition
 
 Bootstrap governance reviews are planner-declared `role=contract`, `estimatedFiles=0` tasks. Their completion authority is the structured handoff unless they actually change or reuse repository artifacts. A `reusedPaths` entry that is owned but absent from both the workspace and its baseline is a phantom bookkeeping claim, not an artifact. Runtime may discard it only when the path is non-evidentiary: no criterion, validation, SDD review, finding, risk, contract change, assumption, follow-up, or other handoff field references it outside the path-disposition arrays. Evidentiary phantom paths and all non-zero-file/non-review tasks fail closed. See ADR 0021.
+
+## Durable Continuation qualification authority
+
+Standalone R-8 treats delivery acceptance and assistant completion as separate durable proofs. The controller reads the effective Rust continuation completion budget from the running worker and observes PostgreSQL plus OpenCode history rather than imposing a shorter fixed timeout. Session status is diagnostic only. Terminal delivery states are fail-closed; accepted-but-not-yet-observed delivery remains live until the Runtime completion authority expires.

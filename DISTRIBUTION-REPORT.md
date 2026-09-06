@@ -246,3 +246,11 @@ The standalone Compose topology now mounts one consumer-scoped named `agent-harn
 After ADR 0020, target-host R-4 proved that Context Engine and the Rust worker share `/workspace/agent-workspaces`, and Product Discovery integrated successfully. Architecture Review then completed execution and `completion.proven` but was rejected because its handoff listed `docs/architecture/example-anonymous-fallback.md` as `reusedPaths` even though the path existed in neither the review workspace nor its baseline.
 
 ADR 0021 keeps repository evidence fail-closed while normalizing this narrow bookkeeping contradiction. For `role=contract`, `*-review`, `estimatedFiles=0`, `status=complete` tasks only, an owned path absent from both workspace and baseline may be removed from `reusedPaths` only if no handoff evidence outside the path-disposition arrays references it. An evidentiary phantom, a deleted baseline artifact, or any implementation/verification task remains invalid. The Runtime emits `workspace.phantom_reused_paths_dropped` when the normalization occurs, and the bootstrap review prompt explicitly forbids invented artifact paths.
+
+## R-8 progress-aware Durable Continuation remediation
+
+A target-host run completed the entire R-7 workload and closed the Runtime with QA and Product Acceptance verified, then R-8 produced a Qualification Procedure HOLD after a fixed ten-minute wait for both continuation `acceptedAt` and `observedAt`. The Rust worker's authoritative assistant-completion timeout defaults to fifteen minutes, so the gate could reject a valid accepted continuation before Runtime itself considered the assistant completion overdue.
+
+R-8 now reads the effective worker completion timeout, observes delivery/continuation status, exact wake history, session telemetry and the parented assistant child, emits progress checkpoints, fails explicit dead/ambiguous/manual-review states immediately, and succeeds only after ordered acceptance/observation plus exact event/message cardinality. No Rust continuation state-machine semantics were changed.
+
+The same observer replaces R-10's duplicate fixed ten-minute post-recovery acceptance/observation wait; R-10's fault injection and deferred-delivery assertions are otherwise unchanged.

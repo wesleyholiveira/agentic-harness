@@ -382,3 +382,122 @@ test("qualification Runtime observations preserve reconcile failure code and mes
   assert.match(controller, /'message', NULLIF\(COALESCE\(payload_json::jsonb->>'message',''\),''\)/);
   assert.match(driver, /"runtime\.reconcile_failed", \{[\s\S]*?code:[\s\S]*?message:/);
 });
+
+test("R-8 continuation wait is progress-aware and never expires before the Runtime assistant-completion budget", async () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const rustConfig = readFileSync(resolve(root, "apps/runtime-worker/src/config.rs"), "utf8");
+  const {
+    DEFAULT_CONTINUATION_COMPLETION_TIMEOUT_MS,
+    evaluateContinuationObservation,
+  } = await import("../../scripts/qualification/lib/continuation-watchdog.mjs");
+
+  assert.equal(DEFAULT_CONTINUATION_COMPLETION_TIMEOUT_MS, 900_000);
+  assert.match(rustConfig, /AGENT_HARNESS_OPENCODE_CONTINUATION_COMPLETION_TIMEOUT_MS[\s\S]*?900_000_u64/);
+  assert.match(controller, /continuationCompletionTimeoutMs\(\)/);
+  assert.match(controller, /evaluateContinuationObservation/);
+  assert.match(controller, /formatContinuationProgress/);
+  assert.match(controller, /continuation_progress_aware_watch_safety_ceiling/);
+  assert.match(controller, /waitForContinuationObserved\(runId, sessionId, \{ gate: "R-8" \}\)/);
+  assert.match(controller, /waitForContinuationObserved\(runId, sessionId, \{ gate: "R-10" \}\)/);
+  assert.doesNotMatch(controller, /r8-continuation-accepted-observed/);
+  const r8Section = controller.slice(controller.indexOf("async function r8()"), controller.indexOf("async function r9()"));
+  assert.doesNotMatch(r8Section, /timeoutMs:\s*10\s*\*\s*60_000/);
+
+  const dispatchStartedAt = "2026-09-06T22:07:50.000Z";
+  const nowMs = Date.parse("2026-09-06T22:17:56.000Z");
+  const observation = {
+    delivery: {
+      status: "accepted",
+      acceptedAt: "2026-09-06T22:07:52.000Z",
+      observedAt: null,
+      dispatchStartedAt,
+      createdAt: "2026-09-06T22:07:50.000Z",
+      attempts: 1,
+    },
+    continuation: { status: "wake_pending" },
+    sessionStatus: "busy",
+    wakeCount: 1,
+    assistant: { state: "pending", messageId: "msg-assistant", count: 1, error: null },
+  };
+  const result = evaluateContinuationObservation(observation, {
+    nowMs,
+    completionTimeoutMs: DEFAULT_CONTINUATION_COMPLETION_TIMEOUT_MS,
+  });
+  assert.equal(result.terminal, null);
+  assert.equal(result.violation, null);
+});
+
+test("R-8 continuation watchdog allows bounded wake-materialization propagation before classifying a stall", async () => {
+  const { evaluateContinuationObservation } = await import("../../scripts/qualification/lib/continuation-watchdog.mjs");
+  const start = Date.parse("2026-09-06T22:07:50.000Z");
+  const pending = evaluateContinuationObservation({ delivery: null, continuation: null }, {
+    nowMs: start + 10_000,
+    watchStartedAtMs: start,
+    completionTimeoutMs: 900_000,
+    acceptanceStallTimeoutMs: 900_000,
+  });
+  assert.equal(pending.violation, null);
+  const stalled = evaluateContinuationObservation({ delivery: null, continuation: null }, {
+    nowMs: start + 900_001,
+    watchStartedAtMs: start,
+    completionTimeoutMs: 900_000,
+    acceptanceStallTimeoutMs: 900_000,
+  });
+  assert.equal(stalled.violation?.message, "continuation_delivery_materialization_stalled");
+});
+
+test("R-8 continuation watchdog fails only after Runtime completion authority expires or a terminal delivery failure is explicit", async () => {
+  const { evaluateContinuationObservation } = await import("../../scripts/qualification/lib/continuation-watchdog.mjs");
+  const base = {
+    delivery: {
+      status: "accepted",
+      acceptedAt: "2026-09-06T22:07:52.000Z",
+      observedAt: null,
+      dispatchStartedAt: "2026-09-06T22:07:50.000Z",
+      createdAt: "2026-09-06T22:07:50.000Z",
+      attempts: 1,
+    },
+    continuation: { status: "wake_pending" },
+    sessionStatus: "idle",
+    wakeCount: 1,
+    assistant: { state: "pending", messageId: "msg-assistant", count: 1, error: null },
+  };
+
+  const expired = evaluateContinuationObservation(base, {
+    nowMs: Date.parse("2026-09-06T22:23:21.000Z"),
+    completionTimeoutMs: 900_000,
+    settleGraceMs: 30_000,
+  });
+  assert.equal(expired.violation?.message, "continuation_completion_deadline_exceeded_without_runtime_terminal_disposition");
+
+  const ambiguous = evaluateContinuationObservation({
+    ...base,
+    delivery: { ...base.delivery, status: "ambiguous", lastError: "agent_continuation_assistant_completion_timeout" },
+    continuation: { status: "manual_review" },
+  }, { nowMs: Date.parse("2026-09-06T22:10:00.000Z") });
+  assert.equal(ambiguous.violation?.message, "continuation_delivery_terminal_failure");
+});
+
+test("R-8 continuation watchdog accepts only ordered accepted/observed delivery", async () => {
+  const { evaluateContinuationObservation } = await import("../../scripts/qualification/lib/continuation-watchdog.mjs");
+  const observed = {
+    delivery: {
+      status: "observed",
+      acceptedAt: "2026-09-06T22:07:52.000Z",
+      observedAt: "2026-09-06T22:08:30.000Z",
+      dispatchStartedAt: "2026-09-06T22:07:50.000Z",
+      createdAt: "2026-09-06T22:07:50.000Z",
+      attempts: 1,
+    },
+    continuation: { status: "delivered" },
+  };
+  const good = evaluateContinuationObservation(observed, { nowMs: Date.parse("2026-09-06T22:08:31.000Z") });
+  assert.equal(good.violation, null);
+  assert.ok(good.terminal);
+
+  const bad = evaluateContinuationObservation({
+    ...observed,
+    delivery: { ...observed.delivery, acceptedAt: "2026-09-06T22:08:31.000Z" },
+  }, { nowMs: Date.parse("2026-09-06T22:08:31.000Z") });
+  assert.equal(bad.violation?.message, "continuation_observed_before_accepted");
+});
