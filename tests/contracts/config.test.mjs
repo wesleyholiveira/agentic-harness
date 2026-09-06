@@ -590,8 +590,8 @@ test("standalone Agent Input Manifest reads harness-owned schemas from harnessRo
     const implementation = manifest.entries.find((entry) => entry.sourceRef === "schema:implementation-plan");
     assert.ok(handoff, "handoff schema must be attached");
     assert.ok(implementation, "implementation-plan schema must be attached for Technical Refinement");
-    assert.equal(handoff.path.replaceAll("\\\\", "/"), resolve(root, ".agents", "schemas", "handoff-result.schema.json").replaceAll("\\\\", "/"));
-    assert.equal(implementation.path.replaceAll("\\\\", "/"), resolve(root, ".agents", "schemas", "implementation-plan.schema.json").replaceAll("\\\\", "/"));
+    assert.equal(handoff.path.replaceAll("\\", "/"), resolve(root, ".agents", "schemas", "handoff-result.schema.json").replaceAll("\\", "/"));
+    assert.equal(implementation.path.replaceAll("\\", "/"), resolve(root, ".agents", "schemas", "implementation-plan.schema.json").replaceAll("\\", "/"));
   } finally {
     rmSync(consumerRoot, { recursive: true, force: true });
   }
