@@ -45,6 +45,8 @@ A consuming repository remains authoritative for its domain code, product requir
 
 `.agents/agents/<id>/agent.json` describes capability and ownership hints only. There is no monolithic static call graph. Technical Refinement emits the implementation plan and the Runtime compiler derives the task DAG for the current request. Explicit primary ownership remains the strongest path authority; `coding-fast` and `coding-pro` are project-agnostic `fallback-unclaimed-primary` owners and may touch a path only when no non-fallback implementation/platform agent has a matching primary rule. Product Discovery must also provide at least one `proofStage=implementation` product criterion so the implementation DAG has proof authority.
 
+Technical Refinement is a non-interactive machine-contract stage. Its authoritative planning artifact is `implementationPlan`, not a parallel human markdown-plan/Superpowers workflow. Same-attempt review repair is monotonic: a repair pass may approve or retain only a subset of the exact incoming `requiredDeltas`; it may not discover a new review scope. Pre-repair `blocking:` residual risks and `required:` follow-ups remain fail-closed unless the bounded re-review explicitly closes those exact markers. A new semantic scope requires a fresh full Technical Lead attempt. See ADR 0027.
+
 ## Submodule roots
 
 - `AGENT_HARNESS_ROOT`: this repository/submodule.
@@ -82,7 +84,7 @@ The canonical serialized Task Brief SDD workflow marker is the `task-brief.schem
 
 Persistent host OpenCode owns `<consumer>/.runtime/opencode.effective.json`. Runtime task OpenCode inside the Linux worker owns an ephemeral container-private `/tmp/agentic-harness/opencode.effective.json`, generated with `AGENT_HARNESS_OPENCODE_CONFIG_OUTPUT`. The two must never share one bind-mounted file. See ADR 0017.
 
-The effective-config split also owns process-skill exposure. Persistent-host generation strips the Superpowers plugin and vendored Superpowers catalog because the Main Orchestrator is only Runtime ingress/egress control plane. Runtime-child generation retains both so specialist agents keep their declared Superpowers workflows. See ADR 0026.
+The effective-config split also owns process-skill exposure. Persistent-host generation strips the Superpowers plugin and vendored Superpowers catalog because the Main Orchestrator is only Runtime ingress/egress control plane. Runtime-child generation retains both so specialist agents can use stage-compatible declared Superpowers workflows. Technical Refinement intentionally declares none because its machine-readable planning/review contract is already Runtime authority. See ADR 0026 and ADR 0027.
 
 ## Non-evidentiary phantom reuse normalization
 

@@ -15,6 +15,11 @@ import { productDiscoveryAcceptanceCriteriaIssue } from "../../.agents/runtime/p
 import { cleanupWorkspace, createIsolatedWorkspace, inspectWorkspaceChanges, integrateWorkspace, reconcileHandoffPathDisposition } from "../../.agents/runtime/workspace.mjs";
 import { runProcess } from "../../.agents/runtime/process.mjs";
 import { buildContinuationPrompt } from "../../.agents/runtime/continuation.mjs";
+import {
+  buildTechnicalReviewRepairProjectionPrompt,
+  buildTechnicalReviewRepairProjectionSchema,
+  finalizeTechnicalReviewRepair,
+} from "../../.agents/runtime/handoff-structured-finalization.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -86,7 +91,7 @@ test("SDD process skills stay behind the persistent Main Orchestrator Runtime in
   assert.match(skill, /Persistent Main Orchestrator boundary/);
   assert.match(skill, /captures `runtime-continuation`, calls Context Engine `agent_start`/);
   assert.match(skill, /must not invoke Superpowers design\/implementation process skills/);
-  assert.match(skill, /For Runtime-dispatched specialist children and their SDD stages/);
+  assert.match(skill, /For Runtime-dispatched specialist children, Superpowers is stage-compatible guidance rather than a second workflow authority/);
 });
 
 test("persistent Main Orchestrator does not re-enter delivery after a terminal continuation", () => {
@@ -95,6 +100,130 @@ test("persistent Main Orchestrator does not re-enter delivery after a terminal c
   assert.match(source, /answer the original user from authoritative Runtime state and terminate the resumed turn/);
   assert.match(source, /Do not call `agent_start`, `agent_wait`, `agent_status`, or `agent_progress` again/);
   assert.match(source, /External harness qualification\/fault\/promotion gates remain host-controller authority/);
+});
+
+function technicalReviewRepairFixture() {
+  const brief = {
+    schemaVersion: 2,
+    runId: "run-repair",
+    taskId: "run-repair:technical-refinement",
+    agentId: "technical-lead",
+    objective: "Compile the approved Anonymous fallback increment into an implementation plan.",
+    acceptanceCriteria: [
+      { id: "PROC-TL-1", source: "runtime", statement: "coverage", blocking: true, verification: "plan coverage" },
+      { id: "PROC-TL-2", source: "runtime", statement: "bounded work", blocking: true, verification: "plan schema" },
+      { id: "PROC-TL-3", source: "runtime", statement: "acyclic", blocking: true, verification: "dag compiler" },
+    ],
+    upstreamAcceptanceCriteria: [
+      { id: "AC-IMPL-1", source: "docs/specs/example/PRD.md", statement: "Blank names return Anonymous.", blocking: true, verification: "npm test", proofStage: "implementation" },
+    ],
+    validation: [],
+    sdd: { role: "technical-lead", stage: "technical-refinement", reviewedRevision: 1 },
+  };
+  const handoff = {
+    schemaVersion: 2,
+    runId: brief.runId,
+    taskId: brief.taskId,
+    agentId: brief.agentId,
+    status: "complete",
+    artifactVersion: "technical-refinement-r2",
+    changedPaths: [],
+    contractChanges: [],
+    assumptions: [],
+    criterionResults: brief.acceptanceCriteria.map((criterion) => ({ criterionId: criterion.id, result: "passed", evidence: `proved ${criterion.id}` })),
+    validation: [],
+    residualRisks: ["blocking: keep the work item validation scoped to npm test", "non-blocking: implementation still pending"],
+    followUps: ["required: preserve the Product criterion on the implementation work item", "optional: implementation specialist may add comments"],
+    implementationPlan: {
+      schemaVersion: 1,
+      revision: 2,
+      acceptanceCriteria: brief.upstreamAcceptanceCriteria,
+      workItems: [],
+    },
+  };
+  const contextPacket = { upstreamArtifacts: [] };
+  const requiredDeltas = [
+    "Use npm test as the exact work-item validation command.",
+    "Assign AC-IMPL-1 to the implementation work item.",
+  ];
+  return { brief, handoff, contextPacket, requiredDeltas };
+}
+
+test("Technical Refinement same-attempt re-review has a closed requiredDelta scope", async () => {
+  const handoffSchema = JSON.parse(readFileSync(resolve(root, ".agents/schemas/handoff-result.schema.json"), "utf8"));
+  const { brief, handoff, contextPacket, requiredDeltas } = technicalReviewRepairFixture();
+  const schema = buildTechnicalReviewRepairProjectionSchema({ handoffSchema, brief, handoff, contextPacket, requiredDeltas });
+
+  assert.deepEqual(schema.properties.sddReview.properties.decision.enum, ["approved", "changes_requested"]);
+  assert.deepEqual(schema.properties.sddReview.properties.requiredDeltas.items.enum, requiredDeltas);
+  assert.deepEqual(schema.properties.repairClosure.properties.resolvedResidualRisks.items.enum, ["blocking: keep the work item validation scoped to npm test"]);
+  assert.deepEqual(schema.properties.repairClosure.properties.resolvedFollowUps.items.enum, ["required: preserve the Product criterion on the implementation work item"]);
+
+  const expanded = {
+    sddReview: {
+      role: "technical-lead",
+      stage: "technical-refinement",
+      decision: "changes_requested",
+      reviewedRevision: 1,
+      nextRole: "technical-lead",
+      requiredDeltas: ["Invent a new unrelated requirement."],
+    },
+    repairClosure: { resolvedResidualRisks: [], resolvedFollowUps: [] },
+  };
+  const result = validateAgainstSchema(expanded, schema, "technicalRepairProjection");
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((error) => error.includes("expected one of")));
+
+  const prompt = buildTechnicalReviewRepairProjectionPrompt({ brief, handoff, contextPacket, requiredDeltas });
+  assert.match(prompt, /complete and immutable semantic review scope/);
+  assert.match(prompt, /Never add a new delta/);
+  assert.match(prompt, /PRE-REPAIR Handoff/);
+  assert.doesNotMatch(prompt, /sourceHandoff/);
+});
+
+test("Technical Refinement repair closes only explicitly re-reviewed stale blockers and remains fail-closed otherwise", async () => {
+  const handoffSchema = JSON.parse(readFileSync(resolve(root, ".agents/schemas/handoff-result.schema.json"), "utf8"));
+  const { brief, handoff, contextPacket, requiredDeltas } = technicalReviewRepairFixture();
+  const approvedProjection = {
+    sddReview: {
+      role: "technical-lead",
+      stage: "technical-refinement",
+      decision: "approved",
+      reviewedRevision: 1,
+      nextRole: "implementation",
+      requiredDeltas: [],
+    },
+    repairClosure: {
+      resolvedResidualRisks: ["blocking: keep the work item validation scoped to npm test"],
+      resolvedFollowUps: ["required: preserve the Product criterion on the implementation work item"],
+    },
+  };
+  const structuredRunner = async () => ({ value: approvedProjection, info: { tokens: { input: 10, output: 5 } }, sessionId: "ses-repair", attempts: 1, failures: [] });
+  const finalized = await finalizeTechnicalReviewRepair({
+    workspace: root,
+    model: "openai/gpt-5.6-luna",
+    brief,
+    contextPacket,
+    handoff,
+    handoffSchema,
+    requiredDeltas,
+    structuredRunner,
+  });
+  assert.equal(finalized.handoff.sddReview.decision, "approved");
+  assert.deepEqual(finalized.handoff.sddReview.requiredDeltas, []);
+  assert.deepEqual(finalized.handoff.residualRisks, ["non-blocking: implementation still pending"]);
+  assert.deepEqual(finalized.handoff.followUps, ["optional: implementation specialist may add comments"]);
+  assert.equal(finalized.handoff.findings.at(-1)?.authority, "closed-technical-review-repair-projection");
+
+  const unsafeRunner = async () => ({
+    value: { ...approvedProjection, repairClosure: { resolvedResidualRisks: [], resolvedFollowUps: [] } },
+    info: {},
+    sessionId: "ses-unsafe",
+  });
+  await assert.rejects(
+    finalizeTechnicalReviewRepair({ workspace: root, model: "openai/gpt-5.6-luna", brief, contextPacket, handoff, handoffSchema, requiredDeltas, structuredRunner: unsafeRunner }),
+    /technical_review_repair_projection_unproven:review_approval_not_proven:/,
+  );
 });
 
 test("generic coding fallback owns consumer paths only when no domain primary owner exists", async () => {

@@ -47,7 +47,7 @@ The consuming project owns its product code and project-specific PRDs, ADRs, des
 - Artifact schemas: 11
 - PostgreSQL harness migrations: 11
 - Public `package.json` scripts: 10
-- Standalone contract files: 12 (78 current Node subtests)
+- Standalone contract files: 12 (81 current Node subtests)
 - Superpowers expected by lock: 14
 - Superpowers skill trees physically vendorized in this archive: 14
 
@@ -124,9 +124,9 @@ before the first stable repository tag is promoted.
 
 | Check | Result |
 |---|---|
-| Standalone contracts | PASS — 34/34 current subtests |
-| Node syntax | PASS — 132 files |
-| JSON parse | PASS — 72 files |
+| Standalone contracts | PASS — 81/81 current subtests |
+| Node syntax | PASS — 134 files |
+| JSON parse | PASS — 70 files |
 | TypeScript transpile/syntax | PASS — 108 files, 0 parse errors |
 | `tsc --noEmit` | BLOCKED_ENVIRONMENT — `node_modules` / `@types/node` unavailable |
 | Compose YAML parse | PASS — 7 services |
@@ -285,3 +285,13 @@ A fresh standalone qualification passed Q-ENTRY through R-6, then held at R-7 be
 The source-level conflict was that the Main Orchestrator's mandatory `runtime-continuation` → `agent_start` ingress contract coexisted with Superpowers `brainstorming`, whose generic workflow requires user approval before proceeding. ADR 0026 removes that conflict without weakening specialist SDD: persistent-host effective OpenCode strips the Superpowers plugin/catalog and the Main Orchestrator denies every pinned Superpowers skill, while Runtime-child effective OpenCode retains the pinned plugin/catalog. R-0 and R-5 now fail closed if this host/child split drifts.
 
 Packaging validation after ADR 0026: full `npm run harness:test` **78/78 PASS** and `npm run harness:qualify -- --self-test` **PASS**. The live target-host qualification remains authoritative for R-2 through R-11; this source change requires a completely fresh `harness:qualify` run.
+
+## ADR 0027 — monotonic Technical Refinement review repair
+
+The first fresh live run after ADR 0026 proved that persistent-host ingress is fixed: R-7 created Runtime run `run-310b6dab-53dd-42d6-84b7-ff6b1bc42e68`, Product Discovery and Architecture Review integrated, and Technical Refinement became the first divergence after exhausting three `review_not_approved` attempts. Same-attempt repair events were present, but the qualification snapshot exposed only the terminal review code and not the concrete `requiredDeltas`.
+
+ADR 0027 closes the repair protocol rather than weakening the review gate. Each Technical Refinement repair pass now re-reviews only the exact incoming `requiredDeltas`; `approved` closes all of them and `changes_requested` may retain only an exact subset. A bounded re-review cannot invent a new delta or change the failure into a newly discovered blocker. Pre-repair `blocking:` residual risks and `required:` follow-ups are explicit closure candidates and are removed only when the re-review explicitly proves those exact strings resolved; unclosed markers remain completion-blocking. Reprojection failure restores the prior negative review so the bounded loop remains fail-closed.
+
+Technical Refinement also no longer declares interactive Superpowers planning/worktree/review workflows. Its `implementationPlan` contract plus Runtime deterministic validators are the sole planning authority for that non-interactive stage; other Runtime specialists retain stage-compatible Superpowers. R-0 guards this source invariant. Runtime/qualification repair evidence now carries current and remaining `requiredDeltas` so the next live HOLD, if any, exposes the exact semantic scope.
+
+Packaging validation after ADR 0027: full `npm run harness:test` **81/81 PASS**, `npm run harness:qualify -- --self-test` **PASS**, changed JavaScript syntax checks **PASS**, and `git diff --check` **PASS**. Full target-host qualification remains authoritative; because source changed, R-0 onward must be rerun from a fresh committed candidate.

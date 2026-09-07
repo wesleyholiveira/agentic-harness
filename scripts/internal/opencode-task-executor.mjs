@@ -21,7 +21,7 @@ import {
   sessionExportDocumentFromValue,
   sessionExportIsUsable,
 } from "../../.agents/runtime/handoff-authority.mjs";
-import { finalizeHandoffStructured, requiresStructuredHandoffFinalization } from "../../.agents/runtime/handoff-structured-finalization.mjs";
+import { finalizeHandoffStructured, finalizeTechnicalReviewRepair, requiresStructuredHandoffFinalization } from "../../.agents/runtime/handoff-structured-finalization.mjs";
 import { repairProductDiscoveryScopeBlock } from "../../.agents/runtime/product-discovery-scope-repair.mjs";
 import { productDiscoveryAcceptanceCriteriaIssue, projectProductDiscoveryAcceptanceCriteria } from "../../.agents/runtime/product-discovery-acceptance-criteria.mjs";
 import { isBootstrapReviewStage } from "../../.agents/runtime/bootstrap-capabilities.mjs";
@@ -1030,13 +1030,14 @@ async function main() {
       : 1;
     for (let repairPass = resumeRepairPass; repairPass <= repairPassLimit && handoff.sddReview?.decision === "changes_requested"; repairPass += 1) {
       const requiredDeltas = [...(handoff.sddReview?.requiredDeltas ?? [])];
+      const sourceReview = structuredClone(handoff.sddReview);
       const sourceRevision = Number(handoff.implementationPlan?.revision ?? 0);
       await writeRepairCheckpoint(repairCheckpointPath, {
         runId: brief.runId, taskId: brief.taskId, taskAttempt, repairKind: "technical-review-semantic", repairPass, repairPassLimit,
         status: "repair-started", sourceRevision, handoff, sessionId, usage,
       });
       emitRepairEvent("repair.started", {
-        repairKind: "technical-review-semantic", repairPass, repairPassLimit, taskAttempt, requiredDeltaCount: requiredDeltas.length, sameTaskAttempt: true, sourceRevision,
+        repairKind: "technical-review-semantic", repairPass, repairPassLimit, taskAttempt, requiredDeltaCount: requiredDeltas.length, requiredDeltas, sameTaskAttempt: true, sourceRevision,
       });
       try {
         const repair = await repairImplementationPlanFromReview({
@@ -1049,8 +1050,8 @@ async function main() {
           structuredRunner,
         });
         handoff = repair.handoff;
-        const reprojected = await finalizeHandoffStructured({
-          workspace, model: String(args.model), brief, contextPacket, handoff, handoffSchema, structuredRunner,
+        const reprojected = await finalizeTechnicalReviewRepair({
+          workspace, model: String(args.model), brief, contextPacket, handoff, handoffSchema, requiredDeltas, structuredRunner,
         });
         handoff = reprojected.handoff;
         if (handoff.sddReview?.decision === "approved") {
@@ -1078,7 +1079,7 @@ async function main() {
           });
           emitRepairEvent("repair.completed", {
             repairKind: "technical-review-semantic", repairPass, taskAttempt, sameTaskAttempt: true, avoidedFullRetry: true, estimatedAvoidedMs,
-            sourceRevision: repair.sourceRevision, repairedRevision: repair.repairedRevision,
+            sourceRevision: repair.sourceRevision, repairedRevision: repair.repairedRevision, requiredDeltas, remainingRequiredDeltas: [],
           });
           emitRepairEvent("retry.full_attempt_avoided", {
             repairKind: "technical-review-semantic", failureCode: "review_not_approved", taskAttempt, repairPass, estimatedAvoidedMs, estimateClass: "counterfactual",
@@ -1089,6 +1090,12 @@ async function main() {
         }
         if (handoff.sddReview?.decision === "blocked") break;
       } catch (error) {
+        // Plan repair intentionally removes sddReview before bounded re-review.
+        // If that re-review itself fails, preserve the prior negative review so
+        // the same-attempt repair loop stays fail-closed and can either retry the
+        // bounded repair or emit repair.exhausted instead of leaking a review-less
+        // handoff into the ordinary completion gate.
+        if (!handoff.sddReview && sourceReview) handoff.sddReview = sourceReview;
         handoff.findings = [
           ...(handoff.findings ?? []),
           {
@@ -1122,7 +1129,14 @@ async function main() {
         runId: brief.runId, taskId: brief.taskId, taskAttempt, repairKind: "technical-review-semantic", repairPass: repairPassLimit,
         status: "repair-exhausted", sourceRevision: handoff.implementationPlan?.revision ?? 0, handoff, sessionId, usage,
       });
-      emitRepairEvent("repair.exhausted", { repairKind: "technical-review-semantic", repairPasses: repairPassLimit, taskAttempt, failureCode: "review_not_approved", sourceRevision: handoff.implementationPlan?.revision ?? 0 });
+      emitRepairEvent("repair.exhausted", {
+        repairKind: "technical-review-semantic",
+        repairPasses: repairPassLimit,
+        taskAttempt,
+        failureCode: "review_not_approved",
+        sourceRevision: handoff.implementationPlan?.revision ?? 0,
+        remainingRequiredDeltas: [...(handoff.sddReview?.requiredDeltas ?? [])],
+      });
     }
   }
 

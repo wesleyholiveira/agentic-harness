@@ -237,6 +237,21 @@ test("persistent Main Orchestrator cannot inherit Superpowers approval workflows
   assert.match(controller, /effective_main_orchestrator_superpowers_boundary_invalid/);
 });
 
+test("Technical Refinement does not inherit an interactive Superpowers planning workflow", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const prompt = readFileSync(resolve(root, ".agents/agents/technical-lead/AGENT.md"), "utf8");
+  const workflowSkill = readFileSync(resolve(root, ".agents/skills/sdd-workflow/SKILL.md"), "utf8");
+  const manifest = JSON.parse(readFileSync(resolve(root, ".agents/agents/technical-lead/agent.json"), "utf8"));
+  const taskBriefSchema = JSON.parse(readFileSync(resolve(root, ".agents/schemas/task-brief.schema.json"), "utf8"));
+
+  assert.deepEqual(manifest.superpowersSkills, []);
+  assert.equal(taskBriefSchema.properties.sdd.properties.requiredSuperpowers.minItems, undefined);
+  assert.match(prompt, /non-interactive machine-contract planning stage/);
+  assert.match(workflowSkill, /Technical Refinement is different/);
+  assert.match(workflowSkill, /must not run `brainstorming`, `writing-plans`, `using-git-worktrees`, `requesting-code-review`/);
+  assert.match(controller, /r0_technical_refinement_interactive_superpowers_conflict/);
+});
+
 test("persistent Main Orchestrator captures runtime-continuation before agent_start", () => {
   const prompt = readFileSync(resolve(root, ".agents/agents/main-orchestrator/AGENT.md"), "utf8");
   const skill = readFileSync(resolve(root, ".agents/skills/operate-multi-agent-runtime/SKILL.md"), "utf8");

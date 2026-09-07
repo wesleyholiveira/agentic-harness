@@ -16,6 +16,37 @@ function nonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function normalizedStringSet(values) {
+  return [...new Set((values ?? [])
+    .filter((value) => typeof value === "string" && value.trim().length > 0)
+    .map((value) => value.trim()))];
+}
+
+function technicalRepairClosureCandidates(handoff) {
+  return {
+    residualRisks: normalizedStringSet((handoff?.residualRisks ?? []).filter((value) => /^blocking:/i.test(String(value).trim()))),
+    followUps: normalizedStringSet((handoff?.followUps ?? []).filter((value) => /^required:/i.test(String(value).trim()))),
+  };
+}
+
+function enumSubsetArraySchema(values) {
+  const normalized = normalizedStringSet(values);
+  if (normalized.length === 0) return { const: [] };
+  return {
+    type: "array",
+    items: { type: "string", enum: normalized },
+  };
+}
+
+function applyTechnicalRepairClosure(handoff, closure) {
+  const resolvedRisks = new Set(normalizedStringSet(closure?.resolvedResidualRisks));
+  const resolvedFollowUps = new Set(normalizedStringSet(closure?.resolvedFollowUps));
+  const next = clone(handoff);
+  next.residualRisks = (next.residualRisks ?? []).filter((value) => !resolvedRisks.has(String(value).trim()));
+  next.followUps = (next.followUps ?? []).filter((value) => !resolvedFollowUps.has(String(value).trim()));
+  return next;
+}
+
 function allowedReviewDecisions(stage) {
   return stage === "product-acceptance"
     ? ["accepted", "changes_requested", "blocked"]
@@ -194,6 +225,96 @@ INPUT:
 ${JSON.stringify(payload, null, 2)}`;
 }
 
+/**
+ * A Technical Refinement same-attempt repair is a closed semantic loop. The
+ * initial negative review owns the repair scope; the bounded re-review may
+ * approve the repaired plan or retain only unresolved members of that exact
+ * requiredDelta set. It must never discover a fresh review scope inside the
+ * same attempt.
+ *
+ * Historical blocking:/required: strings are carried by the original Handoff
+ * body. They are not silently deleted by plan synthesis. The re-review can
+ * explicitly close only exact pre-repair markers that the repaired plan has
+ * actually resolved; any marker it does not close remains fail-closed completion
+ * evidence.
+ */
+export function buildTechnicalReviewRepairProjectionSchema({ handoffSchema, brief, handoff, contextPacket, requiredDeltas }) {
+  const stage = brief.sdd?.stage ?? "implementation";
+  if (stage !== "technical-refinement") throw new Error(`technical_review_repair_projection_stage_invalid:${stage}`);
+  const deltaScope = normalizedStringSet(requiredDeltas);
+  if (deltaScope.length === 0) throw new Error("technical_review_repair_projection_required_deltas_missing");
+
+  const closureCandidates = technicalRepairClosureCandidates(handoff);
+  const hypotheticalClosed = applyTechnicalRepairClosure(handoff, {
+    resolvedResidualRisks: closureCandidates.residualRisks,
+    resolvedFollowUps: closureCandidates.followUps,
+  });
+  const eligibility = completionEvidenceAllowsApproval({ brief, handoff: hypotheticalClosed });
+  const reviewSchema = clone(handoffSchema.properties.sddReview);
+  reviewSchema.required = [...new Set([...(reviewSchema.required ?? []), "nextRole"])];
+  reviewSchema.properties.role = { const: String(brief.sdd?.role ?? brief.agentId) };
+  reviewSchema.properties.stage = { const: "technical-refinement" };
+  reviewSchema.properties.reviewedRevision = { const: authoritativeReviewRevision({ brief, contextPacket, handoff }) };
+  reviewSchema.properties.decision = { enum: eligibility.allowed ? ["approved", "changes_requested"] : ["changes_requested"] };
+  reviewSchema.properties.requiredDeltas = enumSubsetArraySchema(deltaScope);
+
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["sddReview", "repairClosure"],
+    properties: {
+      sddReview: reviewSchema,
+      repairClosure: {
+        type: "object",
+        additionalProperties: false,
+        required: ["resolvedResidualRisks", "resolvedFollowUps"],
+        properties: {
+          resolvedResidualRisks: enumSubsetArraySchema(closureCandidates.residualRisks),
+          resolvedFollowUps: enumSubsetArraySchema(closureCandidates.followUps),
+        },
+      },
+    },
+  };
+}
+
+export function buildTechnicalReviewRepairProjectionPrompt({ brief, handoff, contextPacket, requiredDeltas }) {
+  const deltaScope = normalizedStringSet(requiredDeltas);
+  const closureCandidates = technicalRepairClosureCandidates(handoff);
+  const payload = {
+    stage: "technical-refinement",
+    role: brief.sdd?.role ?? brief.agentId,
+    reviewedRevision: authoritativeReviewRevision({ brief, contextPacket, handoff }),
+    objective: brief.objective,
+    originalRequiredDeltas: deltaScope,
+    repairedImplementationPlan: handoff.implementationPlan,
+    blockingTaskCriteria: (brief.acceptanceCriteria ?? []).filter((criterion) => criterion.blocking !== false),
+    criterionResults: handoff.criterionResults ?? [],
+    requiredValidation: brief.validation ?? [],
+    validationEvidence: handoff.validation ?? [],
+    productAcceptanceCriteria: brief.upstreamAcceptanceCriteria ?? [],
+    upstreamEvidence: compactUpstreamEvidence(contextPacket, brief),
+    repairClosureCandidates: closureCandidates,
+  };
+
+  return `Re-review a SAME-TASK-ATTEMPT Technical Refinement implementationPlan repair.
+
+Return ONLY the JSON projection requested by the supplied schema. This is a closed repair review, not a new architecture/design/review pass. Do not execute tools, edit files, ask a human, rewrite the implementationPlan, invent product requirements, or expand review scope.
+
+Rules:
+- originalRequiredDeltas is the complete and immutable semantic review scope for this repair pass.
+- The repaired implementationPlan has already passed deterministic schema, ownership, Product acceptance-criteria, dependency and executable-validation checks before this re-review.
+- Evaluate each originalRequiredDelta against repairedImplementationPlan plus the supplied authoritative evidence.
+- decision=approved only when every originalRequiredDelta is resolved. Then requiredDeltas must be [].
+- decision=changes_requested only when one or more originalRequiredDeltas remain unresolved. requiredDeltas must contain only the exact unresolved subset of originalRequiredDeltas. Never add a new delta.
+- blocked is not a valid outcome for this bounded re-review because the source review classified the issue as changes_requested. A genuinely new blocker belongs to a fresh full task attempt, not this closed repair pass.
+- repairClosureCandidates are exact blocking:/required: strings carried from the PRE-REPAIR Handoff. They are historical text, not independent post-repair proof. Include a candidate in repairClosure only when the repaired plan directly resolves it. Do not resolve unrelated or still-open markers.
+- Any blocking residual risk or required follow-up not explicitly closed remains fail-closed and prevents approval.
+- role, stage and reviewedRevision are Runtime authority. nextRole is routing metadata only.
+
+INPUT:
+${JSON.stringify(payload, null, 2)}`;
+}
+
 function usageFromInfo(info) {
   const tokens = info?.tokens ?? info?.usage?.tokens ?? null;
   return {
@@ -256,5 +377,79 @@ export async function finalizeHandoffStructured({
     costUsd: Number(handoff.metrics?.costUsd ?? 0) + usage.costUsd,
   };
   return { handoff: next, attempted: true, model, sessionId: result.sessionId ?? null, usage };
+}
+
+export async function finalizeTechnicalReviewRepair({
+  workspace,
+  model,
+  brief,
+  contextPacket,
+  handoff,
+  handoffSchema,
+  requiredDeltas,
+  structuredRunner = runOpenCodeStructuredOutput,
+}) {
+  const deltaScope = normalizedStringSet(requiredDeltas);
+  const schema = buildTechnicalReviewRepairProjectionSchema({ handoffSchema, brief, handoff, contextPacket, requiredDeltas: deltaScope });
+  const result = await structuredRunner({
+    workspace,
+    model,
+    agentId: brief.agentId,
+    schema,
+    prompt: buildTechnicalReviewRepairProjectionPrompt({ brief, handoff, contextPacket, requiredDeltas: deltaScope }),
+    title: `${brief.taskId} technical review repair projection`,
+  });
+  assertSchema(result.value, schema, "technicalReviewRepairProjection");
+
+  let next = applyTechnicalRepairClosure(handoff, result.value.repairClosure);
+  next.sddReview = clone(result.value.sddReview);
+  const returnedDeltas = normalizedStringSet(next.sddReview.requiredDeltas);
+  const allowedDeltas = new Set(deltaScope);
+  if (returnedDeltas.some((delta) => !allowedDeltas.has(delta))) {
+    throw new Error(`technical_review_repair_scope_expanded:${returnedDeltas.filter((delta) => !allowedDeltas.has(delta)).join(" | ")}`);
+  }
+  const consistencyFailure = reviewProjectionIsConsistent({ brief, handoff: next, review: next.sddReview });
+  if (consistencyFailure) throw new Error(`technical_review_repair_projection_unproven:${consistencyFailure}`);
+  assertSchema(next, handoffSchema, "handoffResult");
+
+  const usage = usageFromInfo(result.info);
+  next.findings = [
+    ...(Array.isArray(handoff.findings) ? handoff.findings : []),
+    {
+      type: "handoff_structured_finalization",
+      status: "succeeded",
+      modelId: model,
+      sessionId: result.sessionId ?? null,
+      authority: "closed-technical-review-repair-projection",
+      reviewedRevision: next.sddReview.reviewedRevision,
+      decision: next.sddReview.decision,
+      reviewScope: deltaScope,
+      remainingRequiredDeltas: returnedDeltas,
+      resolvedResidualRisks: normalizedStringSet(result.value.repairClosure?.resolvedResidualRisks),
+      resolvedFollowUps: normalizedStringSet(result.value.repairClosure?.resolvedFollowUps),
+      attempts: Number(result.attempts ?? 1),
+      recoveredFailures: Array.isArray(result.failures) ? clone(result.failures) : [],
+    },
+  ];
+  next.auxiliaryInvocations = [
+    ...(handoff.auxiliaryInvocations ?? []),
+    auxiliaryInvocationFromStructuredResult({ purpose: "technical-review-repair-projection", model, result }),
+  ];
+  next.metrics = {
+    ...(handoff.metrics ?? {}),
+    inputTokens: Number(handoff.metrics?.inputTokens ?? 0) + usage.inputTokens,
+    outputTokens: Number(handoff.metrics?.outputTokens ?? 0) + usage.outputTokens,
+    cachedInputTokens: Number(handoff.metrics?.cachedInputTokens ?? 0) + usage.cachedInputTokens,
+    costUsd: Number(handoff.metrics?.costUsd ?? 0) + usage.costUsd,
+  };
+  return {
+    handoff: next,
+    attempted: true,
+    model,
+    sessionId: result.sessionId ?? null,
+    usage,
+    reviewScope: deltaScope,
+    remainingRequiredDeltas: returnedDeltas,
+  };
 }
 

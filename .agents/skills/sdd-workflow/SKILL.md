@@ -32,4 +32,4 @@ When this skill is loaded by the persistent Main Orchestrator, it describes the 
 
 ## Superpowers integration
 
-For Runtime-dispatched specialist children and their SDD stages, use `brainstorming` before design, `writing-plans` for executable planning, `test-driven-development` during implementation, `systematic-debugging` on failures, `requesting-code-review`/`receiving-code-review` for review loops, and `verification-before-completion` before any completion claim.
+For Runtime-dispatched specialist children, Superpowers is stage-compatible guidance rather than a second workflow authority. Implementation specialists may use `test-driven-development`, `systematic-debugging`, code-review skills and `verification-before-completion` when those skills match the Task Brief. Technical Refinement is different: it is a non-interactive contract stage whose authoritative output is the schema-valid `implementationPlan`; it must not run `brainstorming`, `writing-plans`, `using-git-worktrees`, `requesting-code-review`, or other human execution-choice workflows before emitting that plan. Runtime plan validation and bounded review repair own Technical Refinement closure.

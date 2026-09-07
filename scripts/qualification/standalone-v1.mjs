@@ -386,6 +386,11 @@ async function r0() {
   if (declaredHostSuperpowers.length > 0 || nonDeniedHostSuperpowers.length > 0) {
     hold("R-0", "SOURCE", "r0_main_orchestrator_superpowers_ingress_conflict", { declaredHostSuperpowers, nonDeniedHostSuperpowers, skillPermission: permission?.skill ?? null });
   }
+  const technicalLeadManifest = JSON.parse(readFileSync(resolve(harnessRoot, ".agents/agents/technical-lead/agent.json"), "utf8"));
+  const technicalLeadSuperpowers = technicalLeadManifest.superpowersSkills ?? [];
+  if (technicalLeadSuperpowers.length > 0) {
+    hold("R-0", "SOURCE", "r0_technical_refinement_interactive_superpowers_conflict", { technicalLeadSuperpowers });
+  }
   const pluginText = readFileSync(resolve(harnessRoot, ".opencode/plugins/runtime-invocation-provenance.js"), "utf8");
   for (const marker of ["MAIN_ORCHESTRATOR_DIRECT_EXECUTION_TOOLS", "agent_runtime_main_orchestrator_direct_execution_denied", "AGENT_HARNESS_OPENCODE_RUNTIME_CHILD"]) {
     if (!pluginText.includes(marker)) hold("R-0", "SOURCE", "r0_plugin_runtime_ingress_fence_missing", { marker });
@@ -1167,7 +1172,11 @@ SELECT json_build_object(
         'at', created_at,
         'code', NULLIF(COALESCE(payload_json::jsonb->>'code',''),''),
         'status', NULLIF(COALESCE(payload_json::jsonb->>'status',''),''),
-        'message', NULLIF(COALESCE(payload_json::jsonb->>'message',''),'')
+        'message', NULLIF(COALESCE(payload_json::jsonb->>'message',''),''),
+        'repairKind', NULLIF(COALESCE(payload_json::jsonb->>'repairKind',''),''),
+        'repairPass', NULLIF(COALESCE(payload_json::jsonb->>'repairPass',''),'')::integer,
+        'requiredDeltas', payload_json::jsonb->'requiredDeltas',
+        'remainingRequiredDeltas', payload_json::jsonb->'remainingRequiredDeltas'
       ) AS event_json, created_at
       FROM agent_events
       WHERE run_id='${quotedRunId}' AND event_type<>'executor.heartbeat'

@@ -25,12 +25,7 @@
     "review-cross-agent-integration",
     "verify-and-close-task"
   ],
-  "superpowersSkills": [
-    "writing-plans",
-    "using-git-worktrees",
-    "requesting-code-review",
-    "verification-before-completion"
-  ],
+  "superpowersSkills": [],
   "routing": {
     "keywords": [
       "technical lead",
