@@ -47,7 +47,7 @@ The consuming project owns its product code and project-specific PRDs, ADRs, des
 - Artifact schemas: 11
 - PostgreSQL harness migrations: 11
 - Public `package.json` scripts: 10
-- Standalone contract files: 11 (28 current Node subtests)
+- Standalone contract files: 12 (78 current Node subtests)
 - Superpowers expected by lock: 14
 - Superpowers skill trees physically vendorized in this archive: 14
 
@@ -276,3 +276,12 @@ Packaging validation after the source change: focused qualification-controller c
 ## ADR 0025 — finite standalone terminal resume
 
 The latest R-8 live run proved one accepted deterministic wake but timed out after the authoritative 900-second assistant-completion window with the latest assistant still pending. Source review found that the continuation prompt still assigned the resumed Main Orchestrator the pre-standalone Runtime V2 `outer-controller procedure` / qualification-verdict responsibility even though standalone promotion is now controlled externally. ADR 0025 removes that ownership drift: `agent_summary` exactly once, finish the original user-facing request, no same-request Runtime re-entry, then end the turn. Qualification diagnostics now capture bounded tool-call name/status/timestamps so any remaining pending boundary is directly observable without persisting tool inputs/outputs.
+
+
+## ADR 0026 — persistent-host Superpowers isolation
+
+A fresh standalone qualification passed Q-ENTRY through R-6, then held at R-7 because the qualified Main Orchestrator loaded process guidance, inspected the accepted PRD/ADR, and asked for an extra design/proceed approval instead of entering Runtime. No `agent_start` was attempted and no Runtime run or continuation was created.
+
+The source-level conflict was that the Main Orchestrator's mandatory `runtime-continuation` → `agent_start` ingress contract coexisted with Superpowers `brainstorming`, whose generic workflow requires user approval before proceeding. ADR 0026 removes that conflict without weakening specialist SDD: persistent-host effective OpenCode strips the Superpowers plugin/catalog and the Main Orchestrator denies every pinned Superpowers skill, while Runtime-child effective OpenCode retains the pinned plugin/catalog. R-0 and R-5 now fail closed if this host/child split drifts.
+
+Packaging validation after ADR 0026: full `npm run harness:test` **78/78 PASS** and `npm run harness:qualify -- --self-test` **PASS**. The live target-host qualification remains authoritative for R-2 through R-11; this source change requires a completely fresh `harness:qualify` run.

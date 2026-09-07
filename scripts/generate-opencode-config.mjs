@@ -59,9 +59,23 @@ if (config.mcp["codebase-memory-mcp"] && codebaseMemoryExecutable) {
   config.mcp["codebase-memory-mcp"].command = [codebaseMemoryExecutable];
 }
 
-if (process.env.AGENT_HARNESS_OPENCODE_RUNTIME_CHILD === "1") {
+const runtimeChild = process.env.AGENT_HARNESS_OPENCODE_RUNTIME_CHILD === "1";
+if (runtimeChild) {
   for (const name of ["serena", "headroom", "codebase-memory-mcp", "caveman"]) {
     if (config.mcp[name]) config.mcp[name].enabled = false;
+  }
+} else {
+  // The persistent Main Orchestrator is only a Runtime ingress/egress control plane.
+  // Superpowers injects using-superpowers into every OpenCode chat and its
+  // brainstorming workflow requires a separate user approval before proceeding.
+  // That process contract conflicts with mandatory runtime-continuation -> agent_start
+  // ingress for an already-actionable delivery request. Keep Superpowers available
+  // only to Runtime-dispatched specialist child processes.
+  if (Array.isArray(config.plugin)) {
+    config.plugin = config.plugin.filter((entry) => !String(entry).startsWith("superpowers@"));
+  }
+  if (Array.isArray(config.skills?.paths)) {
+    config.skills.paths = config.skills.paths.filter((entry) => !String(entry).replaceAll("\\", "/").includes("/vendor/superpowers/skills"));
   }
 }
 config.agent = expand(JSON.parse(await readFile(resolve(root, ".opencode", "agents.generated.json"), "utf8")));

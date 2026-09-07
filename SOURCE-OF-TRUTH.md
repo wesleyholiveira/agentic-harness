@@ -23,6 +23,7 @@ A consuming repository remains authoritative for its domain code, product requir
 - Qualification R-4 treats container `Running` and application HTTP readiness as separate proofs; Context Engine, RabbitMQ Management and embeddings must pass bounded HTTP readiness with preserved transport-cause evidence.
 - The deterministic qualification controller is host-side and cross-platform: on Windows it resolves `PATH`/`PATHEXT`, directly spawns native executables, and explicitly wraps `.cmd/.bat` shims through `ComSpec` without enabling `shell:true`; batch shims use the `cmd.exe /S /C` outer-quote form with `windowsVerbatimArguments=true` so paths containing spaces are preserved without literal backslash-escaped quotes.
 - The persistent Main Orchestrator is control-plane only: delivery/change requests must enter through Context Engine `agent_start`; direct edit/write/patch/bash/task/Serena execution is fail-closed, while Runtime child specialists retain implementation tools.
+- Persistent-host process-skill isolation is part of that ingress boundary: host OpenCode must not inject/expose Superpowers design or implementation workflows to the Main Orchestrator, while Runtime child OpenCode retains the pinned Superpowers plugin/skills for specialist SDD execution. R-0/R-5 enforce this split before R-7.
 
 - PostgreSQL is durable run/task/checkpoint/continuation/ProjectMemory authority.
 - RabbitMQ is at-least-once transport, never completion authority.
@@ -80,6 +81,8 @@ The canonical serialized Task Brief SDD workflow marker is the `task-brief.schem
 ## OpenCode effective-config authority split
 
 Persistent host OpenCode owns `<consumer>/.runtime/opencode.effective.json`. Runtime task OpenCode inside the Linux worker owns an ephemeral container-private `/tmp/agentic-harness/opencode.effective.json`, generated with `AGENT_HARNESS_OPENCODE_CONFIG_OUTPUT`. The two must never share one bind-mounted file. See ADR 0017.
+
+The effective-config split also owns process-skill exposure. Persistent-host generation strips the Superpowers plugin and vendored Superpowers catalog because the Main Orchestrator is only Runtime ingress/egress control plane. Runtime-child generation retains both so specialist agents keep their declared Superpowers workflows. See ADR 0026.
 
 ## Non-evidentiary phantom reuse normalization
 

@@ -379,6 +379,13 @@ async function r0() {
   if (permission?.edit !== "deny" || permission?.bash !== "deny" || permission?.task?.["*"] !== "deny" || permission?.["serena_*"] !== "deny") {
     hold("R-0", "SOURCE", "r0_main_orchestrator_runtime_ingress_boundary_missing", { permission });
   }
+  const superpowersLock = JSON.parse(readFileSync(resolve(harnessRoot, "vendor/superpowers/lock.json"), "utf8"));
+  const mainManifest = JSON.parse(readFileSync(resolve(harnessRoot, ".agents/agents/main-orchestrator/agent.json"), "utf8"));
+  const declaredHostSuperpowers = mainManifest.superpowersSkills ?? [];
+  const nonDeniedHostSuperpowers = (superpowersLock.skills ?? []).filter((skill) => permission?.skill?.[skill] !== "deny");
+  if (declaredHostSuperpowers.length > 0 || nonDeniedHostSuperpowers.length > 0) {
+    hold("R-0", "SOURCE", "r0_main_orchestrator_superpowers_ingress_conflict", { declaredHostSuperpowers, nonDeniedHostSuperpowers, skillPermission: permission?.skill ?? null });
+  }
   const pluginText = readFileSync(resolve(harnessRoot, ".opencode/plugins/runtime-invocation-provenance.js"), "utf8");
   for (const marker of ["MAIN_ORCHESTRATOR_DIRECT_EXECUTION_TOOLS", "agent_runtime_main_orchestrator_direct_execution_denied", "AGENT_HARNESS_OPENCODE_RUNTIME_CHILD"]) {
     if (!pluginText.includes(marker)) hold("R-0", "SOURCE", "r0_plugin_runtime_ingress_fence_missing", { marker });
@@ -708,6 +715,13 @@ async function r5() {
   if (proxyIndex < 0 || headroomCommand[proxyIndex + 1] !== expectedHeadroom) hold("R-5", "QUALIFICATION PROCEDURE", "headroom_effective_authority_drift", { headroomCommand, expectedHeadroom });
   const permission = config.agent?.["main-orchestrator"]?.permission;
   if (permission?.edit !== "deny" || permission?.bash !== "deny" || permission?.task?.["*"] !== "deny" || permission?.["serena_*"] !== "deny") hold("R-5", "SOURCE", "effective_main_orchestrator_boundary_invalid", { permission });
+  const superpowersLock = JSON.parse(readFileSync(resolve(harnessRoot, "vendor/superpowers/lock.json"), "utf8"));
+  const nonDeniedHostSuperpowers = (superpowersLock.skills ?? []).filter((skill) => permission?.skill?.[skill] !== "deny");
+  const superpowersPlugins = (config.plugin ?? []).filter((entry) => String(entry).startsWith("superpowers@"));
+  const superpowersSkillPaths = (config.skills?.paths ?? []).filter((entry) => String(entry).replaceAll("\\", "/").includes("/vendor/superpowers/skills"));
+  if (nonDeniedHostSuperpowers.length > 0 || superpowersPlugins.length > 0 || superpowersSkillPaths.length > 0) {
+    hold("R-5", "SOURCE", "effective_main_orchestrator_superpowers_boundary_invalid", { nonDeniedHostSuperpowers, superpowersPlugins, superpowersSkillPaths, permission });
+  }
 
   state.effectiveConfig = config;
   state.effectiveConfigPath = effectivePath;
@@ -723,7 +737,14 @@ async function r5() {
     const index = text.toLowerCase().indexOf(name.toLowerCase());
     if (index < 0 || !/(connected|✓|ready)/iu.test(text.slice(index, index + 220))) hold("R-5", "ENVIRONMENT", "mandatory_mcp_handshake_missing", { name, output: text.slice(Math.max(0, index), index + 400) });
   }
-  return { effectivePath, contextEngineMcp: expectedMcp, headroomProxy: expectedHeadroom, mandatoryMcpHandshakes: mandatory, mainOrchestratorPermission: permission };
+  return {
+    effectivePath,
+    contextEngineMcp: expectedMcp,
+    headroomProxy: expectedHeadroom,
+    mandatoryMcpHandshakes: mandatory,
+    mainOrchestratorPermission: permission,
+    mainOrchestratorSuperpowersIsolation: { pluginCount: 0, vendoredSkillPathCount: 0, deniedSkillCount: superpowersLock.skills?.length ?? 0 },
+  };
 }
 
 async function startQualifiedOpenCode(label = "opencode") {
@@ -1535,6 +1556,11 @@ async function selfTest() {
   if (Object.keys(packageScripts).length !== 10 || packageScripts["harness:qualify"] !== "node bin/harness.mjs qualify") throw new Error("qualification_public_surface_changed");
   const mainAgent = JSON.parse(readFileSync(resolve(harnessRoot, ".opencode/agents.generated.json"), "utf8"))["main-orchestrator"];
   if (mainAgent.permission?.bash !== "deny" || mainAgent.permission?.edit !== "deny") throw new Error("qualification_self_test_main_orchestrator_not_restricted");
-  report.pass(gate, { selfTest: true, requiredFiles, publicScripts: Object.keys(packageScripts).length, mainOrchestratorShell: "deny" });
+  const superpowersLock = JSON.parse(readFileSync(resolve(harnessRoot, "vendor/superpowers/lock.json"), "utf8"));
+  const mainManifest = JSON.parse(readFileSync(resolve(harnessRoot, ".agents/agents/main-orchestrator/agent.json"), "utf8"));
+  if ((mainManifest.superpowersSkills ?? []).length > 0 || (superpowersLock.skills ?? []).some((skill) => mainAgent.permission?.skill?.[skill] !== "deny")) {
+    throw new Error("qualification_self_test_main_orchestrator_superpowers_not_isolated");
+  }
+  report.pass(gate, { selfTest: true, requiredFiles, publicScripts: Object.keys(packageScripts).length, mainOrchestratorShell: "deny", mainOrchestratorSuperpowers: "isolated" });
   for (const name of gateOrder.slice(1)) report.skip(name, "self-test mode");
 }

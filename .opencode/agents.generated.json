@@ -14,7 +14,21 @@
       },
       "serena_*": "deny",
       "skill": {
-        "*": "allow"
+        "*": "allow",
+        "brainstorming": "deny",
+        "dispatching-parallel-agents": "deny",
+        "executing-plans": "deny",
+        "finishing-a-development-branch": "deny",
+        "receiving-code-review": "deny",
+        "requesting-code-review": "deny",
+        "subagent-driven-development": "deny",
+        "systematic-debugging": "deny",
+        "test-driven-development": "deny",
+        "using-git-worktrees": "deny",
+        "using-superpowers": "deny",
+        "verification-before-completion": "deny",
+        "writing-plans": "deny",
+        "writing-skills": "deny"
       }
     }
   },

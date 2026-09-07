@@ -222,6 +222,21 @@ test("R-7 discovers Runtime run identity independently of durable continuation a
   assert.match(controller, /r7_agent_start_provenance_log_seen_but_run_not_materialized/);
 });
 
+test("persistent Main Orchestrator cannot inherit Superpowers approval workflows before Runtime ingress", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const prompt = readFileSync(resolve(root, ".agents/agents/main-orchestrator/AGENT.md"), "utf8");
+  const manifest = JSON.parse(readFileSync(resolve(root, ".agents/agents/main-orchestrator/agent.json"), "utf8"));
+  const generated = JSON.parse(readFileSync(resolve(root, ".opencode/agents.generated.json"), "utf8"));
+  const lock = JSON.parse(readFileSync(resolve(root, "vendor/superpowers/lock.json"), "utf8"));
+
+  assert.deepEqual(manifest.superpowersSkills, []);
+  for (const skill of lock.skills) assert.equal(generated["main-orchestrator"].permission.skill[skill], "deny");
+  assert.match(prompt, /Runtime ingress boundary above takes precedence/);
+  assert.match(prompt, /do not ask for an additional design\/proceed approval/);
+  assert.match(controller, /r0_main_orchestrator_superpowers_ingress_conflict/);
+  assert.match(controller, /effective_main_orchestrator_superpowers_boundary_invalid/);
+});
+
 test("persistent Main Orchestrator captures runtime-continuation before agent_start", () => {
   const prompt = readFileSync(resolve(root, ".agents/agents/main-orchestrator/AGENT.md"), "utf8");
   const skill = readFileSync(resolve(root, ".agents/skills/operate-multi-agent-runtime/SKILL.md"), "utf8");

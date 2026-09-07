@@ -81,6 +81,14 @@ test("standalone terminal continuation resumes the original user request with a 
   assert.doesNotMatch(prompt, /required final report\/verdict/);
 });
 
+test("SDD process skills stay behind the persistent Main Orchestrator Runtime ingress boundary", () => {
+  const skill = readFileSync(resolve(root, ".agents/skills/sdd-workflow/SKILL.md"), "utf8");
+  assert.match(skill, /Persistent Main Orchestrator boundary/);
+  assert.match(skill, /captures `runtime-continuation`, calls Context Engine `agent_start`/);
+  assert.match(skill, /must not invoke Superpowers design\/implementation process skills/);
+  assert.match(skill, /For Runtime-dispatched specialist children and their SDD stages/);
+});
+
 test("persistent Main Orchestrator does not re-enter delivery after a terminal continuation", () => {
   const source = readFileSync(resolve(root, ".agents/agents/main-orchestrator/AGENT.md"), "utf8");
   assert.match(source, /call `agent_summary` exactly once for the delivered run/);

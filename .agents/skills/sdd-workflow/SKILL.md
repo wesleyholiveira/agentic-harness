@@ -26,6 +26,10 @@ Use this skill for non-trivial feature, refactor, migration, architecture, infra
 - No agent may weaken acceptance criteria, silently widen ownership, or substitute prose for executable validation.
 - Source changes during a qualification invalidate downstream qualification evidence.
 
+## Persistent Main Orchestrator boundary
+
+When this skill is loaded by the persistent Main Orchestrator, it describes the Runtime-owned workflow; it does not authorize executing the workflow locally. For a delivery/change request, the persistent Main Orchestrator captures `runtime-continuation`, calls Context Engine `agent_start` with that continuation, and parks for the durable resume event. It must not invoke Superpowers design/implementation process skills or ask for a redundant design/proceed approval before Runtime ingress when the request is already actionable.
+
 ## Superpowers integration
 
-Use `brainstorming` before design, `writing-plans` for executable planning, `test-driven-development` during implementation, `systematic-debugging` on failures, `requesting-code-review`/`receiving-code-review` for review loops, and `verification-before-completion` before any completion claim.
+For Runtime-dispatched specialist children and their SDD stages, use `brainstorming` before design, `writing-plans` for executable planning, `test-driven-development` during implementation, `systematic-debugging` on failures, `requesting-code-review`/`receiving-code-review` for review loops, and `verification-before-completion` before any completion claim.

@@ -41,7 +41,11 @@ test("persistent Main Orchestrator cannot bypass Runtime V2 with direct executio
   assert.equal(main.permission.bash, "deny");
   assert.deepEqual(main.permission.task, { "*": "deny" });
   assert.equal(main.permission["serena_*"], "deny");
-  assert.deepEqual(main.permission.skill, { "*": "allow" });
+  const superpowersLock = JSON.parse(readFileSync(resolve(root, "vendor", "superpowers", "lock.json"), "utf8"));
+  assert.equal(main.permission.skill["*"], "allow");
+  for (const skill of superpowersLock.skills) assert.equal(main.permission.skill[skill], "deny", `persistent Main Orchestrator must deny Superpowers skill ${skill}`);
+  const mainManifest = JSON.parse(readFileSync(resolve(root, ".agents", "agents", "main-orchestrator", "agent.json"), "utf8"));
+  assert.deepEqual(mainManifest.superpowersSkills, []);
 
   const prompt = readFileSync(resolve(root, ".agents", "agents", "main-orchestrator", "AGENT.md"), "utf8");
   assert.match(prompt, /control-plane agent, not an implementation agent/);
@@ -299,9 +303,11 @@ test("OpenCode effective config is generated under the consuming project runtime
     assert.equal(config.agent["main-orchestrator"].permission["serena_*"], "deny");
     assert.deepEqual(config.skills.paths, [
       resolve(root, ".agents/skills").replaceAll("\\", "/"),
-      resolve(root, "vendor/superpowers/skills").replaceAll("\\", "/"),
     ]);
-    assert.ok(config.plugin.includes("superpowers@git+https://github.com/obra/superpowers.git#v5.1.0"));
+    assert.equal(config.plugin.some((entry) => String(entry).startsWith("superpowers@")), false);
+    for (const skill of JSON.parse(readFileSync(resolve(root, "vendor/superpowers/lock.json"), "utf8")).skills) {
+      assert.equal(config.agent["main-orchestrator"].permission.skill[skill], "deny");
+    }
     assert.equal(config.mcp["context-engine"].url, "http://127.0.0.1:8789/mcp");
     assert.equal(config.mcp.context7.enabled, false);
     assert.equal("headers" in config.mcp.context7, false);
@@ -352,6 +358,8 @@ test("runtime-child OpenCode effective config is container-private and cannot cl
     assert.equal(child.mcp.headroom.enabled, false);
     assert.equal(child.mcp["codebase-memory-mcp"].enabled, false);
     assert.equal(child.mcp["context-engine"].url, "http://context-engine:8789/mcp");
+    assert.ok(child.skills.paths.includes(resolve(root, "vendor/superpowers/skills").replaceAll("\\", "/")));
+    assert.ok(child.plugin.includes("superpowers@git+https://github.com/obra/superpowers.git#v5.1.0"));
   } finally {
     rmSync(consumerRoot, { recursive: true, force: true });
     rmSync(childRoot, { recursive: true, force: true });

@@ -27,6 +27,12 @@ For any user request whose fulfillment would change project files, execute imple
 
 Read-only inspection may be used to answer non-change questions or to establish whether clarification is required, but it must never become a substitute implementation path.
 
+### Persistent-host process-skill precedence
+
+The Runtime ingress boundary above takes precedence over generic design/implementation process guidance. In the persistent Main Orchestrator session, do **not** run Superpowers design or implementation workflows before Runtime ingress, including `using-superpowers`, `brainstorming`, `writing-plans`, `executing-plans`, `using-git-worktrees`, `subagent-driven-development`, code-review workflows, TDD, branch-finishing, or verification-before-completion. Those workflows belong to Runtime-dispatched specialist children and SDD stages after `agent_start`.
+
+When the user has already issued an actionable delivery request or supplied accepted PRD/ADR constraints, do not ask for an additional design/proceed approval merely because a generic process skill would normally request one. After any strictly necessary read-only inspection, call `runtime-continuation` and then `agent_start` in the same delivery turn. Ask a clarification question only when a genuinely missing or ambiguous requirement prevents constructing the Runtime request safely.
+
 If `agent_start` is unavailable or rejected, fail closed and report the Runtime/control-plane error. Never fall back to direct implementation.
 
 ## Required behavior
