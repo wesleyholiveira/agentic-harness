@@ -116,9 +116,16 @@ export function resolveQualificationProcessLossBoundary({ brief, resumeCheckpoin
     const identities = [brief?.taskId, brief?.sdd?.stage, brief?.agentId].filter(Boolean).map(String);
     if (!identities.some((value) => value === taskMatch || value.includes(taskMatch))) return null;
   }
+  const attemptMatch = String(env.AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT ?? "").trim();
+  if (attemptMatch) {
+    const expectedAttempt = Number(attemptMatch);
+    const actualAttempt = Number(brief?.modelRouting?.attempt ?? 1);
+    if (!Number.isInteger(expectedAttempt) || expectedAttempt < 1) return null;
+    if (actualAttempt !== expectedAttempt) return null;
+  }
   const rawWaitMs = Number(env.AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_WAIT_MS ?? 120_000);
   const waitMs = Math.max(5_000, Math.min(300_000, Number.isFinite(rawWaitMs) ? Math.trunc(rawWaitMs) : 120_000));
-  return { boundary, taskMatch: taskMatch || null, waitMs };
+  return { boundary, taskMatch: taskMatch || null, attemptMatch: attemptMatch ? Number(attemptMatch) : null, waitMs };
 }
 
 async function armQualificationProcessLossBoundary({ brief, handoff, sessionId, usage, repairCheckpointPath, resumeCheckpoint }) {

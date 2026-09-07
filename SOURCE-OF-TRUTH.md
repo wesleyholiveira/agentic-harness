@@ -108,3 +108,9 @@ The authoritative standalone R-8 gate is progress-aware. It must respect the eff
 ## Standalone terminal continuation ownership
 
 ADR 0025 is authoritative for the post-wake Main Orchestrator boundary. The deterministic host Qualification Controller owns promotion/fault gates. A terminal wake resumes the Main Orchestrator to call `agent_summary` exactly once, answer the original user from terminal Runtime state, and end the assistant turn. The legacy Runtime V2 wording that assigned an `outer-controller procedure` and qualification verdict to the resumed assistant is not part of standalone authority. R-8/R-10 tool-part diagnostics are observational only.
+
+## R-9 physical worker-loss qualification authority
+
+Standalone R-9 proves unexpected physical executor loss, not an administrative container restart. The controller arms the qualification-only `repair-checkpoint-after-full-agent` boundary for Technical Refinement semantic attempt 1, waits for the exact `qualification-process-loss` repair checkpoint, and then sends `SIGKILL` to the worker's container-init host PID through the isolated host-PID-namespace helper defined by `.agents/runtime/h9r-process-loss.mjs`. `docker kill`/`docker restart` are not R-9 process-loss authority.
+
+After the kill, qualification expires only the exact killed execution lease and wakes `agent_harness_runtime_wakeup`. A valid replacement preserves semantic `attempt`, advances `dispatchGeneration` and `fencingToken` exactly once, preserves checkpoint identity, emits one matching replacement preparation/dispatch/resume chain and proves `skippedFullAgentInvocation=true`. `.agents/runtime/h9r-evidence.mjs` is the aggregate recovery-evidence authority. Qualification fault controls are default-off, attempt-scoped, and explicitly disarmed before R-10. See ADR 0028.

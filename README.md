@@ -34,7 +34,7 @@ npm run harness:opencode
 npm run harness:clean
 ```
 
-Those are intentionally the only public package scripts. Versioned R12–R17 contract commands are not part of the standalone public API. `harness:migrate` is submodule-safe: it runs the harness-owned migration script inside the consumer-scoped `database-migrate` Compose service, so a clean `.harness` checkout does not need its own `node_modules`. `harness:qualify` is the deterministic standalone promotion controller: it runs outside the operational agent catalog, keeps the Main Orchestrator shell/edit restrictions intact, executes PRE-R0–R-11 directly, and uses the qualified Main Orchestrator only for the normal consumer workload at R-7. See `docs/qualification/STANDALONE-PROMOTION.md`.
+Those are intentionally the only public package scripts. Versioned R12–R17 contract commands are not part of the standalone public API. `harness:migrate` is submodule-safe: it runs the harness-owned migration script inside the consumer-scoped `database-migrate` Compose service, so a clean `.harness` checkout does not need its own `node_modules`. `harness:qualify` is the deterministic standalone promotion controller: it runs outside the operational agent catalog, keeps the Main Orchestrator shell/edit restrictions intact, executes PRE-R0–R-11 directly, and uses the qualified Main Orchestrator only for the normal consumer workload at R-7. R-9 injects an unexpected worker-process SIGKILL at an exact repair checkpoint and requires lease/fencing repair-resume proof rather than treating an administrative Docker restart as process-loss evidence. See `docs/qualification/STANDALONE-PROMOTION.md`.
 
 ## Two-root model
 

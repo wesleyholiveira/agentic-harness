@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-07T17:35:17Z",
+  "generatedAt": "2026-09-07T18:44:40Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 512,
-  "treeSha256": "sha256:0a8e25856f5337cbc94eed05fd8d9d8b2ed2998ecbb822e1bc81a1375dd28e67",
+  "fileCount": 513,
+  "treeSha256": "sha256:0a96d86b7c548a084f2e2d2ebc51e693cd8d6269d99cec223eb4e1cb0fc3551f",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -1198,9 +1198,9 @@
       "sha256": "sha256:8ccd4534294aa5c2681f523632fc0cc8c8b8cfb90bfa4e407891d42569c06487"
     },
     {
-      "bytes": 6407,
+      "bytes": 7013,
       "path": "compose.yaml",
-      "sha256": "sha256:f3d9261ae0b256d25cad5854b594afd90a25ac23d3a7d1ba9d4d19c9700b2f6b"
+      "sha256": "sha256:b54041d2dea9f0e11f3f6d9af99639923fbb7df05a04add9a87a572b7928e109"
     },
     {
       "bytes": 2309,
@@ -1208,9 +1208,9 @@
       "sha256": "sha256:19db88b7ddc6902d55c006b381e9a1fe6a4af472f37942d768aab876b329b353"
     },
     {
-      "bytes": 38271,
+      "bytes": 39918,
       "path": "DISTRIBUTION-REPORT.md",
-      "sha256": "sha256:02eadbf551513a455971f475ea1f17cf43cf237789de783c6903d6b93a999066"
+      "sha256": "sha256:5e7b93468d6b736a872cefb3e83ebf1fb7531ef92c4545bb9832194ea20fe1e0"
     },
     {
       "bytes": 1650,
@@ -1348,6 +1348,11 @@
       "sha256": "sha256:301b34c0a8c90db9d711e333006a417f80269343ad57ea53cf073e3f11952470"
     },
     {
+      "bytes": 5753,
+      "path": "docs/adr/0028-deterministic-r9-physical-worker-loss.md",
+      "sha256": "sha256:43fa6a57ecae2ccbb1f8bdea4ca9fec225355e6ca7f6d4503f2b500b298d82b9"
+    },
+    {
       "bytes": 1160,
       "path": "docs/architecture/DECISIONS.md",
       "sha256": "sha256:df322d080b39f83d72f35fdfba878bbccf5262af932f1053b743c6676c171bda"
@@ -1423,9 +1428,9 @@
       "sha256": "sha256:f075c1111223c7026cb53481099d0e9e21d843bb165e81b6801dd36cbd7fda90"
     },
     {
-      "bytes": 5694,
+      "bytes": 5818,
       "path": "docs/qualification/STANDALONE-PROMOTION.md",
-      "sha256": "sha256:1aa2a6e75c881d7b8a5a9ecf1f831756e4f0756390937de4214ede81c794def5"
+      "sha256": "sha256:27858770a908b59351ad42b7fa75fe4c2fddc3a83ca7c0e7a9918eb491856cb6"
     },
     {
       "bytes": 364,
@@ -2083,9 +2088,9 @@
       "sha256": "sha256:a356cd51ed50911ef091fc68ee1a704cebbadc2892d5d1fa99e3c72d6a0bab66"
     },
     {
-      "bytes": 5559,
+      "bytes": 5765,
       "path": "README.md",
-      "sha256": "sha256:b9cf882eb153c85a83e7b9039624631ff03ea538483edcc9c482f7c7084affda"
+      "sha256": "sha256:8c3a3ae0616aa3e6e9f76d4f75191ffbecbaa7c0ccbe968ebfb5c78f36972d62"
     },
     {
       "bytes": 4124,
@@ -2158,9 +2163,9 @@
       "sha256": "sha256:29459bd29752fcb24a62bd0ddb548e930f4835074cb3a1adf677a85ba02e4227"
     },
     {
-      "bytes": 68062,
+      "bytes": 68498,
       "path": "scripts/internal/opencode-task-executor.mjs",
-      "sha256": "sha256:ac31cd3f8aaf7954765f5a51d85af28461d1f7dd1ee410c543e5d5e7bd8d28ac"
+      "sha256": "sha256:9950f254cab7c9f6dd234c051ba51efa082e0e16cfba0c5b5c50cc993af49dfe"
     },
     {
       "bytes": 3019,
@@ -2228,9 +2233,9 @@
       "sha256": "sha256:02561e785ef0db3b2b7595cc43160ce3c8cec37d8e185b8c6cbec863e2388d14"
     },
     {
-      "bytes": 86061,
+      "bytes": 94725,
       "path": "scripts/qualification/standalone-v1.mjs",
-      "sha256": "sha256:fe0d7c8c8a68c6430a1194e0828e9ab9c2658ab91bcf31e70242600bb2fa6a14"
+      "sha256": "sha256:fc62624006d355570e39dbbf7180bfef22048f7e52ce0369c82a3c26384ed227"
     },
     {
       "bytes": 1892,
@@ -2238,9 +2243,9 @@
       "sha256": "sha256:58f9cb34276192e9c57547d18fc1d52e0c860fddb0cce18e05ce1fa3593af1fc"
     },
     {
-      "bytes": 13512,
+      "bytes": 14664,
       "path": "SOURCE-OF-TRUTH.md",
-      "sha256": "sha256:a79f44ce185ad483663793005d051a6b17cded9e6a9ae611a4f484d874e0ccb3"
+      "sha256": "sha256:55ba361a4b45f6db30ceba5ea0a80ac2ef837e95d2dc95fd3ad6bae61db07487"
     },
     {
       "bytes": 840,
@@ -2268,9 +2273,9 @@
       "sha256": "sha256:7f8eadec83654ffd37f54d82bd53c25ba7db879bd6943ef2fef52ab88507f2d1"
     },
     {
-      "bytes": 31053,
+      "bytes": 35036,
       "path": "tests/contracts/qualification-controller.test.mjs",
-      "sha256": "sha256:c714d09b730de0e77662d61000a097b4484e617f65f3a77466b83adcd21da2f5"
+      "sha256": "sha256:2c6e332dc71bd5d8fefbe876fe386d831a730088ea667abf3fe736e2b8b66935"
     },
     {
       "bytes": 1716,

@@ -661,3 +661,67 @@ test("R-8 continuation watchdog accepts only ordered accepted/observed delivery"
   }, { nowMs: Date.parse("2026-09-06T22:08:31.000Z") });
   assert.equal(bad.violation?.message, "continuation_observed_before_accepted");
 });
+
+test("R-9 physical process loss uses the promoted host-PID namespace SIGKILL mechanism", async () => {
+  const { buildWorkerProcessLossCommand } = await import("../../.agents/runtime/h9r-process-loss.mjs");
+  const args = buildWorkerProcessLossCommand({
+    hostPid: 4242,
+    image: "agentic-harness-worker:test",
+    restartPolicy: "unless-stopped",
+    running: true,
+  });
+  assert.deepEqual(args, [
+    "run", "--rm", "--pull=never", "--network=none", "--read-only",
+    "--pid=host", "--userns=host", "--cap-drop=ALL", "--cap-add=KILL", "--entrypoint", "sh", "agentic-harness-worker:test",
+    "-lc", "kill -KILL 4242",
+  ]);
+});
+
+test("standalone R-9 arms an exact repair checkpoint, forces lease expiry, and evaluates replacement identity", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  assert.match(controller, /buildWorkerProcessLossCommand/);
+  assert.match(controller, /evaluateH9RRecoveryEvidence/);
+  assert.match(controller, /repairKind !== "qualification-process-loss"/);
+  assert.match(controller, /checkpoint\.status !== "repair-started"/);
+  assert.match(controller, /pg_notify\('agent_harness_runtime_wakeup'/);
+  assert.match(controller, /dispatchGeneration\) !== target\.dispatchGeneration \+ 1/);
+  assert.match(controller, /fencingToken\) !== target\.fencingToken \+ 1/);
+  assert.match(controller, /skippedFullAgentInvocation !== true/);
+  assert.match(controller, /r9-disarm-process-loss-boundary/);
+  assert.doesNotMatch(controller, /runner\.run\("docker", \["kill", workerId\]/);
+});
+
+test("R-9 process-loss fault is default-off and scoped to Technical Refinement attempt 1", () => {
+  const compose = readFileSync(resolve(root, "compose.yaml"), "utf8");
+  const executor = readFileSync(resolve(root, "scripts/internal/opencode-task-executor.mjs"), "utf8");
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  assert.match(compose, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: \$\{AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY:-\}/);
+  assert.match(compose, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT: \$\{AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT:-\}/);
+  assert.match(executor, /const attemptMatch = String\(env\.AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT/);
+  assert.match(executor, /if \(actualAttempt !== expectedAttempt\) return null/);
+  assert.match(controller, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_TASK_MATCH: "technical-refinement"/);
+  assert.match(controller, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT: "1"/);
+  assert.match(controller, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: ""/);
+});
+
+test("qualification process-loss boundary is one-shot across true task retries", async () => {
+  const { resolveQualificationProcessLossBoundary } = await import("../../scripts/internal/opencode-task-executor.mjs");
+  const env = {
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: "repair-checkpoint-after-full-agent",
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_TASK_MATCH: "technical-refinement",
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT: "1",
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_WAIT_MS: "180000",
+  };
+  const task = { taskId: "run-1:technical-refinement", sdd: { stage: "technical-refinement" }, agentId: "technical-lead" };
+  const first = resolveQualificationProcessLossBoundary({ brief: { ...task, modelRouting: { attempt: 1 } }, env });
+  assert.deepEqual(first, {
+    boundary: "repair-checkpoint-after-full-agent",
+    taskMatch: "technical-refinement",
+    attemptMatch: 1,
+    waitMs: 180000,
+  });
+  const retry = resolveQualificationProcessLossBoundary({ brief: { ...task, modelRouting: { attempt: 2 } }, env });
+  assert.equal(retry, null);
+  const replacement = resolveQualificationProcessLossBoundary({ brief: { ...task, modelRouting: { attempt: 1 } }, resumeCheckpoint: { status: "repair-started" }, env });
+  assert.equal(replacement, null);
+});

@@ -54,7 +54,7 @@ The qualification controller never calls `agent_start` directly.
 - `R-6` — fresh OpenCode host, provenance SHA authority and noReply history probe with zero Runtime run.
 - `R-7` — the one intentional model-facing gate: normal consumer workload must enter Runtime via `agent_start`, provenance and `runId` before implementation.
 - `R-8` — durable continuation identity/materialization/acceptance.
-- `R-9` — physical Rust worker loss after a reusable checkpoint and repair-resume evidence without a second full agent invocation.
+- `R-9` — physical Rust worker process loss at the exact qualification repair checkpoint via host-PID-namespace SIGKILL, followed by lease expiry, exactly-one generation/fencing replacement and repair-resume evidence with no second full agent invocation.
 - `R-10` — bounded dependency/restart faults plus an unavailable OpenCode continuation endpoint and recovery.
 - `R-11` — cleanup, qualification-resource absence, port release and exact source equality.
 

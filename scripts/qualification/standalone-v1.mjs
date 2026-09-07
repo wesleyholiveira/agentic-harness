@@ -45,6 +45,8 @@ import {
   summarizeContinuationAssistant,
 } from "./lib/continuation-watchdog.mjs";
 import { resolveExecutionLivenessPolicy } from "../../.agents/runtime/execution-liveness.mjs";
+import { buildWorkerProcessLossCommand } from "../../.agents/runtime/h9r-process-loss.mjs";
+import { evaluateH9RRecoveryEvidence } from "../../.agents/runtime/h9r-evidence.mjs";
 
 const scriptRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const args = parseArgs(process.argv.slice(2));
@@ -536,15 +538,21 @@ function buildConsumerEnv() {
     AGENT_HARNESS_OPENCODE_CONTINUATION_HOST_PROBE_URL: `http://host.docker.internal:${p.opencode}`,
     AGENT_HARNESS_CONTEXT_ENGINE_MCP_URL: `http://127.0.0.1:${p.contextEngine}/mcp`,
     AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL: `http://127.0.0.1:${p.contextEngine}/runtime-invocation-provenance`,
+    // Qualification fault controls are explicitly disarmed outside the gate that owns them.
+    // Do not inherit similarly named host variables into R-4/R-7/R-8/R-10.
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: "",
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_TASK_MATCH: "",
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT: "",
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_WAIT_MS: "120000",
   };
   state.consumerEnv = base;
   return base;
 }
 
-function composeCommand(extra, { allowExitCodes = [0], label = `compose-${extra[0]}`, timeoutMs = 120_000 } = {}) {
+function composeCommand(extra, { allowExitCodes = [0], label = `compose-${extra[0]}`, timeoutMs = 120_000, env = {} } = {}) {
   return runner.run("docker", ["compose", "-p", state.composeProject.name, "-f", resolve(state.consumers.A, ".harness/compose.yaml"), ...extra], {
     cwd: state.consumers.A,
-    env: { ...state.consumerEnv, COMPOSE_PROJECT_NAME: state.composeProject.name, AGENT_HARNESS_COMPOSE_PROJECT_NAME: state.composeProject.name, AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256: state.pluginSha || pluginSha() },
+    env: { ...state.consumerEnv, COMPOSE_PROJECT_NAME: state.composeProject.name, AGENT_HARNESS_COMPOSE_PROJECT_NAME: state.composeProject.name, AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256: state.pluginSha || pluginSha(), ...env },
     allowExitCodes,
     label,
     timeoutMs,
@@ -1416,34 +1424,202 @@ async function r8() {
 }
 
 async function r9() {
+  const armedFaultEnv = {
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: "repair-checkpoint-after-full-agent",
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_TASK_MATCH: "technical-refinement",
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT: "1",
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_WAIT_MS: "180000",
+  };
+  const disarmedFaultEnv = {
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: "",
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_TASK_MATCH: "",
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT: "",
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_WAIT_MS: "120000",
+  };
+
+  // Arm the already-implemented executor boundary before creating the semantic run.
+  // The boundary is attempt-scoped so a legitimate later Technical Refinement retry
+  // cannot accidentally receive a second physical fault.
+  composeCommand(["up", "-d", "--no-deps", "--force-recreate", "agent-runtime-worker"], {
+    label: "r9-arm-process-loss-boundary",
+    timeoutMs: 5 * 60_000,
+    env: armedFaultEnv,
+  });
+  const armedWorkerId = composeCommand(["ps", "-q", "agent-runtime-worker"], { label: "r9-armed-worker-id" }).stdout.trim();
+  if (!armedWorkerId) hold("R-9", "QUALIFICATION PROCEDURE", "r9_armed_worker_container_missing");
+  await waitFor(() => {
+    const inspect = JSON.parse(runner.run("docker", ["inspect", armedWorkerId], { label: "r9-armed-worker-ready" }).stdout)[0];
+    return inspect?.State?.Running === true ? inspect : null;
+  }, { timeoutMs: 60_000, intervalMs: 1_000, label: "r9-armed-worker-running" });
+
   const sessionId = await createOpenCodeSession("Agentic Harness R-9 process-loss workload");
   const workload = "No projeto consumidor atual, adicione uma função exportada formatInitials(name) em src/format-name.mjs. Ela deve usar o mesmo String(name).trim(), retornar as iniciais maiúsculas das palavras não vazias e retornar Anonymous para entrada vazia. Adicione testes com node:test para nome simples, nome composto e entrada vazia. Não adicione dependências e execute npm test.";
   const baselineWorktree = worktreeFingerprint();
   const userMessageId = await sendWorkload(sessionId, workload);
   const runId = await waitForRunId(sessionId, { gate: "R-9", baselineWorktree });
 
+  // Wait for the exact qualification repair checkpoint. This file is written
+  // atomically on the shared Runtime workspace immediately before the executor
+  // enters its bounded process-loss sleep, so it is stronger than guessing from
+  // an arbitrary reusable checkpoint or executor.spawned event.
   const target = await waitFor(() => {
-    const rows = sqlRows(`SELECT e.task_id,e.payload_json,c.checkpoint_id,c.attempt::text,c.dispatch_generation::text,c.fencing_token::text FROM agent_events e JOIN agent_task_checkpoints c ON c.task_id=e.task_id AND c.run_id=e.run_id AND c.reusable=true WHERE e.run_id='${sqlQuote(runId)}' AND e.event_type='executor.spawned' ORDER BY e.created_at DESC LIMIT 1;`);
+    const rows = sqlRows(`SELECT task_id,status,attempt::text,dispatch_generation::text,fencing_token::text,coalesce(handoff_path,''),coalesce(execution_descriptor_path,''),coalesce(lease_expires_at,'') FROM agent_tasks WHERE run_id='${sqlQuote(runId)}' AND agent_id='technical-lead' ORDER BY state_version DESC LIMIT 1;`);
     if (!rows.length) return null;
-    return { taskId: rows[0][0], executorPayload: safeJson(rows[0][1]), checkpointId: rows[0][2], attempt: Number(rows[0][3]), dispatchGeneration: Number(rows[0][4]), fencingToken: Number(rows[0][5]) };
-  }, { timeoutMs: 20 * 60_000, intervalMs: 1_000, label: "r9-repair-checkpoint-and-executor" });
+    const [taskId, status, attemptText, generationText, fenceText, handoffPath, descriptorPath, leaseExpiresAt] = rows[0];
+    const attempt = Number(attemptText);
+    const dispatchGeneration = Number(generationText);
+    const fencingToken = Number(fenceText);
+    if (status !== "running" || attempt !== 1 || !handoffPath || !descriptorPath) return null;
+    const checkpointPath = `${handoffPath}.repair-checkpoint.json`;
+    const read = composeCommand([
+      "exec", "-T", "agent-runtime-worker", "node", "-e",
+      "const fs=require('node:fs');const p=process.argv[1];if(!fs.existsSync(p))process.exit(2);process.stdout.write(fs.readFileSync(p,'utf8'));",
+      checkpointPath,
+    ], { allowExitCodes: [0, 2], label: "r9-read-process-loss-checkpoint", timeoutMs: 30_000 });
+    if (read.exitCode !== 0 || !read.stdout.trim()) return null;
+    const checkpoint = safeJson(read.stdout);
+    if (checkpoint.contractVersion !== "runtime-repair-checkpoint/v1"
+      || checkpoint.repairKind !== "qualification-process-loss"
+      || checkpoint.status !== "repair-started"
+      || checkpoint.runId !== runId
+      || checkpoint.taskId !== taskId
+      || Number(checkpoint.taskAttempt) !== attempt
+      || !checkpoint.effectKey) return null;
+    return {
+      taskId,
+      attempt,
+      dispatchGeneration,
+      fencingToken,
+      handoffPath,
+      descriptorPath,
+      leaseExpiresAt,
+      checkpointPath,
+      checkpointEffectKey: checkpoint.effectKey,
+      checkpointStatus: checkpoint.status,
+      repairKind: checkpoint.repairKind,
+    };
+  }, { timeoutMs: 20 * 60_000, intervalMs: 2_000, label: "r9-process-loss-boundary" });
 
   const workerId = composeCommand(["ps", "-q", "agent-runtime-worker"], { label: "r9-worker-id" }).stdout.trim();
+  if (!workerId || workerId !== armedWorkerId) {
+    hold("R-9", "RUNTIME", "r9_worker_identity_changed_before_process_loss", { armedWorkerId, workerId, target });
+  }
   const before = JSON.parse(runner.run("docker", ["inspect", workerId], { label: "r9-worker-before" }).stdout)[0];
-  runner.run("docker", ["kill", workerId], { label: "r9-worker-kill" });
+  const processLossMechanism = "docker-host-pid-namespace-helper-sigkill";
+  const processLossArgs = buildWorkerProcessLossCommand({
+    hostPid: before?.State?.Pid,
+    image: before?.Config?.Image,
+    restartPolicy: before?.HostConfig?.RestartPolicy?.Name,
+    running: before?.State?.Running === true,
+  });
+
+  // Kill PID 1 from a separate host-PID-namespace helper. Do NOT use
+  // `docker kill`: Docker treats that as a manual stop and suppresses an
+  // `unless-stopped` restart, which is precisely the qualification defect that
+  // produced the preceding R-9 timeout.
+  const processLoss = runner.run("docker", processLossArgs, { label: "r9-worker-process-loss", timeoutMs: 60_000 });
+
+  // Expire only the exact physical execution identity that was killed and wake
+  // the semantic controller. The semantic attempt is deliberately unchanged;
+  // replacement identity must advance generation/fence exactly once.
+  const leaseExpiryForcedAt = new Date(Date.now() - 5_000).toISOString();
+  const expired = sqlRows(`WITH updated AS (UPDATE agent_tasks SET lease_expires_at='${sqlQuote(leaseExpiryForcedAt)}',state_version=state_version+1 WHERE task_id='${sqlQuote(target.taskId)}' AND run_id='${sqlQuote(runId)}' AND status='running' AND attempt=${target.attempt} AND dispatch_generation=${target.dispatchGeneration} AND fencing_token=${target.fencingToken} RETURNING task_id,run_id,attempt,dispatch_generation,fencing_token,lease_expires_at) SELECT task_id,run_id,attempt::text,dispatch_generation::text,fencing_token::text,lease_expires_at,pg_notify('agent_harness_runtime_wakeup','${sqlQuote(runId)}') FROM updated;`);
+  if (expired.length !== 1) {
+    hold("R-9", "RUNTIME", "r9_source_execution_identity_not_expirable_after_process_loss", { target, expired });
+  }
+
   const after = await waitFor(() => {
     const inspect = JSON.parse(runner.run("docker", ["inspect", workerId], { label: "r9-worker-after" }).stdout)[0];
-    return inspect.State?.Running === true && Number(inspect.RestartCount ?? 0) > Number(before.RestartCount ?? 0) && inspect.State?.Pid !== before.State?.Pid ? inspect : null;
+    return inspect?.State?.Running === true
+      && Number(inspect.RestartCount ?? 0) >= Number(before.RestartCount ?? 0) + 1
+      && Number(inspect.State?.Pid) > 1
+      && Number(inspect.State?.Pid) !== Number(before.State?.Pid)
+      ? inspect
+      : null;
   }, { timeoutMs: 2 * 60_000, intervalMs: 1_000, label: "r9-worker-restart" });
+  if (Number(after.RestartCount ?? 0) !== Number(before.RestartCount ?? 0) + 1) {
+    hold("R-9", "RUNTIME", "r9_worker_restart_count_not_exactly_once", { before: before.RestartCount, after: after.RestartCount });
+  }
+
+  const replacement = await waitFor(() => {
+    const rows = sqlRows(`SELECT payload_json FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND task_id='${sqlQuote(target.taskId)}' AND event_type='repair.resume_checkpoint_loaded' ORDER BY created_at DESC LIMIT 1;`);
+    if (!rows.length) return null;
+    const payload = safeJson(rows[0][0]);
+    if (Number(payload.taskAttempt) !== target.attempt
+      || Number(payload.dispatchGeneration) !== target.dispatchGeneration + 1
+      || Number(payload.fencingToken) !== target.fencingToken + 1
+      || payload.skippedFullAgentInvocation !== true
+      || payload.sameTaskAttempt !== true
+      || String(payload.checkpointEffectKey ?? "") !== String(target.checkpointEffectKey)) return null;
+    const status = sqlRows(`SELECT status FROM agent_tasks WHERE task_id='${sqlQuote(target.taskId)}' LIMIT 1;`)[0]?.[0] ?? "unknown";
+    return {
+      taskId: target.taskId,
+      attempt: Number(payload.taskAttempt),
+      dispatchGeneration: Number(payload.dispatchGeneration),
+      fencingToken: Number(payload.fencingToken),
+      statusObserved: status,
+    };
+  }, { timeoutMs: 20 * 60_000, intervalMs: 1_000, label: "r9-repair-resume-receipt" });
 
   const terminal = await waitForTerminalRun(runId, { gate: "R-9" });
   if (terminal.status !== "closed") hold("R-9", "RUNTIME", "r9_run_not_closed_after_worker_loss", { runId, terminal });
-  const events = sqlRows(`SELECT event_type,payload_json,coalesce(task_id,'') FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND event_type IN ('repair.resume_checkpoint_loaded','retry.full_attempt_avoided','repair.started','repair.completed') ORDER BY created_at;`).map(([type, payload, taskId]) => ({ type, taskId, payload: safeJson(payload) }));
-  const resume = events.find((event) => event.type === "repair.resume_checkpoint_loaded" && event.taskId === target.taskId);
-  if (!resume || resume.payload?.skippedFullAgentInvocation !== true) hold("R-9", "RUNTIME", "r9_repair_resume_not_proven", { target, events });
-  if (!(Number(resume.payload?.dispatchGeneration) > target.dispatchGeneration) || !(Number(resume.payload?.fencingToken) > target.fencingToken)) hold("R-9", "RUNTIME", "r9_generation_fencing_not_advanced", { target, resume });
+  const events = sqlRows(`SELECT event_type,payload_json,coalesce(task_id,'') FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND task_id='${sqlQuote(target.taskId)}' AND event_type LIKE 'repair.%' ORDER BY created_at;`).map(([eventType, payloadJson, taskId]) => ({ event_type: eventType, task_id: taskId, payload_json: safeJson(payloadJson) }));
+  const sourceIdentity = {
+    taskId: target.taskId,
+    attempt: target.attempt,
+    dispatchGeneration: target.dispatchGeneration,
+    fencingToken: target.fencingToken,
+    checkpointPath: target.checkpointPath,
+    checkpointEffectKey: target.checkpointEffectKey,
+    checkpointStatus: target.checkpointStatus,
+    workerContainerId: workerId,
+    workerRestartBefore: Number(before.RestartCount ?? 0),
+    workerRestartAfter: Number(after.RestartCount ?? 0),
+    workerHostPidBefore: Number(before.State?.Pid ?? 0),
+    workerHostPidAfter: Number(after.State?.Pid ?? 0),
+    workerImage: before.Config?.Image ?? null,
+    workerRestartPolicy: before.HostConfig?.RestartPolicy?.Name ?? null,
+    workerRestartedAt: after.State?.StartedAt ?? null,
+  };
+  const evaluation = evaluateH9RRecoveryEvidence({
+    sourceIdentity,
+    replacementIdentity: replacement,
+    events,
+    processLossMechanism,
+  });
+  if (!evaluation.ok) {
+    hold("R-9", "RUNTIME", "r9_process_loss_recovery_evidence_invalid", { sourceIdentity, replacementIdentity: replacement, events, evaluation });
+  }
+
   mustRun("R-9", "RUNTIME", "npm", ["--prefix", state.consumers.A, "test"], { label: "r9-consumer-validation" });
-  state.r9 = { sessionId, userMessageId, runId, target, workerBefore: { pid: before.State?.Pid, restartCount: before.RestartCount }, workerAfter: { pid: after.State?.Pid, restartCount: after.RestartCount }, events };
+
+  // Disarm the qualification-only boundary before R-10 creates another Runtime
+  // run. R-9 is terminal at this point, so recreating the idle worker cannot
+  // interfere with the proven semantic delivery.
+  composeCommand(["up", "-d", "--no-deps", "--force-recreate", "agent-runtime-worker"], {
+    label: "r9-disarm-process-loss-boundary",
+    timeoutMs: 5 * 60_000,
+    env: disarmedFaultEnv,
+  });
+  await waitFor(() => {
+    const id = composeCommand(["ps", "-q", "agent-runtime-worker"], { label: "r9-disarmed-worker-id" }).stdout.trim();
+    if (!id) return null;
+    const inspect = JSON.parse(runner.run("docker", ["inspect", id], { label: "r9-disarmed-worker-ready" }).stdout)[0];
+    return inspect?.State?.Running === true ? { id, inspect } : null;
+  }, { timeoutMs: 60_000, intervalMs: 1_000, label: "r9-disarmed-worker-running" });
+
+  state.r9 = {
+    sessionId,
+    userMessageId,
+    runId,
+    processLossMechanism,
+    processLoss: { command: "docker", args: processLossArgs, exitCode: processLoss.exitCode },
+    leaseExpiryForced: true,
+    leaseExpiryForcedAt,
+    sourceIdentity,
+    replacementIdentity: replacement,
+    evaluation,
+  };
   return state.r9;
 }
 
