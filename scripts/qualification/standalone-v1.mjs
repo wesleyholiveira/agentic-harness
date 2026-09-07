@@ -163,6 +163,13 @@ function hold(gate, classification, message, evidence = {}) {
   throw new QualificationHold(gate, classification, message, evidence);
 }
 
+function containerEnvironmentMap(inspect) {
+  return Object.fromEntries((inspect?.Config?.Env ?? []).map((entry) => {
+    const separator = entry.indexOf("=");
+    return separator < 0 ? [entry, ""] : [entry.slice(0, separator), entry.slice(separator + 1)];
+  }));
+}
+
 function normalizeHold(gate, error, fallbackClassification = "QUALIFICATION PROCEDURE") {
   if (error instanceof QualificationHold) return error;
   return new QualificationHold(gate, fallbackClassification, error instanceof Error ? error.message : String(error), {
@@ -625,12 +632,8 @@ async function r4() {
   }
 
   const workspaceDestination = "/workspace/agent-workspaces";
-  const environmentMap = (inspect) => Object.fromEntries((inspect?.Config?.Env ?? []).map((entry) => {
-    const separator = entry.indexOf("=");
-    return separator < 0 ? [entry, ""] : [entry.slice(0, separator), entry.slice(separator + 1)];
-  }));
-  const contextEngineEnv = environmentMap(containerInspects["context-engine"]);
-  const workerEnv = environmentMap(containerInspects["agent-runtime-worker"]);
+  const contextEngineEnv = containerEnvironmentMap(containerInspects["context-engine"]);
+  const workerEnv = containerEnvironmentMap(containerInspects["agent-runtime-worker"]);
   if (contextEngineEnv.AGENT_HARNESS_AGENT_WORKSPACE_ROOT !== workspaceDestination || workerEnv.AGENT_HARNESS_AGENT_WORKSPACE_ROOT !== workspaceDestination) {
     hold("R-4", "SOURCE", "runtime_workspace_root_authority_mismatch", {
       expected: workspaceDestination,
@@ -1447,10 +1450,21 @@ async function r9() {
   });
   const armedWorkerId = composeCommand(["ps", "-q", "agent-runtime-worker"], { label: "r9-armed-worker-id" }).stdout.trim();
   if (!armedWorkerId) hold("R-9", "QUALIFICATION PROCEDURE", "r9_armed_worker_container_missing");
-  await waitFor(() => {
+  const armedWorkerInspect = await waitFor(() => {
     const inspect = JSON.parse(runner.run("docker", ["inspect", armedWorkerId], { label: "r9-armed-worker-ready" }).stdout)[0];
     return inspect?.State?.Running === true ? inspect : null;
   }, { timeoutMs: 60_000, intervalMs: 1_000, label: "r9-armed-worker-running" });
+  const armedWorkerEnv = containerEnvironmentMap(armedWorkerInspect);
+  const armedProjection = Object.fromEntries(Object.keys(armedFaultEnv).map((key) => [key, armedWorkerEnv[key] ?? null]));
+  const missingArmedProjection = Object.entries(armedFaultEnv).filter(([key, expected]) => armedWorkerEnv[key] !== expected);
+  if (missingArmedProjection.length > 0) {
+    hold("R-9", "QUALIFICATION PROCEDURE", "r9_process_loss_boundary_not_projected_to_worker", {
+      workerId: armedWorkerId,
+      expected: armedFaultEnv,
+      actual: armedProjection,
+      mismatches: missingArmedProjection.map(([key, expected]) => ({ key, expected, actual: armedWorkerEnv[key] ?? null })),
+    });
+  }
 
   const sessionId = await createOpenCodeSession("Agentic Harness R-9 process-loss workload");
   const workload = "No projeto consumidor atual, adicione uma função exportada formatInitials(name) em src/format-name.mjs. Ela deve usar o mesmo String(name).trim(), retornar as iniciais maiúsculas das palavras não vazias e retornar Anonymous para entrada vazia. Adicione testes com node:test para nome simples, nome composto e entrada vazia. Não adicione dependências e execute npm test.";
@@ -1462,7 +1476,9 @@ async function r9() {
   // atomically on the shared Runtime workspace immediately before the executor
   // enters its bounded process-loss sleep, so it is stronger than guessing from
   // an arbitrary reusable checkpoint or executor.spawned event.
-  const target = await waitFor(() => {
+  let target;
+  try {
+    target = await waitFor(() => {
     const rows = sqlRows(`SELECT task_id,status,attempt::text,dispatch_generation::text,fencing_token::text,coalesce(handoff_path,''),coalesce(execution_descriptor_path,''),coalesce(lease_expires_at,'') FROM agent_tasks WHERE run_id='${sqlQuote(runId)}' AND agent_id='technical-lead' ORDER BY state_version DESC LIMIT 1;`);
     if (!rows.length) return null;
     const [taskId, status, attemptText, generationText, fenceText, handoffPath, descriptorPath, leaseExpiresAt] = rows[0];
@@ -1499,6 +1515,22 @@ async function r9() {
       repairKind: checkpoint.repairKind,
     };
   }, { timeoutMs: 20 * 60_000, intervalMs: 2_000, label: "r9-process-loss-boundary" });
+  } catch (error) {
+    if (String(error?.message ?? "").startsWith("qualification_wait_timeout:r9-process-loss-boundary:")) {
+      const technicalLead = sqlRows(`SELECT task_id,status,attempt::text,dispatch_generation::text,fencing_token::text,coalesce(handoff_path,''),coalesce(execution_descriptor_path,''),coalesce(lease_expires_at,'') FROM agent_tasks WHERE run_id='${sqlQuote(runId)}' AND agent_id='technical-lead' ORDER BY state_version DESC LIMIT 1;`)[0] ?? null;
+      const boundaryEvents = sqlRows(`SELECT event_type,payload_json,coalesce(task_id,'') FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND event_type IN ('qualification.process_loss_boundary_ready','executor.completed','task.failed','run.failed','run.closed') ORDER BY created_at DESC LIMIT 12;`).map(([eventType, payloadJson, taskId]) => ({ eventType, taskId, payload: safeJson(payloadJson) }));
+      hold("R-9", "RUNTIME", "r9_process_loss_boundary_not_materialized", {
+        runId,
+        sessionId,
+        armedWorkerId,
+        armedProjection,
+        technicalLead,
+        boundaryEvents,
+        timeoutMs: 20 * 60_000,
+      });
+    }
+    throw error;
+  }
 
   const workerId = composeCommand(["ps", "-q", "agent-runtime-worker"], { label: "r9-worker-id" }).stdout.trim();
   if (!workerId || workerId !== armedWorkerId) {
@@ -1601,12 +1633,23 @@ async function r9() {
     timeoutMs: 5 * 60_000,
     env: disarmedFaultEnv,
   });
-  await waitFor(() => {
+  const disarmedWorker = await waitFor(() => {
     const id = composeCommand(["ps", "-q", "agent-runtime-worker"], { label: "r9-disarmed-worker-id" }).stdout.trim();
     if (!id) return null;
     const inspect = JSON.parse(runner.run("docker", ["inspect", id], { label: "r9-disarmed-worker-ready" }).stdout)[0];
     return inspect?.State?.Running === true ? { id, inspect } : null;
   }, { timeoutMs: 60_000, intervalMs: 1_000, label: "r9-disarmed-worker-running" });
+  const disarmedWorkerEnv = containerEnvironmentMap(disarmedWorker.inspect);
+  const disarmProjection = Object.fromEntries(Object.keys(disarmedFaultEnv).map((key) => [key, disarmedWorkerEnv[key] ?? null]));
+  const disarmMismatches = Object.entries(disarmedFaultEnv).filter(([key, expected]) => disarmedWorkerEnv[key] !== expected);
+  if (disarmMismatches.length > 0) {
+    hold("R-9", "QUALIFICATION PROCEDURE", "r9_process_loss_boundary_not_disarmed_on_worker", {
+      workerId: disarmedWorker.id,
+      expected: disarmedFaultEnv,
+      actual: disarmProjection,
+      mismatches: disarmMismatches.map(([key, expected]) => ({ key, expected, actual: disarmedWorkerEnv[key] ?? null })),
+    });
+  }
 
   state.r9 = {
     sessionId,

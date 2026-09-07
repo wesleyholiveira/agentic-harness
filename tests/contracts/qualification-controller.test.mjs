@@ -691,17 +691,39 @@ test("standalone R-9 arms an exact repair checkpoint, forces lease expiry, and e
   assert.doesNotMatch(controller, /runner\.run\("docker", \["kill", workerId\]/);
 });
 
-test("R-9 process-loss fault is default-off and scoped to Technical Refinement attempt 1", () => {
+test("R-9 process-loss fault is default-off, worker-projected, and scoped to Technical Refinement attempt 1", () => {
   const compose = readFileSync(resolve(root, "compose.yaml"), "utf8");
   const executor = readFileSync(resolve(root, "scripts/internal/opencode-task-executor.mjs"), "utf8");
   const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
-  assert.match(compose, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: \$\{AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY:-\}/);
-  assert.match(compose, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT: \$\{AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT:-\}/);
+  const contextEngineStart = compose.indexOf("  context-engine:");
+  const workerStart = compose.indexOf("  agent-runtime-worker:");
+  const volumesStart = compose.indexOf("\nvolumes:");
+  assert.ok(contextEngineStart >= 0 && workerStart > contextEngineStart && volumesStart > workerStart);
+  const contextEngineSection = compose.slice(contextEngineStart, workerStart);
+  const workerSection = compose.slice(workerStart, volumesStart);
+  assert.doesNotMatch(contextEngineSection, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY/);
+  assert.match(workerSection, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: \$\{AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY:-\}/);
+  assert.match(workerSection, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_TASK_MATCH: \$\{AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_TASK_MATCH:-\}/);
+  assert.match(workerSection, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT: \$\{AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT:-\}/);
+  assert.match(workerSection, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_WAIT_MS: \$\{AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_WAIT_MS:-120000\}/);
   assert.match(executor, /const attemptMatch = String\(env\.AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT/);
   assert.match(executor, /if \(actualAttempt !== expectedAttempt\) return null/);
   assert.match(controller, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_TASK_MATCH: "technical-refinement"/);
   assert.match(controller, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT: "1"/);
   assert.match(controller, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: ""/);
+});
+
+test("R-9 proves process-loss fault projection before launching the semantic run and fails closed on missing boundary", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const r9Start = controller.indexOf("async function r9()");
+  const r9Section = controller.slice(r9Start, controller.indexOf("function safeJson", r9Start));
+  const projectionCheck = r9Section.indexOf("r9_process_loss_boundary_not_projected_to_worker");
+  const createSession = r9Section.indexOf("createOpenCodeSession(\"Agentic Harness R-9 process-loss workload\")");
+  assert.ok(projectionCheck >= 0 && createSession > projectionCheck);
+  assert.match(r9Section, /const armedWorkerEnv = containerEnvironmentMap\(armedWorkerInspect\)/);
+  assert.match(r9Section, /r9_process_loss_boundary_not_materialized/);
+  assert.match(r9Section, /r9_process_loss_boundary_not_disarmed_on_worker/);
+  assert.match(r9Section, /boundaryEvents/);
 });
 
 test("qualification process-loss boundary is one-shot across true task retries", async () => {
