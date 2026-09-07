@@ -662,6 +662,81 @@ test("R-8 continuation watchdog accepts only ordered accepted/observed delivery"
   assert.equal(bad.violation?.message, "continuation_observed_before_accepted");
 });
 
+test("R-10 outage watchdog accepts a pre-dispatch OpenCode transport deferral with zero prompt dispatch attempts", async () => {
+  const { evaluateContinuationOutageDeferral } = await import("../../scripts/qualification/lib/continuation-watchdog.mjs");
+  const observation = {
+    delivery: {
+      deliveryId: "delivery-r10",
+      status: "claimed",
+      attempts: 0,
+      lastError: "agent_continuation_target_message_get_failed",
+      dispatchStartedAt: null,
+      acceptedAt: null,
+      observedAt: null,
+      nextAttemptAt: null,
+    },
+    outbox: {
+      messageId: "agent-outbox-r10",
+      publishedAt: "2026-09-07T22:50:00.000Z",
+      publishCount: 1,
+      lastError: null,
+    },
+    inbox: {
+      status: "deferred",
+      deliveryCount: 1,
+      lastError: "agent_continuation_target_message_get_failed",
+      processedAt: null,
+    },
+  };
+  const result = evaluateContinuationOutageDeferral(observation);
+  assert.equal(result.violation, null);
+  assert.equal(result.terminal?.attempts, 0);
+  assert.equal(result.terminal?.dispatchStartedAt, null);
+  assert.equal(result.terminal?.inboxStatus, "deferred");
+});
+
+test("R-10 outage watchdog fails if the supposedly unavailable endpoint already accepted or dispatched the continuation", async () => {
+  const { evaluateContinuationOutageDeferral } = await import("../../scripts/qualification/lib/continuation-watchdog.mjs");
+  const accepted = evaluateContinuationOutageDeferral({
+    delivery: {
+      deliveryId: "delivery-r10",
+      status: "accepted",
+      attempts: 1,
+      lastError: null,
+      dispatchStartedAt: "2026-09-07T22:50:00.000Z",
+      acceptedAt: "2026-09-07T22:50:01.000Z",
+      observedAt: null,
+    },
+  });
+  assert.equal(accepted.violation?.classification, "QUALIFICATION PROCEDURE");
+  assert.equal(accepted.violation?.message, "opencode_outage_fault_missed_delivery_window");
+
+  const dispatched = evaluateContinuationOutageDeferral({
+    delivery: {
+      deliveryId: "delivery-r10",
+      status: "dispatching",
+      attempts: 1,
+      lastError: "agent_continuation_target_message_get_failed",
+      dispatchStartedAt: "2026-09-07T22:50:00.000Z",
+      acceptedAt: null,
+      observedAt: null,
+    },
+  });
+  assert.equal(dispatched.violation?.classification, "QUALIFICATION PROCEDURE");
+  assert.equal(dispatched.violation?.message, "opencode_outage_fault_missed_predispatch_window");
+});
+
+test("standalone R-10 proves durable pre-dispatch deferral instead of requiring a prompt dispatch attempt", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const r10Section = controller.slice(controller.indexOf("async function r10()"), controller.indexOf("async function cleanup()"));
+  assert.match(r10Section, /evaluateContinuationOutageDeferral/);
+  assert.match(r10Section, /agent_runtime_outbox/);
+  assert.match(r10Section, /agent_runtime_inbox/);
+  assert.match(r10Section, /o\.payload_json::jsonb->>'deliveryId'=d\.delivery_id/);
+  assert.match(r10Section, /intervalMs:\s*200/);
+  assert.doesNotMatch(r10Section, /Number\(attempts\)\s*>\s*0\s*&&\s*lastError/);
+});
+
 test("R-9 physical process loss uses the promoted host-PID namespace SIGKILL mechanism", async () => {
   const { buildWorkerProcessLossCommand } = await import("../../.agents/runtime/h9r-process-loss.mjs");
   const args = buildWorkerProcessLossCommand({

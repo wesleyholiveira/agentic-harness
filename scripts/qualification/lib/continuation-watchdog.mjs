@@ -162,6 +162,107 @@ export function evaluateContinuationObservation(observation, {
   return { terminal: null, violation: null };
 }
 
+
+const R10_PREDISPATCH_OUTAGE_ERRORS = new Set([
+  "agent_continuation_target_message_get_failed",
+  "agent_continuation_session_status_failed",
+]);
+
+export function evaluateContinuationOutageDeferral(observation) {
+  const delivery = observation?.delivery ?? null;
+  const outbox = observation?.outbox ?? null;
+  const inbox = observation?.inbox ?? null;
+  if (!delivery) return { terminal: null, violation: null };
+
+  const attempts = Number(delivery.attempts);
+  const status = String(delivery.status ?? "").trim().toLowerCase();
+  const lastError = String(delivery.lastError ?? "").trim();
+  const dispatchStartedAt = delivery.dispatchStartedAt ?? null;
+  const acceptedAt = delivery.acceptedAt ?? null;
+  const observedAt = delivery.observedAt ?? null;
+
+  const shapeValid = Boolean(
+    String(delivery.deliveryId ?? "").trim()
+    && String(status).trim()
+    && Number.isFinite(attempts)
+  );
+  if (!shapeValid) {
+    return {
+      terminal: null,
+      violation: {
+        classification: "QUALIFICATION PROCEDURE",
+        message: "r10_continuation_outage_observation_shape_invalid",
+        evidence: observation,
+      },
+    };
+  }
+
+  if (acceptedAt || observedAt || status === "accepted" || status === "observed") {
+    return {
+      terminal: null,
+      violation: {
+        classification: "QUALIFICATION PROCEDURE",
+        message: "opencode_outage_fault_missed_delivery_window",
+        evidence: observation,
+      },
+    };
+  }
+
+  if (status === "dead" || status === "ambiguous") {
+    return {
+      terminal: null,
+      violation: {
+        classification: "RUNTIME",
+        message: "r10_continuation_outage_terminal_failure",
+        evidence: observation,
+      },
+    };
+  }
+
+  if (attempts > 0 || dispatchStartedAt) {
+    return {
+      terminal: null,
+      violation: {
+        classification: "QUALIFICATION PROCEDURE",
+        message: "opencode_outage_fault_missed_predispatch_window",
+        evidence: observation,
+      },
+    };
+  }
+
+  if (!lastError) return { terminal: null, violation: null };
+  if (!R10_PREDISPATCH_OUTAGE_ERRORS.has(lastError)) {
+    return {
+      terminal: null,
+      violation: {
+        classification: "RUNTIME",
+        message: "r10_continuation_outage_unexpected_error",
+        evidence: observation,
+      },
+    };
+  }
+
+  const outboxPublished = Boolean(outbox?.messageId && outbox?.publishedAt && Number(outbox?.publishCount ?? 0) >= 1);
+  const inboxDeferred = String(inbox?.status ?? "").toLowerCase() === "deferred"
+    && String(inbox?.lastError ?? "").trim() === lastError
+    && Number(inbox?.deliveryCount ?? 0) >= 1;
+  if (!outboxPublished || !inboxDeferred) return { terminal: null, violation: null };
+
+  return {
+    terminal: {
+      deliveryId: delivery.deliveryId,
+      status,
+      attempts,
+      dispatchStartedAt,
+      lastError,
+      outboxMessageId: outbox.messageId,
+      inboxStatus: inbox.status,
+      inboxDeliveryCount: Number(inbox.deliveryCount),
+    },
+    violation: null,
+  };
+}
+
 function compactDuration(ms) {
   if (ms === null || ms === undefined || !Number.isFinite(Number(ms))) return null;
   const value = Math.max(0, Number(ms));

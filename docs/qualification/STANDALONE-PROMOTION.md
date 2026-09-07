@@ -55,7 +55,7 @@ The qualification controller never calls `agent_start` directly.
 - `R-7` — the one intentional model-facing gate: normal consumer workload must enter Runtime via `agent_start`, provenance and `runId` before implementation.
 - `R-8` — durable continuation identity/materialization/acceptance.
 - `R-9` — first prove the qualification fault controls are present in the recreated Runtime worker environment, then inject physical Rust worker process loss at the exact qualification repair checkpoint via host-PID-namespace SIGKILL, followed by lease expiry, exactly-one generation/fencing replacement and repair-resume evidence with no second full agent invocation; disarmed worker environment is re-proven before R-10.
-- `R-10` — bounded dependency/restart faults plus an unavailable OpenCode continuation endpoint and recovery.
+- `R-10` — bounded dependency/restart faults plus an unavailable OpenCode continuation endpoint and recovery. The outage half is proven pre-dispatch: zero prompt-dispatch attempts, no `dispatch_started_at`, a recognized transport error, published continuation outbox identity and matching deferred Runtime inbox; after host recovery the normal progress-aware continuation observer must reach accepted/observed terminal delivery.
 - `R-11` — cleanup, qualification-resource absence, port release and exact source equality.
 
 ## Fail-closed behavior

@@ -41,6 +41,7 @@ import { evaluateRuntimeObservation, formatRuntimeProgress } from "./lib/runtime
 import {
   DEFAULT_CONTINUATION_COMPLETION_TIMEOUT_MS,
   evaluateContinuationObservation,
+  evaluateContinuationOutageDeferral,
   formatContinuationProgress,
   summarizeContinuationAssistant,
 } from "./lib/continuation-watchdog.mjs";
@@ -1704,12 +1705,54 @@ async function r10() {
   const terminal = await waitForTerminalRun(runId, { gate: "R-10" });
   if (terminal.status !== "closed") hold("R-10", "RUNTIME", "r10_outage_run_not_closed", { terminal });
   const deferred = await waitFor(() => {
-    const rows = sqlRows(`SELECT status,coalesce(last_error,''),delivery_id,attempts::text FROM agent_continuation_deliveries WHERE run_id='${sqlQuote(runId)}' ORDER BY generation DESC LIMIT 1;`);
-    if (!rows.length) return null;
-    const [status,lastError,deliveryId,attempts] = rows[0];
-    if (status === "accepted" || status === "observed") hold("R-10", "QUALIFICATION PROCEDURE", "opencode_outage_fault_missed_delivery_window", { status, deliveryId });
-    return Number(attempts) > 0 && lastError ? { status, lastError, deliveryId, attempts: Number(attempts) } : null;
-  }, { timeoutMs: 3 * 60_000, intervalMs: 1_000, label: "r10-continuation-deferred" });
+    const raw = sqlScalar(`
+      SELECT json_build_object(
+        'delivery', json_build_object(
+          'deliveryId', d.delivery_id,
+          'status', d.status,
+          'attempts', d.attempts,
+          'lastError', d.last_error,
+          'dispatchStartedAt', d.dispatch_started_at,
+          'acceptedAt', d.accepted_at,
+          'observedAt', d.observed_at,
+          'nextAttemptAt', d.next_attempt_at
+        ),
+        'outbox', CASE WHEN o.outbox_id IS NULL THEN NULL ELSE json_build_object(
+          'messageId', o.outbox_id,
+          'publishedAt', o.published_at,
+          'publishCount', o.publish_count,
+          'lastError', o.last_error
+        ) END,
+        'inbox', CASE WHEN i.message_id IS NULL THEN NULL ELSE json_build_object(
+          'status', i.status,
+          'deliveryCount', i.delivery_count,
+          'lastError', i.last_error,
+          'processedAt', i.processed_at
+        ) END
+      )::text
+      FROM agent_continuation_deliveries d
+      LEFT JOIN agent_runtime_outbox o
+        ON o.run_id=d.run_id
+       AND o.message_kind='agent.continuation.wake.v1'
+       AND o.payload_json::jsonb->>'deliveryId'=d.delivery_id
+      LEFT JOIN agent_runtime_inbox i ON i.message_id=o.outbox_id
+      WHERE d.run_id='${sqlQuote(runId)}'
+      ORDER BY d.generation DESC
+      LIMIT 1;
+    `);
+    if (!raw) return null;
+    const observation = safeJson(raw);
+    const evaluation = evaluateContinuationOutageDeferral(observation);
+    if (evaluation.violation) {
+      hold(
+        "R-10",
+        evaluation.violation.classification ?? "RUNTIME",
+        evaluation.violation.message,
+        evaluation.violation.evidence ?? observation,
+      );
+    }
+    return evaluation.terminal ? { ...evaluation.terminal, observation } : null;
+  }, { timeoutMs: 3 * 60_000, intervalMs: 200, label: "r10-continuation-deferred" });
   state.opencode = await startQualifiedOpenCode("r10-opencode-restart");
   const recovered = await waitForContinuationObserved(runId, sessionId, { gate: "R-10" });
   const accepted = recovered.observation.delivery;
