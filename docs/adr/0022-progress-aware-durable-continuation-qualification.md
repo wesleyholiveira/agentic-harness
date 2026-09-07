@@ -22,7 +22,7 @@ R-8 is progress-aware.
 2. Observe the current continuation delivery row, parent continuation status, target OpenCode session status, exact deterministic wake message count and assistant child state.
 3. Never fail a healthy accepted delivery before `dispatch_started_at + effective completion timeout + bounded settle grace`.
 4. Fail immediately when Runtime persists a terminal invalid disposition such as `dead`, `ambiguous`, `manual_review` or `cancelled`.
-5. Require `acceptedAt <= observedAt`, exactly one deterministic wake message, one `continuation.wake_materialized` event, one `continuation.delivered` event and one completed assistant child whose `parentID` is the deterministic wake message.
+5. Require `acceptedAt <= observedAt`, exactly one deterministic wake message, one `continuation.wake_materialized` event and one `continuation.delivered` event. Assistant completion follows the Runtime's latest-parented-child rule: OpenCode may emit multiple assistant records during one tool-using turn; the latest child parented by the deterministic wake must be terminal, and the delivered event must name that exact assistant message id. See ADR 0023.
 6. Emit a concise R-8 progress line to stderr every 30 seconds while preserving stdout for the final machine-readable report.
 7. A qualification safety ceiling remains external procedure protection only. It is derived to be longer than both pre-acceptance observation and the Runtime completion budget; it is not the normal delivery criterion.
 

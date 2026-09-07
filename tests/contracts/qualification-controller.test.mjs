@@ -407,6 +407,11 @@ test("R-8 continuation wait is progress-aware and never expires before the Runti
   const nowMs = Date.parse("2026-09-06T22:17:56.000Z");
   const observation = {
     delivery: {
+      deliveryId: "delivery-1",
+      effectKey: "sha256:effect",
+      messageId: "msg_wake",
+      promptText: "Agentic Harness Runtime V2 continuation event.\n\nrunId: run-1",
+      generation: 1,
       status: "accepted",
       acceptedAt: "2026-09-06T22:07:52.000Z",
       observedAt: null,
@@ -425,6 +430,62 @@ test("R-8 continuation wait is progress-aware and never expires before the Runti
   });
   assert.equal(result.terminal, null);
   assert.equal(result.violation, null);
+});
+
+test("R-8 continuation observation is JSON-framed so multiline prompt text cannot corrupt delivery columns", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const section = controller.slice(
+    controller.indexOf("async function continuationObservation(runId, sessionId)"),
+    controller.indexOf("function toolNames", controller.indexOf("async function continuationObservation(runId, sessionId)")),
+  );
+  assert.match(section, /const raw = sqlScalar\(`SELECT json_build_object\(/);
+  assert.match(section, /'promptText', d\.prompt_text/);
+  assert.match(section, /snapshot = JSON\.parse\(raw\)/);
+  assert.doesNotMatch(section, /sqlRows\(/);
+  assert.match(controller, /continuation_delivered_event_identity_mismatch/);
+  const r8Section = controller.slice(controller.indexOf("async function r8()"), controller.indexOf("async function r9()"));
+  assert.doesNotMatch(r8Section, /assistant\?\.count !== 1/);
+});
+
+test("R-8 assistant audit mirrors Rust latest-child semantics for multi-step OpenCode turns", async () => {
+  const { summarizeContinuationAssistant } = await import("../../scripts/qualification/lib/continuation-watchdog.mjs");
+  const wakeId = "msg_wake";
+  const history = Array.from({ length: 7 }, (_, index) => ({
+    info: {
+      id: `msg_assistant_${index + 1}`,
+      role: "assistant",
+      parentID: wakeId,
+      time: {
+        created: index + 1,
+        ...(index === 6 ? { completed: index + 10 } : {}),
+      },
+      ...(index === 6 ? { finish: "stop" } : {}),
+    },
+    parts: [],
+  }));
+  history.push({ info: { id: "other", role: "assistant", parentID: "different", time: { created: 99, completed: 100 }, finish: "stop" }, parts: [] });
+
+  const summary = summarizeContinuationAssistant(history, wakeId);
+  assert.equal(summary.count, 7);
+  assert.equal(summary.state, "completed");
+  assert.equal(summary.messageId, "msg_assistant_7");
+  assert.equal(summary.error, null);
+});
+
+test("R-8 continuation watchdog classifies malformed observer rows as qualification procedure", async () => {
+  const { evaluateContinuationObservation } = await import("../../scripts/qualification/lib/continuation-watchdog.mjs");
+  const malformed = evaluateContinuationObservation({
+    delivery: {
+      deliveryId: "delivery-1",
+      effectKey: "sha256:effect",
+      messageId: "msg_wake",
+      promptText: "Agentic Harness Runtime V2 continuation event.",
+      // status/generation/attempts/createdAt intentionally absent: this is the exact shape a newline-truncated psql row produced.
+    },
+    continuation: { currentDeliveryId: null },
+  }, { nowMs: Date.parse("2026-09-06T23:10:00Z") });
+  assert.equal(malformed.violation?.classification, "QUALIFICATION PROCEDURE");
+  assert.equal(malformed.violation?.message, "continuation_observation_shape_invalid");
 });
 
 test("R-8 continuation watchdog allows bounded wake-materialization propagation before classifying a stall", async () => {
@@ -450,6 +511,11 @@ test("R-8 continuation watchdog fails only after Runtime completion authority ex
   const { evaluateContinuationObservation } = await import("../../scripts/qualification/lib/continuation-watchdog.mjs");
   const base = {
     delivery: {
+      deliveryId: "delivery-1",
+      effectKey: "sha256:effect",
+      messageId: "msg_wake",
+      promptText: "Agentic Harness Runtime V2 continuation event.\n\nrunId: run-1",
+      generation: 1,
       status: "accepted",
       acceptedAt: "2026-09-06T22:07:52.000Z",
       observedAt: null,
@@ -482,6 +548,11 @@ test("R-8 continuation watchdog accepts only ordered accepted/observed delivery"
   const { evaluateContinuationObservation } = await import("../../scripts/qualification/lib/continuation-watchdog.mjs");
   const observed = {
     delivery: {
+      deliveryId: "delivery-1",
+      effectKey: "sha256:effect",
+      messageId: "msg_wake",
+      promptText: "Agentic Harness Runtime V2 continuation event.\n\nrunId: run-1",
+      generation: 1,
       status: "observed",
       acceptedAt: "2026-09-06T22:07:52.000Z",
       observedAt: "2026-09-06T22:08:30.000Z",

@@ -42,6 +42,7 @@ import {
   DEFAULT_CONTINUATION_COMPLETION_TIMEOUT_MS,
   evaluateContinuationObservation,
   formatContinuationProgress,
+  summarizeContinuationAssistant,
 } from "./lib/continuation-watchdog.mjs";
 import { resolveExecutionLivenessPolicy } from "../../.agents/runtime/execution-liveness.mjs";
 
@@ -852,57 +853,63 @@ function continuationCompletionTimeoutMs() {
   return value;
 }
 
-function assistantContinuationState(history, messageId) {
-  const children = history
-    .filter((message) => message?.info?.role === "assistant" && message?.info?.parentID === messageId)
-    .sort((left, right) => Number(left?.info?.time?.created ?? 0) - Number(right?.info?.time?.created ?? 0));
-  if (children.length === 0) return { state: "missing", messageId: null, count: 0, error: null };
-  const latest = children.at(-1);
-  const error = latest?.info?.error ?? null;
-  const completed = Boolean(latest?.info?.time?.completed) || Boolean(latest?.info?.finish);
-  return {
-    state: error ? "failed" : completed ? "completed" : "pending",
-    messageId: latest?.info?.id ?? null,
-    count: children.length,
-    error,
-  };
-}
-
 async function continuationObservation(runId, sessionId) {
-  const rows = sqlRows(`SELECT d.delivery_id,d.effect_key,d.opencode_message_id,d.prompt_text,d.status,coalesce(d.accepted_at,''),coalesce(d.observed_at,''),d.generation::text,d.attempts::text,coalesce(d.dispatch_started_at,''),coalesce(d.next_attempt_at,''),coalesce(d.last_error,''),coalesce(d.updated_at,''),coalesce(d.created_at,''),coalesce(d.completed_at,''),c.status,coalesce(c.current_delivery_id,'') FROM agent_continuation_deliveries d JOIN agent_continuations c ON c.continuation_id=d.continuation_id WHERE d.run_id='${sqlQuote(runId)}' ORDER BY d.generation DESC LIMIT 1;`);
-  if (!rows.length) return { runId, sessionId, delivery: null, continuation: null, sessionStatus: null, wakeCount: 0, assistant: { state: "missing", messageId: null, count: 0, error: null } };
-  const [deliveryId, effectKey, messageId, promptText, status, acceptedAt, observedAt, generation, attempts, dispatchStartedAt, nextAttemptAt, lastError, updatedAt, createdAt, completedAt, continuationStatus, currentDeliveryId] = rows[0];
+  const raw = sqlScalar(`SELECT json_build_object(
+    'delivery', json_build_object(
+      'deliveryId', d.delivery_id,
+      'effectKey', d.effect_key,
+      'messageId', d.opencode_message_id,
+      'promptText', d.prompt_text,
+      'status', d.status,
+      'acceptedAt', d.accepted_at,
+      'observedAt', d.observed_at,
+      'generation', d.generation,
+      'attempts', d.attempts,
+      'dispatchStartedAt', d.dispatch_started_at,
+      'nextAttemptAt', d.next_attempt_at,
+      'lastError', d.last_error,
+      'updatedAt', d.updated_at,
+      'createdAt', d.created_at,
+      'completedAt', d.completed_at
+    ),
+    'continuation', json_build_object(
+      'status', c.status,
+      'currentDeliveryId', c.current_delivery_id
+    )
+  )::text
+  FROM agent_continuation_deliveries d
+  JOIN agent_continuations c ON c.continuation_id=d.continuation_id
+  WHERE d.run_id='${sqlQuote(runId)}'
+  ORDER BY d.generation DESC
+  LIMIT 1;`);
+  if (!raw) return { runId, sessionId, delivery: null, continuation: null, sessionStatus: null, wakeCount: 0, sameMessageIdCount: 0, assistant: { state: "missing", messageId: null, count: 0, error: null } };
+
+  let snapshot;
+  try { snapshot = JSON.parse(raw); }
+  catch (error) {
+    throw new Error(`qualification_continuation_observation_json_invalid:${String(error?.message ?? error)}`);
+  }
+  const delivery = snapshot?.delivery ?? null;
+  const messageId = delivery?.messageId ?? null;
+  const promptText = delivery?.promptText ?? null;
   const history = await openCodeHistory(sessionId);
-  const exactWakeMessages = history.filter((message) => message?.info?.role === "user" && message?.info?.id === messageId && message?.parts?.some((part) => part?.type === "text" && part?.text === promptText));
+  const exactWakeMessages = history.filter((message) => message?.info?.role === "user"
+    && message?.info?.id === messageId
+    && message?.parts?.some((part) => part?.type === "text" && part?.text === promptText));
   const sameIdMessages = history.filter((message) => message?.info?.id === messageId);
   const sessionStatus = await openCodeSessionStatus(sessionId).catch((error) => `unavailable:${String(error?.code ?? error?.message ?? error).slice(0, 120)}`);
   return {
     runId,
     sessionId,
-    delivery: {
-      deliveryId,
-      effectKey,
-      messageId,
-      promptText,
-      status,
-      acceptedAt: acceptedAt || null,
-      observedAt: observedAt || null,
-      generation: Number(generation),
-      attempts: Number(attempts),
-      dispatchStartedAt: dispatchStartedAt || null,
-      nextAttemptAt: nextAttemptAt || null,
-      lastError: lastError || null,
-      updatedAt: updatedAt || null,
-      createdAt: createdAt || null,
-      completedAt: completedAt || null,
-    },
-    continuation: { status: continuationStatus, currentDeliveryId: currentDeliveryId || null },
+    delivery,
+    continuation: snapshot?.continuation ?? null,
     sessionStatus,
     wakeCount: exactWakeMessages.length,
     sameMessageIdCount: sameIdMessages.length,
-    assistant: assistantContinuationState(history, messageId),
+    assistant: summarizeContinuationAssistant(history, messageId),
   };
 }
+
 
 function toolNames(history) {
   const names = [];
@@ -1308,7 +1315,7 @@ async function waitForContinuationObserved(runId, sessionId, { gate }) {
       acceptanceStallTimeoutMs: completionTimeoutMs,
     });
     if (decision.violation) {
-      hold(gate, "RUNTIME", decision.violation.message, {
+      hold(gate, decision.violation.classification ?? "RUNTIME", decision.violation.message, {
         runId,
         sessionId,
         completionTimeoutMs,
@@ -1339,21 +1346,43 @@ async function r8() {
   const delivery = observation.delivery;
   if (!delivery.acceptedAt || !delivery.observedAt) hold("R-8", "RUNTIME", "continuation_acceptance_or_observation_missing", { observation });
   if (Date.parse(delivery.observedAt) < Date.parse(delivery.acceptedAt)) hold("R-8", "RUNTIME", "continuation_observed_before_accepted", { observation });
-  if (observation.continuation?.currentDeliveryId && observation.continuation.currentDeliveryId !== delivery.deliveryId) {
+  if (observation.continuation?.currentDeliveryId !== delivery.deliveryId) {
     hold("R-8", "RUNTIME", "continuation_current_delivery_identity_mismatch", { observation });
+  }
+  if (observation.continuation?.status !== "delivered") {
+    hold("R-8", "RUNTIME", "continuation_parent_not_delivered", { observation });
   }
   const continuation = sqlRows(`SELECT opencode_session_id,status,generation::text FROM agent_continuations WHERE run_id='${sqlQuote(runId)}';`)[0];
   if (!continuation || continuation[0] !== sessionId) hold("R-8", "RUNTIME", "continuation_session_identity_mismatch", { continuation, sessionId });
   if (observation.sameMessageIdCount !== 1 || observation.wakeCount !== 1) {
     hold("R-8", "RUNTIME", "continuation_wake_materialization_count_invalid", { observation });
   }
-  if (observation.assistant?.state !== "completed" || !observation.assistant?.messageId || observation.assistant?.count !== 1) {
+  if (observation.assistant?.state !== "completed" || !observation.assistant?.messageId || Number(observation.assistant?.count) < 1) {
     hold("R-8", "RUNTIME", "continuation_assistant_terminal_observation_invalid", { observation });
   }
   const wakeEvents = Number(sqlScalar(`SELECT count(*) FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND event_type='continuation.wake_materialized';`));
   const deliveredEvents = Number(sqlScalar(`SELECT count(*) FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND event_type='continuation.delivered';`));
   if (wakeEvents !== 1 || deliveredEvents !== 1) hold("R-8", "RUNTIME", "continuation_event_count_invalid", { wakeEvents, deliveredEvents, observation });
-  return { runId, sessionId, completionTimeoutMs, delivery, assistant: observation.assistant, wakeEvents, deliveredEvents };
+
+  const deliveredEventRaw = sqlScalar(`SELECT (payload_json::jsonb)::text FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND event_type='continuation.delivered' ORDER BY created_at DESC LIMIT 1;`);
+  let deliveredEvent = null;
+  try { deliveredEvent = deliveredEventRaw ? JSON.parse(deliveredEventRaw) : null; }
+  catch (error) {
+    hold("R-8", "QUALIFICATION PROCEDURE", "continuation_delivered_event_json_invalid", { error: String(error?.message ?? error), deliveredEventRaw });
+  }
+  const deliveredIdentityMatches = Boolean(
+    deliveredEvent
+    && deliveredEvent.deliveryId === delivery.deliveryId
+    && deliveredEvent.effectKey === delivery.effectKey
+    && deliveredEvent.opencodeMessageId === delivery.messageId
+    && deliveredEvent.assistantMessageId === observation.assistant.messageId
+    && deliveredEvent.assistantTerminalObserved === true
+    && Number(deliveredEvent.generation) === Number(delivery.generation)
+  );
+  if (!deliveredIdentityMatches) {
+    hold("R-8", "RUNTIME", "continuation_delivered_event_identity_mismatch", { observation, deliveredEvent });
+  }
+  return { runId, sessionId, completionTimeoutMs, delivery, assistant: observation.assistant, wakeEvents, deliveredEvents, deliveredEvent };
 }
 
 async function r9() {

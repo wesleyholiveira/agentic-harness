@@ -15,6 +15,22 @@ function ageMs(value, nowMs) {
   return at === null ? null : Math.max(0, nowMs - at);
 }
 
+export function summarizeContinuationAssistant(history, messageId) {
+  const children = (Array.isArray(history) ? history : [])
+    .filter((message) => message?.info?.role === "assistant" && message?.info?.parentID === messageId)
+    .sort((left, right) => Number(left?.info?.time?.created ?? 0) - Number(right?.info?.time?.created ?? 0));
+  if (children.length === 0) return { state: "missing", messageId: null, count: 0, error: null };
+  const latest = children.at(-1);
+  const error = latest?.info?.error ?? null;
+  const completed = Boolean(latest?.info?.time?.completed) || Boolean(latest?.info?.finish);
+  return {
+    state: error ? "failed" : completed ? "completed" : "pending",
+    messageId: latest?.info?.id ?? null,
+    count: children.length,
+    error,
+  };
+}
+
 export function evaluateContinuationObservation(observation, {
   nowMs = Date.now(),
   completionTimeoutMs = DEFAULT_CONTINUATION_COMPLETION_TIMEOUT_MS,
@@ -35,6 +51,28 @@ export function evaluateContinuationObservation(observation, {
       };
     }
     return { terminal: null, violation: null };
+  }
+
+  const requiredShapeValid = Boolean(
+    String(delivery.deliveryId ?? "").trim()
+    && String(delivery.effectKey ?? "").trim()
+    && String(delivery.messageId ?? "").trim()
+    && typeof delivery.promptText === "string"
+    && String(delivery.status ?? "").trim()
+    && String(delivery.createdAt ?? "").trim()
+    && Number.isFinite(Number(delivery.generation))
+    && Number.isFinite(Number(delivery.attempts))
+    && String(continuation?.status ?? "").trim()
+  );
+  if (!requiredShapeValid) {
+    return {
+      terminal: null,
+      violation: {
+        classification: "QUALIFICATION PROCEDURE",
+        message: "continuation_observation_shape_invalid",
+        evidence: observation,
+      },
+    };
   }
 
   const status = String(delivery.status ?? "").trim().toLowerCase();
@@ -114,9 +152,10 @@ function compactDuration(ms) {
 export function formatContinuationProgress(observation, { nowMs = Date.now() } = {}) {
   const delivery = observation?.delivery ?? {};
   const assistant = observation?.assistant ?? {};
+  const attempts = Number(delivery.attempts);
   const values = [
-    `delivery=${delivery.status ?? "missing"}`,
-    `attempts=${delivery.attempts ?? 0}`,
+    `delivery=${delivery.status ?? (observation?.delivery ? "unknown" : "missing")}`,
+    `attempts=${Number.isFinite(attempts) ? attempts : "?"}`,
   ];
   const age = ageMs(delivery.createdAt, nowMs);
   const acceptedAge = ageMs(delivery.acceptedAt, nowMs);

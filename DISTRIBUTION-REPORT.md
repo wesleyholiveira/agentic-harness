@@ -254,3 +254,11 @@ A target-host run completed the entire R-7 workload and closed the Runtime with 
 R-8 now reads the effective worker completion timeout, observes delivery/continuation status, exact wake history, session telemetry and the parented assistant child, emits progress checkpoints, fails explicit dead/ambiguous/manual-review states immediately, and succeeds only after ordered acceptance/observation plus exact event/message cardinality. No Rust continuation state-machine semantics were changed.
 
 The same observer replaces R-10's duplicate fixed ten-minute post-recovery acceptance/observation wait; R-10's fault injection and deferred-delivery assertions are otherwise unchanged.
+
+## R-8 line-safe observer and multi-assistant parity remediation
+
+A follow-up target-host run again passed R-7 but R-8 reached its progress-aware safety ceiling with a self-contradictory observer snapshot: delivery identity fields existed while status/timestamps were missing, attempts rendered as `NaN`, `wakeCount=0` despite one matching message id, and seven assistant records were parented by the same deterministic wake.
+
+The observer was parsing a `psql` tab-delimited row that included multiline `prompt_text`, then splitting stdout on newlines. The first embedded prompt newline truncated the logical row after the fourth selected column. R-8 now asks PostgreSQL for one JSON object scalar, preserving the full prompt and all delivery fields. Malformed delivery projections fail immediately as Qualification Procedure.
+
+The same live snapshot exposed an incorrect qualification-only cardinality assumption: OpenCode tool-using turns can emit several assistant records for one user wake. Runtime Rust already selects the latest assistant child by creation time. Qualification now mirrors that rule and verifies that the unique `continuation.delivered` event names the same latest terminal assistant message id together with the exact delivery/effect/wake/generation identity. Exactly one deterministic user wake remains mandatory. No Rust continuation semantics changed.
