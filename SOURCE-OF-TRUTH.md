@@ -92,3 +92,10 @@ Persistent host OpenCode owns `<consumer>/.runtime/opencode.effective.json`. Run
 ## R-8 Durable Continuation qualification authority
 
 The authoritative standalone R-8 gate is progress-aware. It must respect the effective Rust worker continuation completion timeout (default 900000 ms), require exact deterministic wake materialization for `acceptedAt`, require terminal latest-parented-assistant observation for `observedAt`, and preserve delivery/session/assistant evidence on HOLD. Continuation DB observation is JSON-framed because `prompt_text` is multiline; tab/newline-delimited `psql` row parsing is not an authority for that record. Exactly one deterministic user wake is required, while OpenCode may emit multiple assistant records for the same tool-using turn; the latest child and the persisted `continuation.delivered.assistantMessageId` must agree. A fixed ten-minute `acceptedAt + observedAt` wall-clock timeout is not authoritative.
+## Durable Continuation tool-call terminality
+
+- `acceptedAt` proves exact deterministic wake materialization; `observedAt` proves posterior terminal completion of the resumed assistant turn.
+- OpenCode tool-using turns may persist an intermediate assistant step with both `finish=tool-calls` and `time.completed` and then continue under the same user wake. That step is non-terminal continuation state.
+- Runtime selects the latest assistant child parented by the deterministic wake and keeps the delivery `accepted` while that latest child requires tool follow-up or otherwise lacks terminal proof.
+- Qualification mirrors the same rule and must never weaken R-8 merely because PostgreSQL already contains an incorrectly early `observedAt`.
+- See ADR 0024.

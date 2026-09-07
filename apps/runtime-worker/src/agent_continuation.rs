@@ -562,6 +562,13 @@ async fn get_target_message(
     ))
 }
 
+fn assistant_finish_requires_followup(finish: &str) -> bool {
+    matches!(
+        finish.trim().to_ascii_lowercase().as_str(),
+        "tool-calls" | "tool_calls" | "tool-use" | "tool_use"
+    )
+}
+
 fn continuation_turn_state_from_messages(
     items: &[Value],
     opencode_message_id: &str,
@@ -612,14 +619,21 @@ fn continuation_turn_state_from_messages(
             compact.chars().take(600).collect::<String>()
         ));
     }
+    let finish = info.get("finish").and_then(Value::as_str).unwrap_or("");
+    if assistant_finish_requires_followup(finish) {
+        // OpenCode v1.18.x marks each completed tool-call assistant step with
+        // both `finish=tool-calls` and `time.completed`, then continues the
+        // same user turn with another sibling assistant message. Those markers
+        // prove only that the tool-call step ended; they are not terminal proof
+        // for the deterministic continuation wake.
+        return ContinuationTurnState::Pending;
+    }
+
     let completed = info
         .get("time")
         .and_then(|time| time.get("completed"))
         .is_some_and(|value| !value.is_null())
-        || info
-            .get("finish")
-            .and_then(Value::as_str)
-            .is_some_and(|value| !value.is_empty());
+        || !finish.is_empty();
     if completed {
         return ContinuationTurnState::Completed {
             assistant_message_id,
@@ -627,9 +641,9 @@ fn continuation_turn_state_from_messages(
     }
 
     // A materialized child without a terminal marker is also pending. OpenCode
-    // may transiently project the session as idle before `time.completed` /
-    // `finish` is visible. The completion timeout, not session status, is the
-    // fail-closed boundary for this accepted effect.
+    // may transiently project the session as idle before a final non-tool-call
+    // assistant child is visible. The completion timeout, not session status,
+    // is the fail-closed boundary for this accepted effect.
     ContinuationTurnState::Pending
 }
 
@@ -1878,6 +1892,51 @@ mod tests {
         assert!(matches!(
             continuation_turn_state_from_messages(items.as_array().unwrap(), "msg_1"),
             ContinuationTurnState::Completed { assistant_message_id } if assistant_message_id == "msg_assistant_1"
+        ));
+    }
+
+    #[test]
+    fn completed_tool_call_assistant_step_is_not_terminal_continuation_proof() {
+        let items = json!([{
+            "info": {
+                "id": "msg_assistant_tool_1",
+                "role": "assistant",
+                "parentID": "msg_1",
+                "time": {"created": 1000, "completed": 2000},
+                "finish": "tool-calls"
+            }
+        }]);
+        assert!(matches!(
+            continuation_turn_state_from_messages(items.as_array().unwrap(), "msg_1"),
+            ContinuationTurnState::Pending
+        ));
+    }
+
+    #[test]
+    fn latest_tool_call_step_keeps_continuation_pending_after_older_completed_child() {
+        let items = json!([
+            {
+                "info": {
+                    "id": "msg_assistant_older",
+                    "role": "assistant",
+                    "parentID": "msg_1",
+                    "time": {"created": 1000, "completed": 1500},
+                    "finish": "stop"
+                }
+            },
+            {
+                "info": {
+                    "id": "msg_assistant_tool_latest",
+                    "role": "assistant",
+                    "parentID": "msg_1",
+                    "time": {"created": 2000, "completed": 2500},
+                    "finish": "tool-calls"
+                }
+            }
+        ]);
+        assert!(matches!(
+            continuation_turn_state_from_messages(items.as_array().unwrap(), "msg_1"),
+            ContinuationTurnState::Pending
         ));
     }
 

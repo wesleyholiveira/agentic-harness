@@ -22,11 +22,16 @@ export function summarizeContinuationAssistant(history, messageId) {
   if (children.length === 0) return { state: "missing", messageId: null, count: 0, error: null };
   const latest = children.at(-1);
   const error = latest?.info?.error ?? null;
-  const completed = Boolean(latest?.info?.time?.completed) || Boolean(latest?.info?.finish);
+  const finish = String(latest?.info?.finish ?? "").trim().toLowerCase();
+  const followupFinish = new Set(["tool-calls", "tool_calls", "tool-use", "tool_use"]).has(finish);
+  const completed = !followupFinish && (Boolean(latest?.info?.time?.completed) || Boolean(finish));
   return {
     state: error ? "failed" : completed ? "completed" : "pending",
     messageId: latest?.info?.id ?? null,
     count: children.length,
+    finish: finish || null,
+    createdAt: latest?.info?.time?.created ?? null,
+    completedAt: latest?.info?.time?.completed ?? null,
     error,
   };
 }
@@ -164,6 +169,7 @@ export function formatContinuationProgress(observation, { nowMs = Date.now() } =
   if (observation?.sessionStatus) values.push(`session=${observation.sessionStatus}`);
   if (Number.isFinite(Number(observation?.wakeCount))) values.push(`wakeCount=${Number(observation.wakeCount)}`);
   if (assistant?.state) values.push(`assistant=${assistant.state}`);
+  if (assistant?.finish) values.push(`finish=${assistant.finish}`);
   if (assistant?.messageId) values.push(`assistantId=${assistant.messageId}`);
   if (delivery.lastError) values.push(`lastError=${String(delivery.lastError).slice(0, 120)}`);
   return values.join(" ");

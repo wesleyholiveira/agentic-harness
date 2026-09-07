@@ -262,3 +262,13 @@ A follow-up target-host run again passed R-7 but R-8 reached its progress-aware 
 The observer was parsing a `psql` tab-delimited row that included multiline `prompt_text`, then splitting stdout on newlines. The first embedded prompt newline truncated the logical row after the fourth selected column. R-8 now asks PostgreSQL for one JSON object scalar, preserving the full prompt and all delivery fields. Malformed delivery projections fail immediately as Qualification Procedure.
 
 The same live snapshot exposed an incorrect qualification-only cardinality assumption: OpenCode tool-using turns can emit several assistant records for one user wake. Runtime Rust already selects the latest assistant child by creation time. Qualification now mirrors that rule and verifies that the unique `continuation.delivered` event names the same latest terminal assistant message id together with the exact delivery/effect/wake/generation identity. Exactly one deterministic user wake remains mandatory. No Rust continuation semantics changed.
+
+## R-8 premature tool-call terminal observation remediation
+
+After ADR 0023 fixed the observer framing, the next target-host run exposed a genuine Runtime divergence. R-7 passed, the deterministic wake was materialized exactly once, and PostgreSQL persisted the continuation as `observed`/`delivered` with ordered `acceptedAt < observedAt`. At the same instant OpenCode still reported the session `busy` and the newest assistant child for the wake was pending.
+
+The Rust continuation state machine treated `time.completed` or any non-empty `finish` on the latest assistant child as terminal. OpenCode 1.18.x, however, persists completed tool-call steps with both `finish=tool-calls` and `time.completed` before continuing the same user turn with another sibling assistant message. Runtime could therefore persist `observedAt` after an intermediate tool step.
+
+ADR 0024 classifies tool-followup finish reasons as non-terminal. The latest tool-call child now keeps the delivery `accepted` despite its local completed timestamp, and an older completed child cannot override a newer tool-call child. The qualification observer mirrors this rule for diagnostics; R-8 itself remains strict.
+
+Packaging validation after the source change: focused qualification-controller contracts **26/26 PASS**, full `npm run harness:test` **73/73 PASS**, and `npm run harness:qualify -- --self-test` **PASS**. Rust compilation/tests remain target-host R-2 authority because the packaging container does not provide Rust/Cargo.

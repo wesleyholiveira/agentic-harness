@@ -90,3 +90,7 @@ R-8 still fails when:
 The qualification controller can now distinguish real Runtime delivery faults from observer corruption. Multiline continuation prompts are lossless, and legitimate multi-step OpenCode turns no longer fail an artificial one-assistant-cardinality rule.
 
 No Rust Runtime behavior is changed by this ADR.
+## Follow-up
+
+A fresh live run after this ADR produced a coherent observer snapshot and exposed a Runtime terminality defect rather than another observation defect: PostgreSQL was already `observed` while the latest assistant child remained pending. ADR 0024 records the causal Runtime remediation for OpenCode `finish=tool-calls` steps.
+

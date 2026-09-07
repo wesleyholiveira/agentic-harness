@@ -472,6 +472,43 @@ test("R-8 assistant audit mirrors Rust latest-child semantics for multi-step Ope
   assert.equal(summary.error, null);
 });
 
+test("Durable Continuation does not treat completed OpenCode tool-call steps as terminal assistant proof", async () => {
+  const rust = readFileSync(resolve(root, "apps/runtime-worker/src/agent_continuation.rs"), "utf8");
+  assert.match(rust, /fn assistant_finish_requires_followup\(finish: &str\)/);
+  assert.match(rust, /"tool-calls" \| "tool_calls" \| "tool-use" \| "tool_use"/);
+  assert.match(rust, /completed_tool_call_assistant_step_is_not_terminal_continuation_proof/);
+  assert.match(rust, /latest_tool_call_step_keeps_continuation_pending_after_older_completed_child/);
+
+  const { summarizeContinuationAssistant } = await import("../../scripts/qualification/lib/continuation-watchdog.mjs");
+  const wakeId = "msg_wake";
+  const toolStep = summarizeContinuationAssistant([{
+    info: {
+      id: "msg_assistant_tool",
+      role: "assistant",
+      parentID: wakeId,
+      time: { created: 1000, completed: 2000 },
+      finish: "tool-calls",
+    },
+    parts: [],
+  }], wakeId);
+  assert.equal(toolStep.state, "pending");
+  assert.equal(toolStep.finish, "tool-calls");
+  assert.equal(toolStep.completedAt, 2000);
+
+  const finalStep = summarizeContinuationAssistant([{
+    info: {
+      id: "msg_assistant_final",
+      role: "assistant",
+      parentID: wakeId,
+      time: { created: 3000, completed: 4000 },
+      finish: "stop",
+    },
+    parts: [],
+  }], wakeId);
+  assert.equal(finalStep.state, "completed");
+  assert.equal(finalStep.finish, "stop");
+});
+
 test("R-8 continuation watchdog classifies malformed observer rows as qualification procedure", async () => {
   const { evaluateContinuationObservation } = await import("../../scripts/qualification/lib/continuation-watchdog.mjs");
   const malformed = evaluateContinuationObservation({
