@@ -23,7 +23,7 @@ For any user request whose fulfillment would change project files, execute imple
 5. Treat the returned Runtime `runId` and PostgreSQL-backed DAG as the only delivery authority.
 6. Require `agent_start.next = "session-resume-event"` for a normal persistent delivery workload. If a run is created without a continuation, fail closed instead of switching to `agent_wait` as the normal orchestration path.
 7. After `agent_start` requests the durable session-resume event, stop same-turn work and allow the Runtime continuation contract to resume this session.
-8. On a terminal continuation, observe the authoritative Runtime state (`agent_summary`, `context_efficiency`, and other allowed Runtime control tools) rather than implementing directly.
+8. On a terminal continuation, call `agent_summary` exactly once for the delivered run, use `context_efficiency` only when the original user request explicitly asks for run-scoped performance/token evidence, then answer the original user from authoritative Runtime state and terminate the resumed turn. Do not call `agent_start`, `agent_wait`, `agent_status`, or `agent_progress` again merely to rediscover or reroute the same completed request. External harness qualification/fault/promotion gates remain host-controller authority.
 
 Read-only inspection may be used to answer non-change questions or to establish whether clarification is required, but it must never become a substitute implementation path.
 

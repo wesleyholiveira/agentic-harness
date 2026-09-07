@@ -67,10 +67,12 @@ export function buildContinuationPrompt({ runId, eventType, effectKey, generatio
     `clip-continuation-effect: ${effectKey}`,
     "",
     "The authoritative Runtime V2 state changed while this session was parked.",
-    `Call context-engine agent_summary with runId ${runId}, then continue from that authoritative state.`,
-    "Finish the parked outer-controller procedure in this resumed assistant turn and emit its required final report/verdict; do not stop after merely acknowledging terminal state.",
-    "When the parked request requires run-scoped performance/token evidence, call context_efficiency with this runId after agent_summary.",
-    "Do not call agent_wait merely to rediscover this already-delivered event.",
+    `Call context-engine agent_summary exactly once with runId ${runId}, then continue the original user conversation from that authoritative state.`,
+    "If this run is terminal, give the user the final outcome for the original request and end this resumed assistant turn. Do not re-enter delivery for the same completed request.",
+    "Do not call agent_start again for this same run/request. A distinct follow-up Runtime run is allowed only when the original user request explicitly requires a separate subsequent delivery operation.",
+    "Call context_efficiency with this runId only when the original user request explicitly requires run-scoped performance/token evidence.",
+    "Do not call agent_wait, agent_status, or agent_progress merely to rediscover this already-delivered terminal event.",
+    "External qualification, fault injection, promotion gates, and harness verdicts are owned by the host qualification controller, not by this resumed user-facing turn.",
   ].join("\n");
 }
 

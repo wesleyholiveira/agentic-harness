@@ -14,6 +14,7 @@ import { projectOwnershipRegistry } from "../../.agents/runtime/agent-input-mani
 import { productDiscoveryAcceptanceCriteriaIssue } from "../../.agents/runtime/product-discovery-acceptance-criteria.mjs";
 import { cleanupWorkspace, createIsolatedWorkspace, inspectWorkspaceChanges, integrateWorkspace, reconcileHandoffPathDisposition } from "../../.agents/runtime/workspace.mjs";
 import { runProcess } from "../../.agents/runtime/process.mjs";
+import { buildContinuationPrompt } from "../../.agents/runtime/continuation.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -58,6 +59,34 @@ test("Task Brief workflowSkill emitted by context builder matches schema authori
   assert.equal(emitted[1], expectedWorkflowSkill);
   assert.equal(expectedWorkflowSkill, "agent-harness-sdd-workflow");
   assert.equal(contextBuilderSource.includes("agentic-harness-sdd-workflow"), false);
+});
+
+
+
+test("standalone terminal continuation resumes the original user request with a finite post-wake protocol", () => {
+  const prompt = buildContinuationPrompt({
+    runId: "run-standalone",
+    eventType: "run.completed",
+    effectKey: "sha256:test-effect",
+    generation: 1,
+  });
+  assert.match(prompt, /agent_summary exactly once/);
+  assert.match(prompt, /continue the original user conversation/);
+  assert.match(prompt, /give the user the final outcome/);
+  assert.match(prompt, /end this resumed assistant turn/);
+  assert.match(prompt, /Do not call agent_start again for this same run\/request/);
+  assert.match(prompt, /context_efficiency.*only when the original user request explicitly requires/);
+  assert.match(prompt, /External qualification, fault injection, promotion gates, and harness verdicts are owned by the host qualification controller/);
+  assert.doesNotMatch(prompt, /outer-controller procedure/);
+  assert.doesNotMatch(prompt, /required final report\/verdict/);
+});
+
+test("persistent Main Orchestrator does not re-enter delivery after a terminal continuation", () => {
+  const source = readFileSync(resolve(root, ".agents/agents/main-orchestrator/AGENT.md"), "utf8");
+  assert.match(source, /call `agent_summary` exactly once for the delivered run/);
+  assert.match(source, /answer the original user from authoritative Runtime state and terminate the resumed turn/);
+  assert.match(source, /Do not call `agent_start`, `agent_wait`, `agent_status`, or `agent_progress` again/);
+  assert.match(source, /External harness qualification\/fault\/promotion gates remain host-controller authority/);
 });
 
 test("generic coding fallback owns consumer paths only when no domain primary owner exists", async () => {

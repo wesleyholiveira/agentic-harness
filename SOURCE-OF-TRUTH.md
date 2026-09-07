@@ -99,3 +99,7 @@ The authoritative standalone R-8 gate is progress-aware. It must respect the eff
 - Runtime selects the latest assistant child parented by the deterministic wake and keeps the delivery `accepted` while that latest child requires tool follow-up or otherwise lacks terminal proof.
 - Qualification mirrors the same rule and must never weaken R-8 merely because PostgreSQL already contains an incorrectly early `observedAt`.
 - See ADR 0024.
+
+## Standalone terminal continuation ownership
+
+ADR 0025 is authoritative for the post-wake Main Orchestrator boundary. The deterministic host Qualification Controller owns promotion/fault gates. A terminal wake resumes the Main Orchestrator to call `agent_summary` exactly once, answer the original user from terminal Runtime state, and end the assistant turn. The legacy Runtime V2 wording that assigned an `outer-controller procedure` and qualification verdict to the resumed assistant is not part of standalone authority. R-8/R-10 tool-part diagnostics are observational only.

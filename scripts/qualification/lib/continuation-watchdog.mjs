@@ -25,6 +25,19 @@ export function summarizeContinuationAssistant(history, messageId) {
   const finish = String(latest?.info?.finish ?? "").trim().toLowerCase();
   const followupFinish = new Set(["tool-calls", "tool_calls", "tool-use", "tool_use"]).has(finish);
   const completed = !followupFinish && (Boolean(latest?.info?.time?.completed) || Boolean(finish));
+  const toolCalls = children.flatMap((message) => (Array.isArray(message?.parts) ? message.parts : [])
+    .filter((part) => part?.type === "tool")
+    .map((part) => ({
+      messageId: message?.info?.id ?? null,
+      callId: part?.callID ?? part?.callId ?? null,
+      tool: String(part?.tool ?? part?.name ?? "unknown"),
+      status: String(part?.state?.status ?? "unknown"),
+      startedAt: part?.state?.time?.start ?? null,
+      completedAt: part?.state?.time?.end ?? null,
+      error: part?.state?.error ? String(part.state.error).slice(0, 300) : null,
+    })))
+    .slice(-12);
+  const activeToolCalls = toolCalls.filter((call) => ["pending", "running", "executing"].includes(call.status.toLowerCase()));
   return {
     state: error ? "failed" : completed ? "completed" : "pending",
     messageId: latest?.info?.id ?? null,
@@ -33,6 +46,8 @@ export function summarizeContinuationAssistant(history, messageId) {
     createdAt: latest?.info?.time?.created ?? null,
     completedAt: latest?.info?.time?.completed ?? null,
     error,
+    toolCalls,
+    activeToolCalls,
   };
 }
 
@@ -170,6 +185,10 @@ export function formatContinuationProgress(observation, { nowMs = Date.now() } =
   if (Number.isFinite(Number(observation?.wakeCount))) values.push(`wakeCount=${Number(observation.wakeCount)}`);
   if (assistant?.state) values.push(`assistant=${assistant.state}`);
   if (assistant?.finish) values.push(`finish=${assistant.finish}`);
+  const activeTool = Array.isArray(assistant?.activeToolCalls) ? assistant.activeToolCalls.at(-1) : null;
+  const latestTool = Array.isArray(assistant?.toolCalls) ? assistant.toolCalls.at(-1) : null;
+  if (activeTool) values.push(`tool=${activeTool.tool}:${activeTool.status}`);
+  else if (latestTool) values.push(`lastTool=${latestTool.tool}:${latestTool.status}`);
   if (assistant?.messageId) values.push(`assistantId=${assistant.messageId}`);
   if (delivery.lastError) values.push(`lastError=${String(delivery.lastError).slice(0, 120)}`);
   return values.join(" ");

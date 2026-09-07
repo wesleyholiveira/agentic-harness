@@ -470,6 +470,28 @@ test("R-8 assistant audit mirrors Rust latest-child semantics for multi-step Ope
   assert.equal(summary.state, "completed");
   assert.equal(summary.messageId, "msg_assistant_7");
   assert.equal(summary.error, null);
+  assert.deepEqual(summary.toolCalls, []);
+  assert.deepEqual(summary.activeToolCalls, []);
+});
+
+
+
+test("R-8 continuation diagnostics expose pending tool calls without trusting tool output", async () => {
+  const { summarizeContinuationAssistant, formatContinuationProgress } = await import("../../scripts/qualification/lib/continuation-watchdog.mjs");
+  const summary = summarizeContinuationAssistant([{
+    info: { id: "msg_assistant_1", role: "assistant", parentID: "msg_wake", time: { created: 1000 } },
+    parts: [{
+      type: "tool",
+      callID: "call_1",
+      tool: "agent_summary",
+      state: { status: "running", input: { runId: "run-1" }, time: { start: 1200 } },
+    }],
+  }], "msg_wake");
+  assert.equal(summary.state, "pending");
+  assert.equal(summary.toolCalls.length, 1);
+  assert.deepEqual(summary.activeToolCalls.map((call) => [call.tool, call.status]), [["agent_summary", "running"]]);
+  assert.equal("input" in summary.toolCalls[0], false);
+  assert.match(formatContinuationProgress({ delivery: { status: "accepted", attempts: 1 }, assistant: summary }), /tool=agent_summary:running/);
 });
 
 test("Durable Continuation does not treat completed OpenCode tool-call steps as terminal assistant proof", async () => {

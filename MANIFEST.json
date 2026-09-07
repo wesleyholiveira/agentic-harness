@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-07T00:29:17Z",
+  "generatedAt": "2026-09-07T01:33:52Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 509,
-  "treeSha256": "sha256:d310a3ba62518ee1a75aba7ed02e7907ed04539f65a3b9c16ecc8b794333d0b2",
+  "fileCount": 510,
+  "treeSha256": "sha256:0c275db3a557f3d36befe29756499c5f51a041aecb76e392c4bde66849f7127d",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -133,9 +133,9 @@
       "sha256": "sha256:9a2b057c286588b83ebd8be948c363f616f24e441c1c7ca01501c539414fe83d"
     },
     {
-      "bytes": 2829,
+      "bytes": 3175,
       "path": ".agents/agents/main-orchestrator/AGENT.md",
-      "sha256": "sha256:9fbc9d6d274bc91b5f21d55651da3350f4bbca378a8b6b52eddfd7ad05f03e33"
+      "sha256": "sha256:7c036b02103c2415478d2eec097adafd56f3e8f5c5aa8e95a672f6492dfd2c54"
     },
     {
       "bytes": 1228,
@@ -308,9 +308,9 @@
       "sha256": "sha256:769fa34a776168e68c2c8828d5b8a9e4034993cdedf4a643929fa6ad7adfb3dd"
     },
     {
-      "bytes": 6065,
+      "bytes": 6532,
       "path": ".agents/runtime/continuation.mjs",
-      "sha256": "sha256:5a21b7480220d5c3fc039575c1a864a34134ece972eb8fd708f792d76ab3a6ad"
+      "sha256": "sha256:7396b0bcdde17c69bcf8ac35651b79c701e0108de5acf6c858dce619d6381bcb"
     },
     {
       "bytes": 34271,
@@ -1208,9 +1208,9 @@
       "sha256": "sha256:19db88b7ddc6902d55c006b381e9a1fe6a4af472f37942d768aab876b329b353"
     },
     {
-      "bytes": 34144,
+      "bytes": 34971,
       "path": "DISTRIBUTION-REPORT.md",
-      "sha256": "sha256:3e0c3ef20c60e37aa68ea909dcbc690d42b60a0aad74d682887025b3cfd0a67b"
+      "sha256": "sha256:79a95e3bc2232650fceab62eddc95858b002c73751a6edb5179dbad84bb62c97"
     },
     {
       "bytes": 1650,
@@ -1331,6 +1331,11 @@
       "bytes": 4383,
       "path": "docs/adr/0024-opencode-tool-call-assistant-terminality.md",
       "sha256": "sha256:fb180361e43e7b47794ac2eb3d8006c5376f5d08e7aee4e8d604ccb8f40fa848"
+    },
+    {
+      "bytes": 4041,
+      "path": "docs/adr/0025-standalone-terminal-continuation-resume-ownership.md",
+      "sha256": "sha256:9eb60ee937f8f1610cd31eaeeb7690a9ca0dfe64fcb942f81c57de12a3437739"
     },
     {
       "bytes": 888,
@@ -1463,9 +1468,9 @@
       "sha256": "sha256:fbb594bde0b35a377a447f3a266931008d9f96fa0d6c782933c8c14174ef65f4"
     },
     {
-      "bytes": 13840,
+      "bytes": 14769,
       "path": "docs/specs/standalone-harness/DESIGN.md",
-      "sha256": "sha256:8b92c98fdc17bb5d17dd66eb56e7a93f57f2bb1df059c65f6c72424608dc40f6"
+      "sha256": "sha256:ff8d087363a1a760232f2b74ed6eb1f7cf1101bc546721c83ebb6e584f4b45ef"
     },
     {
       "bytes": 1218,
@@ -1518,9 +1523,9 @@
       "sha256": "sha256:ce7ff803949f3782c35e5db028a79a6215aeb49e7fa3a3231218856f4d6b5a54"
     },
     {
-      "bytes": 7611,
+      "bytes": 8177,
       "path": "docs/specs/standalone-harness/TEST-PLAN.md",
-      "sha256": "sha256:df1a0bec1dec4d4af7b3eff15fe028a52872cb647d2ff6d12d51f4cf134774f9"
+      "sha256": "sha256:4e2db63e290da47742efcd938006b6357fa49a09a8492037b1444866de181a1b"
     },
     {
       "bytes": 145,
@@ -2178,9 +2183,9 @@
       "sha256": "sha256:23cfd3216c7dcfcda3bee19fcf018acaed977999cecb5142c62ee5a70fcd1dc8"
     },
     {
-      "bytes": 6854,
+      "bytes": 7974,
       "path": "scripts/qualification/lib/continuation-watchdog.mjs",
-      "sha256": "sha256:92f540119927e7fef9543e4f7199cb2662fa0c71bff6d0085fb6423a52fb3c83"
+      "sha256": "sha256:9a65228c1dbb06f6da4e7cd25eb2a6d033f0d4d9720d976ed7ffa3b9d9831076"
     },
     {
       "bytes": 4089,
@@ -2223,9 +2228,9 @@
       "sha256": "sha256:58f9cb34276192e9c57547d18fc1d52e0c860fddb0cce18e05ce1fa3593af1fc"
     },
     {
-      "bytes": 11509,
+      "bytes": 12090,
       "path": "SOURCE-OF-TRUTH.md",
-      "sha256": "sha256:5ef1c17cdf64a0122f39d5ee2eaf7136059b7d9b7d7f0d571e9c0c0b869991d2"
+      "sha256": "sha256:16477016fb54f2449df042cdaebadb58ca1b9f25388757294537fe8df8b874f8"
     },
     {
       "bytes": 840,
@@ -2253,9 +2258,9 @@
       "sha256": "sha256:7f8eadec83654ffd37f54d82bd53c25ba7db879bd6943ef2fef52ab88507f2d1"
     },
     {
-      "bytes": 27672,
+      "bytes": 28785,
       "path": "tests/contracts/qualification-controller.test.mjs",
-      "sha256": "sha256:21d31abe4062682980510bf85b4cbac99d9c5df8ddc0a87df53367bea244fa09"
+      "sha256": "sha256:89d84debbb5626e93182dc1bb25a3ea5c32b4f4fd399af68dc48d209ff97b651"
     },
     {
       "bytes": 1716,
@@ -2283,9 +2288,9 @@
       "sha256": "sha256:0866c42670f9a961f16b56951eaaefb7a1d1377f47b18a29faedc91bc68fba62"
     },
     {
-      "bytes": 15975,
+      "bytes": 17681,
       "path": "tests/contracts/workflow.test.mjs",
-      "sha256": "sha256:1e4e595e516dd3beac2864e410c381a3e91fa661851f93da1c5ef85a0cff3dac"
+      "sha256": "sha256:76a845b1f51831e7d9a15e2fc49c5cbd97e8554440477e2234500c06216be66f"
     },
     {
       "bytes": 1049,

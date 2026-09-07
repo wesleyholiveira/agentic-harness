@@ -272,3 +272,7 @@ The Rust continuation state machine treated `time.completed` or any non-empty `f
 ADR 0024 classifies tool-followup finish reasons as non-terminal. The latest tool-call child now keeps the delivery `accepted` despite its local completed timestamp, and an older completed child cannot override a newer tool-call child. The qualification observer mirrors this rule for diagnostics; R-8 itself remains strict.
 
 Packaging validation after the source change: focused qualification-controller contracts **26/26 PASS**, full `npm run harness:test` **73/73 PASS**, and `npm run harness:qualify -- --self-test` **PASS**. Rust compilation/tests remain target-host R-2 authority because the packaging container does not provide Rust/Cargo.
+
+## ADR 0025 — finite standalone terminal resume
+
+The latest R-8 live run proved one accepted deterministic wake but timed out after the authoritative 900-second assistant-completion window with the latest assistant still pending. Source review found that the continuation prompt still assigned the resumed Main Orchestrator the pre-standalone Runtime V2 `outer-controller procedure` / qualification-verdict responsibility even though standalone promotion is now controlled externally. ADR 0025 removes that ownership drift: `agent_summary` exactly once, finish the original user-facing request, no same-request Runtime re-entry, then end the turn. Qualification diagnostics now capture bounded tool-call name/status/timestamps so any remaining pending boundary is directly observable without persisting tool inputs/outputs.
