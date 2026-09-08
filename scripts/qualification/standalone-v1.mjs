@@ -979,6 +979,38 @@ function worktreeFingerprint() {
   return `sha256:${createHash("sha256").update(status).update("\0").update(diff).digest("hex")}`;
 }
 
+function requireAgentStartCurrentTurnProvenance(runId, sessionId, gate = "R-7") {
+  const rows = sqlRows(`SELECT payload_json FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND event_type='orchestrator.agent_start_provenance_accepted' ORDER BY created_at DESC LIMIT 1;`);
+  const registration = rows.length > 0 ? safeJson(rows[0]?.[0]) : null;
+  if (!registration || typeof registration !== "object") {
+    hold(gate, "RUNTIME", "agent_start_provenance_persistent_evidence_missing", { runId, sessionId });
+  }
+  if (registration.sessionId !== sessionId
+    || registration.provenanceSource !== "opencode-plugin-sidechannel"
+    || registration.historySource !== "chat-message-hook"
+    || !registration.userMessageId
+    || registration.historyErrorCode
+    || registration.authoritative !== true) {
+    hold(gate, "RUNTIME", "agent_start_current_turn_provenance_not_proven", {
+      runId,
+      sessionId,
+      recordedSessionId: registration.sessionId ?? null,
+      provenanceSource: registration.provenanceSource ?? null,
+      historySource: registration.historySource ?? null,
+      userMessageIdPresent: Boolean(registration.userMessageId),
+      historyErrorCode: registration.historyErrorCode ?? null,
+      authoritative: registration.authoritative ?? null,
+    });
+  }
+  return {
+    historySource: registration.historySource,
+    userMessageId: registration.userMessageId,
+    historyErrorCode: registration.historyErrorCode ?? null,
+    provenanceSource: registration.provenanceSource,
+    authoritative: true,
+  };
+}
+
 async function waitForRunId(sessionId, {
   timeoutMs = 90_000,
   gate = "R-7",
@@ -1321,6 +1353,7 @@ async function r7() {
   const baselineWorktree = worktreeFingerprint();
   const userMessageId = await sendWorkload(sessionId, workload);
   const runId = await waitForRunId(sessionId, { gate: "R-7", baselineWorktree, request: workload });
+  const currentTurnProvenance = requireAgentStartCurrentTurnProvenance(runId, sessionId, "R-7");
   const continuation = await requireDurableContinuation(runId, sessionId, { gate: "R-7" });
   if (continuation.sessionId !== sessionId) hold("R-7", "RUNTIME", "r7_continuation_session_identity_mismatch", { runId, sessionId, continuation });
   const provenance = {
@@ -1329,6 +1362,7 @@ async function r7() {
     sessionId,
     userMessageId,
     runId,
+    historySource: currentTurnProvenance.historySource,
   };
   const terminal = await waitForTerminalRun(runId, { gate: "R-7" });
   if (terminal.status !== "closed") hold("R-7", "RUNTIME", "r7_runtime_not_closed", { runId, terminal });

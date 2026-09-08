@@ -91,7 +91,16 @@ export function registerAgentRuntimeTools(
     async (args) => {
       assertControlCaller();
       assertRuntimeIngressProvenance("agent_start");
-      const data = await control.start(args);
+      const requestContext = getContextEngineRequestContext();
+      const data = await control.start(args, {
+        origin: requestContext?.invocationOrigin ?? "unknown",
+        sessionId: requestContext?.invocationSessionId ?? null,
+        callId: requestContext?.invocationCallId ?? null,
+        userMessageId: requestContext?.invocationUserMessageId ?? null,
+        provenanceSource: requestContext?.invocationProvenanceSource ?? "missing",
+        historySource: requestContext?.invocationHistorySource ?? null,
+        historyErrorCode: requestContext?.invocationHistoryErrorCode ?? null,
+      });
       return result(data, "agent-run-started", "AGENT RUN STARTED · Dynamic DAG V2 persisted and executing");
     },
   );

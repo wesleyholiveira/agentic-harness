@@ -666,6 +666,25 @@ class PostgresOrchestrationStore {
           nowIso(),
         ]);
       }
+      if (options.invocationProvenance?.provenanceSource === "opencode-plugin-sidechannel") {
+        await client.query(`INSERT INTO agent_events(event_id,run_id,task_id,event_type,payload_json,created_at)
+          VALUES($1,$2,NULL,'orchestrator.agent_start_provenance_accepted',$3,$4)`, [
+          newId("event"),
+          plan.runId,
+          JSON.stringify({
+            origin: options.invocationProvenance?.origin ?? "unknown",
+            sessionId: options.invocationProvenance?.sessionId ?? null,
+            callId: options.invocationProvenance?.callId ?? null,
+            userMessageId: options.invocationProvenance?.userMessageId ?? null,
+            provenanceSource: options.invocationProvenance?.provenanceSource ?? "missing",
+            historySource: options.invocationProvenance?.historySource ?? null,
+            historyErrorCode: options.invocationProvenance?.historyErrorCode ?? null,
+            authoritative: true,
+            deduplicated: false,
+          }),
+          nowIso(),
+        ]);
+      }
       await client.query(`INSERT INTO agent_events(event_id, run_id, task_id, event_type, payload_json, created_at)
         VALUES($1, $2, NULL, 'run.routed', $3, $4)`, [
         newId("event"),

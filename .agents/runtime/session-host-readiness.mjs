@@ -45,11 +45,34 @@ function sessionHostAuthHeaders(environment = process.env) {
   };
 }
 
-export function resolveSessionHostProbeTarget(environment = process.env) {
+export function resolveSessionHostProbeTarget(environment = process.env, { networkScope = "host" } = {}) {
   const deliveryUrl = normalizeUrl(environment.AGENT_HARNESS_OPENCODE_CONTINUATION_URL);
   const explicitProbeUrl = normalizeUrl(environment.AGENT_HARNESS_OPENCODE_CONTINUATION_HOST_PROBE_URL);
-  if (!deliveryUrl && !explicitProbeUrl) return { deliveryUrl: null, probeUrl: null, translated: false };
-  if (explicitProbeUrl) return { deliveryUrl, probeUrl: explicitProbeUrl, translated: explicitProbeUrl !== deliveryUrl };
+  if (!deliveryUrl && !explicitProbeUrl) {
+    return { deliveryUrl: null, probeUrl: null, translated: false, networkScope };
+  }
+
+  // Processes running inside the Runtime Compose network must probe the same
+  // endpoint used for continuation delivery. A host-only 127.0.0.1 probe URL
+  // would otherwise point back to the current container and create a false
+  // negative even when host.docker.internal is healthy.
+  if (networkScope === "container") {
+    return {
+      deliveryUrl,
+      probeUrl: deliveryUrl,
+      translated: false,
+      networkScope,
+    };
+  }
+
+  if (explicitProbeUrl) {
+    return {
+      deliveryUrl,
+      probeUrl: explicitProbeUrl,
+      translated: explicitProbeUrl !== deliveryUrl,
+      networkScope,
+    };
+  }
 
   const parsed = new URL(deliveryUrl);
   const dockerOnlyHostnames = new Set(["host.docker.internal", "gateway.docker.internal"]);
@@ -59,18 +82,19 @@ export function resolveSessionHostProbeTarget(environment = process.env) {
       deliveryUrl,
       probeUrl: parsed.toString().replace(/\/$/, ""),
       translated: true,
+      networkScope,
     };
   }
-  return { deliveryUrl, probeUrl: deliveryUrl, translated: false };
+  return { deliveryUrl, probeUrl: deliveryUrl, translated: false, networkScope };
 }
 
-export async function probeSessionHost({ environment = process.env, fetchImpl = fetch, timeoutMs = 3_000 } = {}) {
+export async function probeSessionHost({ environment = process.env, fetchImpl = fetch, timeoutMs = 3_000, networkScope = "host" } = {}) {
   const required = !["0", "false", "no", "off"].includes(
     String(environment.AGENT_HARNESS_AGENT_CONTINUATION_REQUIRED ?? "false").toLowerCase(),
   );
   let target;
   try {
-    target = resolveSessionHostProbeTarget(environment);
+    target = resolveSessionHostProbeTarget(environment, { networkScope });
   } catch (error) {
     return {
       configured: true,
@@ -81,6 +105,7 @@ export async function probeSessionHost({ environment = process.env, fetchImpl = 
       probeEndpoint: null,
       endpoint: null,
       translated: false,
+      networkScope,
     };
   }
   if (!target.deliveryUrl) {
@@ -93,6 +118,7 @@ export async function probeSessionHost({ environment = process.env, fetchImpl = 
       probeEndpoint: target.probeUrl ?? null,
       endpoint: target.probeUrl ?? null,
       translated: target.translated,
+      networkScope,
     };
   }
   const probe = new URL(target.probeUrl ?? target.deliveryUrl);
@@ -110,6 +136,7 @@ export async function probeSessionHost({ environment = process.env, fetchImpl = 
       probeEndpoint: target.probeUrl,
       endpoint: target.probeUrl,
       translated: target.translated,
+      networkScope,
       authSource: null,
       error: error instanceof Error ? error.message : String(error),
     };
@@ -129,6 +156,7 @@ export async function probeSessionHost({ environment = process.env, fetchImpl = 
       probeEndpoint: target.probeUrl,
       endpoint: target.probeUrl,
       translated: target.translated,
+      networkScope,
       authSource: auth.authSource,
       version: body && typeof body === "object" ? body.version ?? null : null,
       error: response.ok ? null : `http_${response.status}`,
@@ -143,6 +171,7 @@ export async function probeSessionHost({ environment = process.env, fetchImpl = 
       probeEndpoint: target.probeUrl,
       endpoint: target.probeUrl,
       translated: target.translated,
+      networkScope,
       authSource: auth.authSource,
       error: error instanceof Error ? error.message : String(error),
     };

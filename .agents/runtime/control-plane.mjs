@@ -287,7 +287,7 @@ export class AgentRuntimeControlPlane {
     return assertAgentStartWorkerReadiness(worker, { required, maxAgeMs });
   }
 
-  async start({ request, agents = [], maxParallel, maxAttempts, contextBudgetBytes, integrate, continuation = null } = {}) {
+  async start({ request, agents = [], maxParallel, maxAttempts, contextBudgetBytes, integrate, continuation = null } = {}, invocation = {}) {
     if (!request?.trim()) throw new Error("agent_request_required");
     // R15.6.2: the outer qualification controller is not a Runtime workload.
     // Reject stale/operator prompts that try to model SOURCE/H-8/H-9/report as
@@ -313,6 +313,19 @@ export class AgentRuntimeControlPlane {
           if (active) {
             let phase = null;
             try { phase = JSON.parse(active.plan_json ?? "{}").phase ?? null; } catch {}
+            if (invocation?.provenanceSource === "opencode-plugin-sidechannel") {
+              await store.event(active.run_id, null, "orchestrator.agent_start_provenance_accepted", {
+                origin: invocation?.origin ?? "unknown",
+                sessionId: invocation?.sessionId ?? null,
+                callId: invocation?.callId ?? null,
+                userMessageId: invocation?.userMessageId ?? null,
+                provenanceSource: invocation?.provenanceSource ?? "missing",
+                historySource: invocation?.historySource ?? null,
+                historyErrorCode: invocation?.historyErrorCode ?? null,
+                authoritative: true,
+                deduplicated: true,
+              });
+            }
             return {
               deduplicated: true,
               runId: active.run_id,
@@ -344,6 +357,7 @@ export class AgentRuntimeControlPlane {
             integrate: options.integrate,
             executorCommand: options.executorCommand,
             continuation: continuationBinding,
+            invocationProvenance: invocation,
           },
         });
         return { deduplicated: false, executionPlanePreflight, ...value };

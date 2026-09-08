@@ -15,6 +15,8 @@ export interface ContextEngineRequestContext {
   invocationCallId: string | null;
   invocationUserMessageId: string | null;
   invocationProvenanceSource: "opencode-plugin-sidechannel" | "missing";
+  invocationHistorySource: string | null;
+  invocationHistoryErrorCode: string | null;
 }
 
 const requestContext = new AsyncLocalStorage<ContextEngineRequestContext>();

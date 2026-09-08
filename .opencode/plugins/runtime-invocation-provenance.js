@@ -185,6 +185,50 @@ function normalizeMessagesPayload(payload) {
   return [];
 }
 
+function normalizeHookUserMessage(input, output) {
+  const raw = output?.message?.info ?? output?.message ?? {};
+  const id = boundedText(input?.messageID ?? raw?.id ?? raw?.messageID, 256) || null;
+  const role = String(raw?.role ?? "user").trim() || "user";
+  if (role !== "user" || !id) return null;
+  return {
+    info: {
+      ...raw,
+      id,
+      role: "user",
+    },
+    parts: Array.isArray(output?.parts)
+      ? output.parts
+      : Array.isArray(output?.message?.parts)
+        ? output.message.parts
+        : [],
+  };
+}
+
+function safeErrorToken(value, max = 96) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  return raw.replace(/[^A-Za-z0-9_.:-]/g, "_").slice(0, max);
+}
+
+async function httpHistoryErrorCode(response) {
+  const tokens = [`opencode_session_messages_http:${response.status}`];
+  try {
+    const payload = await response.clone().json();
+    const error = payload?.error;
+    const candidates = [
+      typeof error === "string" ? error : error?.code,
+      typeof error === "object" ? error?.name : null,
+      payload?.code,
+      payload?.name,
+    ];
+    for (const candidate of candidates) {
+      const token = safeErrorToken(candidate);
+      if (token && !tokens.includes(token)) tokens.push(token);
+    }
+  } catch {}
+  return tokens.join(":").slice(0, 256);
+}
+
 async function directHttpLatestUserMessage({ serverUrl, directory, sessionID, fetchImpl = globalThis.fetch }) {
   let before = null;
   for (let pageIndex = 0; pageIndex < 4; pageIndex += 1) {
@@ -192,7 +236,7 @@ async function directHttpLatestUserMessage({ serverUrl, directory, sessionID, fe
     endpoint.searchParams.set("limit", "100");
     if (before) endpoint.searchParams.set("before", before);
     const response = await hostFetch(endpoint, { method: "GET" }, fetchImpl);
-    if (!response.ok) throw new Error(`opencode_session_messages_http:${response.status}`);
+    if (!response.ok) throw new Error(await httpHistoryErrorCode(response));
     const payload = await response.json();
     const messages = normalizeMessagesPayload(payload);
     const current = newestUserMessage(messages);
@@ -203,28 +247,48 @@ async function directHttpLatestUserMessage({ serverUrl, directory, sessionID, fe
   return { message: null, source: "direct-http", errorCode: "opencode_session_messages_no_user_in_bounded_window" };
 }
 
-async function sdkLatestUserMessage({ client, sessionID }) {
+async function sdkLatestUserMessage({ client, sessionID, directory }) {
   if (typeof client?.session?.messages !== "function") {
     throw new Error("opencode_session_messages_sdk_unavailable");
   }
-  // @opencode-ai/sdk 1.18.26 is generated from the Hey API schema: the
-  // session id is a path parameter and limit is a query parameter. The
-  // plugin-provided client is already scoped to ctx.directory and carries
-  // ServerAuth headers, so do not reconstruct either here.
-  const response = await client.session.messages({
-    path: { id: sessionID },
-    query: { limit: 100 },
-  });
-  const messages = normalizeMessagesPayload(response);
-  const message = newestUserMessage(messages);
+  const errors = [];
+  const attempts = [
+    {
+      source: "sdk-client-flat",
+      args: { sessionID, directory, limit: 100 },
+    },
+    {
+      source: "sdk-client-generated",
+      args: {
+        path: { id: sessionID },
+        query: { limit: 100, ...(directory ? { directory } : {}) },
+      },
+    },
+  ];
+  for (const attempt of attempts) {
+    try {
+      const response = await client.session.messages(attempt.args);
+      const messages = normalizeMessagesPayload(response);
+      const message = newestUserMessage(messages);
+      if (message) {
+        return { message, source: attempt.source, errorCode: null };
+      }
+      errors.push(`${attempt.source}:no_user`);
+    } catch (error) {
+      errors.push(`${attempt.source}:${safeErrorToken(error instanceof Error ? error.message : String(error), 128) || "error"}`);
+    }
+  }
   return {
-    message,
+    message: null,
     source: "sdk-client",
-    errorCode: message ? null : "opencode_session_messages_no_user_in_sdk_window",
+    errorCode: `opencode_session_messages_no_user_in_sdk_window:${errors.join("|")}`.slice(0, 384),
   };
 }
 
-async function latestUserMessage({ serverUrl, directory, sessionID, client, fetchImpl = globalThis.fetch }) {
+async function latestUserMessage({ serverUrl, directory, sessionID, client, currentTurnMessage = null, allowCurrentTurn = true, fetchImpl = globalThis.fetch }) {
+  if (allowCurrentTurn && currentTurnMessage && messageId(currentTurnMessage)) {
+    return { message: currentTurnMessage, source: "chat-message-hook", errorCode: null };
+  }
   const errors = [];
   try {
     const direct = await directHttpLatestUserMessage({ serverUrl, directory, sessionID, fetchImpl });
@@ -234,7 +298,7 @@ async function latestUserMessage({ serverUrl, directory, sessionID, client, fetc
     errors.push(error instanceof Error ? error.message : String(error));
   }
   try {
-    const sdk = await sdkLatestUserMessage({ client, sessionID });
+    const sdk = await sdkLatestUserMessage({ client, sessionID, directory });
     if (sdk.message) return sdk;
     errors.push(sdk.errorCode);
   } catch (error) {
@@ -363,8 +427,25 @@ export const RuntimeInvocationProvenance = async ({ serverUrl, directory, client
   writeLivePluginIdentity(directory);
   const parkedSessions = new Map();
   const durableContinuationTurns = new Map();
+  const currentUserTurns = new Map();
 
   return {
+    "chat.message": async (input, output) => {
+      const sessionID = String(input?.sessionID ?? "").trim();
+      if (!sessionID) return;
+      const message = normalizeHookUserMessage(input, output);
+      if (message) currentUserTurns.set(sessionID, message);
+    },
+
+    "event": async ({ event }) => {
+      if (event?.type !== "session.deleted") return;
+      const sessionID = String(event?.properties?.info?.id ?? event?.properties?.sessionID ?? "").trim();
+      if (!sessionID) return;
+      currentUserTurns.delete(sessionID);
+      parkedSessions.delete(sessionID);
+      durableContinuationTurns.delete(sessionID);
+    },
+
     "tool.execute.before": async (input, output) => {
       const toolName = normalizeToolName(input?.tool);
       assertPersistentMainOrchestratorRuntimeIngress(toolName);
@@ -373,8 +454,25 @@ export const RuntimeInvocationProvenance = async ({ serverUrl, directory, client
 
       const parked = parkedSessions.get(sessionID) ?? null;
       const rememberedContinuationUserMessageId = durableContinuationTurns.get(sessionID) ?? null;
+      const capturedUserMessage = currentUserTurns.get(sessionID) ?? null;
+      // For a parked turn, the cached baseline cannot prove that a later durable
+      // continuation or human turn has arrived. Only trust the hook cache when it
+      // already identifies a different message; otherwise refresh from host/SDK.
+      const capturedDiffersFromParkBaseline = Boolean(
+        capturedUserMessage
+        && parked
+        && messageId(capturedUserMessage) !== parked.baselineUserMessageId,
+      );
+      const allowCurrentTurn = !parked || capturedDiffersFromParkBaseline;
       const history = parked || rememberedContinuationUserMessageId || PROVENANCE_TOOLS.has(toolName)
-        ? await latestUserMessage({ serverUrl, directory, sessionID, client })
+        ? await latestUserMessage({
+            serverUrl,
+            directory,
+            sessionID,
+            client,
+            currentTurnMessage: capturedUserMessage,
+            allowCurrentTurn,
+          })
         : { message: null, source: "not-required", errorCode: null };
       const currentUserMessage = history.message;
       const currentUserMessageId = messageId(currentUserMessage);
@@ -442,7 +540,14 @@ export const RuntimeInvocationProvenance = async ({ serverUrl, directory, client
       const toolName = normalizeToolName(input?.tool);
       const sessionID = String(input?.sessionID ?? "").trim();
       if (toolName !== "agent_start" || !sessionID || !resultRequestsPark(output)) return;
-      const history = await latestUserMessage({ serverUrl, directory, sessionID, client });
+      const history = await latestUserMessage({
+        serverUrl,
+        directory,
+        sessionID,
+        client,
+        currentTurnMessage: currentUserTurns.get(sessionID) ?? null,
+        allowCurrentTurn: true,
+      });
       const currentUserMessage = history.message;
       parkedSessions.set(sessionID, {
         baselineUserMessageId: messageId(currentUserMessage),

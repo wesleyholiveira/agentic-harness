@@ -676,3 +676,140 @@ test("OpenCode Runtime child resolves harness-owned schemas from AGENT_HARNESS_R
   assert.doesNotMatch(executor, /readJson\(resolve\(repositoryRoot, "\.agents", "schemas", "agent-input-manifest\.schema\.json"\)\)/);
   assert.doesNotMatch(executor, /readJson\(resolve\(workspace, "\.agents", "schemas", "implementation-plan\.schema\.json"\)\)/);
 });
+
+test("active Main turn provenance is captured by chat.message before agent_start and does not depend on live history reads", () => {
+  const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-active-turn-provenance-"));
+  try {
+    const pluginUrl = pathToFileURL(resolve(root, ".opencode/plugins/runtime-invocation-provenance.js")).href;
+    const script = `
+      const registrations = [];
+      globalThis.fetch = async (input, init = {}) => {
+        const url = new URL(String(input));
+        if (url.port === "4096" && url.pathname.includes("/session/")) {
+          return new Response(JSON.stringify({ error: { code: "session_busy" } }), { status: 400, headers: { "content-type": "application/json" } });
+        }
+        if (url.port === "28789" && url.pathname === "/runtime-invocation-provenance") {
+          registrations.push(JSON.parse(String(init.body ?? "{}")));
+          return new Response(JSON.stringify({ accepted: true }), { status: 202, headers: { "content-type": "application/json" } });
+        }
+        return new Response("{}", { status: 599 });
+      };
+      const client = { session: { messages: async () => ({ data: [] }) } };
+      const { RuntimeInvocationProvenance } = await import(${JSON.stringify(pluginUrl)});
+      const hooks = await RuntimeInvocationProvenance({ serverUrl: new URL("http://127.0.0.1:4096"), directory: process.env.AGENT_HARNESS_PROJECT_ROOT, client });
+      await hooks["chat.message"](
+        { sessionID: "session-active", messageID: "msg-user-active", model: { providerID: "opencode", modelID: "kimi" } },
+        { message: { id: "msg-user-active", role: "user", time: { created: 123 } }, parts: [{ type: "text", text: "implement" }] },
+      );
+      await hooks["tool.execute.before"]({ tool: "agent_start", sessionID: "session-active", callID: "call-active" }, { args: { request: "fixture" } });
+      if (registrations.length !== 1) throw new Error("registration_count:" + registrations.length);
+      const record = registrations[0];
+      if (record.userMessageId !== "msg-user-active") throw new Error("user_message_identity_missing");
+      if (record.historySource !== "chat-message-hook") throw new Error("history_source:" + record.historySource);
+      if (record.historyErrorCode !== null) throw new Error("unexpected_history_error:" + record.historyErrorCode);
+    `;
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+      cwd: consumerRoot,
+      env: {
+        ...process.env,
+        AGENT_HARNESS_ROOT: root,
+        AGENT_HARNESS_PROJECT_ROOT: consumerRoot,
+        AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL: "http://127.0.0.1:28789/runtime-invocation-provenance",
+      },
+      encoding: "utf8",
+      shell: false,
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+  } finally {
+    rmSync(consumerRoot, { recursive: true, force: true });
+  }
+});
+
+test("provenance SDK recovery accepts the OpenCode flat session.messages signature before generated-client fallback", () => {
+  const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-sdk-flat-provenance-"));
+  try {
+    const pluginUrl = pathToFileURL(resolve(root, ".opencode/plugins/runtime-invocation-provenance.js")).href;
+    const script = `
+      const sdkCalls = [];
+      const registrations = [];
+      globalThis.fetch = async (input, init = {}) => {
+        const url = new URL(String(input));
+        if (url.port === "4096" && url.pathname.includes("/session/")) {
+          return new Response(JSON.stringify({ error: { code: "history_temporarily_unavailable" } }), { status: 400, headers: { "content-type": "application/json" } });
+        }
+        if (url.port === "28789" && url.pathname === "/runtime-invocation-provenance") {
+          registrations.push(JSON.parse(String(init.body ?? "{}")));
+          return new Response("{}", { status: 202 });
+        }
+        return new Response("{}", { status: 599 });
+      };
+      const client = { session: { messages: async (args) => {
+        sdkCalls.push(args);
+        if (args?.sessionID === "session-sdk" && args?.directory === process.env.AGENT_HARNESS_PROJECT_ROOT && args?.limit === 100) {
+          return { data: [{ info: { id: "msg-sdk-user", role: "user", time: { created: 42 } }, parts: [{ type: "text", text: "fixture" }] }] };
+        }
+        throw new Error("generated_shape_should_not_be_needed");
+      } } };
+      const { RuntimeInvocationProvenance } = await import(${JSON.stringify(pluginUrl)});
+      const hooks = await RuntimeInvocationProvenance({ serverUrl: new URL("http://127.0.0.1:4096"), directory: process.env.AGENT_HARNESS_PROJECT_ROOT, client });
+      await hooks["tool.execute.before"]({ tool: "agent_start", sessionID: "session-sdk", callID: "call-sdk" }, { args: { request: "fixture" } });
+      if (sdkCalls.length !== 1 || sdkCalls[0]?.sessionID !== "session-sdk") throw new Error("flat_sdk_not_primary");
+      const record = registrations[0];
+      if (record.userMessageId !== "msg-sdk-user") throw new Error("sdk_user_message_missing");
+      if (record.historySource !== "sdk-client-flat") throw new Error("sdk_history_source:" + record.historySource);
+    `;
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+      cwd: consumerRoot,
+      env: {
+        ...process.env,
+        AGENT_HARNESS_ROOT: root,
+        AGENT_HARNESS_PROJECT_ROOT: consumerRoot,
+        AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL: "http://127.0.0.1:28789/runtime-invocation-provenance",
+      },
+      encoding: "utf8",
+      shell: false,
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+  } finally {
+    rmSync(consumerRoot, { recursive: true, force: true });
+  }
+});
+
+test("provenance remains fail-closed when neither current-turn hook nor bounded history can prove a user message", () => {
+  const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-provenance-fail-closed-"));
+  try {
+    const pluginUrl = pathToFileURL(resolve(root, ".opencode/plugins/runtime-invocation-provenance.js")).href;
+    const script = `
+      globalThis.fetch = async (input, init = {}) => {
+        const url = new URL(String(input));
+        if (url.port === "4096" && url.pathname.includes("/session/")) {
+          return new Response(JSON.stringify({ error: { code: "session_busy", name: "BadRequest" } }), { status: 400, headers: { "content-type": "application/json" } });
+        }
+        if (url.port === "28789" && url.pathname === "/runtime-invocation-provenance") {
+          return new Response("{}", { status: 202 });
+        }
+        return new Response("{}", { status: 599 });
+      };
+      const client = { session: { messages: async () => ({ data: [] }) } };
+      const { RuntimeInvocationProvenance } = await import(${JSON.stringify(pluginUrl)});
+      const hooks = await RuntimeInvocationProvenance({ serverUrl: new URL("http://127.0.0.1:4096"), directory: process.env.AGENT_HARNESS_PROJECT_ROOT, client });
+      await hooks["tool.execute.before"]({ tool: "agent_start", sessionID: "session-none", callID: "call-none" }, { args: { request: "fixture" } });
+    `;
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+      cwd: consumerRoot,
+      env: {
+        ...process.env,
+        AGENT_HARNESS_ROOT: root,
+        AGENT_HARNESS_PROJECT_ROOT: consumerRoot,
+        AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL: "http://127.0.0.1:28789/runtime-invocation-provenance",
+      },
+      encoding: "utf8",
+      shell: false,
+    });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /agent_runtime_main_orchestrator_provenance_history_unavailable/);
+    assert.match(result.stderr, /opencode_session_messages_http:400:session_busy:BadRequest/);
+  } finally {
+    rmSync(consumerRoot, { recursive: true, force: true });
+  }
+});

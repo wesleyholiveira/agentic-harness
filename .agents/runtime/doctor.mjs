@@ -2,8 +2,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { loadAgentCatalog } from "./agent-catalog.mjs";
 import { loadSchemas } from "./schema-validator.mjs";
-import { runProcess } from "./process.mjs";
-import { EXPECTED_OPENCODE_MODELS, probeOpenCodeReadiness } from "./opencode-readiness.mjs";
+import { EXPECTED_OPENCODE_MODELS, EXPECTED_OPENCODE_PROVIDER } from "./opencode-readiness.mjs";
+import { workerExecutionCapabilities } from "./worker-capabilities.mjs";
 import { OrchestrationStore } from "./store.mjs";
 import { exists, readJson } from "./utils.mjs";
 
@@ -187,18 +187,15 @@ export async function validateDockerProfiles({ repositoryRoot, registry }) {
   };
 }
 
+
+
 export async function buildDoctorReport({ repositoryRoot, harnessRoot = repositoryRoot, databaseUrl, databaseSchema = "public" }) {
-  const [registry, schemas, git, opencodeProbe, continuationServer] = await Promise.all([
+  const [registry, schemas, continuationServer] = await Promise.all([
     loadAgentCatalog(harnessRoot),
     loadSchemas(harnessRoot),
-    runProcess("git", ["--version"]),
-    probeOpenCodeReadiness(),
-    probeSessionHost({ environment: process.env }),
+    probeSessionHost({ environment: process.env, networkScope: "container" }),
   ]);
   const expectedModels = EXPECTED_OPENCODE_MODELS;
-  const opencode = opencodeProbe.version;
-  const modelCatalog = opencodeProbe.modelCatalog;
-  const authCatalog = opencodeProbe.authCatalog;
   let databaseAvailable = false;
   let databaseError = null;
   let databaseErrorCode = null;
@@ -224,6 +221,28 @@ export async function buildDoctorReport({ repositoryRoot, harnessRoot = reposito
     }
   }
 
+  const executionPlane = workerExecutionCapabilities(agentRuntimeWorker, expectedModels);
+  const authCatalog = {
+    available: executionPlane.authAvailable,
+    source: executionPlane.source,
+    authPath: executionPlane.authPath,
+    expectedProviders: [EXPECTED_OPENCODE_PROVIDER],
+    missingProviders: executionPlane.authOpenaiAvailable ? [] : [EXPECTED_OPENCODE_PROVIDER],
+    error: executionPlane.available
+      ? (executionPlane.authAvailable ? null : "worker_auth_unavailable")
+      : "worker_capabilities_unavailable",
+  };
+  const modelCatalog = {
+    available: executionPlane.modelCatalogAvailable,
+    provider: EXPECTED_OPENCODE_PROVIDER,
+    expectedModels,
+    availableModels: executionPlane.openaiModels,
+    missingModels: executionPlane.missingModels,
+    error: executionPlane.available
+      ? (executionPlane.modelCatalogAvailable ? null : "worker_model_catalog_unavailable")
+      : "worker_capabilities_unavailable",
+  };
+
   const dockerProfiles = await validateDockerProfiles({ repositoryRoot: harnessRoot, registry });
   const retiredMcpTombstone = "scripts/agent-mcp-server.mjs";
   const forbiddenLegacyArtifacts = [
@@ -245,9 +264,10 @@ export async function buildDoctorReport({ repositoryRoot, harnessRoot = reposito
     if (await exists(join(repositoryRoot, relativePath))) legacyArtifactsPresent.push(relativePath);
   }
 
-  const executorConfigured = Boolean(process.env.AGENT_HARNESS_AGENT_EXECUTOR_COMMAND) || opencode.status === 0;
+  const executorConfigured = Boolean(process.env.AGENT_HARNESS_AGENT_EXECUTOR_COMMAND) || executionPlane.opencodeAvailable;
   const failures = [];
-  if (git.status !== 0) failures.push("git_unavailable");
+  if (!executionPlane.available) failures.push("execution_plane_capabilities_unavailable");
+  else if (!executionPlane.gitAvailable) failures.push("git_unavailable");
   if (!databaseUrl) failures.push("database_not_configured");
   else if (!databaseAvailable) failures.push(`database_unavailable:${databaseError ?? "unknown"}`);
   if (!executorConfigured) failures.push("executor_unavailable");
@@ -260,8 +280,7 @@ export async function buildDoctorReport({ repositoryRoot, harnessRoot = reposito
   if (continuationServer.required && !continuationServer.configured) failures.push("agent_continuation_server_not_configured");
   else if (continuationServer.required && !continuationServer.healthy) failures.push(`agent_continuation_server_unavailable:${continuationServer.error ?? "unknown"}`);
   if (!process.env.AGENT_HARNESS_AGENT_EXECUTOR_COMMAND) {
-    if (opencode.timedOut) failures.push("opencode_probe_timeout:version");
-    else if (opencode.status !== 0) failures.push("opencode_unavailable");
+    if (!executionPlane.opencodeAvailable) failures.push("opencode_unavailable");
     else if (!authCatalog?.available) failures.push(`opencode_auth_catalog_unavailable:${authCatalog?.error ?? "unknown"}`);
     else if ((authCatalog.missingProviders ?? []).length > 0) failures.push(`opencode_auth_missing:${authCatalog.missingProviders.join(",")}`);
     else if (!modelCatalog?.available) failures.push(`opencode_model_catalog_unavailable:${modelCatalog?.error ?? "unknown"}`);
@@ -310,24 +329,19 @@ export async function buildDoctorReport({ repositoryRoot, harnessRoot = reposito
     databaseEndpoint,
     legacyArtifactsPresent,
     executorConfigured,
-    executorMode: process.env.AGENT_HARNESS_AGENT_EXECUTOR_COMMAND ? "custom" : (opencode.status === 0 ? "builtin-opencode" : "unavailable"),
-    opencodeAvailable: opencode.status === 0,
-    opencodeVersion: opencode.status === 0 ? String(opencode.stdout ?? opencode.stderr ?? "").trim() : null,
+    executorMode: process.env.AGENT_HARNESS_AGENT_EXECUTOR_COMMAND ? "custom" : (executionPlane.opencodeAvailable ? "builtin-opencode" : "unavailable"),
+    executionPlaneProbeSource: executionPlane.source,
+    executionPlaneCapabilitiesAvailable: executionPlane.available,
+    executionPlaneProbeErrors: executionPlane.probeErrors,
+    opencodeAvailable: executionPlane.opencodeAvailable,
+    opencodeVersion: executionPlane.opencodeVersion,
     opencodeProbe: {
-      mode: opencodeProbe.mode,
-      timeoutMs: opencodeProbe.timeoutMs,
-      cwd: opencodeProbe.cwd,
-      configIsolated: opencodeProbe.configIsolated,
-      pure: opencodeProbe.pure,
-      externalPluginsDisabled: opencodeProbe.externalPluginsDisabled,
-      defaultPluginsEnabled: opencodeProbe.defaultPluginsEnabled,
-      modelsFetchDisabled: opencodeProbe.modelsFetchDisabled,
-      sharedDatabaseAvoided: opencodeProbe.sharedDatabaseAvoided,
-      authSource: opencodeProbe.authSource,
-      authCopiedToProbeState: opencodeProbe.authCopiedToProbeState,
-      versionDurationMs: opencode.durationMs,
-      authDurationMs: authCatalog?.durationMs ?? null,
-      modelCatalogDurationMs: modelCatalog?.durationMs ?? null,
+      mode: "worker-heartbeat-capabilities",
+      source: executionPlane.source,
+      workerId: agentRuntimeWorker?.worker_id ?? null,
+      gitVersion: executionPlane.gitVersion,
+      authPath: executionPlane.authPath,
+      openaiModelCount: executionPlane.openaiModels.length,
     },
     opencodeAuth: authCatalog,
     modelCatalog,
@@ -348,7 +362,7 @@ export async function buildDoctorReport({ repositoryRoot, harnessRoot = reposito
     continuationTransportGuarantee: "rabbitmq-at-least-once-effectively-once-target-effect",
     reasoningConfigured: Boolean(process.env.AGENT_HARNESS_AGENT_REASONING_COMMAND),
     reasoningMode: process.env.AGENT_HARNESS_AGENT_REASONING_MODE ?? "adaptive",
-    gitAvailable: git.status === 0,
+    gitAvailable: executionPlane.gitAvailable,
     dockerProfiles,
   };
 }

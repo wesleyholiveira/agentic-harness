@@ -22,6 +22,10 @@ test("standalone qualification is a deterministic external controller, not the M
   assert.match(controller, /ProcessRunner/);
   assert.match(controller, /prompt_async/);
   assert.match(controller, /waitForRunId/);
+  assert.match(controller, /requireAgentStartCurrentTurnProvenance/);
+  assert.match(controller, /historySource !== "chat-message-hook"/);
+  assert.match(controller, /orchestrator\.agent_start_provenance_accepted/);
+  assert.match(controller, /SELECT payload_json FROM agent_events/);
   assert.doesNotMatch(controller, /context-engine_agent_start/);
   assert.doesNotMatch(controller, /requestJson\([^\n]*\/mcp/);
 
@@ -277,20 +281,28 @@ test("R-7 classifies attempted agent_start schema rejection separately from miss
 });
 
 
-test("R-7 provenance proof is server-enforced and does not depend on optional Context Engine logs", () => {
+test("R-7 provenance proof is server-enforced and persisted instead of depending on optional Context Engine logs", () => {
   const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
   const runtimeTool = readFileSync(resolve(root, "apps/context-engine/src/tools/agent-runtime.ts"), "utf8");
+  const store = readFileSync(resolve(root, ".agents/runtime/store.mjs"), "utf8");
+  const requestContext = readFileSync(resolve(root, "apps/context-engine/src/request-context.ts"), "utf8");
 
   assert.doesNotMatch(controller, /r7_provenance_registration_not_proven/);
   assert.match(controller, /context-engine-agent-start-fail-closed/);
-  assert.match(controller, /opencode-plugin-sidechannel/);
+  assert.match(controller, /orchestrator\.agent_start_provenance_accepted/);
+  assert.match(controller, /SELECT payload_json FROM agent_events/);
+  assert.match(controller, /historySource !== "chat-message-hook"/);
 
   assert.match(runtimeTool, /function assertRuntimeIngressProvenance/);
   assert.match(runtimeTool, /invocationProvenanceSource !== "opencode-plugin-sidechannel"/);
   assert.match(runtimeTool, /invocationSessionId/);
   assert.match(runtimeTool, /invocationUserMessageId/);
+  assert.match(runtimeTool, /invocationHistorySource/);
   assert.match(runtimeTool, /agent_control_invocation_provenance_required/);
   assert.match(runtimeTool, /assertRuntimeIngressProvenance\("agent_start"\)/);
+  assert.match(requestContext, /invocationHistorySource: string \| null/);
+  assert.match(store, /orchestrator\.agent_start_provenance_accepted/);
+  assert.match(store, /authoritative: true/);
 });
 
 

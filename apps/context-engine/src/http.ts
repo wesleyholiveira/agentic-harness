@@ -452,6 +452,8 @@ export function createContextEngineHttpServer() {
         invocationCallId: invocationProvenance?.callId ?? null,
         invocationUserMessageId: invocationProvenance?.userMessageId ?? null,
         invocationProvenanceSource: invocationProvenance ? "opencode-plugin-sidechannel" as const : "missing" as const,
+        invocationHistorySource: invocationProvenance?.historySource ?? null,
+        invocationHistoryErrorCode: invocationProvenance?.historyErrorCode ?? null,
       };
       const requestStartedAt = Date.now();
       contextEngineLog("info", "mcp.request_started", {

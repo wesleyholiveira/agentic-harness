@@ -57,3 +57,8 @@ The qualification contract suite must prove that a continuation accepted at ten 
 ## Terminal continuation finite-resume contract
 
 Contracts must require the standalone continuation prompt and Main Orchestrator policy to converge on: `agent_summary` exactly once → answer the original user → terminate. The prompt must not contain the legacy `outer-controller procedure` / required qualification verdict language and must forbid `agent_start`, `agent_wait`, `agent_status`, or `agent_progress` as rediscovery/re-entry for the same completed request. R-8 diagnostics must expose active/latest tool name+status while omitting tool input/output.
+
+## R-7 active-turn provenance and execution-plane readiness contracts
+
+- During the real R-7 OpenCode workload, prove the accepted `agent_start` side-channel provenance is persisted in PostgreSQL as `orchestrator.agent_start_provenance_accepted`, carries the same session/user identity with `provenanceSource=opencode-plugin-sidechannel` and `historySource=chat-message-hook`, and has no history error. Optional Context Engine logs are diagnostic only; they are not promotion authority. HTTP/SDK history remain recovery only and lack of a proven user turn remains fail-closed.
+- After the Rust worker is healthy, prove its PostgreSQL heartbeat publishes Git/OpenCode/auth/model capability metadata and that `agent_doctor` reports those worker capabilities rather than Context Engine-local binaries. Container continuation readiness must probe the delivery endpoint namespace; host-only loopback overrides must never be injected into the Context Engine container.

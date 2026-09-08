@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import type { ContextProvider } from "./runtime-services.js";
 
 type ControlPlane = {
-  start(input: Record<string, unknown>): Promise<unknown>;
+  start(input: Record<string, unknown>, invocation?: Record<string, unknown>): Promise<unknown>;
   status(runId?: string | null): Promise<unknown>;
   getDag(runId: string): Promise<unknown>;
   wait(runId: string, options?: Record<string, unknown>): Promise<unknown>;
@@ -55,7 +55,7 @@ export class AgentRuntimeControlAdapter {
     return await this.controlPromise;
   }
 
-  async start(input: Record<string, unknown>): Promise<unknown> { return await (await this.control()).start(input); }
+  async start(input: Record<string, unknown>, invocation?: Record<string, unknown>): Promise<unknown> { return await (await this.control()).start(input, invocation); }
   async status(runId?: string | null): Promise<unknown> { return await (await this.control()).status(runId); }
   async getDag(runId: string): Promise<unknown> { return await (await this.control()).getDag(runId); }
   async wait(runId: string, options?: Record<string, unknown>): Promise<unknown> { return await (await this.control()).wait(runId, options); }

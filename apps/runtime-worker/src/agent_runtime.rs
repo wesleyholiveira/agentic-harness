@@ -36,7 +36,7 @@ use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     process::Command,
     sync::Mutex,
-    time::{Instant, interval, sleep},
+    time::{Instant, interval, sleep, timeout},
 };
 use tokio_postgres::{Client, NoTls};
 use tracing::{debug, error, info, warn};
@@ -362,6 +362,141 @@ async fn publish_runtime_envelope(
     publish_raw_confirmed(channel, EXCHANGE, routing_key(kind)?, body, properties).await
 }
 
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkerCapabilities {
+    git_available: bool,
+    git_version: Option<String>,
+    opencode_available: bool,
+    opencode_version: Option<String>,
+    auth_available: bool,
+    auth_openai_available: bool,
+    auth_path: String,
+    model_catalog_available: bool,
+    openai_models: Vec<String>,
+    probe_errors: Vec<String>,
+}
+
+async fn bounded_command_output(
+    command: &str,
+    args: &[&str],
+    timeout_duration: Duration,
+) -> Result<String> {
+    let mut child = Command::new(command);
+    child.args(args);
+    let output = timeout(timeout_duration, child.output())
+        .await
+        .with_context(|| format!("worker_capability_probe_timeout:{command}"))??;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        bail!(
+            "worker_capability_probe_failed:{command}:{}",
+            if stderr.is_empty() { stdout } else { stderr }
+        );
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+fn opencode_auth_path() -> PathBuf {
+    if let Ok(data_home) = std::env::var("XDG_DATA_HOME") {
+        if !data_home.trim().is_empty() {
+            return PathBuf::from(data_home).join("opencode").join("auth.json");
+        }
+    }
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
+    PathBuf::from(home)
+        .join(".local")
+        .join("share")
+        .join("opencode")
+        .join("auth.json")
+}
+
+fn probe_opencode_auth(path: &Path) -> (bool, bool, Option<String>) {
+    let bytes = match fs::read(path) {
+        Ok(bytes) if !bytes.is_empty() => bytes,
+        Ok(_) => return (false, false, Some("auth_file_empty".to_string())),
+        Err(error) => {
+            return (
+                false,
+                false,
+                Some(format!("auth_file_unavailable:{:?}", error.kind())),
+            );
+        }
+    };
+    match serde_json::from_slice::<serde_json::Value>(&bytes) {
+        Ok(value) => {
+            let openai = value
+                .as_object()
+                .is_some_and(|providers| providers.contains_key("openai"));
+            (true, openai, None)
+        }
+        Err(_) => (false, false, Some("auth_file_invalid_json".to_string())),
+    }
+}
+
+async fn probe_worker_capabilities() -> WorkerCapabilities {
+    let mut probe_errors = Vec::new();
+    let git_version =
+        match bounded_command_output("git", &["--version"], Duration::from_secs(10)).await {
+            Ok(value) => Some(value),
+            Err(error) => {
+                probe_errors.push(error.to_string());
+                None
+            }
+        };
+    let opencode_version =
+        match bounded_command_output("opencode", &["--version"], Duration::from_secs(15)).await {
+            Ok(value) => Some(value),
+            Err(error) => {
+                probe_errors.push(error.to_string());
+                None
+            }
+        };
+    let auth_path = opencode_auth_path();
+    let (auth_available, auth_openai_available, auth_error) = probe_opencode_auth(&auth_path);
+    if let Some(error) = auth_error {
+        probe_errors.push(error);
+    }
+    let (model_catalog_available, openai_models) = if opencode_version.is_some() {
+        match bounded_command_output(
+            "opencode",
+            &["--pure", "models", "openai"],
+            Duration::from_secs(30),
+        )
+        .await
+        {
+            Ok(output) => (
+                true,
+                output
+                    .lines()
+                    .map(str::trim)
+                    .filter(|line| line.starts_with("openai/"))
+                    .map(ToString::to_string)
+                    .collect(),
+            ),
+            Err(error) => {
+                probe_errors.push(error.to_string());
+                (false, Vec::new())
+            }
+        }
+    } else {
+        (false, Vec::new())
+    };
+    WorkerCapabilities {
+        git_available: git_version.is_some(),
+        git_version,
+        opencode_available: opencode_version.is_some(),
+        opencode_version,
+        auth_available,
+        auth_openai_available,
+        auth_path: auth_path.to_string_lossy().into_owned(),
+        model_catalog_available,
+        openai_models,
+        probe_errors,
+    }
+}
+
 async fn heartbeat_worker(config: Config, concurrency: u16) -> Result<()> {
     let client = connect_database(&config).await?;
     let hostname = std::env::var("COMPUTERNAME")
@@ -369,7 +504,26 @@ async fn heartbeat_worker(config: Config, concurrency: u16) -> Result<()> {
         .unwrap_or_else(|_| "unknown".into());
     let pid = std::process::id() as i32;
     let started_at = now();
-    info!(event="agent_runtime.worker_heartbeat_started", worker_id=%config.worker_id, hostname=%hostname, pid, concurrency);
+    let capabilities = probe_worker_capabilities().await;
+    let metadata_json = serde_json::json!({
+        "transport":"rabbitmq",
+        "executionPlane":"rust",
+        "exchange":EXCHANGE,
+        "testCleanupFault":config.agent_runtime_test_cleanup_fault.clone(),
+        "testCleanupFaultTaskMatch":config.agent_runtime_test_cleanup_fault_task_match.clone(),
+        "capabilities": &capabilities,
+    }).to_string();
+    info!(
+        event="agent_runtime.worker_heartbeat_started",
+        worker_id=%config.worker_id,
+        hostname=%hostname,
+        pid,
+        concurrency,
+        git_available=capabilities.git_available,
+        opencode_available=capabilities.opencode_available,
+        auth_openai_available=capabilities.auth_openai_available,
+        openai_model_count=capabilities.openai_models.len(),
+    );
     let mut ticker = interval(Duration::from_secs(10));
     loop {
         ticker.tick().await;
@@ -378,13 +532,7 @@ async fn heartbeat_worker(config: Config, concurrency: u16) -> Result<()> {
             "INSERT INTO agent_runtime_workers(worker_id,worker_kind,hostname,pid,concurrency,started_at,heartbeat_at,metadata_json,stopped_at) \
              VALUES($1,'rust-executor',$2,$3,$4,$5,$6,$7,NULL) \
              ON CONFLICT(worker_id) DO UPDATE SET worker_kind='rust-executor',hostname=EXCLUDED.hostname,pid=EXCLUDED.pid,concurrency=EXCLUDED.concurrency,heartbeat_at=EXCLUDED.heartbeat_at,metadata_json=EXCLUDED.metadata_json,stopped_at=NULL",
-            &[&config.worker_id, &hostname, &pid, &(concurrency as i32), &started_at, &heartbeat_at, &serde_json::json!({
-                "transport":"rabbitmq",
-                "executionPlane":"rust",
-                "exchange":EXCHANGE,
-                "testCleanupFault":config.agent_runtime_test_cleanup_fault.clone(),
-                "testCleanupFaultTaskMatch":config.agent_runtime_test_cleanup_fault_task_match.clone()
-            }).to_string()],
+            &[&config.worker_id, &hostname, &pid, &(concurrency as i32), &started_at, &heartbeat_at, &metadata_json],
         ).await?;
         debug!(event="agent_runtime.worker_heartbeat", worker_id=%config.worker_id, heartbeat_at=%heartbeat_at);
     }
