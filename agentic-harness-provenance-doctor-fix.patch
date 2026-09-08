@@ -1,0 +1,1543 @@
+From a38a87cacbab519102ddbdb8da6f15fb611b3b01 Mon Sep 17 00:00:00 2001
+From: OpenAI Candidate Builder <candidate@example.invalid>
+Date: Tue, 8 Sep 2026 04:26:40 +0000
+Subject: [PATCH] Fix current-turn provenance and execution-plane readiness
+
+---
+ .agents/runtime/control-plane.mjs             |  16 +-
+ .agents/runtime/doctor.mjs                    |  76 ++++----
+ .agents/runtime/session-host-readiness.mjs    |  41 ++++-
+ .agents/runtime/store.mjs                     |  19 ++
+ .agents/runtime/worker-capabilities.mjs       |  38 ++++
+ .../plugins/runtime-invocation-provenance.js  | 141 +++++++++++++--
+ MANIFEST.json                                 |  90 ++++++----
+ .../src/agent-runtime-control.ts              |   4 +-
+ apps/context-engine/src/http.ts               |   2 +
+ apps/context-engine/src/request-context.ts    |   2 +
+ .../context-engine/src/tools/agent-runtime.ts |  11 +-
+ apps/runtime-worker/src/agent_runtime.rs      | 166 +++++++++++++++++-
+ compose.yaml                                  |   1 -
+ ...-main-current-turn-provenance-authority.md |  20 +++
+ .../0032-execution-plane-doctor-authority.md  |  19 ++
+ docs/qualification/STANDALONE-PROMOTION.md    |   2 +-
+ docs/specs/standalone-harness/TEST-PLAN.md    |   5 +
+ scripts/qualification/standalone-v1.mjs       |  34 ++++
+ tests/contracts/config.test.mjs               | 137 +++++++++++++++
+ .../contracts/doctor-execution-plane.test.mjs |  83 +++++++++
+ .../qualification-controller.test.mjs         |  16 +-
+ 21 files changed, 816 insertions(+), 107 deletions(-)
+ create mode 100644 .agents/runtime/worker-capabilities.mjs
+ create mode 100644 docs/adr/0031-main-current-turn-provenance-authority.md
+ create mode 100644 docs/adr/0032-execution-plane-doctor-authority.md
+ create mode 100644 tests/contracts/doctor-execution-plane.test.mjs
+
+diff --git a/.agents/runtime/control-plane.mjs b/.agents/runtime/control-plane.mjs
+index 11f0194..7806b7a 100644
+--- a/.agents/runtime/control-plane.mjs
++++ b/.agents/runtime/control-plane.mjs
+@@ -287,7 +287,7 @@ export class AgentRuntimeControlPlane {
+     return assertAgentStartWorkerReadiness(worker, { required, maxAgeMs });
+   }
+ 
+-  async start({ request, agents = [], maxParallel, maxAttempts, contextBudgetBytes, integrate, continuation = null } = {}) {
++  async start({ request, agents = [], maxParallel, maxAttempts, contextBudgetBytes, integrate, continuation = null } = {}, invocation = {}) {
+     if (!request?.trim()) throw new Error("agent_request_required");
+     // R15.6.2: the outer qualification controller is not a Runtime workload.
+     // Reject stale/operator prompts that try to model SOURCE/H-8/H-9/report as
+@@ -313,6 +313,19 @@ export class AgentRuntimeControlPlane {
+           if (active) {
+             let phase = null;
+             try { phase = JSON.parse(active.plan_json ?? "{}").phase ?? null; } catch {}
++            if (invocation?.provenanceSource === "opencode-plugin-sidechannel") {
++              await store.event(active.run_id, null, "orchestrator.agent_start_provenance_accepted", {
++                origin: invocation?.origin ?? "unknown",
++                sessionId: invocation?.sessionId ?? null,
++                callId: invocation?.callId ?? null,
++                userMessageId: invocation?.userMessageId ?? null,
++                provenanceSource: invocation?.provenanceSource ?? "missing",
++                historySource: invocation?.historySource ?? null,
++                historyErrorCode: invocation?.historyErrorCode ?? null,
++                authoritative: true,
++                deduplicated: true,
++              });
++            }
+             return {
+               deduplicated: true,
+               runId: active.run_id,
+@@ -344,6 +357,7 @@ export class AgentRuntimeControlPlane {
+             integrate: options.integrate,
+             executorCommand: options.executorCommand,
+             continuation: continuationBinding,
++            invocationProvenance: invocation,
+           },
+         });
+         return { deduplicated: false, executionPlanePreflight, ...value };
+diff --git a/.agents/runtime/doctor.mjs b/.agents/runtime/doctor.mjs
+index cd8abb3..c57398d 100644
+--- a/.agents/runtime/doctor.mjs
++++ b/.agents/runtime/doctor.mjs
+@@ -2,8 +2,8 @@ import { readFile } from "node:fs/promises";
+ import { join } from "node:path";
+ import { loadAgentCatalog } from "./agent-catalog.mjs";
+ import { loadSchemas } from "./schema-validator.mjs";
+-import { runProcess } from "./process.mjs";
+-import { EXPECTED_OPENCODE_MODELS, probeOpenCodeReadiness } from "./opencode-readiness.mjs";
++import { EXPECTED_OPENCODE_MODELS, EXPECTED_OPENCODE_PROVIDER } from "./opencode-readiness.mjs";
++import { workerExecutionCapabilities } from "./worker-capabilities.mjs";
+ import { OrchestrationStore } from "./store.mjs";
+ import { exists, readJson } from "./utils.mjs";
+ 
+@@ -187,18 +187,15 @@ export async function validateDockerProfiles({ repositoryRoot, registry }) {
+   };
+ }
+ 
++
++
+ export async function buildDoctorReport({ repositoryRoot, harnessRoot = repositoryRoot, databaseUrl, databaseSchema = "public" }) {
+-  const [registry, schemas, git, opencodeProbe, continuationServer] = await Promise.all([
++  const [registry, schemas, continuationServer] = await Promise.all([
+     loadAgentCatalog(harnessRoot),
+     loadSchemas(harnessRoot),
+-    runProcess("git", ["--version"]),
+-    probeOpenCodeReadiness(),
+-    probeSessionHost({ environment: process.env }),
++    probeSessionHost({ environment: process.env, networkScope: "container" }),
+   ]);
+   const expectedModels = EXPECTED_OPENCODE_MODELS;
+-  const opencode = opencodeProbe.version;
+-  const modelCatalog = opencodeProbe.modelCatalog;
+-  const authCatalog = opencodeProbe.authCatalog;
+   let databaseAvailable = false;
+   let databaseError = null;
+   let databaseErrorCode = null;
+@@ -224,6 +221,28 @@ export async function buildDoctorReport({ repositoryRoot, harnessRoot = reposito
+     }
+   }
+ 
++  const executionPlane = workerExecutionCapabilities(agentRuntimeWorker, expectedModels);
++  const authCatalog = {
++    available: executionPlane.authAvailable,
++    source: executionPlane.source,
++    authPath: executionPlane.authPath,
++    expectedProviders: [EXPECTED_OPENCODE_PROVIDER],
++    missingProviders: executionPlane.authOpenaiAvailable ? [] : [EXPECTED_OPENCODE_PROVIDER],
++    error: executionPlane.available
++      ? (executionPlane.authAvailable ? null : "worker_auth_unavailable")
++      : "worker_capabilities_unavailable",
++  };
++  const modelCatalog = {
++    available: executionPlane.modelCatalogAvailable,
++    provider: EXPECTED_OPENCODE_PROVIDER,
++    expectedModels,
++    availableModels: executionPlane.openaiModels,
++    missingModels: executionPlane.missingModels,
++    error: executionPlane.available
++      ? (executionPlane.modelCatalogAvailable ? null : "worker_model_catalog_unavailable")
++      : "worker_capabilities_unavailable",
++  };
++
+   const dockerProfiles = await validateDockerProfiles({ repositoryRoot: harnessRoot, registry });
+   const retiredMcpTombstone = "scripts/agent-mcp-server.mjs";
+   const forbiddenLegacyArtifacts = [
+@@ -245,9 +264,10 @@ export async function buildDoctorReport({ repositoryRoot, harnessRoot = reposito
+     if (await exists(join(repositoryRoot, relativePath))) legacyArtifactsPresent.push(relativePath);
+   }
+ 
+-  const executorConfigured = Boolean(process.env.AGENT_HARNESS_AGENT_EXECUTOR_COMMAND) || opencode.status === 0;
++  const executorConfigured = Boolean(process.env.AGENT_HARNESS_AGENT_EXECUTOR_COMMAND) || executionPlane.opencodeAvailable;
+   const failures = [];
+-  if (git.status !== 0) failures.push("git_unavailable");
++  if (!executionPlane.available) failures.push("execution_plane_capabilities_unavailable");
++  else if (!executionPlane.gitAvailable) failures.push("git_unavailable");
+   if (!databaseUrl) failures.push("database_not_configured");
+   else if (!databaseAvailable) failures.push(`database_unavailable:${databaseError ?? "unknown"}`);
+   if (!executorConfigured) failures.push("executor_unavailable");
+@@ -260,8 +280,7 @@ export async function buildDoctorReport({ repositoryRoot, harnessRoot = reposito
+   if (continuationServer.required && !continuationServer.configured) failures.push("agent_continuation_server_not_configured");
+   else if (continuationServer.required && !continuationServer.healthy) failures.push(`agent_continuation_server_unavailable:${continuationServer.error ?? "unknown"}`);
+   if (!process.env.AGENT_HARNESS_AGENT_EXECUTOR_COMMAND) {
+-    if (opencode.timedOut) failures.push("opencode_probe_timeout:version");
+-    else if (opencode.status !== 0) failures.push("opencode_unavailable");
++    if (!executionPlane.opencodeAvailable) failures.push("opencode_unavailable");
+     else if (!authCatalog?.available) failures.push(`opencode_auth_catalog_unavailable:${authCatalog?.error ?? "unknown"}`);
+     else if ((authCatalog.missingProviders ?? []).length > 0) failures.push(`opencode_auth_missing:${authCatalog.missingProviders.join(",")}`);
+     else if (!modelCatalog?.available) failures.push(`opencode_model_catalog_unavailable:${modelCatalog?.error ?? "unknown"}`);
+@@ -310,24 +329,19 @@ export async function buildDoctorReport({ repositoryRoot, harnessRoot = reposito
+     databaseEndpoint,
+     legacyArtifactsPresent,
+     executorConfigured,
+-    executorMode: process.env.AGENT_HARNESS_AGENT_EXECUTOR_COMMAND ? "custom" : (opencode.status === 0 ? "builtin-opencode" : "unavailable"),
+-    opencodeAvailable: opencode.status === 0,
+-    opencodeVersion: opencode.status === 0 ? String(opencode.stdout ?? opencode.stderr ?? "").trim() : null,
++    executorMode: process.env.AGENT_HARNESS_AGENT_EXECUTOR_COMMAND ? "custom" : (executionPlane.opencodeAvailable ? "builtin-opencode" : "unavailable"),
++    executionPlaneProbeSource: executionPlane.source,
++    executionPlaneCapabilitiesAvailable: executionPlane.available,
++    executionPlaneProbeErrors: executionPlane.probeErrors,
++    opencodeAvailable: executionPlane.opencodeAvailable,
++    opencodeVersion: executionPlane.opencodeVersion,
+     opencodeProbe: {
+-      mode: opencodeProbe.mode,
+-      timeoutMs: opencodeProbe.timeoutMs,
+-      cwd: opencodeProbe.cwd,
+-      configIsolated: opencodeProbe.configIsolated,
+-      pure: opencodeProbe.pure,
+-      externalPluginsDisabled: opencodeProbe.externalPluginsDisabled,
+-      defaultPluginsEnabled: opencodeProbe.defaultPluginsEnabled,
+-      modelsFetchDisabled: opencodeProbe.modelsFetchDisabled,
+-      sharedDatabaseAvoided: opencodeProbe.sharedDatabaseAvoided,
+-      authSource: opencodeProbe.authSource,
+-      authCopiedToProbeState: opencodeProbe.authCopiedToProbeState,
+-      versionDurationMs: opencode.durationMs,
+-      authDurationMs: authCatalog?.durationMs ?? null,
+-      modelCatalogDurationMs: modelCatalog?.durationMs ?? null,
++      mode: "worker-heartbeat-capabilities",
++      source: executionPlane.source,
++      workerId: agentRuntimeWorker?.worker_id ?? null,
++      gitVersion: executionPlane.gitVersion,
++      authPath: executionPlane.authPath,
++      openaiModelCount: executionPlane.openaiModels.length,
+     },
+     opencodeAuth: authCatalog,
+     modelCatalog,
+@@ -348,7 +362,7 @@ export async function buildDoctorReport({ repositoryRoot, harnessRoot = reposito
+     continuationTransportGuarantee: "rabbitmq-at-least-once-effectively-once-target-effect",
+     reasoningConfigured: Boolean(process.env.AGENT_HARNESS_AGENT_REASONING_COMMAND),
+     reasoningMode: process.env.AGENT_HARNESS_AGENT_REASONING_MODE ?? "adaptive",
+-    gitAvailable: git.status === 0,
++    gitAvailable: executionPlane.gitAvailable,
+     dockerProfiles,
+   };
+ }
+diff --git a/.agents/runtime/session-host-readiness.mjs b/.agents/runtime/session-host-readiness.mjs
+index e40bf05..914dee6 100644
+--- a/.agents/runtime/session-host-readiness.mjs
++++ b/.agents/runtime/session-host-readiness.mjs
+@@ -45,11 +45,34 @@ function sessionHostAuthHeaders(environment = process.env) {
+   };
+ }
+ 
+-export function resolveSessionHostProbeTarget(environment = process.env) {
++export function resolveSessionHostProbeTarget(environment = process.env, { networkScope = "host" } = {}) {
+   const deliveryUrl = normalizeUrl(environment.AGENT_HARNESS_OPENCODE_CONTINUATION_URL);
+   const explicitProbeUrl = normalizeUrl(environment.AGENT_HARNESS_OPENCODE_CONTINUATION_HOST_PROBE_URL);
+-  if (!deliveryUrl && !explicitProbeUrl) return { deliveryUrl: null, probeUrl: null, translated: false };
+-  if (explicitProbeUrl) return { deliveryUrl, probeUrl: explicitProbeUrl, translated: explicitProbeUrl !== deliveryUrl };
++  if (!deliveryUrl && !explicitProbeUrl) {
++    return { deliveryUrl: null, probeUrl: null, translated: false, networkScope };
++  }
++
++  // Processes running inside the Runtime Compose network must probe the same
++  // endpoint used for continuation delivery. A host-only 127.0.0.1 probe URL
++  // would otherwise point back to the current container and create a false
++  // negative even when host.docker.internal is healthy.
++  if (networkScope === "container") {
++    return {
++      deliveryUrl,
++      probeUrl: deliveryUrl,
++      translated: false,
++      networkScope,
++    };
++  }
++
++  if (explicitProbeUrl) {
++    return {
++      deliveryUrl,
++      probeUrl: explicitProbeUrl,
++      translated: explicitProbeUrl !== deliveryUrl,
++      networkScope,
++    };
++  }
+ 
+   const parsed = new URL(deliveryUrl);
+   const dockerOnlyHostnames = new Set(["host.docker.internal", "gateway.docker.internal"]);
+@@ -59,18 +82,19 @@ export function resolveSessionHostProbeTarget(environment = process.env) {
+       deliveryUrl,
+       probeUrl: parsed.toString().replace(/\/$/, ""),
+       translated: true,
++      networkScope,
+     };
+   }
+-  return { deliveryUrl, probeUrl: deliveryUrl, translated: false };
++  return { deliveryUrl, probeUrl: deliveryUrl, translated: false, networkScope };
+ }
+ 
+-export async function probeSessionHost({ environment = process.env, fetchImpl = fetch, timeoutMs = 3_000 } = {}) {
++export async function probeSessionHost({ environment = process.env, fetchImpl = fetch, timeoutMs = 3_000, networkScope = "host" } = {}) {
+   const required = !["0", "false", "no", "off"].includes(
+     String(environment.AGENT_HARNESS_AGENT_CONTINUATION_REQUIRED ?? "false").toLowerCase(),
+   );
+   let target;
+   try {
+-    target = resolveSessionHostProbeTarget(environment);
++    target = resolveSessionHostProbeTarget(environment, { networkScope });
+   } catch (error) {
+     return {
+       configured: true,
+@@ -81,6 +105,7 @@ export async function probeSessionHost({ environment = process.env, fetchImpl =
+       probeEndpoint: null,
+       endpoint: null,
+       translated: false,
++      networkScope,
+     };
+   }
+   if (!target.deliveryUrl) {
+@@ -93,6 +118,7 @@ export async function probeSessionHost({ environment = process.env, fetchImpl =
+       probeEndpoint: target.probeUrl ?? null,
+       endpoint: target.probeUrl ?? null,
+       translated: target.translated,
++      networkScope,
+     };
+   }
+   const probe = new URL(target.probeUrl ?? target.deliveryUrl);
+@@ -110,6 +136,7 @@ export async function probeSessionHost({ environment = process.env, fetchImpl =
+       probeEndpoint: target.probeUrl,
+       endpoint: target.probeUrl,
+       translated: target.translated,
++      networkScope,
+       authSource: null,
+       error: error instanceof Error ? error.message : String(error),
+     };
+@@ -129,6 +156,7 @@ export async function probeSessionHost({ environment = process.env, fetchImpl =
+       probeEndpoint: target.probeUrl,
+       endpoint: target.probeUrl,
+       translated: target.translated,
++      networkScope,
+       authSource: auth.authSource,
+       version: body && typeof body === "object" ? body.version ?? null : null,
+       error: response.ok ? null : `http_${response.status}`,
+@@ -143,6 +171,7 @@ export async function probeSessionHost({ environment = process.env, fetchImpl =
+       probeEndpoint: target.probeUrl,
+       endpoint: target.probeUrl,
+       translated: target.translated,
++      networkScope,
+       authSource: auth.authSource,
+       error: error instanceof Error ? error.message : String(error),
+     };
+diff --git a/.agents/runtime/store.mjs b/.agents/runtime/store.mjs
+index ff56ead..4a1285d 100644
+--- a/.agents/runtime/store.mjs
++++ b/.agents/runtime/store.mjs
+@@ -666,6 +666,25 @@ class PostgresOrchestrationStore {
+           nowIso(),
+         ]);
+       }
++      if (options.invocationProvenance?.provenanceSource === "opencode-plugin-sidechannel") {
++        await client.query(`INSERT INTO agent_events(event_id,run_id,task_id,event_type,payload_json,created_at)
++          VALUES($1,$2,NULL,'orchestrator.agent_start_provenance_accepted',$3,$4)`, [
++          newId("event"),
++          plan.runId,
++          JSON.stringify({
++            origin: options.invocationProvenance?.origin ?? "unknown",
++            sessionId: options.invocationProvenance?.sessionId ?? null,
++            callId: options.invocationProvenance?.callId ?? null,
++            userMessageId: options.invocationProvenance?.userMessageId ?? null,
++            provenanceSource: options.invocationProvenance?.provenanceSource ?? "missing",
++            historySource: options.invocationProvenance?.historySource ?? null,
++            historyErrorCode: options.invocationProvenance?.historyErrorCode ?? null,
++            authoritative: true,
++            deduplicated: false,
++          }),
++          nowIso(),
++        ]);
++      }
+       await client.query(`INSERT INTO agent_events(event_id, run_id, task_id, event_type, payload_json, created_at)
+         VALUES($1, $2, NULL, 'run.routed', $3, $4)`, [
+         newId("event"),
+diff --git a/.agents/runtime/worker-capabilities.mjs b/.agents/runtime/worker-capabilities.mjs
+new file mode 100644
+index 0000000..5b141c1
+--- /dev/null
++++ b/.agents/runtime/worker-capabilities.mjs
+@@ -0,0 +1,38 @@
++export function parseWorkerMetadata(worker) {
++  const raw = worker?.metadata_json;
++  if (!raw) return null;
++  if (typeof raw === "object") return raw;
++  try {
++    const parsed = JSON.parse(String(raw));
++    return parsed && typeof parsed === "object" ? parsed : null;
++  } catch {
++    return null;
++  }
++}
++
++export function workerExecutionCapabilities(worker, expectedModels = []) {
++  const metadata = parseWorkerMetadata(worker);
++  const capabilities = metadata?.capabilities && typeof metadata.capabilities === "object"
++    ? metadata.capabilities
++    : null;
++  const models = Array.isArray(capabilities?.openaiModels)
++    ? capabilities.openaiModels.map(String)
++    : [];
++  const missingModels = expectedModels.filter((model) => !models.includes(model));
++  const available = Boolean(capabilities);
++  return {
++    source: "rust-worker-heartbeat-metadata",
++    available,
++    gitAvailable: capabilities?.gitAvailable === true,
++    gitVersion: capabilities?.gitVersion ?? null,
++    opencodeAvailable: capabilities?.opencodeAvailable === true,
++    opencodeVersion: capabilities?.opencodeVersion ?? null,
++    authAvailable: capabilities?.authAvailable === true,
++    authOpenaiAvailable: capabilities?.authOpenaiAvailable === true,
++    authPath: capabilities?.authPath ?? null,
++    modelCatalogAvailable: capabilities?.modelCatalogAvailable === true,
++    openaiModels: models,
++    missingModels,
++    probeErrors: Array.isArray(capabilities?.probeErrors) ? capabilities.probeErrors.map(String) : [],
++  };
++}
+diff --git a/.opencode/plugins/runtime-invocation-provenance.js b/.opencode/plugins/runtime-invocation-provenance.js
+index 1058454..4cf5f97 100644
+--- a/.opencode/plugins/runtime-invocation-provenance.js
++++ b/.opencode/plugins/runtime-invocation-provenance.js
+@@ -185,6 +185,50 @@ function normalizeMessagesPayload(payload) {
+   return [];
+ }
+ 
++function normalizeHookUserMessage(input, output) {
++  const raw = output?.message?.info ?? output?.message ?? {};
++  const id = boundedText(input?.messageID ?? raw?.id ?? raw?.messageID, 256) || null;
++  const role = String(raw?.role ?? "user").trim() || "user";
++  if (role !== "user" || !id) return null;
++  return {
++    info: {
++      ...raw,
++      id,
++      role: "user",
++    },
++    parts: Array.isArray(output?.parts)
++      ? output.parts
++      : Array.isArray(output?.message?.parts)
++        ? output.message.parts
++        : [],
++  };
++}
++
++function safeErrorToken(value, max = 96) {
++  const raw = String(value ?? "").trim();
++  if (!raw) return "";
++  return raw.replace(/[^A-Za-z0-9_.:-]/g, "_").slice(0, max);
++}
++
++async function httpHistoryErrorCode(response) {
++  const tokens = [`opencode_session_messages_http:${response.status}`];
++  try {
++    const payload = await response.clone().json();
++    const error = payload?.error;
++    const candidates = [
++      typeof error === "string" ? error : error?.code,
++      typeof error === "object" ? error?.name : null,
++      payload?.code,
++      payload?.name,
++    ];
++    for (const candidate of candidates) {
++      const token = safeErrorToken(candidate);
++      if (token && !tokens.includes(token)) tokens.push(token);
++    }
++  } catch {}
++  return tokens.join(":").slice(0, 256);
++}
++
+ async function directHttpLatestUserMessage({ serverUrl, directory, sessionID, fetchImpl = globalThis.fetch }) {
+   let before = null;
+   for (let pageIndex = 0; pageIndex < 4; pageIndex += 1) {
+@@ -192,7 +236,7 @@ async function directHttpLatestUserMessage({ serverUrl, directory, sessionID, fe
+     endpoint.searchParams.set("limit", "100");
+     if (before) endpoint.searchParams.set("before", before);
+     const response = await hostFetch(endpoint, { method: "GET" }, fetchImpl);
+-    if (!response.ok) throw new Error(`opencode_session_messages_http:${response.status}`);
++    if (!response.ok) throw new Error(await httpHistoryErrorCode(response));
+     const payload = await response.json();
+     const messages = normalizeMessagesPayload(payload);
+     const current = newestUserMessage(messages);
+@@ -203,28 +247,48 @@ async function directHttpLatestUserMessage({ serverUrl, directory, sessionID, fe
+   return { message: null, source: "direct-http", errorCode: "opencode_session_messages_no_user_in_bounded_window" };
+ }
+ 
+-async function sdkLatestUserMessage({ client, sessionID }) {
++async function sdkLatestUserMessage({ client, sessionID, directory }) {
+   if (typeof client?.session?.messages !== "function") {
+     throw new Error("opencode_session_messages_sdk_unavailable");
+   }
+-  // @opencode-ai/sdk 1.18.26 is generated from the Hey API schema: the
+-  // session id is a path parameter and limit is a query parameter. The
+-  // plugin-provided client is already scoped to ctx.directory and carries
+-  // ServerAuth headers, so do not reconstruct either here.
+-  const response = await client.session.messages({
+-    path: { id: sessionID },
+-    query: { limit: 100 },
+-  });
+-  const messages = normalizeMessagesPayload(response);
+-  const message = newestUserMessage(messages);
++  const errors = [];
++  const attempts = [
++    {
++      source: "sdk-client-flat",
++      args: { sessionID, directory, limit: 100 },
++    },
++    {
++      source: "sdk-client-generated",
++      args: {
++        path: { id: sessionID },
++        query: { limit: 100, ...(directory ? { directory } : {}) },
++      },
++    },
++  ];
++  for (const attempt of attempts) {
++    try {
++      const response = await client.session.messages(attempt.args);
++      const messages = normalizeMessagesPayload(response);
++      const message = newestUserMessage(messages);
++      if (message) {
++        return { message, source: attempt.source, errorCode: null };
++      }
++      errors.push(`${attempt.source}:no_user`);
++    } catch (error) {
++      errors.push(`${attempt.source}:${safeErrorToken(error instanceof Error ? error.message : String(error), 128) || "error"}`);
++    }
++  }
+   return {
+-    message,
++    message: null,
+     source: "sdk-client",
+-    errorCode: message ? null : "opencode_session_messages_no_user_in_sdk_window",
++    errorCode: `opencode_session_messages_no_user_in_sdk_window:${errors.join("|")}`.slice(0, 384),
+   };
+ }
+ 
+-async function latestUserMessage({ serverUrl, directory, sessionID, client, fetchImpl = globalThis.fetch }) {
++async function latestUserMessage({ serverUrl, directory, sessionID, client, currentTurnMessage = null, allowCurrentTurn = true, fetchImpl = globalThis.fetch }) {
++  if (allowCurrentTurn && currentTurnMessage && messageId(currentTurnMessage)) {
++    return { message: currentTurnMessage, source: "chat-message-hook", errorCode: null };
++  }
+   const errors = [];
+   try {
+     const direct = await directHttpLatestUserMessage({ serverUrl, directory, sessionID, fetchImpl });
+@@ -234,7 +298,7 @@ async function latestUserMessage({ serverUrl, directory, sessionID, client, fetc
+     errors.push(error instanceof Error ? error.message : String(error));
+   }
+   try {
+-    const sdk = await sdkLatestUserMessage({ client, sessionID });
++    const sdk = await sdkLatestUserMessage({ client, sessionID, directory });
+     if (sdk.message) return sdk;
+     errors.push(sdk.errorCode);
+   } catch (error) {
+@@ -363,8 +427,25 @@ export const RuntimeInvocationProvenance = async ({ serverUrl, directory, client
+   writeLivePluginIdentity(directory);
+   const parkedSessions = new Map();
+   const durableContinuationTurns = new Map();
++  const currentUserTurns = new Map();
+ 
+   return {
++    "chat.message": async (input, output) => {
++      const sessionID = String(input?.sessionID ?? "").trim();
++      if (!sessionID) return;
++      const message = normalizeHookUserMessage(input, output);
++      if (message) currentUserTurns.set(sessionID, message);
++    },
++
++    "event": async ({ event }) => {
++      if (event?.type !== "session.deleted") return;
++      const sessionID = String(event?.properties?.info?.id ?? event?.properties?.sessionID ?? "").trim();
++      if (!sessionID) return;
++      currentUserTurns.delete(sessionID);
++      parkedSessions.delete(sessionID);
++      durableContinuationTurns.delete(sessionID);
++    },
++
+     "tool.execute.before": async (input, output) => {
+       const toolName = normalizeToolName(input?.tool);
+       assertPersistentMainOrchestratorRuntimeIngress(toolName);
+@@ -373,8 +454,25 @@ export const RuntimeInvocationProvenance = async ({ serverUrl, directory, client
+ 
+       const parked = parkedSessions.get(sessionID) ?? null;
+       const rememberedContinuationUserMessageId = durableContinuationTurns.get(sessionID) ?? null;
++      const capturedUserMessage = currentUserTurns.get(sessionID) ?? null;
++      // For a parked turn, the cached baseline cannot prove that a later durable
++      // continuation or human turn has arrived. Only trust the hook cache when it
++      // already identifies a different message; otherwise refresh from host/SDK.
++      const capturedDiffersFromParkBaseline = Boolean(
++        capturedUserMessage
++        && parked
++        && messageId(capturedUserMessage) !== parked.baselineUserMessageId,
++      );
++      const allowCurrentTurn = !parked || capturedDiffersFromParkBaseline;
+       const history = parked || rememberedContinuationUserMessageId || PROVENANCE_TOOLS.has(toolName)
+-        ? await latestUserMessage({ serverUrl, directory, sessionID, client })
++        ? await latestUserMessage({
++            serverUrl,
++            directory,
++            sessionID,
++            client,
++            currentTurnMessage: capturedUserMessage,
++            allowCurrentTurn,
++          })
+         : { message: null, source: "not-required", errorCode: null };
+       const currentUserMessage = history.message;
+       const currentUserMessageId = messageId(currentUserMessage);
+@@ -442,7 +540,14 @@ export const RuntimeInvocationProvenance = async ({ serverUrl, directory, client
+       const toolName = normalizeToolName(input?.tool);
+       const sessionID = String(input?.sessionID ?? "").trim();
+       if (toolName !== "agent_start" || !sessionID || !resultRequestsPark(output)) return;
+-      const history = await latestUserMessage({ serverUrl, directory, sessionID, client });
++      const history = await latestUserMessage({
++        serverUrl,
++        directory,
++        sessionID,
++        client,
++        currentTurnMessage: currentUserTurns.get(sessionID) ?? null,
++        allowCurrentTurn: true,
++      });
+       const currentUserMessage = history.message;
+       parkedSessions.set(sessionID, {
+         baselineUserMessageId: messageId(currentUserMessage),
+diff --git a/MANIFEST.json b/MANIFEST.json
+index da1ca57..93cc28d 100644
+--- a/MANIFEST.json
++++ b/MANIFEST.json
+@@ -1,6 +1,6 @@
+ {
+   "schemaVersion": "agentic-harness-distribution-manifest/v1",
+-  "generatedAt": "2026-09-07T23:02:31Z",
++  "generatedAt": "2026-09-08T04:25:56Z",
+   "packageName": "agentic-harness",
+   "packageVersion": "1.0.0",
+   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
+@@ -9,8 +9,8 @@
+     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
+     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
+   },
+-  "fileCount": 515,
+-  "treeSha256": "sha256:00dce775fe676e1bbef5427773d93b2d356d35a7def88515d6851ca22f86530a",
++  "fileCount": 519,
++  "treeSha256": "sha256:44a99be7b9064742dd221045f40378f3ee51f77fcc352eb96bf817de91b5829f",
+   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
+   "exclusions": [
+     "MANIFEST.json (self)",
+@@ -313,9 +313,9 @@
+       "sha256": "sha256:7396b0bcdde17c69bcf8ac35651b79c701e0108de5acf6c858dce619d6381bcb"
+     },
+     {
+-      "bytes": 34271,
++      "bytes": 35072,
+       "path": ".agents/runtime/control-plane.mjs",
+-      "sha256": "sha256:27e7efeebbe8067e0b1667e0f0b7ad9eceba0120388595094a7c5066360b1150"
++      "sha256": "sha256:11ac31f33156d8c1c68ba904a9a7aa293f8c561cdeb2cd0b1e1446cf9e8f0615"
+     },
+     {
+       "bytes": 25222,
+@@ -333,9 +333,9 @@
+       "sha256": "sha256:2e9019dd61415d9765074b00ce9bc1b18711baefcf0d61eecbea8bd5cd8696c2"
+     },
+     {
+-      "bytes": 14428,
++      "bytes": 14975,
+       "path": ".agents/runtime/doctor.mjs",
+-      "sha256": "sha256:1979b66d34b16435ce55a41ea521d6a1b8b53e7a7a0eca313222408c612039f3"
++      "sha256": "sha256:848e8e83648f62aa2902f494e29ddb6113c865ba69e1ce3d61f381e5cd352590"
+     },
+     {
+       "bytes": 5061,
+@@ -633,14 +633,14 @@
+       "sha256": "sha256:7c95b55c99d3bf4d9dbccca2b38c63f31c7be4eb44f31612399cfb68c0ee09a4"
+     },
+     {
+-      "bytes": 5194,
++      "bytes": 5924,
+       "path": ".agents/runtime/session-host-readiness.mjs",
+-      "sha256": "sha256:933ba643f71dc1c7e40ab984df77f9f4d46261df4a2fd17156e8050c36df1598"
++      "sha256": "sha256:f036dbbd15f27c1f1898b02d0aec5384a906b761e378dd5d2caaaf161e6bd238"
+     },
+     {
+-      "bytes": 67688,
++      "bytes": 68722,
+       "path": ".agents/runtime/store.mjs",
+-      "sha256": "sha256:07860cf1f81c10ca9ca224e5405868ef3d9cfba25bb99ea42132e75a50d480f6"
++      "sha256": "sha256:031bee1417087ce38905762c3b699a2d58a555d960cc2408d3f6b5802f9d021c"
+     },
+     {
+       "bytes": 3642,
+@@ -672,6 +672,11 @@
+       "path": ".agents/runtime/validation-evidence.mjs",
+       "sha256": "sha256:3836085937518d1677a98426199172cb75872aaa4b34ffea750b1edffcf105d1"
+     },
++    {
++      "bytes": 1499,
++      "path": ".agents/runtime/worker-capabilities.mjs",
++      "sha256": "sha256:3f6b92746602be1e000b444b2c054975d027b8c0519b5ef1c9cb8233377eb2fd"
++    },
+     {
+       "bytes": 23462,
+       "path": ".agents/runtime/workspace.mjs",
+@@ -928,9 +933,9 @@
+       "sha256": "sha256:f4c652227c84363b1464293cc3c4f25cac7a308028c49a54eac97e66252b9fd0"
+     },
+     {
+-      "bytes": 19790,
++      "bytes": 23265,
+       "path": ".opencode/plugins/runtime-invocation-provenance.js",
+-      "sha256": "sha256:2910062badf82ee36e82d94f2b059de50024347e161e664753b9ea546b9dbe9c"
++      "sha256": "sha256:0ee7e1a1f9c88660715678a36b271407ab338fe59eb23b2d6f0ec4082074a147"
+     },
+     {
+       "bytes": 21828,
+@@ -978,9 +983,9 @@
+       "sha256": "sha256:e93396d406390e7f644c7182698f530bdb3c119fdcef64c55cb478f52bcf8067"
+     },
+     {
+-      "bytes": 4998,
++      "bytes": 5086,
+       "path": "apps/context-engine/src/agent-runtime-control.ts",
+-      "sha256": "sha256:de4b9d09f263aae8f9d42a2dcb9d893f72fec629e5d8b9aee7f3baa7ad71122a"
++      "sha256": "sha256:fada552c15538aa56e5acdbc29d9db1d59b4db31ac805076c6796f13c1645763"
+     },
+     {
+       "bytes": 905,
+@@ -993,9 +998,9 @@
+       "sha256": "sha256:cd8bb0759335e5f09c0e1e7cbe2233491b9b6fceb418bf467b8392dfcafd494d"
+     },
+     {
+-      "bytes": 23748,
++      "bytes": 23910,
+       "path": "apps/context-engine/src/http.ts",
+-      "sha256": "sha256:4c8cfa40cb4cef68be1b4da1168ded5352d2d4891d64e0fbadfae467a0740aa4"
++      "sha256": "sha256:1a5be20772e3006bc0c7c22152545e6e68ba163083a33e3e93bc20c925fa1d14"
+     },
+     {
+       "bytes": 279,
+@@ -1008,9 +1013,9 @@
+       "sha256": "sha256:b716e07e8909f2cf505635fc59432a74a96f426b77bf2894edaf243c8224ea1b"
+     },
+     {
+-      "bytes": 929,
++      "bytes": 1016,
+       "path": "apps/context-engine/src/request-context.ts",
+-      "sha256": "sha256:b928bc8c94c7257272c5d61717e5ea17aefd792f1a69d41a1fbfae2890ceeb0e"
++      "sha256": "sha256:8d052834f33d63b22f08fb3b0a42502739037d81273881d205d9616b0c5f9de0"
+     },
+     {
+       "bytes": 13144,
+@@ -1043,9 +1048,9 @@
+       "sha256": "sha256:23ecb71d559298fdb217a898c28bd6667001c2fa4dc39010282ebbb148ee6292"
+     },
+     {
+-      "bytes": 13607,
++      "bytes": 14171,
+       "path": "apps/context-engine/src/tools/agent-runtime.ts",
+-      "sha256": "sha256:b94bdb1089d3651fe838755db35c9b609b18564c5c4254be6dcc218529a265eb"
++      "sha256": "sha256:82e88123a899564e519c476d9f8107de86fb82f8467e3dc7cb2ed160b7c1cc13"
+     },
+     {
+       "bytes": 798,
+@@ -1173,9 +1178,9 @@
+       "sha256": "sha256:84e1b9adff51301a63a214a1307d12d952dd60f99f76a71525cabdfa10c32579"
+     },
+     {
+-      "bytes": 81931,
++      "bytes": 86720,
+       "path": "apps/runtime-worker/src/agent_runtime.rs",
+-      "sha256": "sha256:828f56f315b26272db8815998909669f0602e77a517484368c2b08ac569f4eae"
++      "sha256": "sha256:ad523f350a63b06acb0413d14e4230b9aae654387157f7a0c9fb15ea0b3344a7"
+     },
+     {
+       "bytes": 1373,
+@@ -1198,9 +1203,9 @@
+       "sha256": "sha256:8ccd4534294aa5c2681f523632fc0cc8c8b8cfb90bfa4e407891d42569c06487"
+     },
+     {
+-      "bytes": 7013,
++      "bytes": 6867,
+       "path": "compose.yaml",
+-      "sha256": "sha256:3b8c3b0ca945fe1fbb75a54edd30d88ccbf77c76c0c743f91dd0d02779540c3d"
++      "sha256": "sha256:40c88cef5c2369e00436af4cec7ef787e32a745ecd4b27345b34f972c340fe45"
+     },
+     {
+       "bytes": 2309,
+@@ -1362,6 +1367,16 @@
+       "path": "docs/adr/0030-r10-predispatch-continuation-outage-proof.md",
+       "sha256": "sha256:ce2e668086a83e66131fe6dc5b7e75177803c4fbc165329c551ece902af376f7"
+     },
++    {
++      "bytes": 2640,
++      "path": "docs/adr/0031-main-current-turn-provenance-authority.md",
++      "sha256": "sha256:f26efd071adc77e4c4d04edaa38799d3c6ff52001abfd7f017fa0c6f1e60b42e"
++    },
++    {
++      "bytes": 2025,
++      "path": "docs/adr/0032-execution-plane-doctor-authority.md",
++      "sha256": "sha256:11e538c844dacf1e7d73a85c24fd0c0d842d7189bd24fab28d9bcd8f76b73046"
++    },
+     {
+       "bytes": 1462,
+       "path": "docs/architecture/DECISIONS.md",
+@@ -1438,9 +1453,9 @@
+       "sha256": "sha256:f075c1111223c7026cb53481099d0e9e21d843bb165e81b6801dd36cbd7fda90"
+     },
+     {
+-      "bytes": 6305,
++      "bytes": 6477,
+       "path": "docs/qualification/STANDALONE-PROMOTION.md",
+-      "sha256": "sha256:ed195f768d7cbe7d202c1b0543a7b5de4ad76105ec08c474fa6a6e48175bbe6b"
++      "sha256": "sha256:7a48987e55815e09f5ea09a2ba48f04f135d2df872347995a37f507b81f29c25"
+     },
+     {
+       "bytes": 364,
+@@ -1548,9 +1563,9 @@
+       "sha256": "sha256:ce7ff803949f3782c35e5db028a79a6215aeb49e7fa3a3231218856f4d6b5a54"
+     },
+     {
+-      "bytes": 8177,
++      "bytes": 9141,
+       "path": "docs/specs/standalone-harness/TEST-PLAN.md",
+-      "sha256": "sha256:4e2db63e290da47742efcd938006b6357fa49a09a8492037b1444866de181a1b"
++      "sha256": "sha256:a3aa5acd8656271351f6ca145e81def0b4561ebc117a975397c4956feb377799"
+     },
+     {
+       "bytes": 145,
+@@ -2243,9 +2258,9 @@
+       "sha256": "sha256:02561e785ef0db3b2b7595cc43160ce3c8cec37d8e185b8c6cbec863e2388d14"
+     },
+     {
+-      "bytes": 98606,
++      "bytes": 100298,
+       "path": "scripts/qualification/standalone-v1.mjs",
+-      "sha256": "sha256:a1ed8d351b17024e37c76a5fd2dae4b33f1c8880d3e180f6413b4aeef5cd5440"
++      "sha256": "sha256:b0d9fe919f3bf2986ddac61905cacedfd0fa8db21835e958b1e629c00be90e1f"
+     },
+     {
+       "bytes": 1892,
+@@ -2263,15 +2278,20 @@
+       "sha256": "sha256:f4b3ef794acd858e00bfeddf99e084066260481d66950686e4f00d7abb9ff3e7"
+     },
+     {
+-      "bytes": 38479,
++      "bytes": 46372,
+       "path": "tests/contracts/config.test.mjs",
+-      "sha256": "sha256:fb832c0434fd0afc1c9279d2309e527e2abbc41458b10847c118efce971029c4"
++      "sha256": "sha256:ee0d78bba4004646252f4af29fa597998c85ed1599f1ac2dfa76c3c4e63f3681"
+     },
+     {
+       "bytes": 1117,
+       "path": "tests/contracts/context-engine-container-deps.test.mjs",
+       "sha256": "sha256:fe1ee5f4a3aefa07bacf925625b3288da069a89d5648477c3f1f7401553f8a59"
+     },
++    {
++      "bytes": 4033,
++      "path": "tests/contracts/doctor-execution-plane.test.mjs",
++      "sha256": "sha256:5789781479612136c4d6da6f7409a83accabc70db4ca8348f871d1243f2b959a"
++    },
+     {
+       "bytes": 867,
+       "path": "tests/contracts/internal-module-layout.test.mjs",
+@@ -2283,9 +2303,9 @@
+       "sha256": "sha256:7f8eadec83654ffd37f54d82bd53c25ba7db879bd6943ef2fef52ab88507f2d1"
+     },
+     {
+-      "bytes": 39995,
++      "bytes": 40890,
+       "path": "tests/contracts/qualification-controller.test.mjs",
+-      "sha256": "sha256:a7f05e7e1a920825442c0ecb7b65b49104ece7f3024bd749eb140c173624305a"
++      "sha256": "sha256:11fd84fed137f6896a782f1b69330ae94bcda69f8277cca22a6d6767e02c8bfe"
+     },
+     {
+       "bytes": 1716,
+diff --git a/apps/context-engine/src/agent-runtime-control.ts b/apps/context-engine/src/agent-runtime-control.ts
+index df7104c..5692a6e 100644
+--- a/apps/context-engine/src/agent-runtime-control.ts
++++ b/apps/context-engine/src/agent-runtime-control.ts
+@@ -3,7 +3,7 @@ import { resolve } from "node:path";
+ import type { ContextProvider } from "./runtime-services.js";
+ 
+ type ControlPlane = {
+-  start(input: Record<string, unknown>): Promise<unknown>;
++  start(input: Record<string, unknown>, invocation?: Record<string, unknown>): Promise<unknown>;
+   status(runId?: string | null): Promise<unknown>;
+   getDag(runId: string): Promise<unknown>;
+   wait(runId: string, options?: Record<string, unknown>): Promise<unknown>;
+@@ -55,7 +55,7 @@ export class AgentRuntimeControlAdapter {
+     return await this.controlPromise;
+   }
+ 
+-  async start(input: Record<string, unknown>): Promise<unknown> { return await (await this.control()).start(input); }
++  async start(input: Record<string, unknown>, invocation?: Record<string, unknown>): Promise<unknown> { return await (await this.control()).start(input, invocation); }
+   async status(runId?: string | null): Promise<unknown> { return await (await this.control()).status(runId); }
+   async getDag(runId: string): Promise<unknown> { return await (await this.control()).getDag(runId); }
+   async wait(runId: string, options?: Record<string, unknown>): Promise<unknown> { return await (await this.control()).wait(runId, options); }
+diff --git a/apps/context-engine/src/http.ts b/apps/context-engine/src/http.ts
+index 0d9649f..366fea6 100644
+--- a/apps/context-engine/src/http.ts
++++ b/apps/context-engine/src/http.ts
+@@ -452,6 +452,8 @@ export function createContextEngineHttpServer() {
+         invocationCallId: invocationProvenance?.callId ?? null,
+         invocationUserMessageId: invocationProvenance?.userMessageId ?? null,
+         invocationProvenanceSource: invocationProvenance ? "opencode-plugin-sidechannel" as const : "missing" as const,
++        invocationHistorySource: invocationProvenance?.historySource ?? null,
++        invocationHistoryErrorCode: invocationProvenance?.historyErrorCode ?? null,
+       };
+       const requestStartedAt = Date.now();
+       contextEngineLog("info", "mcp.request_started", {
+diff --git a/apps/context-engine/src/request-context.ts b/apps/context-engine/src/request-context.ts
+index c53359c..cb2ed4a 100644
+--- a/apps/context-engine/src/request-context.ts
++++ b/apps/context-engine/src/request-context.ts
+@@ -15,6 +15,8 @@ export interface ContextEngineRequestContext {
+   invocationCallId: string | null;
+   invocationUserMessageId: string | null;
+   invocationProvenanceSource: "opencode-plugin-sidechannel" | "missing";
++  invocationHistorySource: string | null;
++  invocationHistoryErrorCode: string | null;
+ }
+ 
+ const requestContext = new AsyncLocalStorage<ContextEngineRequestContext>();
+diff --git a/apps/context-engine/src/tools/agent-runtime.ts b/apps/context-engine/src/tools/agent-runtime.ts
+index dfe56cf..34b8205 100644
+--- a/apps/context-engine/src/tools/agent-runtime.ts
++++ b/apps/context-engine/src/tools/agent-runtime.ts
+@@ -91,7 +91,16 @@ export function registerAgentRuntimeTools(
+     async (args) => {
+       assertControlCaller();
+       assertRuntimeIngressProvenance("agent_start");
+-      const data = await control.start(args);
++      const requestContext = getContextEngineRequestContext();
++      const data = await control.start(args, {
++        origin: requestContext?.invocationOrigin ?? "unknown",
++        sessionId: requestContext?.invocationSessionId ?? null,
++        callId: requestContext?.invocationCallId ?? null,
++        userMessageId: requestContext?.invocationUserMessageId ?? null,
++        provenanceSource: requestContext?.invocationProvenanceSource ?? "missing",
++        historySource: requestContext?.invocationHistorySource ?? null,
++        historyErrorCode: requestContext?.invocationHistoryErrorCode ?? null,
++      });
+       return result(data, "agent-run-started", "AGENT RUN STARTED · Dynamic DAG V2 persisted and executing");
+     },
+   );
+diff --git a/apps/runtime-worker/src/agent_runtime.rs b/apps/runtime-worker/src/agent_runtime.rs
+index 0d501e0..4c2d369 100644
+--- a/apps/runtime-worker/src/agent_runtime.rs
++++ b/apps/runtime-worker/src/agent_runtime.rs
+@@ -36,7 +36,7 @@ use tokio::{
+     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+     process::Command,
+     sync::Mutex,
+-    time::{Instant, interval, sleep},
++    time::{Instant, interval, sleep, timeout},
+ };
+ use tokio_postgres::{Client, NoTls};
+ use tracing::{debug, error, info, warn};
+@@ -362,6 +362,141 @@ async fn publish_runtime_envelope(
+     publish_raw_confirmed(channel, EXCHANGE, routing_key(kind)?, body, properties).await
+ }
+ 
++#[derive(Clone, Debug, Serialize)]
++#[serde(rename_all = "camelCase")]
++struct WorkerCapabilities {
++    git_available: bool,
++    git_version: Option<String>,
++    opencode_available: bool,
++    opencode_version: Option<String>,
++    auth_available: bool,
++    auth_openai_available: bool,
++    auth_path: String,
++    model_catalog_available: bool,
++    openai_models: Vec<String>,
++    probe_errors: Vec<String>,
++}
++
++async fn bounded_command_output(
++    command: &str,
++    args: &[&str],
++    timeout_duration: Duration,
++) -> Result<String> {
++    let mut child = Command::new(command);
++    child.args(args);
++    let output = timeout(timeout_duration, child.output())
++        .await
++        .with_context(|| format!("worker_capability_probe_timeout:{command}"))??;
++    if !output.status.success() {
++        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
++        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
++        bail!(
++            "worker_capability_probe_failed:{command}:{}",
++            if stderr.is_empty() { stdout } else { stderr }
++        );
++    }
++    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
++}
++
++fn opencode_auth_path() -> PathBuf {
++    if let Ok(data_home) = std::env::var("XDG_DATA_HOME") {
++        if !data_home.trim().is_empty() {
++            return PathBuf::from(data_home).join("opencode").join("auth.json");
++        }
++    }
++    let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
++    PathBuf::from(home)
++        .join(".local")
++        .join("share")
++        .join("opencode")
++        .join("auth.json")
++}
++
++fn probe_opencode_auth(path: &Path) -> (bool, bool, Option<String>) {
++    let bytes = match fs::read(path) {
++        Ok(bytes) if !bytes.is_empty() => bytes,
++        Ok(_) => return (false, false, Some("auth_file_empty".to_string())),
++        Err(error) => {
++            return (
++                false,
++                false,
++                Some(format!("auth_file_unavailable:{:?}", error.kind())),
++            );
++        }
++    };
++    match serde_json::from_slice::<serde_json::Value>(&bytes) {
++        Ok(value) => {
++            let openai = value
++                .as_object()
++                .is_some_and(|providers| providers.contains_key("openai"));
++            (true, openai, None)
++        }
++        Err(_) => (false, false, Some("auth_file_invalid_json".to_string())),
++    }
++}
++
++async fn probe_worker_capabilities() -> WorkerCapabilities {
++    let mut probe_errors = Vec::new();
++    let git_version =
++        match bounded_command_output("git", &["--version"], Duration::from_secs(10)).await {
++            Ok(value) => Some(value),
++            Err(error) => {
++                probe_errors.push(error.to_string());
++                None
++            }
++        };
++    let opencode_version =
++        match bounded_command_output("opencode", &["--version"], Duration::from_secs(15)).await {
++            Ok(value) => Some(value),
++            Err(error) => {
++                probe_errors.push(error.to_string());
++                None
++            }
++        };
++    let auth_path = opencode_auth_path();
++    let (auth_available, auth_openai_available, auth_error) = probe_opencode_auth(&auth_path);
++    if let Some(error) = auth_error {
++        probe_errors.push(error);
++    }
++    let (model_catalog_available, openai_models) = if opencode_version.is_some() {
++        match bounded_command_output(
++            "opencode",
++            &["--pure", "models", "openai"],
++            Duration::from_secs(30),
++        )
++        .await
++        {
++            Ok(output) => (
++                true,
++                output
++                    .lines()
++                    .map(str::trim)
++                    .filter(|line| line.starts_with("openai/"))
++                    .map(ToString::to_string)
++                    .collect(),
++            ),
++            Err(error) => {
++                probe_errors.push(error.to_string());
++                (false, Vec::new())
++            }
++        }
++    } else {
++        (false, Vec::new())
++    };
++    WorkerCapabilities {
++        git_available: git_version.is_some(),
++        git_version,
++        opencode_available: opencode_version.is_some(),
++        opencode_version,
++        auth_available,
++        auth_openai_available,
++        auth_path: auth_path.to_string_lossy().into_owned(),
++        model_catalog_available,
++        openai_models,
++        probe_errors,
++    }
++}
++
+ async fn heartbeat_worker(config: Config, concurrency: u16) -> Result<()> {
+     let client = connect_database(&config).await?;
+     let hostname = std::env::var("COMPUTERNAME")
+@@ -369,7 +504,26 @@ async fn heartbeat_worker(config: Config, concurrency: u16) -> Result<()> {
+         .unwrap_or_else(|_| "unknown".into());
+     let pid = std::process::id() as i32;
+     let started_at = now();
+-    info!(event="agent_runtime.worker_heartbeat_started", worker_id=%config.worker_id, hostname=%hostname, pid, concurrency);
++    let capabilities = probe_worker_capabilities().await;
++    let metadata_json = serde_json::json!({
++        "transport":"rabbitmq",
++        "executionPlane":"rust",
++        "exchange":EXCHANGE,
++        "testCleanupFault":config.agent_runtime_test_cleanup_fault.clone(),
++        "testCleanupFaultTaskMatch":config.agent_runtime_test_cleanup_fault_task_match.clone(),
++        "capabilities": &capabilities,
++    }).to_string();
++    info!(
++        event="agent_runtime.worker_heartbeat_started",
++        worker_id=%config.worker_id,
++        hostname=%hostname,
++        pid,
++        concurrency,
++        git_available=capabilities.git_available,
++        opencode_available=capabilities.opencode_available,
++        auth_openai_available=capabilities.auth_openai_available,
++        openai_model_count=capabilities.openai_models.len(),
++    );
+     let mut ticker = interval(Duration::from_secs(10));
+     loop {
+         ticker.tick().await;
+@@ -378,13 +532,7 @@ async fn heartbeat_worker(config: Config, concurrency: u16) -> Result<()> {
+             "INSERT INTO agent_runtime_workers(worker_id,worker_kind,hostname,pid,concurrency,started_at,heartbeat_at,metadata_json,stopped_at) \
+              VALUES($1,'rust-executor',$2,$3,$4,$5,$6,$7,NULL) \
+              ON CONFLICT(worker_id) DO UPDATE SET worker_kind='rust-executor',hostname=EXCLUDED.hostname,pid=EXCLUDED.pid,concurrency=EXCLUDED.concurrency,heartbeat_at=EXCLUDED.heartbeat_at,metadata_json=EXCLUDED.metadata_json,stopped_at=NULL",
+-            &[&config.worker_id, &hostname, &pid, &(concurrency as i32), &started_at, &heartbeat_at, &serde_json::json!({
+-                "transport":"rabbitmq",
+-                "executionPlane":"rust",
+-                "exchange":EXCHANGE,
+-                "testCleanupFault":config.agent_runtime_test_cleanup_fault.clone(),
+-                "testCleanupFaultTaskMatch":config.agent_runtime_test_cleanup_fault_task_match.clone()
+-            }).to_string()],
++            &[&config.worker_id, &hostname, &pid, &(concurrency as i32), &started_at, &heartbeat_at, &metadata_json],
+         ).await?;
+         debug!(event="agent_runtime.worker_heartbeat", worker_id=%config.worker_id, heartbeat_at=%heartbeat_at);
+     }
+diff --git a/compose.yaml b/compose.yaml
+index 7408d39..14277b1 100644
+--- a/compose.yaml
++++ b/compose.yaml
+@@ -75,7 +75,6 @@ services:
+       CONTEXT_SEMANTIC_CACHE_FAILURE_MODE: ${CONTEXT_SEMANTIC_CACHE_FAILURE_MODE:-open}
+       AGENT_HARNESS_RUNTIME_RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-agent}:${RABBITMQ_DEFAULT_PASS:-agent}@rabbitmq:5672/%2f
+       AGENT_HARNESS_OPENCODE_CONTINUATION_URL: ${AGENT_HARNESS_OPENCODE_CONTINUATION_URL:-http://host.docker.internal:4096}
+-      AGENT_HARNESS_OPENCODE_CONTINUATION_HOST_PROBE_URL: ${AGENT_HARNESS_OPENCODE_CONTINUATION_HOST_PROBE_URL:-http://host.docker.internal:4096}
+       AGENT_HARNESS_OPENCODE_CONTINUATION_USERNAME: ${AGENT_HARNESS_OPENCODE_CONTINUATION_USERNAME:-opencode}
+       AGENT_HARNESS_OPENCODE_CONTINUATION_PASSWORD: ${AGENT_HARNESS_OPENCODE_CONTINUATION_PASSWORD:-}
+     ports: ["${AGENT_HARNESS_CONTEXT_ENGINE_PORT:-8789}:8789"]
+diff --git a/docs/adr/0031-main-current-turn-provenance-authority.md b/docs/adr/0031-main-current-turn-provenance-authority.md
+new file mode 100644
+index 0000000..5b573a2
+--- /dev/null
++++ b/docs/adr/0031-main-current-turn-provenance-authority.md
+@@ -0,0 +1,20 @@
++# ADR 0031 — Main current-turn provenance authority
++
++## Status
++Accepted for the next standalone qualification candidate.
++
++## Context
++`agent_start` is fail-closed unless the persistent Main Orchestrator can prove the user message that authorized the current tool call. The previous plugin implementation re-read `/session/:id/message` from the persistent OpenCode HTTP server inside `tool.execute.before`, with an SDK fallback. On OpenCode 1.18.29 a real active Main turn produced an intermittent HTTP 400 while the same session was materializing its tool call; the post-turn history was healthy and contained the user message. The SDK client shape also differs across OpenCode generations.
++
++## Decision
++1. `chat.message` is the primary authority for the current human turn. It records the session-scoped user message identity before model/tool execution.
++2. `tool.execute.before(agent_start)` consumes that current-turn identity first. It does not require a concurrent history round-trip to authorize the initial Runtime ingress.
++3. Direct HTTP history and SDK history remain bounded recovery paths for plugin reload, durable continuation, and cases where the current-turn hook is unavailable.
++4. SDK recovery supports both the current flat `session.messages({ sessionID, directory, limit })` shape and the generated-client `{ path, query }` shape.
++5. A parked baseline is never released by reusing its cached current-turn message. When the cached message is still the parked baseline, the plugin refreshes history to prove a distinct durable-continuation or human turn.
++6. HTTP history failures expose only bounded structural error identifiers; prompt/message bodies are never copied into provenance errors.
++7. If no current-turn hook or recovery source proves a user message, `agent_start` remains fail-closed.
++8. The Context Engine propagates `historySource`/bounded history error metadata into the request context, and Runtime persists accepted `agent_start` provenance as an authoritative `orchestrator.agent_start_provenance_accepted` PostgreSQL event in the same run-creation transaction. Standalone R-7 must prove that durable event has the same session/user identity, `provenanceSource=opencode-plugin-sidechannel`, `historySource=chat-message-hook`, and no history error before accepting the run. Optional logs remain diagnostic only.
++
++## Consequences
++The provenance guard no longer depends on a racy active-session history read for normal ingress, while recovery remains compatible with older and newer OpenCode clients. The logical Main Orchestrator contract is unchanged and no implementation authority is added to the Main.
+diff --git a/docs/adr/0032-execution-plane-doctor-authority.md b/docs/adr/0032-execution-plane-doctor-authority.md
+new file mode 100644
+index 0000000..ed65463
+--- /dev/null
++++ b/docs/adr/0032-execution-plane-doctor-authority.md
+@@ -0,0 +1,19 @@
++# ADR 0032 — Execution-plane doctor authority
++
++## Status
++Accepted for the next standalone qualification candidate.
++
++## Context
++`agent_doctor` runs in the Context Engine container, while productive specialist execution occurs in the Rust `agent-runtime-worker`. The previous doctor inferred Git, OpenCode, auth and model availability by probing its own Context Engine filesystem/process namespace. That produced false negatives even when the worker had Git, OpenCode, a mounted auth file and the required OpenAI model catalog. The doctor also honored a host-only loopback continuation probe URL from inside the container, where `127.0.0.1` identifies the Context Engine itself.
++
++## Decision
++1. The Rust worker probes Git, OpenCode version, OpenCode auth presence/OpenAI provider presence, and the OpenAI model catalog once per worker lifecycle.
++2. Those results are published in the authoritative PostgreSQL worker heartbeat `metadata_json` under `capabilities`.
++3. `agent_doctor` derives execution readiness from the freshest healthy Rust-worker heartbeat metadata. Context Engine-local Git/OpenCode/auth probes are not readiness authority.
++4. A missing capability payload is an explicit `execution_plane_capabilities_unavailable` failure until the worker is recreated on the new source.
++5. Container-side continuation readiness probes the configured delivery URL (normally `host.docker.internal:<port>`). Host-only loopback probe overrides remain valid only for host-side controllers.
++6. The Context Engine Compose service no longer receives `AGENT_HARNESS_OPENCODE_CONTINUATION_HOST_PROBE_URL`.
++7. No credentials or secret values are stored in heartbeat metadata; only booleans, versions, the auth path, model IDs and bounded probe errors are exposed.
++
++## Consequences
++Doctor output now reflects the actual execution plane and no longer reports false `git_unavailable`, `opencode_unavailable`, auth/model failures, or continuation reachability failures solely because it inspected the wrong network/filesystem namespace.
+diff --git a/docs/qualification/STANDALONE-PROMOTION.md b/docs/qualification/STANDALONE-PROMOTION.md
+index aee7ac5..44b8f6a 100644
+--- a/docs/qualification/STANDALONE-PROMOTION.md
++++ b/docs/qualification/STANDALONE-PROMOTION.md
+@@ -52,7 +52,7 @@ The qualification controller never calls `agent_start` directly.
+ - `R-4` — consumer-scoped runtime stack, readiness, migrations/idempotency, PostgreSQL worker heartbeat and resource isolation.
+ - `R-5` — effective OpenCode config and mandatory Context Engine/Serena/Headroom/CBM MCP connectivity.
+ - `R-6` — fresh OpenCode host, provenance SHA authority and noReply history probe with zero Runtime run.
+-- `R-7` — the one intentional model-facing gate: normal consumer workload must enter Runtime via `agent_start`, provenance and `runId` before implementation.
++- `R-7` — the one intentional model-facing gate: normal consumer workload must enter Runtime via `agent_start`, server-enforced provenance and `runId` before implementation; the accepted current-turn provenance must be durably recorded in PostgreSQL with `historySource=chat-message-hook` rather than inferred from optional logs.
+ - `R-8` — durable continuation identity/materialization/acceptance.
+ - `R-9` — first prove the qualification fault controls are present in the recreated Runtime worker environment, then inject physical Rust worker process loss at the exact qualification repair checkpoint via host-PID-namespace SIGKILL, followed by lease expiry, exactly-one generation/fencing replacement and repair-resume evidence with no second full agent invocation; disarmed worker environment is re-proven before R-10.
+ - `R-10` — bounded dependency/restart faults plus an unavailable OpenCode continuation endpoint and recovery. The outage half is proven pre-dispatch: zero prompt-dispatch attempts, no `dispatch_started_at`, a recognized transport error, published continuation outbox identity and matching deferred Runtime inbox; after host recovery the normal progress-aware continuation observer must reach accepted/observed terminal delivery.
+diff --git a/docs/specs/standalone-harness/TEST-PLAN.md b/docs/specs/standalone-harness/TEST-PLAN.md
+index bc99bb0..65ad19b 100644
+--- a/docs/specs/standalone-harness/TEST-PLAN.md
++++ b/docs/specs/standalone-harness/TEST-PLAN.md
+@@ -57,3 +57,8 @@ The qualification contract suite must prove that a continuation accepted at ten
+ ## Terminal continuation finite-resume contract
+ 
+ Contracts must require the standalone continuation prompt and Main Orchestrator policy to converge on: `agent_summary` exactly once → answer the original user → terminate. The prompt must not contain the legacy `outer-controller procedure` / required qualification verdict language and must forbid `agent_start`, `agent_wait`, `agent_status`, or `agent_progress` as rediscovery/re-entry for the same completed request. R-8 diagnostics must expose active/latest tool name+status while omitting tool input/output.
++
++## R-7 active-turn provenance and execution-plane readiness contracts
++
++- During the real R-7 OpenCode workload, prove the accepted `agent_start` side-channel provenance is persisted in PostgreSQL as `orchestrator.agent_start_provenance_accepted`, carries the same session/user identity with `provenanceSource=opencode-plugin-sidechannel` and `historySource=chat-message-hook`, and has no history error. Optional Context Engine logs are diagnostic only; they are not promotion authority. HTTP/SDK history remain recovery only and lack of a proven user turn remains fail-closed.
++- After the Rust worker is healthy, prove its PostgreSQL heartbeat publishes Git/OpenCode/auth/model capability metadata and that `agent_doctor` reports those worker capabilities rather than Context Engine-local binaries. Container continuation readiness must probe the delivery endpoint namespace; host-only loopback overrides must never be injected into the Context Engine container.
+diff --git a/scripts/qualification/standalone-v1.mjs b/scripts/qualification/standalone-v1.mjs
+index e2525e0..332158a 100644
+--- a/scripts/qualification/standalone-v1.mjs
++++ b/scripts/qualification/standalone-v1.mjs
+@@ -979,6 +979,38 @@ function worktreeFingerprint() {
+   return `sha256:${createHash("sha256").update(status).update("\0").update(diff).digest("hex")}`;
+ }
+ 
++function requireAgentStartCurrentTurnProvenance(runId, sessionId, gate = "R-7") {
++  const rows = sqlRows(`SELECT payload_json FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND event_type='orchestrator.agent_start_provenance_accepted' ORDER BY created_at DESC LIMIT 1;`);
++  const registration = rows.length > 0 ? safeJson(rows[0]?.[0]) : null;
++  if (!registration || typeof registration !== "object") {
++    hold(gate, "RUNTIME", "agent_start_provenance_persistent_evidence_missing", { runId, sessionId });
++  }
++  if (registration.sessionId !== sessionId
++    || registration.provenanceSource !== "opencode-plugin-sidechannel"
++    || registration.historySource !== "chat-message-hook"
++    || !registration.userMessageId
++    || registration.historyErrorCode
++    || registration.authoritative !== true) {
++    hold(gate, "RUNTIME", "agent_start_current_turn_provenance_not_proven", {
++      runId,
++      sessionId,
++      recordedSessionId: registration.sessionId ?? null,
++      provenanceSource: registration.provenanceSource ?? null,
++      historySource: registration.historySource ?? null,
++      userMessageIdPresent: Boolean(registration.userMessageId),
++      historyErrorCode: registration.historyErrorCode ?? null,
++      authoritative: registration.authoritative ?? null,
++    });
++  }
++  return {
++    historySource: registration.historySource,
++    userMessageId: registration.userMessageId,
++    historyErrorCode: registration.historyErrorCode ?? null,
++    provenanceSource: registration.provenanceSource,
++    authoritative: true,
++  };
++}
++
+ async function waitForRunId(sessionId, {
+   timeoutMs = 90_000,
+   gate = "R-7",
+@@ -1321,6 +1353,7 @@ async function r7() {
+   const baselineWorktree = worktreeFingerprint();
+   const userMessageId = await sendWorkload(sessionId, workload);
+   const runId = await waitForRunId(sessionId, { gate: "R-7", baselineWorktree, request: workload });
++  const currentTurnProvenance = requireAgentStartCurrentTurnProvenance(runId, sessionId, "R-7");
+   const continuation = await requireDurableContinuation(runId, sessionId, { gate: "R-7" });
+   if (continuation.sessionId !== sessionId) hold("R-7", "RUNTIME", "r7_continuation_session_identity_mismatch", { runId, sessionId, continuation });
+   const provenance = {
+@@ -1329,6 +1362,7 @@ async function r7() {
+     sessionId,
+     userMessageId,
+     runId,
++    historySource: currentTurnProvenance.historySource,
+   };
+   const terminal = await waitForTerminalRun(runId, { gate: "R-7" });
+   if (terminal.status !== "closed") hold("R-7", "RUNTIME", "r7_runtime_not_closed", { runId, terminal });
+diff --git a/tests/contracts/config.test.mjs b/tests/contracts/config.test.mjs
+index b241032..ef3ca25 100644
+--- a/tests/contracts/config.test.mjs
++++ b/tests/contracts/config.test.mjs
+@@ -676,3 +676,140 @@ test("OpenCode Runtime child resolves harness-owned schemas from AGENT_HARNESS_R
+   assert.doesNotMatch(executor, /readJson\(resolve\(repositoryRoot, "\.agents", "schemas", "agent-input-manifest\.schema\.json"\)\)/);
+   assert.doesNotMatch(executor, /readJson\(resolve\(workspace, "\.agents", "schemas", "implementation-plan\.schema\.json"\)\)/);
+ });
++
++test("active Main turn provenance is captured by chat.message before agent_start and does not depend on live history reads", () => {
++  const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-active-turn-provenance-"));
++  try {
++    const pluginUrl = pathToFileURL(resolve(root, ".opencode/plugins/runtime-invocation-provenance.js")).href;
++    const script = `
++      const registrations = [];
++      globalThis.fetch = async (input, init = {}) => {
++        const url = new URL(String(input));
++        if (url.port === "4096" && url.pathname.includes("/session/")) {
++          return new Response(JSON.stringify({ error: { code: "session_busy" } }), { status: 400, headers: { "content-type": "application/json" } });
++        }
++        if (url.port === "28789" && url.pathname === "/runtime-invocation-provenance") {
++          registrations.push(JSON.parse(String(init.body ?? "{}")));
++          return new Response(JSON.stringify({ accepted: true }), { status: 202, headers: { "content-type": "application/json" } });
++        }
++        return new Response("{}", { status: 599 });
++      };
++      const client = { session: { messages: async () => ({ data: [] }) } };
++      const { RuntimeInvocationProvenance } = await import(${JSON.stringify(pluginUrl)});
++      const hooks = await RuntimeInvocationProvenance({ serverUrl: new URL("http://127.0.0.1:4096"), directory: process.env.AGENT_HARNESS_PROJECT_ROOT, client });
++      await hooks["chat.message"](
++        { sessionID: "session-active", messageID: "msg-user-active", model: { providerID: "opencode", modelID: "kimi" } },
++        { message: { id: "msg-user-active", role: "user", time: { created: 123 } }, parts: [{ type: "text", text: "implement" }] },
++      );
++      await hooks["tool.execute.before"]({ tool: "agent_start", sessionID: "session-active", callID: "call-active" }, { args: { request: "fixture" } });
++      if (registrations.length !== 1) throw new Error("registration_count:" + registrations.length);
++      const record = registrations[0];
++      if (record.userMessageId !== "msg-user-active") throw new Error("user_message_identity_missing");
++      if (record.historySource !== "chat-message-hook") throw new Error("history_source:" + record.historySource);
++      if (record.historyErrorCode !== null) throw new Error("unexpected_history_error:" + record.historyErrorCode);
++    `;
++    const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
++      cwd: consumerRoot,
++      env: {
++        ...process.env,
++        AGENT_HARNESS_ROOT: root,
++        AGENT_HARNESS_PROJECT_ROOT: consumerRoot,
++        AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL: "http://127.0.0.1:28789/runtime-invocation-provenance",
++      },
++      encoding: "utf8",
++      shell: false,
++    });
++    assert.equal(result.status, 0, result.stderr || result.stdout);
++  } finally {
++    rmSync(consumerRoot, { recursive: true, force: true });
++  }
++});
++
++test("provenance SDK recovery accepts the OpenCode flat session.messages signature before generated-client fallback", () => {
++  const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-sdk-flat-provenance-"));
++  try {
++    const pluginUrl = pathToFileURL(resolve(root, ".opencode/plugins/runtime-invocation-provenance.js")).href;
++    const script = `
++      const sdkCalls = [];
++      const registrations = [];
++      globalThis.fetch = async (input, init = {}) => {
++        const url = new URL(String(input));
++        if (url.port === "4096" && url.pathname.includes("/session/")) {
++          return new Response(JSON.stringify({ error: { code: "history_temporarily_unavailable" } }), { status: 400, headers: { "content-type": "application/json" } });
++        }
++        if (url.port === "28789" && url.pathname === "/runtime-invocation-provenance") {
++          registrations.push(JSON.parse(String(init.body ?? "{}")));
++          return new Response("{}", { status: 202 });
++        }
++        return new Response("{}", { status: 599 });
++      };
++      const client = { session: { messages: async (args) => {
++        sdkCalls.push(args);
++        if (args?.sessionID === "session-sdk" && args?.directory === process.env.AGENT_HARNESS_PROJECT_ROOT && args?.limit === 100) {
++          return { data: [{ info: { id: "msg-sdk-user", role: "user", time: { created: 42 } }, parts: [{ type: "text", text: "fixture" }] }] };
++        }
++        throw new Error("generated_shape_should_not_be_needed");
++      } } };
++      const { RuntimeInvocationProvenance } = await import(${JSON.stringify(pluginUrl)});
++      const hooks = await RuntimeInvocationProvenance({ serverUrl: new URL("http://127.0.0.1:4096"), directory: process.env.AGENT_HARNESS_PROJECT_ROOT, client });
++      await hooks["tool.execute.before"]({ tool: "agent_start", sessionID: "session-sdk", callID: "call-sdk" }, { args: { request: "fixture" } });
++      if (sdkCalls.length !== 1 || sdkCalls[0]?.sessionID !== "session-sdk") throw new Error("flat_sdk_not_primary");
++      const record = registrations[0];
++      if (record.userMessageId !== "msg-sdk-user") throw new Error("sdk_user_message_missing");
++      if (record.historySource !== "sdk-client-flat") throw new Error("sdk_history_source:" + record.historySource);
++    `;
++    const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
++      cwd: consumerRoot,
++      env: {
++        ...process.env,
++        AGENT_HARNESS_ROOT: root,
++        AGENT_HARNESS_PROJECT_ROOT: consumerRoot,
++        AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL: "http://127.0.0.1:28789/runtime-invocation-provenance",
++      },
++      encoding: "utf8",
++      shell: false,
++    });
++    assert.equal(result.status, 0, result.stderr || result.stdout);
++  } finally {
++    rmSync(consumerRoot, { recursive: true, force: true });
++  }
++});
++
++test("provenance remains fail-closed when neither current-turn hook nor bounded history can prove a user message", () => {
++  const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-provenance-fail-closed-"));
++  try {
++    const pluginUrl = pathToFileURL(resolve(root, ".opencode/plugins/runtime-invocation-provenance.js")).href;
++    const script = `
++      globalThis.fetch = async (input, init = {}) => {
++        const url = new URL(String(input));
++        if (url.port === "4096" && url.pathname.includes("/session/")) {
++          return new Response(JSON.stringify({ error: { code: "session_busy", name: "BadRequest" } }), { status: 400, headers: { "content-type": "application/json" } });
++        }
++        if (url.port === "28789" && url.pathname === "/runtime-invocation-provenance") {
++          return new Response("{}", { status: 202 });
++        }
++        return new Response("{}", { status: 599 });
++      };
++      const client = { session: { messages: async () => ({ data: [] }) } };
++      const { RuntimeInvocationProvenance } = await import(${JSON.stringify(pluginUrl)});
++      const hooks = await RuntimeInvocationProvenance({ serverUrl: new URL("http://127.0.0.1:4096"), directory: process.env.AGENT_HARNESS_PROJECT_ROOT, client });
++      await hooks["tool.execute.before"]({ tool: "agent_start", sessionID: "session-none", callID: "call-none" }, { args: { request: "fixture" } });
++    `;
++    const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
++      cwd: consumerRoot,
++      env: {
++        ...process.env,
++        AGENT_HARNESS_ROOT: root,
++        AGENT_HARNESS_PROJECT_ROOT: consumerRoot,
++        AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL: "http://127.0.0.1:28789/runtime-invocation-provenance",
++      },
++      encoding: "utf8",
++      shell: false,
++    });
++    assert.notEqual(result.status, 0);
++    assert.match(result.stderr, /agent_runtime_main_orchestrator_provenance_history_unavailable/);
++    assert.match(result.stderr, /opencode_session_messages_http:400:session_busy:BadRequest/);
++  } finally {
++    rmSync(consumerRoot, { recursive: true, force: true });
++  }
++});
+diff --git a/tests/contracts/doctor-execution-plane.test.mjs b/tests/contracts/doctor-execution-plane.test.mjs
+new file mode 100644
+index 0000000..0e9c4e2
+--- /dev/null
++++ b/tests/contracts/doctor-execution-plane.test.mjs
+@@ -0,0 +1,83 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { readFileSync } from "node:fs";
++import { dirname, resolve } from "node:path";
++import { fileURLToPath } from "node:url";
++import { workerExecutionCapabilities } from "../../.agents/runtime/worker-capabilities.mjs";
++import { resolveSessionHostProbeTarget } from "../../.agents/runtime/session-host-readiness.mjs";
++
++const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
++
++test("agent doctor execution readiness is derived from Rust worker heartbeat metadata", () => {
++  const worker = {
++    metadata_json: JSON.stringify({
++      executionPlane: "rust",
++      capabilities: {
++        gitAvailable: true,
++        gitVersion: "git version 2.39.5",
++        opencodeAvailable: true,
++        opencodeVersion: "1.18.26",
++        authAvailable: true,
++        authOpenaiAvailable: true,
++        authPath: "/root/.local/share/opencode/auth.json",
++        modelCatalogAvailable: true,
++        openaiModels: ["openai/gpt-5.6-luna", "openai/gpt-5.6-luna-fast"],
++        probeErrors: [],
++      },
++    }),
++  };
++  const result = workerExecutionCapabilities(worker, ["openai/gpt-5.6-luna"]);
++  assert.equal(result.source, "rust-worker-heartbeat-metadata");
++  assert.equal(result.available, true);
++  assert.equal(result.gitAvailable, true);
++  assert.equal(result.opencodeAvailable, true);
++  assert.equal(result.authOpenaiAvailable, true);
++  assert.equal(result.modelCatalogAvailable, true);
++  assert.deepEqual(result.missingModels, []);
++});
++
++test("agent doctor does not infer worker Git/OpenCode/auth from the Context Engine container", () => {
++  const source = readFileSync(resolve(root, ".agents/runtime/doctor.mjs"), "utf8");
++  assert.doesNotMatch(source, /runProcess\("git", \["--version"\]\)/);
++  assert.doesNotMatch(source, /probeOpenCodeReadiness\(\)/);
++  assert.match(source, /workerExecutionCapabilities/);
++  assert.match(source, /executionPlaneCapabilitiesAvailable/);
++  const workerSource = readFileSync(resolve(root, ".agents/runtime/worker-capabilities.mjs"), "utf8");
++  assert.match(workerSource, /rust-worker-heartbeat-metadata/);
++});
++
++test("container continuation probe uses delivery URL and ignores host-only loopback probe override", () => {
++  const env = {
++    AGENT_HARNESS_OPENCODE_CONTINUATION_URL: "http://host.docker.internal:54096",
++    AGENT_HARNESS_OPENCODE_CONTINUATION_HOST_PROBE_URL: "http://127.0.0.1:54096",
++  };
++  const containerTarget = resolveSessionHostProbeTarget(env, { networkScope: "container" });
++  assert.equal(containerTarget.probeUrl, "http://host.docker.internal:54096");
++  assert.equal(containerTarget.deliveryUrl, "http://host.docker.internal:54096");
++  assert.equal(containerTarget.translated, false);
++
++  const hostTarget = resolveSessionHostProbeTarget(env, { networkScope: "host" });
++  assert.equal(hostTarget.probeUrl, "http://127.0.0.1:54096");
++  assert.equal(hostTarget.deliveryUrl, "http://host.docker.internal:54096");
++  assert.equal(hostTarget.translated, true);
++});
++
++test("Context Engine compose environment does not receive the host-only continuation probe URL", () => {
++  const compose = readFileSync(resolve(root, "compose.yaml"), "utf8");
++  const contextBlock = compose.split("  context-engine:")[1]?.split("\n  agent-runtime-worker:")[0] ?? "";
++  assert.doesNotMatch(contextBlock, /AGENT_HARNESS_OPENCODE_CONTINUATION_HOST_PROBE_URL/);
++  assert.match(contextBlock, /AGENT_HARNESS_OPENCODE_CONTINUATION_URL/);
++});
++
++
++test("Rust worker heartbeat publishes execution capability evidence once per worker lifecycle", () => {
++  const rust = readFileSync(resolve(root, "apps/runtime-worker/src/agent_runtime.rs"), "utf8");
++  assert.match(rust, /struct WorkerCapabilities/);
++  assert.match(rust, /git_available/);
++  assert.match(rust, /opencode_available/);
++  assert.match(rust, /auth_openai_available/);
++  assert.match(rust, /model_catalog_available/);
++  assert.match(rust, /"--pure", "models", "openai"/);
++  assert.match(rust, /"capabilities": &capabilities/);
++  assert.match(rust, /metadata_json/);
++});
+diff --git a/tests/contracts/qualification-controller.test.mjs b/tests/contracts/qualification-controller.test.mjs
+index 0c0b7b6..10a1ed0 100644
+--- a/tests/contracts/qualification-controller.test.mjs
++++ b/tests/contracts/qualification-controller.test.mjs
+@@ -22,6 +22,10 @@ test("standalone qualification is a deterministic external controller, not the M
+   assert.match(controller, /ProcessRunner/);
+   assert.match(controller, /prompt_async/);
+   assert.match(controller, /waitForRunId/);
++  assert.match(controller, /requireAgentStartCurrentTurnProvenance/);
++  assert.match(controller, /historySource !== "chat-message-hook"/);
++  assert.match(controller, /orchestrator\.agent_start_provenance_accepted/);
++  assert.match(controller, /SELECT payload_json FROM agent_events/);
+   assert.doesNotMatch(controller, /context-engine_agent_start/);
+   assert.doesNotMatch(controller, /requestJson\([^\n]*\/mcp/);
+ 
+@@ -277,20 +281,28 @@ test("R-7 classifies attempted agent_start schema rejection separately from miss
+ });
+ 
+ 
+-test("R-7 provenance proof is server-enforced and does not depend on optional Context Engine logs", () => {
++test("R-7 provenance proof is server-enforced and persisted instead of depending on optional Context Engine logs", () => {
+   const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+   const runtimeTool = readFileSync(resolve(root, "apps/context-engine/src/tools/agent-runtime.ts"), "utf8");
++  const store = readFileSync(resolve(root, ".agents/runtime/store.mjs"), "utf8");
++  const requestContext = readFileSync(resolve(root, "apps/context-engine/src/request-context.ts"), "utf8");
+ 
+   assert.doesNotMatch(controller, /r7_provenance_registration_not_proven/);
+   assert.match(controller, /context-engine-agent-start-fail-closed/);
+-  assert.match(controller, /opencode-plugin-sidechannel/);
++  assert.match(controller, /orchestrator\.agent_start_provenance_accepted/);
++  assert.match(controller, /SELECT payload_json FROM agent_events/);
++  assert.match(controller, /historySource !== "chat-message-hook"/);
+ 
+   assert.match(runtimeTool, /function assertRuntimeIngressProvenance/);
+   assert.match(runtimeTool, /invocationProvenanceSource !== "opencode-plugin-sidechannel"/);
+   assert.match(runtimeTool, /invocationSessionId/);
+   assert.match(runtimeTool, /invocationUserMessageId/);
++  assert.match(runtimeTool, /invocationHistorySource/);
+   assert.match(runtimeTool, /agent_control_invocation_provenance_required/);
+   assert.match(runtimeTool, /assertRuntimeIngressProvenance\("agent_start"\)/);
++  assert.match(requestContext, /invocationHistorySource: string \| null/);
++  assert.match(store, /orchestrator\.agent_start_provenance_accepted/);
++  assert.match(store, /authoritative: true/);
+ });
+ 
+ 
+-- 
+2.47.3
+

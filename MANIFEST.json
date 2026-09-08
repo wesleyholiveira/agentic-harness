@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-07T23:05:25Z",
+  "generatedAt": "2026-09-08T13:59:24Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 515,
-  "treeSha256": "sha256:00dce775fe676e1bbef5427773d93b2d356d35a7def88515d6851ca22f86530a",
+  "fileCount": 516,
+  "treeSha256": "sha256:db8e8932cfdf21224c2c1effa1217921097ce3fa64427f2ba3c054af6d469561",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -961,6 +961,11 @@
       "bytes": 9793,
       "path": ".serena/project.yml",
       "sha256": "sha256:cb1cce37cb8d0b703f9df22d1d921e856170e8761ce0146eeffc7092c5f1b66a"
+    },
+    {
+      "bytes": 78999,
+      "path": "agentic-harness-provenance-doctor-fix.patch",
+      "sha256": "sha256:b8b995a1b17afc79d382ad8927e5b7d468160ac364ac0ba7115a01ad6f494fd9"
     },
     {
       "bytes": 1107,
