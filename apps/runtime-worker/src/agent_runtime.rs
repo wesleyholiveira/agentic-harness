@@ -399,10 +399,10 @@ async fn bounded_command_output(
 }
 
 fn opencode_auth_path() -> PathBuf {
-    if let Ok(data_home) = std::env::var("XDG_DATA_HOME") {
-        if !data_home.trim().is_empty() {
-            return PathBuf::from(data_home).join("opencode").join("auth.json");
-        }
+    if let Ok(data_home) = std::env::var("XDG_DATA_HOME")
+        && !data_home.trim().is_empty()
+    {
+        return PathBuf::from(data_home).join("opencode").join("auth.json");
     }
     let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
     PathBuf::from(home)
@@ -512,7 +512,8 @@ async fn heartbeat_worker(config: Config, concurrency: u16) -> Result<()> {
         "testCleanupFault":config.agent_runtime_test_cleanup_fault.clone(),
         "testCleanupFaultTaskMatch":config.agent_runtime_test_cleanup_fault_task_match.clone(),
         "capabilities": &capabilities,
-    }).to_string();
+    })
+    .to_string();
     info!(
         event="agent_runtime.worker_heartbeat_started",
         worker_id=%config.worker_id,
