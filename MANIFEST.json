@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-08T14:10:22Z",
+  "generatedAt": "2026-09-08T14:42:08Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 520,
-  "treeSha256": "sha256:27be455a45cc83299a333cd7c857d1a0b70f191bf46c16f84acebba62a4fffa4",
+  "fileCount": 519,
+  "treeSha256": "sha256:5dbc9b9bfbe2d9f4366db54796ebbe05e8487ba10ed3bc9ebb8f4f71928a4980",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -968,11 +968,6 @@
       "sha256": "sha256:cb1cce37cb8d0b703f9df22d1d921e856170e8761ce0146eeffc7092c5f1b66a"
     },
     {
-      "bytes": 69353,
-      "path": "agentic-harness-provenance-doctor-fix-no-manifest.patch",
-      "sha256": "sha256:657a7565d4cd824721cfb0d5a056283489c8a8fc4c9e9ad5707c6ee6be0527bd"
-    },
-    {
       "bytes": 1107,
       "path": "AGENTS.md",
       "sha256": "sha256:27966bd0d889bafe0117a360b4f347135123f91366e531c0f76a2f5ab7750685"
@@ -1183,9 +1178,9 @@
       "sha256": "sha256:84e1b9adff51301a63a214a1307d12d952dd60f99f76a71525cabdfa10c32579"
     },
     {
-      "bytes": 86720,
+      "bytes": 86713,
       "path": "apps/runtime-worker/src/agent_runtime.rs",
-      "sha256": "sha256:ad523f350a63b06acb0413d14e4230b9aae654387157f7a0c9fb15ea0b3344a7"
+      "sha256": "sha256:1fe6e451018886e12894dde1e508842dd77fb63e149fabc1a0da211c1267dc1e"
     },
     {
       "bytes": 1373,
