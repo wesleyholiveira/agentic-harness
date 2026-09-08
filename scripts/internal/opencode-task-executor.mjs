@@ -1240,6 +1240,7 @@ async function main() {
       failureCode: "handoff_schema_invalid",
       sourceRevision,
       schemaErrorCount: finalSchemaValidation.errors.length,
+      schemaErrors: finalSchemaValidation.errors.slice(0, 12),
     });
     throw new Error(`schema_validation_failed:handoffResult:${finalSchemaValidation.errors.join("; ")}`);
   }

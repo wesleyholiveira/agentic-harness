@@ -35,7 +35,7 @@ import {
   waitFor,
   writeJson,
 } from "./lib/util.mjs";
-import { assertFixtureComplete, fixtureIdentity, materializeFixture } from "./lib/fixture.mjs";
+import { assertFixtureComplete, assertR10FixtureComplete, fixtureIdentity, materializeFixture } from "./lib/fixture.mjs";
 import { basicAuthHeaders, requestJson, waitForJsonReady } from "./lib/http.mjs";
 import { evaluateRuntimeObservation, formatRuntimeProgress } from "./lib/runtime-watchdog.mjs";
 import {
@@ -1219,6 +1219,9 @@ SELECT json_build_object(
         'message', NULLIF(COALESCE(payload_json::jsonb->>'message',''),''),
         'repairKind', NULLIF(COALESCE(payload_json::jsonb->>'repairKind',''),''),
         'repairPass', NULLIF(COALESCE(payload_json::jsonb->>'repairPass',''),'')::integer,
+        'failureCode', NULLIF(COALESCE(payload_json::jsonb->>'failureCode',''),''),
+        'schemaErrorCount', NULLIF(COALESCE(payload_json::jsonb->>'schemaErrorCount',''),'')::integer,
+        'schemaErrors', payload_json::jsonb->'schemaErrors',
         'requiredDeltas', payload_json::jsonb->'requiredDeltas',
         'remainingRequiredDeltas', payload_json::jsonb->'remainingRequiredDeltas'
       ) AS event_json, created_at
@@ -1705,6 +1708,76 @@ function safeJson(value) {
   try { return JSON.parse(value); } catch { return {}; }
 }
 
+function r10SchemaDiagnostics(runId) {
+  return sqlRows(`
+    SELECT event_type,payload_json,coalesce(task_id,'')
+    FROM agent_events
+    WHERE run_id='${sqlQuote(runId)}'
+      AND event_type IN ('repair.exhausted','task.failed','run.failed')
+    ORDER BY created_at DESC
+    LIMIT 12;
+  `).map(([eventType, payloadJson, taskId]) => ({
+    eventType,
+    taskId,
+    payload: safeJson(payloadJson),
+  }));
+}
+
+async function waitForR10PreOutageBoundary(runId, sessionId) {
+  return waitFor(() => {
+    const observation = runtimeRunObservation(runId);
+    const evidence = runtimeObservationEvidence(observation);
+    const runStatus = String(observation.run?.status ?? "");
+    const technicalRefinement = (observation.tasks ?? []).find((task) => task.stage === "technical-refinement") ?? null;
+
+    if (runStatus === "failed" || technicalRefinement?.status === "failed") {
+      hold("R-10", "RUNTIME", "r10_pre_outage_semantic_run_failed", {
+        runId,
+        sessionId,
+        technicalRefinement,
+        schemaDiagnostics: r10SchemaDiagnostics(runId),
+        observation: evidence,
+      });
+    }
+
+    if (["closed", "cancelled"].includes(runStatus)) {
+      hold("R-10", "QUALIFICATION PROCEDURE", "r10_pre_outage_fault_window_not_reached", {
+        runId,
+        sessionId,
+        runStatus,
+        technicalRefinement,
+        observation: evidence,
+      });
+    }
+
+    if (technicalRefinement?.status !== "integrated") return null;
+
+    const continuationDeliveryCount = Number(sqlScalar(`SELECT count(*) FROM agent_continuation_deliveries WHERE run_id='${sqlQuote(runId)}';`));
+    if (continuationDeliveryCount !== 0) {
+      hold("R-10", "QUALIFICATION PROCEDURE", "r10_continuation_materialized_before_outage_arm", {
+        runId,
+        sessionId,
+        continuationDeliveryCount,
+        technicalRefinement,
+        observation: evidence,
+      });
+    }
+
+    return {
+      runStatus,
+      technicalRefinement: {
+        taskId: technicalRefinement.taskId,
+        status: technicalRefinement.status,
+        attempt: technicalRefinement.attempt,
+        dispatchGeneration: technicalRefinement.dispatchGeneration,
+        fencingToken: technicalRefinement.fencingToken,
+      },
+      continuationDeliveryCount,
+      observedAt: new Date().toISOString(),
+    };
+  }, { timeoutMs: 20 * 60_000, intervalMs: 500, label: "r10-pre-outage-semantic-boundary" });
+}
+
 async function r10() {
   const faults = [];
   for (const [service, recovery] of [
@@ -1728,16 +1801,34 @@ async function r10() {
     faults.push({ service, recovered: true, runCountBefore, runCountAfter });
   }
 
+  const r10Fixture = assertR10FixtureComplete(state.consumers.A);
+  const consumerSourceBefore = readFileSync(resolve(state.consumers.A, "src/format-name.mjs"), "utf8");
+  if (/\bformatSlug\s*\(/u.test(consumerSourceBefore)) {
+    hold("R-10", "QUALIFICATION PROCEDURE", "r10_fixture_workload_pre_satisfied", { r10Fixture });
+  }
+
   const sessionId = await createOpenCodeSession("Agentic Harness R-10 continuation outage workload");
-  const workload = "No projeto consumidor atual, adicione ao README uma seção curta 'Formatting helpers' descrevendo formatName e formatInitials sem alterar código ou dependências. Preserve os testes existentes e execute npm test.";
+  const workload = "Implemente integralmente os requisitos definidos em docs/specs/qualification/r10/PRD.md.\n\nUse docs/adr/0001-example.md como restrição arquitetural.\n\nMantenha o escopo limitado ao projeto consumidor atual e execute a validação especificada no PRD antes de concluir.";
   const baselineWorktree = worktreeFingerprint();
   const userMessageId = await sendWorkload(sessionId, workload);
-  const runId = await waitForRunId(sessionId, { gate: "R-10", baselineWorktree });
+  const runId = await waitForRunId(sessionId, { gate: "R-10", baselineWorktree, request: workload });
+
+  // R-10 qualifies continuation outage behavior, not whether a README-only
+  // request happens to produce a usable implementation DAG. Prove the semantic
+  // run crossed Technical Refinement before arming the host outage so an
+  // earlier schema/model/runtime failure cannot masquerade as an outage result.
+  const preOutage = await waitForR10PreOutageBoundary(runId, sessionId);
   const oldOpenCode = state.opencode;
+  if (!oldOpenCode?.child || await isPortFree(state.ports.opencode)) {
+    hold("R-10", "QUALIFICATION PROCEDURE", "r10_opencode_not_running_before_outage_arm", { runId, sessionId, preOutage });
+  }
+  const outageArmedAt = new Date().toISOString();
   terminateProcessTree(oldOpenCode.child);
   await waitFor(() => isPortFree(state.ports.opencode), { timeoutMs: 60_000, intervalMs: 500, label: "r10-opencode-down" });
   const terminal = await waitForTerminalRun(runId, { gate: "R-10" });
-  if (terminal.status !== "closed") hold("R-10", "RUNTIME", "r10_outage_run_not_closed", { terminal });
+  if (terminal.status !== "closed") {
+    hold("R-10", "RUNTIME", "r10_post_outage_run_not_closed", { runId, sessionId, preOutage, outageArmedAt, terminal });
+  }
   const deferred = await waitFor(() => {
     const raw = sqlScalar(`
       SELECT json_build_object(
@@ -1791,7 +1882,7 @@ async function r10() {
   const recovered = await waitForContinuationObserved(runId, sessionId, { gate: "R-10" });
   const accepted = recovered.observation.delivery;
   mustRun("R-10", "RUNTIME", "npm", ["--prefix", state.consumers.A, "test"], { label: "r10-consumer-validation" });
-  state.r10 = { faults, sessionId, userMessageId, runId, deferred, accepted };
+  state.r10 = { faults, r10Fixture, sessionId, userMessageId, runId, preOutage, outageArmedAt, deferred, accepted };
   return state.r10;
 }
 

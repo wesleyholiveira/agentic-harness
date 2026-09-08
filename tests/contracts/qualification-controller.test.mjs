@@ -738,6 +738,29 @@ test("R-10 outage watchdog fails if the supposedly unavailable endpoint already 
   assert.equal(dispatched.violation?.message, "opencode_outage_fault_missed_predispatch_window");
 });
 
+test("R-10 arms continuation outage only after a real semantic planning boundary", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const fixture = readFileSync(resolve(root, "scripts/qualification/lib/fixture.mjs"), "utf8");
+  const executor = readFileSync(resolve(root, "scripts/internal/opencode-task-executor.mjs"), "utf8");
+  const r10Section = controller.slice(controller.indexOf("async function r10()"), controller.indexOf("async function cleanup()"));
+
+  assert.match(fixture, /docs\/specs\/qualification\/r10\/PRD\.md/);
+  assert.match(fixture, /formatSlug/);
+  assert.match(r10Section, /assertR10FixtureComplete/);
+  assert.match(r10Section, /docs\/specs\/qualification\/r10\/PRD\.md/);
+  assert.doesNotMatch(r10Section, /Formatting helpers/);
+  assert.match(r10Section, /waitForR10PreOutageBoundary\(runId, sessionId\)/);
+  assert.ok(
+    r10Section.indexOf("waitForR10PreOutageBoundary(runId, sessionId)") < r10Section.indexOf("terminateProcessTree(oldOpenCode.child)"),
+    "semantic boundary must be proven before the host OpenCode outage is armed",
+  );
+  assert.match(controller, /r10_pre_outage_semantic_run_failed/);
+  assert.match(controller, /r10_continuation_materialized_before_outage_arm/);
+  assert.match(r10Section, /r10_post_outage_run_not_closed/);
+  assert.match(executor, /schemaErrors: finalSchemaValidation\.errors\.slice\(0, 12\)/);
+  assert.match(controller, /'schemaErrors', payload_json::jsonb->'schemaErrors'/);
+});
+
 test("standalone R-10 proves durable pre-dispatch deferral instead of requiring a prompt dispatch attempt", () => {
   const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
   const r10Section = controller.slice(controller.indexOf("async function r10()"), controller.indexOf("async function cleanup()"));
