@@ -22,15 +22,142 @@ import { runProcess } from "../../.agents/runtime/process.mjs";
 import { buildContinuationPrompt } from "../../.agents/runtime/continuation.mjs";
 import {
   buildHandoffFinalizationPrompt,
+  buildHandoffFinalizationSchema,
   buildTechnicalReviewRepairProjectionPrompt,
   buildTechnicalReviewRepairProjectionSchema,
+  finalizeHandoffStructured,
   finalizeTechnicalReviewRepair,
+  requiresStructuredHandoffFinalization,
 } from "../../.agents/runtime/handoff-structured-finalization.mjs";
 import { resolveAuthoritativeHandoff } from "../../.agents/runtime/handoff-authority.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 
+
+
+test("Quality Assurance review projection cannot veto fully proven QA evidence", async () => {
+  const handoffSchema = JSON.parse(readFileSync(resolve(root, ".agents/schemas/handoff-result.schema.json"), "utf8"));
+  const brief = {
+    runId: "run-r9-qa",
+    taskId: "run-r9-qa:quality-assurance",
+    agentId: "verification-evidence",
+    objective: "Independently verify the R9 helper",
+    acceptanceCriteria: [{
+      id: "AC-R9-6",
+      statement: "formatInitials behavior has independent automated coverage.",
+      blocking: true,
+    }],
+    validation: ["npm test"],
+    sdd: { role: "quality-assurance", stage: "quality-assurance", reviewedRevision: 1 },
+  };
+  const handoff = {
+    schemaVersion: 2,
+    runId: brief.runId,
+    taskId: brief.taskId,
+    agentId: brief.agentId,
+    status: "complete",
+    artifactVersion: "1",
+    changedPaths: [],
+    contractChanges: [],
+    assumptions: [],
+    criterionResults: [{ criterionId: "AC-R9-6", result: "passed", evidence: "node:test covers the helper behavior" }],
+    validation: [{
+      command: "npm test",
+      phase: "final",
+      blocking: true,
+      result: "passed",
+      evidence: "Runtime receipt exit=0",
+      authority: "runtime",
+      exitCode: 0,
+      timedOut: false,
+      executedAt: "2026-09-09T21:10:00.000Z",
+    }],
+    residualRisks: [],
+    followUps: [],
+    sddReview: {
+      role: "quality-assurance",
+      stage: "quality-assurance",
+      decision: "changes_requested",
+      reviewedRevision: 1,
+      nextRole: "coding-fast",
+      requiredDeltas: ["Re-run evidence already proven by Runtime receipts."],
+    },
+  };
+
+  assert.equal(requiresStructuredHandoffFinalization({ brief, handoff, handoffSchema }), true);
+  const schema = buildHandoffFinalizationSchema({ handoffSchema, brief, handoff, contextPacket: { upstreamArtifacts: [] } });
+  assert.deepEqual(schema.properties.sddReview.properties.decision, { const: "approved" });
+  assert.deepEqual(schema.properties.sddReview.properties.requiredDeltas, { const: [] });
+
+  const structuredRunner = async () => ({
+    value: {
+      sddReview: {
+        role: "quality-assurance",
+        stage: "quality-assurance",
+        decision: "approved",
+        reviewedRevision: 1,
+        nextRole: "coding-fast",
+        requiredDeltas: [],
+      },
+    },
+    info: {},
+    sessionId: "ses-qa-evidence",
+    attempts: 1,
+    failures: [],
+  });
+  const finalized = await finalizeHandoffStructured({
+    workspace: root,
+    model: "openai/gpt-5.6-luna",
+    brief,
+    contextPacket: { upstreamArtifacts: [] },
+    handoff,
+    handoffSchema,
+    structuredRunner,
+  });
+  assert.equal(finalized.handoff.sddReview.decision, "approved");
+  assert.deepEqual(finalized.handoff.sddReview.requiredDeltas, []);
+  assert.equal(finalized.handoff.criterionResults[0].result, "passed");
+  assert.equal(finalized.handoff.validation[0].authority, "runtime");
+});
+
+test("Quality Assurance review remains fail-closed when authoritative QA evidence is not proven", () => {
+  const handoffSchema = JSON.parse(readFileSync(resolve(root, ".agents/schemas/handoff-result.schema.json"), "utf8"));
+  const brief = {
+    runId: "run-r9-qa-fail",
+    taskId: "run-r9-qa-fail:quality-assurance",
+    agentId: "verification-evidence",
+    acceptanceCriteria: [{ id: "AC-R9-6", statement: "coverage", blocking: true }],
+    validation: ["npm test"],
+    sdd: { role: "quality-assurance", stage: "quality-assurance", reviewedRevision: 1 },
+  };
+  const handoff = {
+    schemaVersion: 2,
+    runId: brief.runId,
+    taskId: brief.taskId,
+    agentId: brief.agentId,
+    status: "complete",
+    artifactVersion: "1",
+    changedPaths: [],
+    contractChanges: [],
+    assumptions: [],
+    criterionResults: [{ criterionId: "AC-R9-6", result: "failed", evidence: "regression reproduced" }],
+    validation: [{
+      command: "npm test", phase: "final", blocking: true, result: "failed", evidence: "exit=1",
+      authority: "runtime", exitCode: 1, timedOut: false, executedAt: "2026-09-09T21:10:00.000Z",
+    }],
+    residualRisks: ["blocking: regression remains"],
+    followUps: [],
+    sddReview: {
+      role: "quality-assurance", stage: "quality-assurance", decision: "changes_requested", reviewedRevision: 1,
+      nextRole: "coding-fast", requiredDeltas: ["Fix the reproduced regression."],
+    },
+  };
+
+  assert.equal(requiresStructuredHandoffFinalization({ brief, handoff, handoffSchema }), false);
+  const schema = buildHandoffFinalizationSchema({ handoffSchema, brief, handoff, contextPacket: { upstreamArtifacts: [] } });
+  assert.deepEqual(schema.properties.sddReview.properties.decision, { const: "changes_requested" });
+});
 
 test("Handoff runtime identity canonicalizes one isolated model echo typo only when the other two identities match", () => {
   const handoffSchema = JSON.parse(readFileSync(resolve(root, ".agents/schemas/handoff-result.schema.json"), "utf8"));

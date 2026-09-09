@@ -28,7 +28,7 @@ export function buildConciseExecutorContract({ brief }) {
     "Implementation: implement only the assigned work item. Task Brief.validation is the complete blocking command authority for this task.",
   );
   if (stage === "quality-assurance") lines.push(
-    "Quality Assurance: independently prove assigned criteria; use Task Brief.changeProvenance rather than raw working-tree status for attribution. Direct bootstrap/implementation dependency projections in this manifest are the upstream evidence authority; do not block on outer-controller R-0/post-cleanup evidence or unlisted run-wide artifacts.",
+    "Quality Assurance: independently prove assigned criteria; use Task Brief.changeProvenance rather than raw working-tree status for attribution. Direct bootstrap/implementation dependency projections in this manifest are the upstream evidence authority; do not block on outer-controller R-0/post-cleanup evidence or unlisted run-wide artifacts. sddReview is a summary of the same QA evidence, not a second veto: if criterionResults, Runtime validation receipts, blocking residualRisks and required followUps prove completion, emit decision=approved with requiredDeltas=[]. Any negative QA decision must be grounded in one of those evidence channels.",
   );
   if (stage === "operational-readiness") lines.push(
     "Operational readiness: verify only assigned specialist-domain criteria and Task Brief.validation; proven no-impact evidence is a valid PASS.",

@@ -6,6 +6,7 @@ import { authoritativeReviewRevisionFromContext, isSddReviewStage, requiredRevie
 
 
 const TERMINAL_REVIEW_DECISIONS = new Set(["changes_requested", "blocked"]);
+const EVIDENCE_DERIVED_REVIEW_STAGES = new Set(["quality-assurance"]);
 
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
 function positiveInteger(value) {
@@ -107,14 +108,17 @@ function completionEvidenceAllowsApproval({ brief, handoff }) {
 function reviewProjectionIsConsistent({ brief, handoff, review }) {
   const stage = brief.sdd?.stage ?? "implementation";
   const requiredDecision = requiredReviewDecision(stage);
+  const eligibility = completionEvidenceAllowsApproval({ brief, handoff });
   if (review.decision === requiredDecision) {
-    const eligibility = completionEvidenceAllowsApproval({ brief, handoff });
     if (!eligibility.allowed) return `review_approval_not_proven:${eligibility.violations.join(",")}`;
     if ((review.requiredDeltas ?? []).length > 0) return "review_approval_has_required_deltas";
     if (review.nextRole !== null && review.nextRole !== undefined && !nonEmptyString(review.nextRole)) return "review_approval_next_role_invalid";
     return null;
   }
   if (TERMINAL_REVIEW_DECISIONS.has(review.decision)) {
+    if (EVIDENCE_DERIVED_REVIEW_STAGES.has(stage) && eligibility.allowed) {
+      return `review_negative_contradicts_proven_evidence:${stage}`;
+    }
     if (!nonEmptyString(review.nextRole)) return `review_${review.decision}_next_role_missing`;
     if (!Array.isArray(review.requiredDeltas) || review.requiredDeltas.length === 0) return `review_${review.decision}_required_deltas_missing`;
     return null;
@@ -155,9 +159,18 @@ export function buildHandoffFinalizationSchema({ handoffSchema, brief, handoff, 
   const explicitDecision = handoff?.sddReview?.decision;
   const requiredDecision = requiredReviewDecision(stage);
   const eligibility = completionEvidenceAllowsApproval({ brief, handoff });
-  if (TERMINAL_REVIEW_DECISIONS.has(explicitDecision)) {
-    // Preserve an explicit negative semantic decision even when the rest of the
-    // envelope is malformed. It may never be upgraded by a repair pass.
+  if (EVIDENCE_DERIVED_REVIEW_STAGES.has(stage) && eligibility.allowed) {
+    // QA is an evidence stage. Once every assigned criterion, Runtime validation
+    // receipt, blocking residual-risk gate and required-follow-up gate proves
+    // completion, an isolated negative review echo is contradictory rather than
+    // a second independent veto. Canonicalize only the review projection; the
+    // evidence body remains untouched and fail-closed.
+    reviewSchema.properties.decision = { const: requiredDecision };
+    reviewSchema.properties.requiredDeltas = { const: [] };
+  } else if (TERMINAL_REVIEW_DECISIONS.has(explicitDecision)) {
+    // Preserve an explicit negative semantic decision when evidence does not
+    // independently prove an evidence-derived stage, or for genuinely semantic
+    // review stages. It may never be upgraded by a repair pass.
     reviewSchema.properties.decision = { const: explicitDecision };
   } else if (explicitDecision === requiredDecision && eligibility.allowed) {
     // A positive decision is retained only after deterministic evidence gates
@@ -201,6 +214,9 @@ export function buildHandoffFinalizationPrompt({ brief, handoff, contextPacket }
   const technicalRefinementBoundary = stage === "technical-refinement"
     ? "- Technical Refinement approves implementationPlan readiness, not completed implementation. Do NOT require implementation files to already exist/change, npm test or another work-item validation command to have already run, byte-identical post-state hashes, final diff-isolation evidence, QA receipts, readiness receipts, or Product Acceptance receipts. Future proof is sufficient at this stage when the plan assigns the correct implementation-proof criteria, owned paths/invariants, and exact executable validation commands; later stages own execution receipts."
     : "";
+  const qaEvidenceBoundary = stage === "quality-assurance"
+    ? "- Quality Assurance sddReview is an evidence summary, not an independent veto. criterionResults, Runtime validation receipts, blocking residualRisks and required followUps are the semantic authority. If those fields prove every current-stage gate, decision MUST be approved and requiredDeltas MUST be []; do not invent an ungrounded negative review. If a real QA blocker exists, represent it in the corresponding criterion result, validation receipt, blocking: residual risk, or required: follow-up before returning changes_requested/blocked."
+    : "";
   const payload = {
     stage,
     role: brief.sdd?.role ?? brief.agentId,
@@ -220,6 +236,7 @@ Rules:
 - Preserve explicit changes_requested or blocked. Retain an explicit positive decision only when deterministic completion evidence proves it; otherwise fail closed.
 - Decide from sourceHandoff, blockingCriteria, requiredValidation and upstreamEvidence only.
 ${technicalRefinementBoundary}
+${qaEvidenceBoundary}
 - ${requiredDecision} is allowed only when every blocking criterion has a passed result with evidence, every required current-stage validation passed with evidence, no blocking residual risk/required follow-up/open required delta exists, and the stage-specific output exists. Technical Refinement requires an implementationPlan; work-item validation declared inside that future plan is not current-stage validation evidence. Proven database_impact=none is a valid Database Review outcome.
 - Use changes_requested when the same workflow can correct the current-stage result; include concrete requiredDeltas and a non-empty nextRole. Never express downstream execution/QA evidence as a Technical Refinement requiredDelta.
 - Use blocked only for a genuine external blocker; include concrete requiredDeltas and a non-empty nextRole.
