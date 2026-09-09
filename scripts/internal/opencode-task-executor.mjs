@@ -421,7 +421,7 @@ Handoff Result v2 envelope contract:
 - artifactVersion, assumptions, contractChanges, residualRisks and followUps are required. Emit the arrays explicitly even when they are empty.
 - every validation entry must contain command, phase, blocking, result and evidence. Never emit a partial validation record.
 - sddReview: role/stage/reviewedRevision = Task Brief.sdd.* (logical role); no legacy aliases. Review complete => approved (product acceptance => accepted). Positive: requiredDeltas=[], nextRole null or next role. Negative: non-empty nextRole+deltas.
-- schemaVersion/runId/taskId/agentId are authoritative runtime identity fields. Missing identity fields are filled from the Task Brief; any conflicting non-empty identity is a terminal fenced-task violation and is never overwritten.
+- schemaVersion/runId/taskId/agentId are runtime-owned identity fields. Emit the Task Brief values byte-for-byte. Missing model echoes are filled from the already-fenced Task Brief. One isolated model echo typo may be canonicalized only when the other two identity echoes match exact runtime authority; ambiguous or multiple identity conflicts remain terminal. The agent-input manifest/Task Brief identity check is always fail-closed.
 
 Telemetry contract:
 - metrics and executionTelemetry are runtime-owned envelopes. Do not invent provider-specific or byte-count fields there. You may omit them; the runtime will populate canonical telemetry.
@@ -695,6 +695,7 @@ async function main() {
       defaultedFields: initialContractNormalization.defaultedFields,
       droppedValidationEntries: initialContractNormalization.droppedValidationEntries,
       mechanicallyNormalizedEntries: initialContractNormalization.mechanicallyNormalizedEntries ?? [],
+      identityEchoCorrections: initialContractNormalization.identityEchoCorrections ?? [],
     });
     if ((initialContractNormalization.mechanicallyNormalizedEntries ?? []).length > 0) {
       emitRepairEvent("repair.started", { repairKind: "handoff-mechanical", repairPass: 1, taskAttempt: attempt, sameTaskAttempt: true });

@@ -347,6 +347,8 @@ export function resolveAuthoritativeHandoff({ stdout, sessionExport = null, hand
   if (!selected) throw new Error(`opencode_handoff_not_found_in_${source.replaceAll("-", "_")}_final_response`);
 
   const normalized = normalizeModelHandoffContract({ handoff: selected, brief, attempt });
+  // Only ambiguous/multiple model identity conflicts survive normalization. A
+  // single isolated echo typo is canonicalized from the already-fenced Task Brief.
   if ((normalized.identityMismatches ?? []).length > 0) {
     const detail = normalized.identityMismatches
       .map(({ field, expected, actual }) => `${field}:expected=${expected}:actual=${actual}`)

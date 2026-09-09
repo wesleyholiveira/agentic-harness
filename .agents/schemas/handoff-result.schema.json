@@ -25,15 +25,18 @@
     },
     "runId": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "description": "Runtime-owned identity echo; authoritative value comes from the fenced Task Brief/input manifest."
     },
     "taskId": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "description": "Runtime-owned identity echo; authoritative value comes from the fenced Task Brief/input manifest."
     },
     "agentId": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "description": "Runtime-owned identity echo; authoritative value comes from the fenced Task Brief/input manifest."
     },
     "status": {
       "enum": [

@@ -1016,6 +1016,7 @@ export async function executeTask({ repositoryRoot, runDirectory, plan, taskPlan
           removedFields: normalizedContract.removedFields,
           defaultedFields: normalizedContract.defaultedFields,
           droppedValidationEntries: normalizedContract.droppedValidationEntries,
+          identityEchoCorrections: normalizedContract.identityEchoCorrections ?? [],
           authority: "semantic-control-plane",
         });
         await writeJson(handoffPath, handoff);

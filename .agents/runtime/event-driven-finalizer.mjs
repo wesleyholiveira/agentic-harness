@@ -329,6 +329,7 @@ export async function finalizeExecutionResult({ repositoryRoot, plan, taskPlan, 
           removedFields: normalizedContract.removedFields,
           defaultedFields: normalizedContract.defaultedFields,
           droppedValidationEntries: normalizedContract.droppedValidationEntries,
+          identityEchoCorrections: normalizedContract.identityEchoCorrections ?? [],
           authority: "semantic-control-plane",
         });
         await writeJson(handoffPath, handoff);

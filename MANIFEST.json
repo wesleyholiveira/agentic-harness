@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-09T17:29:11Z",
+  "generatedAt": "2026-09-09T19:41:49Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 522,
-  "treeSha256": "sha256:4e6baa2226636a4a53a1f35e6d0d2953b50c0154d84b3357aef303e82922d100",
+  "fileCount": 523,
+  "treeSha256": "sha256:b2c652c3d7527255b6a21f8a584ae02c471c3c7d005a0efb96c1a29552e46876",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -358,9 +358,9 @@
       "sha256": "sha256:2d6587674a3b3a40c0b5fd0568ff92198d81b8c67b8ec1f727e65c0310f9c08f"
     },
     {
-      "bytes": 33400,
+      "bytes": 33485,
       "path": ".agents/runtime/event-driven-finalizer.mjs",
-      "sha256": "sha256:9beee62d6145a298b38bc8f787187d49b270552111054f6a4e5b60e6e2962681"
+      "sha256": "sha256:3033efd6e2a2e4bafe8ee25d2031157bc7f54824a21e12c93d136ffb72040838"
     },
     {
       "bytes": 24852,
@@ -383,9 +383,9 @@
       "sha256": "sha256:1aef37497980a95b2d5c840fd78005118afa816a7381c9e83e3fe0312604ec6c"
     },
     {
-      "bytes": 74762,
+      "bytes": 74847,
       "path": ".agents/runtime/executor.mjs",
-      "sha256": "sha256:b01e0c5991ff4831c154ce54154e1a2f940d3cd4ab750842d5cbdc633cf87eec"
+      "sha256": "sha256:ed399bd2faa099ea5ac6f74ddaf255031b05b79152b43d3a2a26292d545cb420"
     },
     {
       "bytes": 4285,
@@ -398,14 +398,14 @@
       "sha256": "sha256:2fd2b90e78803351d31d0c7318346af1abfb5678ac29407a2eaeef59aa2cffe7"
     },
     {
-      "bytes": 14320,
+      "bytes": 14483,
       "path": ".agents/runtime/handoff-authority.mjs",
-      "sha256": "sha256:99faf23af04fb9490e4fb8d08cb9ff24358fca45c68331dd92bc757e15d389c1"
+      "sha256": "sha256:d91f923201fc52dc7c37b104a236481550c7ffa409ec0857c5e1777c4fe0123b"
     },
     {
-      "bytes": 13738,
+      "bytes": 14891,
       "path": ".agents/runtime/handoff-contract.mjs",
-      "sha256": "sha256:40dc8f0be10d5a21ad86eb5eac60d58d2ad1ff9c68e7591b54285340d4e02b71"
+      "sha256": "sha256:c8436e5e36ebfa69e86ac2e87fc550e9f9978cc5049cf6401a47c42e193629fd"
     },
     {
       "bytes": 22655,
@@ -703,9 +703,9 @@
       "sha256": "sha256:e3b3ba94c00aec3eac1a8bc417e6cfb318833531f57c2023cb3051a5c95ed85f"
     },
     {
-      "bytes": 12639,
+      "bytes": 13005,
       "path": ".agents/schemas/handoff-result.schema.json",
-      "sha256": "sha256:a57ea6a514c1bcf01a03a8eaa340d80d30860a4e5fca647b63e91f3d089ff932"
+      "sha256": "sha256:057122100115cba82a4de53e4050e1b2af81513dca486dd7177b7a2b40781fed"
     },
     {
       "bytes": 4361,
@@ -1391,6 +1391,11 @@
       "bytes": 2034,
       "path": "docs/adr/0035-r9-isolated-semantic-workload-after-worker-loss.md",
       "sha256": "sha256:360fb750273fad2a05b8ee4d2093dbdbd66a350588f98180fe498165a2f9dcd4"
+    },
+    {
+      "bytes": 2348,
+      "path": "docs/adr/0036-runtime-owned-handoff-identity-echo.md",
+      "sha256": "sha256:65fdb1fc8d5cee54722948a27037dd03c4f07b0f83397148a264b4621e80ffec"
     },
     {
       "bytes": 1462,
@@ -2203,9 +2208,9 @@
       "sha256": "sha256:29459bd29752fcb24a62bd0ddb548e930f4835074cb3a1adf677a85ba02e4227"
     },
     {
-      "bytes": 69088,
+      "bytes": 69381,
       "path": "scripts/internal/opencode-task-executor.mjs",
-      "sha256": "sha256:dbd9c5da38e26961eb9340b891b1d9a0f2b31b7b6b50272d9fce53df0b620b8b"
+      "sha256": "sha256:2344e8fb552cfe5ea5086b35af0596cfc96bc3f9e3388a693307450ac09c52f1"
     },
     {
       "bytes": 3019,
@@ -2348,9 +2353,9 @@
       "sha256": "sha256:0866c42670f9a961f16b56951eaaefb7a1d1377f47b18a29faedc91bc68fba62"
     },
     {
-      "bytes": 30529,
+      "bytes": 33602,
       "path": "tests/contracts/workflow.test.mjs",
-      "sha256": "sha256:c132f401f242f365eeae909d954e97654819749cfb30268c873a2a42668973e5"
+      "sha256": "sha256:e5d21575b56530dccc3008a46c3ea9e3d9a532866f0cd391f640e8d63720cb9f"
     },
     {
       "bytes": 1049,

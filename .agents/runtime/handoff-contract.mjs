@@ -190,31 +190,50 @@ function normalizeValidationEntries(validation) {
 
 /**
  * Normalize only mechanically safe parts of a model-authored Handoff Result.
- * Identity conflicts and semantic evidence are never repaired by assignment.
- * Required list containers may receive an empty structural representation, but
- * criterion/validation, review, workspace and diff gates remain authoritative;
- * this function never invents positive evidence, decisions or validation outcomes.
+ * Runtime identity comes from the already-fenced Task Brief / input manifest, not
+ * from the model echo. Missing identity is filled. One isolated conflicting echo
+ * may be canonicalized only when the other two identity fields match byte-for-byte;
+ * multiple/ambiguous conflicts remain fail-closed. Semantic evidence is never
+ * repaired by assignment. Required list containers may receive an empty structural
+ * representation, but criterion/validation, review, workspace and diff gates remain
+ * authoritative; this function never invents positive evidence, decisions or
+ * validation outcomes.
  */
 export function normalizeModelHandoffContract({ handoff, brief, attempt = 1 }) {
   if (!handoff || typeof handoff !== "object" || Array.isArray(handoff)) {
-    return { handoff, changed: false, remappedFields: [], removedFields: [], defaultedFields: [], droppedValidationEntries: [], identityMismatches: [] };
+    return { handoff, changed: false, remappedFields: [], removedFields: [], defaultedFields: [], droppedValidationEntries: [], mechanicallyNormalizedEntries: [], identityEchoCorrections: [], identityMismatches: [] };
   }
   const next = clone(handoff);
   const remappedFields = [];
   const removedFields = [];
   const defaultedFields = [];
+  const identityEchoCorrections = [];
   const identityMismatches = [];
 
   if (!Object.hasOwn(next, "schemaVersion")) {
     next.schemaVersion = 2;
     defaultedFields.push("schemaVersion");
   }
-  for (const [field, expected] of [["runId", brief.runId], ["taskId", brief.taskId], ["agentId", brief.agentId]]) {
+  const identityFields = [["runId", brief.runId], ["taskId", brief.taskId], ["agentId", brief.agentId]];
+  const identityMatches = identityFields.filter(([field, expected]) => nonEmptyString(next[field]) && next[field] === expected);
+  const identityConflicts = identityFields
+    .filter(([field, expected]) => nonEmptyString(next[field]) && next[field] !== expected)
+    .map(([field, expected]) => ({ field, expected, actual: next[field] }));
+  const canCanonicalizeIsolatedEcho = identityConflicts.length === 1 && identityMatches.length >= 2;
+
+  for (const [field, expected] of identityFields) {
     if (!nonEmptyString(next[field])) {
       next[field] = expected;
       defaultedFields.push(field);
-    } else if (next[field] !== expected) {
-      identityMismatches.push({ field, expected, actual: next[field] });
+      continue;
+    }
+    if (next[field] === expected) continue;
+    const conflict = identityConflicts.find((item) => item.field === field);
+    if (canCanonicalizeIsolatedEcho && conflict) {
+      next[field] = expected;
+      identityEchoCorrections.push(conflict);
+    } else if (conflict) {
+      identityMismatches.push(conflict);
     }
   }
 
@@ -289,12 +308,13 @@ export function normalizeModelHandoffContract({ handoff, brief, attempt = 1 }) {
 
   return {
     handoff: next,
-    changed: remappedFields.length > 0 || removedFields.length > 0 || defaultedFields.length > 0 || droppedValidationEntries.length > 0 || mechanicallyNormalizedEntries.length > 0,
+    changed: remappedFields.length > 0 || removedFields.length > 0 || defaultedFields.length > 0 || identityEchoCorrections.length > 0 || droppedValidationEntries.length > 0 || mechanicallyNormalizedEntries.length > 0,
     remappedFields,
     removedFields,
     defaultedFields,
     droppedValidationEntries,
     mechanicallyNormalizedEntries,
+    identityEchoCorrections,
     identityMismatches,
   };
 }

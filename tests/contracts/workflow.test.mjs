@@ -25,8 +25,89 @@ import {
   buildTechnicalReviewRepairProjectionSchema,
   finalizeTechnicalReviewRepair,
 } from "../../.agents/runtime/handoff-structured-finalization.mjs";
+import { resolveAuthoritativeHandoff } from "../../.agents/runtime/handoff-authority.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+
+
+
+test("Handoff runtime identity canonicalizes one isolated model echo typo only when the other two identities match", () => {
+  const handoffSchema = JSON.parse(readFileSync(resolve(root, ".agents/schemas/handoff-result.schema.json"), "utf8"));
+  const brief = {
+    runId: "run-8c38392a-3866-4a11-8f91-08cf2a664e60",
+    taskId: "run-8c38392a-3866-4a11-8f91-08cf2a664e60:product-acceptance",
+    agentId: "product-owner",
+  };
+  const typoTaskId = "run-8c38392a-3866-4a11-8cf2a664e60:product-acceptance";
+  const modelHandoff = {
+    schemaVersion: 2,
+    runId: brief.runId,
+    taskId: typoTaskId,
+    agentId: brief.agentId,
+    status: "complete",
+    artifactVersion: "1",
+    changedPaths: [],
+    contractChanges: [],
+    assumptions: [],
+    criterionResults: [],
+    validation: [],
+    residualRisks: [],
+    followUps: [],
+  };
+
+  const resolved = resolveAuthoritativeHandoff({
+    stdout: JSON.stringify({ role: "assistant", content: JSON.stringify(modelHandoff) }),
+    handoffSchema,
+    brief,
+    attempt: 1,
+  });
+
+  assert.equal(resolved.handoff.runId, brief.runId);
+  assert.equal(resolved.handoff.taskId, brief.taskId);
+  assert.equal(resolved.handoff.agentId, brief.agentId);
+  assert.equal(resolved.schemaValid, true);
+  assert.deepEqual(resolved.normalization.identityEchoCorrections, [{
+    field: "taskId",
+    expected: brief.taskId,
+    actual: typoTaskId,
+  }]);
+  assert.deepEqual(resolved.normalization.identityMismatches, []);
+});
+
+test("Handoff runtime identity remains fail-closed for ambiguous or multiple model identity conflicts", () => {
+  const handoffSchema = JSON.parse(readFileSync(resolve(root, ".agents/schemas/handoff-result.schema.json"), "utf8"));
+  const brief = {
+    runId: "run-authoritative",
+    taskId: "run-authoritative:product-acceptance",
+    agentId: "product-owner",
+  };
+  const modelHandoff = {
+    schemaVersion: 2,
+    runId: brief.runId,
+    taskId: "run-other:product-acceptance",
+    agentId: "verification-evidence",
+    status: "complete",
+    artifactVersion: "1",
+    changedPaths: [],
+    contractChanges: [],
+    assumptions: [],
+    criterionResults: [],
+    validation: [],
+    residualRisks: [],
+    followUps: [],
+  };
+
+  assert.throws(
+    () => resolveAuthoritativeHandoff({ stdout: JSON.stringify({ role: "assistant", content: JSON.stringify(modelHandoff) }), handoffSchema, brief, attempt: 1 }),
+    /handoff_identity_mismatch:taskId:expected=run-authoritative:product-acceptance:actual=run-other:product-acceptance,agentId:expected=product-owner:actual=verification-evidence/u,
+  );
+});
+
+test("agent-input manifest identity remains the fail-closed transport fence", () => {
+  const source = readFileSync(resolve(root, "scripts/internal/opencode-task-executor.mjs"), "utf8");
+  assert.match(source, /manifest\.runId !== brief\.runId \|\| manifest\.taskId !== brief\.taskId \|\| manifest\.agentId !== brief\.agentId/u);
+  assert.match(source, /opencode_agent_input_manifest_identity_mismatch/u);
+});
 
 test("handoff auxiliary invocation schema covers every Runtime-produced purpose", () => {
   const schema = JSON.parse(readFileSync(resolve(root, ".agents/schemas/handoff-result.schema.json"), "utf8"));
