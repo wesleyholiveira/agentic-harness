@@ -35,7 +35,7 @@ import {
   waitFor,
   writeJson,
 } from "./lib/util.mjs";
-import { assertFixtureComplete, assertR10FixtureComplete, fixtureIdentity, materializeFixture } from "./lib/fixture.mjs";
+import { assertFixtureComplete, assertR9FixtureComplete, assertR10FixtureComplete, fixtureIdentity, materializeFixture } from "./lib/fixture.mjs";
 import { basicAuthHeaders, requestJson, waitForJsonReady } from "./lib/http.mjs";
 import { evaluateRuntimeObservation, formatRuntimeProgress } from "./lib/runtime-watchdog.mjs";
 import {
@@ -1504,8 +1504,18 @@ async function r9() {
     });
   }
 
+  const r9Fixture = assertR9FixtureComplete(state.consumers.A);
+  const r9Baseline = {
+    formatNameSourceSha256: sha256File(resolve(state.consumers.A, "src/format-name.mjs")),
+    formatNameTestSha256: sha256File(resolve(state.consumers.A, "test/format-name.test.mjs")),
+  };
+  if (existsSync(resolve(state.consumers.A, "src/format-initials.mjs"))
+    || existsSync(resolve(state.consumers.A, "test/format-initials.test.mjs"))) {
+    hold("R-9", "QUALIFICATION PROCEDURE", "r9_fixture_workload_pre_satisfied", { r9Fixture, r9Baseline });
+  }
+
   const sessionId = await createOpenCodeSession("Agentic Harness R-9 process-loss workload");
-  const workload = "No projeto consumidor atual, adicione uma função exportada formatInitials(name) em src/format-name.mjs. Ela deve usar o mesmo String(name).trim(), retornar as iniciais maiúsculas das palavras não vazias e retornar Anonymous para entrada vazia. Adicione testes com node:test para nome simples, nome composto e entrada vazia. Não adicione dependências e execute npm test.";
+  const workload = "Implemente integralmente os requisitos definidos em docs/specs/qualification/r9/PRD.md.\n\nUse docs/adr/0001-example.md como restrição arquitetural.\n\nMantenha o escopo limitado ao projeto consumidor atual, preserve os arquivos de formatName indicados como invariantes no PRD e execute a validação especificada antes de concluir.";
   const baselineWorktree = worktreeFingerprint();
   const userMessageId = await sendWorkload(sessionId, workload);
   const runId = await waitForRunId(sessionId, { gate: "R-9", baselineWorktree });
@@ -1631,8 +1641,6 @@ async function r9() {
     };
   }, { timeoutMs: 20 * 60_000, intervalMs: 1_000, label: "r9-repair-resume-receipt" });
 
-  const terminal = await waitForTerminalRun(runId, { gate: "R-9" });
-  if (terminal.status !== "closed") hold("R-9", "RUNTIME", "r9_run_not_closed_after_worker_loss", { runId, terminal });
   const events = sqlRows(`SELECT event_type,payload_json,coalesce(task_id,'') FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND task_id='${sqlQuote(target.taskId)}' AND event_type LIKE 'repair.%' ORDER BY created_at;`).map(([eventType, payloadJson, taskId]) => ({ event_type: eventType, task_id: taskId, payload_json: safeJson(payloadJson) }));
   const sourceIdentity = {
     taskId: target.taskId,
@@ -1659,6 +1667,31 @@ async function r9() {
   });
   if (!evaluation.ok) {
     hold("R-9", "RUNTIME", "r9_process_loss_recovery_evidence_invalid", { sourceIdentity, replacementIdentity: replacement, events, evaluation });
+  }
+
+  const terminal = await waitForTerminalRun(runId, { gate: "R-9" });
+  if (terminal.status !== "closed") {
+    hold("R-9", "RUNTIME", "r9_post_recovery_semantic_run_failed", {
+      runId,
+      sessionId,
+      r9Fixture,
+      r9Baseline,
+      recoveryEvaluation: evaluation,
+      terminal,
+    });
+  }
+
+  const r9BaselineAfter = {
+    formatNameSourceSha256: sha256File(resolve(state.consumers.A, "src/format-name.mjs")),
+    formatNameTestSha256: sha256File(resolve(state.consumers.A, "test/format-name.test.mjs")),
+  };
+  if (r9BaselineAfter.formatNameSourceSha256 !== r9Baseline.formatNameSourceSha256
+    || r9BaselineAfter.formatNameTestSha256 !== r9Baseline.formatNameTestSha256) {
+    hold("R-9", "RUNTIME", "r9_established_format_name_baseline_mutated", { r9Fixture, r9Baseline, r9BaselineAfter });
+  }
+  if (!existsSync(resolve(state.consumers.A, "src/format-initials.mjs"))
+    || !existsSync(resolve(state.consumers.A, "test/format-initials.test.mjs"))) {
+    hold("R-9", "RUNTIME", "r9_isolated_initials_artifacts_missing", { r9Fixture });
   }
 
   mustRun("R-9", "RUNTIME", "npm", ["--prefix", state.consumers.A, "test"], { label: "r9-consumer-validation" });
@@ -1693,6 +1726,9 @@ async function r9() {
     sessionId,
     userMessageId,
     runId,
+    r9Fixture,
+    r9Baseline,
+    r9BaselineAfter,
     processLossMechanism,
     processLoss: { command: "docker", args: processLossArgs, exitCode: processLoss.exitCode },
     leaseExpiryForced: true,

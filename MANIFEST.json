@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-09T14:50:37Z",
+  "generatedAt": "2026-09-09T17:29:11Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 521,
-  "treeSha256": "sha256:4d75975c309ea58e4baf5dadc62a29395381e2fbddaf273a87590a3d9313f77a",
+  "fileCount": 522,
+  "treeSha256": "sha256:4e6baa2226636a4a53a1f35e6d0d2953b50c0154d84b3357aef303e82922d100",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -1388,6 +1388,11 @@
       "sha256": "sha256:154dc6f0a2f41ebe45e658fe26ea131e48eae95e27ead3d5a7611080c4b183c0"
     },
     {
+      "bytes": 2034,
+      "path": "docs/adr/0035-r9-isolated-semantic-workload-after-worker-loss.md",
+      "sha256": "sha256:360fb750273fad2a05b8ee4d2093dbdbd66a350588f98180fe498165a2f9dcd4"
+    },
+    {
       "bytes": 1462,
       "path": "docs/architecture/DECISIONS.md",
       "sha256": "sha256:3c92fc56b736e3e8df788cf72e1d24651d5f1bdab7af0cfbc04af213e1eaeeda"
@@ -2238,9 +2243,9 @@
       "sha256": "sha256:a05e40958047472aaf234c0aaa72b5a1ea50718029cf16243fe0cc10f6c76137"
     },
     {
-      "bytes": 6485,
+      "bytes": 9133,
       "path": "scripts/qualification/lib/fixture.mjs",
-      "sha256": "sha256:a87864b7d25b834514e86ef6463f8e72d0f70739de4ef5145b2c565a3bb30e13"
+      "sha256": "sha256:31b7371e0eee0d3cb693c463c745111e5c54a2b3283f3e655d0a1565fa68460f"
     },
     {
       "bytes": 4471,
@@ -2268,9 +2273,9 @@
       "sha256": "sha256:02561e785ef0db3b2b7595cc43160ce3c8cec37d8e185b8c6cbec863e2388d14"
     },
     {
-      "bytes": 104110,
+      "bytes": 105564,
       "path": "scripts/qualification/standalone-v1.mjs",
-      "sha256": "sha256:5389dbac5dd0671117a4b0aa1756aff8f4f7ffcc6db5c553119f57890c75c9ce"
+      "sha256": "sha256:ed8b7f3f5ac2a71aa86ecefdc8c80fb71abafae040603573aff8daa65ae53d08"
     },
     {
       "bytes": 1892,
@@ -2313,9 +2318,9 @@
       "sha256": "sha256:7f8eadec83654ffd37f54d82bd53c25ba7db879bd6943ef2fef52ab88507f2d1"
     },
     {
-      "bytes": 42405,
+      "bytes": 43961,
       "path": "tests/contracts/qualification-controller.test.mjs",
-      "sha256": "sha256:52c65bb1f4ba7896f24110fda43d7cef1fc78bb9d2d6d321fe11bdfcd4453978"
+      "sha256": "sha256:baf618f6abc34d876476540b7afd0de77db4a6f527d70a72517fc8c07c9751b8"
     },
     {
       "bytes": 1716,

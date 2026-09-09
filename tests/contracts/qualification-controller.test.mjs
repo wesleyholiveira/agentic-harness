@@ -836,6 +836,30 @@ test("R-9 proves process-loss fault projection before launching the semantic run
   assert.match(r9Section, /boundaryEvents/);
 });
 
+test("R-9 uses an isolated additive PRD and distinguishes recovery from downstream semantic failure", async () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const fixture = readFileSync(resolve(root, "scripts/qualification/lib/fixture.mjs"), "utf8");
+  const r9Start = controller.indexOf("async function r9()");
+  const r9Section = controller.slice(r9Start, controller.indexOf("function safeJson", r9Start));
+
+  assert.match(fixture, /docs\/specs\/qualification\/r9\/PRD\.md/);
+  assert.match(fixture, /src\/format-initials\.mjs/);
+  assert.match(fixture, /FR-4\. Do not modify/);
+  assert.match(fixture, /export function assertR9FixtureComplete/);
+  assert.match(r9Section, /assertR9FixtureComplete\(state\.consumers\.A\)/);
+  assert.match(r9Section, /formatNameSourceSha256: sha256File/);
+  assert.match(r9Section, /formatNameTestSha256: sha256File/);
+  assert.match(r9Section, /docs\/specs\/qualification\/r9\/PRD\.md/);
+  assert.doesNotMatch(r9Section, /adicione uma função exportada formatInitials\(name\) em src\/format-name\.mjs/);
+  assert.ok(
+    r9Section.indexOf("evaluateH9RRecoveryEvidence") < r9Section.indexOf("waitForTerminalRun(runId, { gate: \"R-9\" })"),
+    "worker-loss recovery evidence must be evaluated before downstream semantic terminal status",
+  );
+  assert.match(r9Section, /r9_post_recovery_semantic_run_failed/);
+  assert.match(r9Section, /r9_established_format_name_baseline_mutated/);
+  assert.match(r9Section, /r9_isolated_initials_artifacts_missing/);
+});
+
 test("qualification process-loss boundary is one-shot across true task retries", async () => {
   const { resolveQualificationProcessLossBoundary } = await import("../../scripts/internal/opencode-task-executor.mjs");
   const env = {
