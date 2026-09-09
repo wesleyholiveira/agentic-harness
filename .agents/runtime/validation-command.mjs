@@ -3,13 +3,13 @@ const KNOWN_VALIDATION_EXECUTABLES = new Set([
   "deno", "docker", "docker-compose", "dotnet", "env", "eslint", "export", "git", "go", "gradle",
   "gradlew", "java", "javac", "jest", "make", "mvn", "mvnw", "mypy", "node", "npm", "npx", "nx",
   "pip", "pip3", "pipx", "pnpm", "poetry", "powershell", "powershell.exe", "pwsh", "py", "pytest",
-  "python", "python3", "ruff", "rustc", "set", "sh", "test", "tsc", "tox", "turbo", "uv", "vitest", "yarn", "zsh",
+  "python", "python3", "ruff", "rustc", "set", "sh", "tsc", "tox", "turbo", "uv", "vitest", "yarn", "zsh",
 ]);
 
 // Structured-output schema pattern: require a command-shaped first executable rather than
 // accepting arbitrary prose. Keep this intentionally narrower than shell grammar; complex
 // validations can always be wrapped in `bash -lc`, `sh -lc`, `pwsh -Command`, etc.
-export const VALIDATION_COMMAND_PATTERN_SOURCE = String.raw`^(?:(?:[A-Za-z_][A-Za-z0-9_]*=[^\s]+)\s+)*(?:(?:\.{0,2}[\\/]|~[\\/]|[A-Za-z]:[\\/]|[^\s]+[\\/][^\s]+)|(?:bash|biome|bun|cargo|cd|cmake|cmd(?:\.exe)?|corepack|ctest|deno|docker(?:-compose)?|dotnet|env|eslint|export|git|go|gradle|gradlew|java|javac|jest|make|mvn|mvnw|mypy|node|npm|npx|nx|pip|pip3|pipx|pnpm|poetry|powershell(?:\.exe)?|pwsh|py|pytest|python|python3|ruff|rustc|set|sh|test|tsc|tox|turbo|uv|vitest|yarn|zsh))(?:\s|$)`;
+export const VALIDATION_COMMAND_PATTERN_SOURCE = String.raw`^(?:(?:[A-Za-z_][A-Za-z0-9_]*=[^\s]+)\s+)*(?:(?:\.{0,2}[\\/]|~[\\/]|[A-Za-z]:[\\/]|[^\s]+[\\/][^\s]+)|(?:bash|biome|bun|cargo|cd|cmake|cmd(?:\.exe)?|corepack|ctest|deno|docker(?:-compose)?|dotnet|env|eslint|export|git|go|gradle|gradlew|java|javac|jest|make|mvn|mvnw|mypy|node|npm|npx|nx|pip|pip3|pipx|pnpm|poetry|powershell(?:\.exe)?|pwsh|py|pytest|python|python3|ruff|rustc|set|sh|tsc|tox|turbo|uv|vitest|yarn|zsh))(?:\s|$)`;
 
 
 export const VALIDATION_EXECUTION_SCOPES = Object.freeze(["workspace", "container", "authoritative-host", "live"]);
@@ -93,6 +93,13 @@ function firstExecutableToken(command) {
   return stripQuotes(tokens[index]);
 }
 
+// `test` is intentionally not accepted as a direct validation executable.
+// It is both a POSIX shell builtin and an ordinary English verb/noun, so prose
+// such as "Test file is present and npm test executes successfully." would be
+// indistinguishable from a command if we classified only by the first token.
+// Use `bash -lc "test ..."` or `sh -lc "test ..."` when POSIX `test` semantics
+// are actually required. This keeps criterion.verification prose non-authoritative
+// while preserving an explicit shell-command escape hatch.
 export function isExecutableValidationCommand(command) {
   const root = firstExecutableToken(command);
   if (!root) return false;

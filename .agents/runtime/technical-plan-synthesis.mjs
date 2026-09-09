@@ -303,6 +303,7 @@ Hard requirements:
 - dependencies must refer only to work item IDs and must form an acyclic graph.
 - validation must contain executable shell commands that prove the work item and assigned acceptance criteria. Never place prose/evidence descriptions in validation. The runtime executes each string via the shell. Runtime-owned diff-isolation evidence belongs in criteria/findings, not in workItems[*].validation.
 - if an implementation product criterion uses an executable shell command in its verification field, every work item that claims that criterion must preserve that exact command in validation rather than replacing it with an ad-hoc equivalent.
+- criterion.verification may also be descriptive prose. Treat it as an executable command only when the ENTIRE value is command-shaped under the Runtime validation-command contract; a sentence that merely mentions npm test or another executable is prose and MUST NOT be copied into workItems[*].validation.
 - if implementationValidationDirective.mode=focused, its commands are byte-exact and EXCLUSIVE implementation validation authority: include every listed command and do not add substitute or extra work-item validation commands. Downstream QA/readiness may still add their own independent evidence.
 - validation is WORK-ITEM scoped. Do not copy an agent's registry-level default validationCommands into a narrow work item. Repository-wide docs/typecheck/full-suite commands belong here only when the assigned criterion explicitly requires repository-wide health or the ownedPaths/contract change genuinely spans that surface.
 - every implementation work item uses validationExecutionScope=workspace. Never place runtime:agent-authoritative:readiness, runtime:agent-harness:validate -- --mode authoritative, live-projector probes, opencode attach, or host-local continuation probes in implementation validation. Those are outer readiness/live gates, not implementation completion authority.
@@ -533,7 +534,7 @@ Hard requirements:
 - ownerAgentId and ownedPaths must remain valid under implementationAgentOwnership.
 - implementation validation remains workspace scoped; host/live/readiness commands are forbidden in implementation workItems.
 - Technical Refinement repairs the executable future-work plan, not completed implementation. A review request for future npm test output, already-created implementation files, post-state hashes/diff isolation, QA/readiness evidence or Product Acceptance evidence must be represented as future plan validation/invariants rather than fabricated current evidence.
-- preserve executable criterion verification commands exactly. If implementationValidationDirective.mode=focused, include every listed command byte-for-byte and remove every substitute/extra implementation validation command.
+- preserve executable criterion verification commands exactly, but never promote descriptive criterion.verification prose into validation merely because it mentions an executable. Only the entire command-shaped value is authoritative as a command. If implementationValidationDirective.mode=focused, include every listed command byte-for-byte and remove every substitute/extra implementation validation command.
 - dependencies must remain acyclic and refer only to work item IDs.
 - Do not downgrade or remove blocking acceptance criteria to satisfy the review.
 

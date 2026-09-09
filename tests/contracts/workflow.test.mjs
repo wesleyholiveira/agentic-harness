@@ -30,6 +30,7 @@ import {
   requiresStructuredHandoffFinalization,
 } from "../../.agents/runtime/handoff-structured-finalization.mjs";
 import { resolveAuthoritativeHandoff } from "../../.agents/runtime/handoff-authority.mjs";
+import { isExecutableValidationCommand, invalidValidationCommands } from "../../.agents/runtime/validation-command.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -478,6 +479,48 @@ test("Technical Refinement repair closes only explicitly re-reviewed stale block
 });
 
 
+
+test("criterion verification prose mentioning npm test is not promoted to an executable validation command", async () => {
+  assert.equal(isExecutableValidationCommand("npm test"), true);
+  assert.equal(isExecutableValidationCommand("Test file is present and npm test executes successfully."), false);
+  assert.equal(isExecutableValidationCommand("test file is present and npm test executes successfully."), false);
+  assert.deepEqual(invalidValidationCommands(["test -f package.json"]), [{
+    index: 0,
+    command: "test -f package.json",
+    reason: "validation_command_not_executable",
+  }]);
+  assert.equal(isExecutableValidationCommand('bash -lc "test -f package.json"'), true);
+
+  const registry = await loadAgentCatalog(root);
+  const criterion = {
+    id: "AC-R9-6",
+    source: "docs/specs/qualification/r9/PRD.md",
+    statement: "Automated node:test coverage exists for the helper behavior.",
+    blocking: true,
+    verification: "Test file is present and npm test executes successfully.",
+    proofStage: "implementation",
+  };
+  const plan = {
+    schemaVersion: 1,
+    revision: 1,
+    acceptanceCriteria: [criterion],
+    workItems: [{
+      id: "R9-IMPLEMENT-FORMAT-INITIALS",
+      ownerAgentId: "coding-fast",
+      objective: "Implement formatInitials and its node:test coverage.",
+      dependencies: [],
+      ownedPaths: ["src/format-initials.mjs", "test/format-initials.test.mjs"],
+      acceptanceCriteria: [criterion.id],
+      validation: ["npm test"],
+      validationExecutionScope: "workspace",
+      complexity: "low",
+      estimatedFiles: 2,
+      contractChange: false,
+      migration: false,
+    }],
+  };
+  assert.deepEqual(collectImplementationPlanValidationIssues(plan, registry), []);
+});
 
 test("Technical Refinement acceptance-coverage repair can only map criteria onto existing work items", async () => {
   const registry = await loadAgentCatalog(root);

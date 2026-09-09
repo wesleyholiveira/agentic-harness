@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-09T21:38:28Z",
+  "generatedAt": "2026-09-09T22:13:18Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 525,
-  "treeSha256": "sha256:3d99f44117638040a5feb8d5e19cb242297602675491e49063f109bc3921e15a",
+  "fileCount": 526,
+  "treeSha256": "sha256:c1325d92dc244d98828eec5725ce56cf76036c5b0093bf8d30d1ec592ce5765a",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -653,9 +653,9 @@
       "sha256": "sha256:41a3ba2f41f1df7f4101d04d269d41389ccdd93b87bd47ce652807c64f554fe7"
     },
     {
-      "bytes": 37895,
+      "bytes": 38387,
       "path": ".agents/runtime/technical-plan-synthesis.mjs",
-      "sha256": "sha256:36fec144d76bab7a7674aec4fc37a4f0a9e237e0fbbc7753984824425333ee5d"
+      "sha256": "sha256:737c64b3d882e0c4c62dae4adbf39d2b156671f29c72c17bd391d1f54592b1f1"
     },
     {
       "bytes": 6149,
@@ -663,9 +663,9 @@
       "sha256": "sha256:25306fc9107b65b10cf0dc60a3e88c8d3cad7fcebb27b0815a555f14f30a878c"
     },
     {
-      "bytes": 6346,
+      "bytes": 6869,
       "path": ".agents/runtime/validation-command.mjs",
-      "sha256": "sha256:5d47f352bc500aa49e40a49b6ed428ea5971e380e86e7e0b20c3d59de3eae875"
+      "sha256": "sha256:5b7a0a447fd944da5509765f5406277fc8da3c6ebbcfdddccbfa119355f12cc2"
     },
     {
       "bytes": 4518,
@@ -1406,6 +1406,11 @@
       "bytes": 2548,
       "path": "docs/adr/0038-qa-review-is-evidence-derived.md",
       "sha256": "sha256:254557579a14dc942e5201afd7d7a84427f210d8d0a5cfb9be640d3217bdd8a9"
+    },
+    {
+      "bytes": 2414,
+      "path": "docs/adr/0039-criterion-verification-command-boundary.md",
+      "sha256": "sha256:9a3a7c69bfe0c92c13af5013dccb1586070117403540cafb794f08c7446d4a82"
     },
     {
       "bytes": 1462,
@@ -2363,9 +2368,9 @@
       "sha256": "sha256:0866c42670f9a961f16b56951eaaefb7a1d1377f47b18a29faedc91bc68fba62"
     },
     {
-      "bytes": 39694,
+      "bytes": 41546,
       "path": "tests/contracts/workflow.test.mjs",
-      "sha256": "sha256:15732fd79fca4a85d61b9ca5fed519898d4d5aa4310c1b51cbf4e475da54adb9"
+      "sha256": "sha256:e16baf57d891e265f9ada20da343fade07a5c94ef069ecc8de13f6b91feea255"
     },
     {
       "bytes": 1049,
