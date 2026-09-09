@@ -12,6 +12,11 @@ import { provisionalizeBootstrapPlan } from "../../.agents/runtime/bootstrap-top
 import { collectImplementationPlanValidationIssues } from "../../.agents/runtime/dag-compiler.mjs";
 import { projectOwnershipRegistry } from "../../.agents/runtime/agent-input-manifest.mjs";
 import { productDiscoveryAcceptanceCriteriaIssue } from "../../.agents/runtime/product-discovery-acceptance-criteria.mjs";
+import {
+  classifyTechnicalPlanRepairScope,
+  repairImplementationPlanFromReview,
+  technicalPlanRepairIssues,
+} from "../../.agents/runtime/technical-plan-synthesis.mjs";
 import { cleanupWorkspace, createIsolatedWorkspace, inspectWorkspaceChanges, integrateWorkspace, reconcileHandoffPathDisposition } from "../../.agents/runtime/workspace.mjs";
 import { runProcess } from "../../.agents/runtime/process.mjs";
 import { buildContinuationPrompt } from "../../.agents/runtime/continuation.mjs";
@@ -242,6 +247,123 @@ test("Technical Refinement repair closes only explicitly re-reviewed stale block
     finalizeTechnicalReviewRepair({ workspace: root, model: "openai/gpt-5.6-luna", brief, contextPacket, handoff, handoffSchema, requiredDeltas, structuredRunner: unsafeRunner }),
     /technical_review_repair_projection_unproven:review_approval_not_proven:/,
   );
+});
+
+
+
+test("Technical Refinement acceptance-coverage repair can only map criteria onto existing work items", async () => {
+  const registry = await loadAgentCatalog(root);
+  const implementationPlanSchema = JSON.parse(readFileSync(resolve(root, ".agents/schemas/implementation-plan.schema.json"), "utf8"));
+  const criteria = ["CLV2-01", "CLV2-05", "CLV2-11"].map((id, index) => ({
+    id,
+    source: "modernization/04-ACCEPTANCE.md",
+    statement: `Criterion ${id} is implemented by the bounded helper slice.`,
+    blocking: true,
+    verification: "npm test",
+    proofStage: "implementation",
+  }));
+  const sourcePlan = {
+    schemaVersion: 1,
+    revision: 1,
+    acceptanceCriteria: criteria,
+    workItems: [{
+      id: "W06-ranker",
+      ownerAgentId: "coding-pro",
+      objective: "Implement the bounded ranker behavior and its existing tests.",
+      dependencies: [],
+      ownedPaths: ["src/ranker.mjs", "test/ranker.test.mjs"],
+      acceptanceCriteria: ["CLV2-01"],
+      validation: ["npm test"],
+      validationExecutionScope: "workspace",
+      complexity: "medium",
+      estimatedFiles: 2,
+      contractChange: false,
+      migration: false,
+    }],
+  };
+  const issues = technicalPlanRepairIssues({
+    implementationPlan: sourcePlan,
+    implementationPlanSchema,
+    requiredAcceptanceCriteria: criteria,
+    registry,
+    request: "Implement the bounded Learning V2 ranker slice.",
+  });
+  assert.deepEqual(issues.sort(), [
+    "implementation_plan_uncovered_criterion:CLV2-05",
+    "implementation_plan_uncovered_criterion:CLV2-11",
+  ]);
+  assert.equal(classifyTechnicalPlanRepairScope(issues).scope, "acceptance-coverage-only");
+
+  const handoff = {
+    status: "complete",
+    implementationPlan: structuredClone(sourcePlan),
+    sddReview: {
+      role: "technical-lead",
+      stage: "technical-refinement",
+      decision: "changes_requested",
+      reviewedRevision: 1,
+      nextRole: "technical-lead",
+      requiredDeltas: ["Map CLV2-05 and CLV2-11 onto the existing implementation work that already satisfies them."],
+    },
+    findings: [],
+    auxiliaryInvocations: [],
+    metrics: {},
+  };
+  const brief = {
+    runId: "run-coverage-repair",
+    taskId: "run-coverage-repair:technical-refinement",
+    agentId: "technical-lead",
+    objective: "Implement the bounded Learning V2 ranker slice.",
+    upstreamAcceptanceCriteria: criteria,
+    sdd: { stage: "technical-refinement" },
+    modelRouting: { attempt: 1 },
+  };
+  let observedSchema = null;
+  let observedPrompt = "";
+  const structuredRunner = async ({ schema, prompt }) => {
+    observedSchema = schema;
+    observedPrompt = prompt;
+    return {
+      value: {
+        assignments: [
+          { criterionId: "CLV2-05", workItemId: "W06-ranker" },
+          { criterionId: "CLV2-11", workItemId: "W06-ranker" },
+        ],
+      },
+      info: { tokens: { input: 12, output: 4 } },
+      sessionId: "ses-coverage-repair",
+      attempts: 1,
+      failures: [],
+    };
+  };
+  const repaired = await repairImplementationPlanFromReview({
+    workspace: root,
+    brief,
+    handoff,
+    implementationPlanSchema,
+    registry,
+    model: "openai/gpt-5.6-luna",
+    structuredRunner,
+    repairPass: 1,
+  });
+
+  assert.equal(observedSchema.properties.assignments.items.properties.workItemId.enum.length, 1);
+  assert.match(observedPrompt, /CANNOT create or delete work items/);
+  assert.match(observedPrompt, /Acceptance coverage does not imply path ownership/);
+  assert.equal(repaired.repairMutationScope, "acceptance-coverage-only");
+  assert.equal(repaired.handoff.implementationPlan.revision, 2);
+  assert.deepEqual(repaired.handoff.implementationPlan.workItems[0].ownerAgentId, sourcePlan.workItems[0].ownerAgentId);
+  assert.deepEqual(repaired.handoff.implementationPlan.workItems[0].ownedPaths, sourcePlan.workItems[0].ownedPaths);
+  assert.deepEqual(repaired.handoff.implementationPlan.workItems[0].dependencies, sourcePlan.workItems[0].dependencies);
+  assert.equal(repaired.handoff.implementationPlan.workItems.length, sourcePlan.workItems.length);
+  assert.deepEqual(repaired.handoff.implementationPlan.workItems[0].acceptanceCriteria.sort(), ["CLV2-01", "CLV2-05", "CLV2-11"]);
+  assert.deepEqual(technicalPlanRepairIssues({
+    implementationPlan: repaired.handoff.implementationPlan,
+    implementationPlanSchema,
+    requiredAcceptanceCriteria: criteria,
+    registry,
+    request: brief.objective,
+  }), []);
 });
 
 test("generic coding fallback owns consumer paths only when no domain primary owner exists", async () => {
