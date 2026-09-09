@@ -411,7 +411,9 @@
               "technical-plan-repair",
               "completion-evidence-synthesis",
               "handoff-review-projection",
+              "technical-review-repair-projection",
               "product-discovery-scope-repair",
+              "product-discovery-acceptance-criteria",
               "product-discovery-bootstrap-assessment"
             ]
           },

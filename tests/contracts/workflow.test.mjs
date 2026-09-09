@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -22,6 +22,21 @@ import {
 } from "../../.agents/runtime/handoff-structured-finalization.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+
+test("handoff auxiliary invocation schema covers every Runtime-produced purpose", () => {
+  const schema = JSON.parse(readFileSync(resolve(root, ".agents/schemas/handoff-result.schema.json"), "utf8"));
+  const allowed = new Set(schema.properties.auxiliaryInvocations.items.properties.purpose.enum);
+  const runtimeDir = resolve(root, ".agents/runtime");
+  const produced = new Set();
+  const purposePattern = /auxiliaryInvocationFromStructuredResult\(\{\s*purpose:\s*["']([^"']+)["']/g;
+  for (const entry of readdirSync(runtimeDir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".mjs")) continue;
+    const source = readFileSync(resolve(runtimeDir, entry.name), "utf8");
+    for (const match of source.matchAll(purposePattern)) produced.add(match[1]);
+  }
+  assert.ok(produced.size > 0, "Runtime must produce at least one auxiliary invocation purpose");
+  assert.deepEqual([...produced].filter((purpose) => !allowed.has(purpose)).sort(), []);
+});
 
 test("SDD workflow derives implementation dependencies at runtime", () => {
   const workflow = JSON.parse(readFileSync(resolve(root, ".agents/workflow.json"), "utf8"));
@@ -214,6 +229,9 @@ test("Technical Refinement repair closes only explicitly re-reviewed stale block
   assert.deepEqual(finalized.handoff.residualRisks, ["non-blocking: implementation still pending"]);
   assert.deepEqual(finalized.handoff.followUps, ["optional: implementation specialist may add comments"]);
   assert.equal(finalized.handoff.findings.at(-1)?.authority, "closed-technical-review-repair-projection");
+  assert.equal(finalized.handoff.auxiliaryInvocations.at(-1)?.purpose, "technical-review-repair-projection");
+  const finalizedValidation = validateAgainstSchema(finalized.handoff, handoffSchema, "handoffResult");
+  assert.equal(finalizedValidation.valid, true, finalizedValidation.errors.join("\n"));
 
   const unsafeRunner = async () => ({
     value: { ...approvedProjection, repairClosure: { resolvedResidualRisks: [], resolvedFollowUps: [] } },
