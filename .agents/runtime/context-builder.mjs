@@ -289,7 +289,11 @@ export async function buildTaskBrief({ repositoryRoot, registry, plan, task, con
         "Classify domain impact from the scoped increment itself. Requirements to preserve an existing invariant are constraints for downstream planning, not evidence that this increment changes that domain.",
         "This review produces constraints for downstream Technical Refinement; it does not validate a future implementation plan, implementation, QA, readiness, rollout or terminal run.",
       ] : []),
-      ...(task.stage === "technical-refinement" ? ["The attached ownership projection is the planning view. The Runtime compiler retains the full .agents/agents/*/agent.json as final ownership authority. Explicit path rules remain fail-closed; ownershipMode=fallback-unclaimed-primary is allowed only where no non-fallback implementation agent has matching primaryPaths, and concrete primary domain ownership always wins."] : []),
+      ...(task.stage === "technical-refinement" ? [
+        "The attached ownership projection is the planning view. The Runtime compiler retains the full .agents/agents/*/agent.json as final ownership authority. Explicit path rules remain fail-closed; ownershipMode=fallback-unclaimed-primary is allowed only where no non-fallback implementation agent has matching primaryPaths, and concrete primary domain ownership always wins.",
+        "Technical Refinement approves the implementationPlan as an executable future-work contract. Implementation files do not need to exist or be modified yet, and downstream validation commands do not need to have run yet.",
+        "Never require post-implementation evidence such as npm test output, byte-identical post-state hashes, final diff isolation, QA receipts, Product Acceptance receipts, or already-implemented behavior as a condition for sddReview.decision=approved. Encode the required paths, ownership, acceptance mapping, invariants and exact executable validation in the plan; Implementation/QA/readiness/Product Acceptance own the later execution evidence.",
+      ] : []),
     ],
     ownedPaths, readOnlyContextPaths, sharedPathOwner: plan.sharedPathOwner, inputs: [], dependencies: task.dependencies, changeProvenance,
     outOfScope: [

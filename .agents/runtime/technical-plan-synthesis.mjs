@@ -532,6 +532,7 @@ Hard requirements:
 - workItems remain implementation-only and model-agnostic.
 - ownerAgentId and ownedPaths must remain valid under implementationAgentOwnership.
 - implementation validation remains workspace scoped; host/live/readiness commands are forbidden in implementation workItems.
+- Technical Refinement repairs the executable future-work plan, not completed implementation. A review request for future npm test output, already-created implementation files, post-state hashes/diff isolation, QA/readiness evidence or Product Acceptance evidence must be represented as future plan validation/invariants rather than fabricated current evidence.
 - preserve executable criterion verification commands exactly. If implementationValidationDirective.mode=focused, include every listed command byte-for-byte and remove every substitute/extra implementation validation command.
 - dependencies must remain acyclic and refer only to work item IDs.
 - Do not downgrade or remove blocking acceptance criteria to satisfy the review.

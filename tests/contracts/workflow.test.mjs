@@ -21,6 +21,7 @@ import { cleanupWorkspace, createIsolatedWorkspace, inspectWorkspaceChanges, int
 import { runProcess } from "../../.agents/runtime/process.mjs";
 import { buildContinuationPrompt } from "../../.agents/runtime/continuation.mjs";
 import {
+  buildHandoffFinalizationPrompt,
   buildTechnicalReviewRepairProjectionPrompt,
   buildTechnicalReviewRepairProjectionSchema,
   finalizeTechnicalReviewRepair,
@@ -250,6 +251,25 @@ function technicalReviewRepairFixture() {
   return { brief, handoff, contextPacket, requiredDeltas };
 }
 
+
+
+test("Technical Refinement review boundary never requires downstream execution evidence before plan approval", () => {
+  const { brief, handoff, contextPacket, requiredDeltas } = technicalReviewRepairFixture();
+  const initialPrompt = buildHandoffFinalizationPrompt({ brief, handoff, contextPacket });
+  const repairPrompt = buildTechnicalReviewRepairProjectionPrompt({ brief, handoff, contextPacket, requiredDeltas });
+  const contextBuilder = readFileSync(resolve(root, ".agents/runtime/context-builder.mjs"), "utf8");
+  const executor = readFileSync(resolve(root, "scripts/internal/opencode-task-executor.mjs"), "utf8");
+
+  for (const prompt of [initialPrompt, repairPrompt]) {
+    assert.match(prompt, /Technical Refinement approves implementationPlan readiness, not completed implementation/);
+    assert.match(prompt, /npm test/);
+    assert.match(prompt, /byte-identical post-state hashes/);
+    assert.match(prompt, /later stages own/);
+  }
+  assert.match(contextBuilder, /Technical Refinement approves the implementationPlan as an executable future-work contract/);
+  assert.match(contextBuilder, /Never require post-implementation evidence/);
+  assert.match(executor, /Technical Refinement approves the executable future-work plan, not an already-executed implementation/);
+});
 test("Technical Refinement same-attempt re-review has a closed requiredDelta scope", async () => {
   const handoffSchema = JSON.parse(readFileSync(resolve(root, ".agents/schemas/handoff-result.schema.json"), "utf8"));
   const { brief, handoff, contextPacket, requiredDeltas } = technicalReviewRepairFixture();

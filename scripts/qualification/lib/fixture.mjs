@@ -51,13 +51,17 @@ AC-R9-4. \`formatInitials("") === "Anonymous"\`.
 
 AC-R9-5. \`formatInitials("   ") === "Anonymous"\`.
 
-AC-R9-6. Existing \`formatName\` behavior and tests remain byte-identical during R-9.
+AC-R9-6. Add automated \`node:test\` coverage in \`test/format-initials.test.mjs\` for AC-R9-1 through AC-R9-5.
 
-AC-R9-7. Add automated \`node:test\` coverage in \`test/format-initials.test.mjs\`.
+## Qualification host checks
 
-AC-R9-8. \`npm test\` exits with code 0.
+The checks below are outer qualification evidence owned by the deterministic host controller. They are NOT Product acceptance criteria, MUST NOT be emitted as \`handoff.acceptanceCriteria\`, and MUST NOT become Technical Refinement \`requiredDeltas\`.
 
-AC-R9-9. Changes remain confined to the consumer repository.
+QH-R9-1. After the Runtime run is terminal, \`src/format-name.mjs\` and \`test/format-name.test.mjs\` must have the same SHA-256 values captured immediately before R-9.
+
+QH-R9-2. After the Runtime run is terminal, the host controller runs \`npm test\` and requires exit code 0.
+
+QH-R9-3. R-9 implementation artifacts are confined to the synthetic consumer; harness source identity remains host-owned qualification evidence and is verified again by R-11 cleanup/source-equality.
 
 ## Non-goals
 
@@ -101,13 +105,14 @@ export function assertFixtureComplete(consumerRoot) {
 
 export function assertR9FixtureComplete(consumerRoot) {
   const prd = readFileSync(resolve(consumerRoot, "docs/specs/qualification/r9/PRD.md"), "utf8");
-  for (const section of ["## Context", "## Goal", "## Functional requirements", "## Acceptance criteria", "## Non-goals", "## Validation command"]) {
+  for (const section of ["## Context", "## Goal", "## Functional requirements", "## Acceptance criteria", "## Qualification host checks", "## Non-goals", "## Validation command"]) {
     if (!prd.includes(section)) throw new Error(`qualification_r9_fixture_prd_section_missing:${section}`);
   }
   const frCount = (prd.match(/\bFR-\d+\./gu) ?? []).length;
   const acCount = (prd.match(/\bAC-R9-\d+\./gu) ?? []).length;
-  if (frCount < 5 || acCount < 9) throw new Error(`qualification_r9_fixture_prd_incomplete:${frCount}:${acCount}`);
-  return { frCount, acCount, sha256: sha256File(resolve(consumerRoot, "docs/specs/qualification/r9/PRD.md")) };
+  const hostCheckCount = (prd.match(/\bQH-R9-\d+\./gu) ?? []).length;
+  if (frCount < 5 || acCount < 6 || hostCheckCount < 3) throw new Error(`qualification_r9_fixture_prd_incomplete:${frCount}:${acCount}:${hostCheckCount}`);
+  return { frCount, acCount, hostCheckCount, sha256: sha256File(resolve(consumerRoot, "docs/specs/qualification/r9/PRD.md")) };
 }
 
 export function assertR10FixtureComplete(consumerRoot) {

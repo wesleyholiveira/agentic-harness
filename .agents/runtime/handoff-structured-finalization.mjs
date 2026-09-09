@@ -198,6 +198,9 @@ function compactUpstreamEvidence(contextPacket, brief) {
 export function buildHandoffFinalizationPrompt({ brief, handoff, contextPacket }) {
   const stage = brief.sdd?.stage ?? "implementation";
   const requiredDecision = requiredReviewDecision(stage);
+  const technicalRefinementBoundary = stage === "technical-refinement"
+    ? "- Technical Refinement approves implementationPlan readiness, not completed implementation. Do NOT require implementation files to already exist/change, npm test or another work-item validation command to have already run, byte-identical post-state hashes, final diff-isolation evidence, QA receipts, readiness receipts, or Product Acceptance receipts. Future proof is sufficient at this stage when the plan assigns the correct implementation-proof criteria, owned paths/invariants, and exact executable validation commands; later stages own execution receipts."
+    : "";
   const payload = {
     stage,
     role: brief.sdd?.role ?? brief.agentId,
@@ -216,8 +219,9 @@ Rules:
 - The runtime owns role, stage and reviewedRevision.
 - Preserve explicit changes_requested or blocked. Retain an explicit positive decision only when deterministic completion evidence proves it; otherwise fail closed.
 - Decide from sourceHandoff, blockingCriteria, requiredValidation and upstreamEvidence only.
-- ${requiredDecision} is allowed only when every blocking criterion has a passed result with evidence, every required final validation passed with evidence, no blocking residual risk/required follow-up/open required delta exists, and the stage-specific output exists. Technical Refinement requires an implementationPlan. Proven database_impact=none is a valid Database Review outcome.
-- Use changes_requested when the same workflow can correct the result; include concrete requiredDeltas and a non-empty nextRole.
+${technicalRefinementBoundary}
+- ${requiredDecision} is allowed only when every blocking criterion has a passed result with evidence, every required current-stage validation passed with evidence, no blocking residual risk/required follow-up/open required delta exists, and the stage-specific output exists. Technical Refinement requires an implementationPlan; work-item validation declared inside that future plan is not current-stage validation evidence. Proven database_impact=none is a valid Database Review outcome.
+- Use changes_requested when the same workflow can correct the current-stage result; include concrete requiredDeltas and a non-empty nextRole. Never express downstream execution/QA evidence as a Technical Refinement requiredDelta.
 - Use blocked only for a genuine external blocker; include concrete requiredDeltas and a non-empty nextRole.
 - On ${requiredDecision}, requiredDeltas must be []. nextRole is routing metadata and may be null or a non-empty next logical role; it does not represent an unresolved delta.
 
@@ -303,8 +307,9 @@ Return ONLY the JSON projection requested by the supplied schema. This is a clos
 Rules:
 - originalRequiredDeltas is the complete and immutable semantic review scope for this repair pass.
 - The repaired implementationPlan has already passed deterministic schema, ownership, Product acceptance-criteria, dependency and executable-validation checks before this re-review.
-- Evaluate each originalRequiredDelta against repairedImplementationPlan plus the supplied authoritative evidence.
-- decision=approved only when every originalRequiredDelta is resolved. Then requiredDeltas must be [].
+- Technical Refinement approves implementationPlan readiness, not completed implementation. A delta that only asks for future implementation files to already exist/change, npm test or another work-item validation command to have already run, byte-identical post-state hashes, final diff-isolation evidence, QA/readiness receipts, or Product Acceptance receipts is outside this stage and MUST NOT remain as a blocking Technical Refinement delta. Treat the future proof as resolved at this stage when repairedImplementationPlan schedules the relevant owned paths/invariant and exact executable validation; later stages own the execution receipt.
+- Evaluate each originalRequiredDelta against repairedImplementationPlan plus the supplied authoritative evidence, using that stage boundary.
+- decision=approved only when every in-stage originalRequiredDelta is resolved and no originalRequiredDelta remains a valid Technical Refinement blocker. Then requiredDeltas must be [].
 - decision=changes_requested only when one or more originalRequiredDeltas remain unresolved. requiredDeltas must contain only the exact unresolved subset of originalRequiredDeltas. Never add a new delta.
 - blocked is not a valid outcome for this bounded re-review because the source review classified the issue as changes_requested. A genuinely new blocker belongs to a fresh full task attempt, not this closed repair pass.
 - repairClosureCandidates are exact blocking:/required: strings carried from the PRE-REPAIR Handoff. They are historical text, not independent post-repair proof. Include a candidate in repairClosure only when the repaired plan directly resolves it. Do not resolve unrelated or still-open markers.

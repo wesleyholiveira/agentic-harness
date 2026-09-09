@@ -845,6 +845,12 @@ test("R-9 uses an isolated additive PRD and distinguishes recovery from downstre
   assert.match(fixture, /docs\/specs\/qualification\/r9\/PRD\.md/);
   assert.match(fixture, /src\/format-initials\.mjs/);
   assert.match(fixture, /FR-4\. Do not modify/);
+  assert.match(fixture, /## Qualification host checks/);
+  assert.match(fixture, /QH-R9-1\./);
+  assert.match(fixture, /MUST NOT be emitted as/);
+  assert.match(fixture, /handoff\.acceptanceCriteria/);
+  assert.doesNotMatch(fixture, /AC-R9-8\. \`npm test\` exits with code 0/);
+  assert.match(fixture, /hostCheckCount/);
   assert.match(fixture, /export function assertR9FixtureComplete/);
   assert.match(r9Section, /assertR9FixtureComplete\(state\.consumers\.A\)/);
   assert.match(r9Section, /formatNameSourceSha256: sha256File/);
