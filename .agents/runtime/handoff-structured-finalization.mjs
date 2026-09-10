@@ -17,6 +17,44 @@ function nonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+const RUNTIME_ONLY_REVIEW_FINDING_TYPES = new Set([
+  "technical_plan_synthesis",
+  "runtime_repair",
+  "handoff_structured_finalization",
+  "sdd_review_invalidated",
+  "handoff_mechanical_repair",
+  "handoff_contract_normalization",
+]);
+
+/**
+ * Runtime diagnostics are observability, not SDD review evidence. In particular,
+ * a successful technical_plan_synthesis finding contains the *resolved* preflight
+ * issue vector. Feeding that historical vector back into a semantic reviewer can
+ * resurrect already-fixed defects as fresh requiredDeltas.
+ */
+export function reviewableHandoffProjection(handoff) {
+  const next = clone(handoff);
+  if (Array.isArray(next.findings)) {
+    next.findings = next.findings.filter((finding) => !RUNTIME_ONLY_REVIEW_FINDING_TYPES.has(String(finding?.type ?? "")));
+  }
+  delete next.auxiliaryInvocations;
+  delete next.metrics;
+  delete next.executionTelemetry;
+  return next;
+}
+
+function canonicalizeTechnicalRefinementRouting(brief, review) {
+  const next = clone(review);
+  if ((brief?.sdd?.stage ?? "implementation") === "technical-refinement"
+      && next?.decision === "changes_requested"
+      && !nonEmptyString(next?.nextRole)) {
+    // A bounded Technical Refinement correction deterministically returns to the
+    // Technical Lead. nextRole is routing metadata, not semantic evidence.
+    next.nextRole = "technical-lead";
+  }
+  return next;
+}
+
 function normalizedStringSet(values) {
   return [...new Set((values ?? [])
     .filter((value) => typeof value === "string" && value.trim().length > 0)
@@ -224,7 +262,7 @@ export function buildHandoffFinalizationPrompt({ brief, handoff, contextPacket }
     objective: brief.objective,
     blockingCriteria: (brief.acceptanceCriteria ?? []).filter((criterion) => criterion.blocking !== false),
     requiredValidation: brief.validation ?? [],
-    sourceHandoff: handoff,
+    sourceHandoff: reviewableHandoffProjection(handoff),
     upstreamEvidence: compactUpstreamEvidence(contextPacket, brief),
   };
   return `Project only the sddReview envelope for an already-produced Agentic Harness Handoff Result v2.
@@ -235,6 +273,7 @@ Rules:
 - The runtime owns role, stage and reviewedRevision.
 - Preserve explicit changes_requested or blocked. Retain an explicit positive decision only when deterministic completion evidence proves it; otherwise fail closed.
 - Decide from sourceHandoff, blockingCriteria, requiredValidation and upstreamEvidence only.
+- sourceHandoff intentionally excludes Runtime-only synthesis/repair telemetry. Never reconstruct requiredDeltas from historical pre-repair diagnostics or Runtime findings.
 ${technicalRefinementBoundary}
 ${qaEvidenceBoundary}
 - ${requiredDecision} is allowed only when every blocking criterion has a passed result with evidence, every required current-stage validation passed with evidence, no blocking residual risk/required follow-up/open required delta exists, and the stage-specific output exists. Technical Refinement requires an implementationPlan; work-item validation declared inside that future plan is not current-stage validation evidence. Proven database_impact=none is a valid Database Review outcome.
@@ -367,7 +406,7 @@ export async function finalizeHandoffStructured({
   });
   assertSchema(result.value, schema, "handoffStructuredFinalization");
   const next = clone(handoff);
-  next.sddReview = clone(result.value.sddReview);
+  next.sddReview = canonicalizeTechnicalRefinementRouting(brief, result.value.sddReview);
   const consistencyFailure = reviewProjectionIsConsistent({ brief, handoff: next, review: next.sddReview });
   if (consistencyFailure) throw new Error(`handoff_review_projection_unproven:${consistencyFailure}`);
   assertSchema(next, handoffSchema, "handoffResult");
@@ -424,7 +463,7 @@ export async function finalizeTechnicalReviewRepair({
   assertSchema(result.value, schema, "technicalReviewRepairProjection");
 
   let next = applyTechnicalRepairClosure(handoff, result.value.repairClosure);
-  next.sddReview = clone(result.value.sddReview);
+  next.sddReview = canonicalizeTechnicalRefinementRouting(brief, result.value.sddReview);
   const returnedDeltas = normalizedStringSet(next.sddReview.requiredDeltas);
   const allowedDeltas = new Set(deltaScope);
   if (returnedDeltas.some((delta) => !allowedDeltas.has(delta))) {

@@ -36,6 +36,7 @@ use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     process::Command,
     sync::Mutex,
+    task::JoinHandle,
     time::{Instant, interval, sleep, timeout},
 };
 use tokio_postgres::{Client, NoTls};
@@ -60,6 +61,7 @@ const HEARTBEAT_SECONDS: u64 = 15;
 const CLEANUP_RETRIES_PER_DELIVERY: usize = 8;
 const STDERR_TAIL_LIMIT: usize = 16 * 1024;
 const OUTBOX_IDLE_MAX_POLL_MS: u64 = 1_000;
+const OUTPUT_DRAIN_TIMEOUT_MS: u64 = 5_000;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1181,6 +1183,53 @@ async fn stream_output<R>(
     }
 }
 
+async fn drain_executor_output(
+    task: Option<JoinHandle<()>>,
+    stream: &'static str,
+    claimed: &ClaimedExecution,
+    client: &Client,
+) {
+    let Some(mut task) = task else {
+        return;
+    };
+    if timeout(Duration::from_millis(OUTPUT_DRAIN_TIMEOUT_MS), &mut task)
+        .await
+        .is_ok()
+    {
+        return;
+    }
+
+    // Descendants can inherit stdout/stderr even after the direct executor has
+    // been killed. Never let those inherited pipe handles hold the fenced result
+    // open until the lease expires. The task log already contains all bytes seen
+    // before this bounded drain deadline.
+    task.abort();
+    let _ = task.await;
+    warn!(
+        event = "agent_runtime.executor_output_drain_timed_out",
+        run_id = %claimed.run_id,
+        task_id = %claimed.task_id,
+        stream,
+        timeout_ms = OUTPUT_DRAIN_TIMEOUT_MS,
+        dispatch_generation = claimed.dispatch_generation,
+        fencing_token = claimed.fencing_token
+    );
+    let _ = insert_event(
+        client,
+        &claimed.run_id,
+        Some(&claimed.task_id),
+        "executor.output_drain_timed_out",
+        serde_json::json!({
+            "stream": stream,
+            "timeoutMs": OUTPUT_DRAIN_TIMEOUT_MS,
+            "dispatchGeneration": claimed.dispatch_generation,
+            "fencingToken": claimed.fencing_token,
+            "source": "rust-agent-runtime-executor"
+        }),
+    )
+    .await;
+}
+
 async fn run_shell_command(
     descriptor: &ExecutionDescriptor,
     claimed: &ClaimedExecution,
@@ -1380,12 +1429,8 @@ async fn run_shell_command(
             }
         }
     };
-    if let Some(task) = stdout_task {
-        let _ = task.await;
-    }
-    if let Some(task) = stderr_task {
-        let _ = task.await;
-    }
+    drain_executor_output(stdout_task, "stdout", claimed, client).await;
+    drain_executor_output(stderr_task, "stderr", claimed, client).await;
     collect_workspace_change_set(descriptor, claimed)
         .await
         .context("agent_runtime_workspace_changeset_failed")?;

@@ -170,6 +170,22 @@ function applyAcceptanceCoverageAssignments({ implementationPlan, requiredAccept
   return { plan: next, touched: [...touched] };
 }
 
+function implementationPlanMutationEvidence(sourcePlan, repairedPlan) {
+  const sourceItems = new Map((sourcePlan?.workItems ?? []).map((item) => [item.id, item]));
+  const repairedItems = new Map((repairedPlan?.workItems ?? []).map((item) => [item.id, item]));
+  const evidence = [];
+  for (const id of [...new Set([...sourceItems.keys(), ...repairedItems.keys()])].sort()) {
+    const before = sourceItems.get(id);
+    const after = repairedItems.get(id);
+    if (!before) { evidence.push(`work-item-added:${id}`); continue; }
+    if (!after) { evidence.push(`work-item-removed:${id}`); continue; }
+    for (const field of ["ownerAgentId", "objective", "dependencies", "ownedPaths", "acceptanceCriteria", "validation", "validationExecutionScope", "executionMode", "complexity", "estimatedFiles", "contractChange", "migration"]) {
+      if (JSON.stringify(before[field] ?? null) !== JSON.stringify(after[field] ?? null)) evidence.push(`work-item-updated:${id}:${field}`);
+    }
+  }
+  return evidence;
+}
+
 function immutablePlanStructure(plan) {
   return (plan.workItems ?? []).map((item) => ({
     id: item.id,
@@ -643,6 +659,11 @@ export async function repairImplementationPlanFromReview({
     });
     repairedPlan = result.value;
     assertSchema(repairedPlan, schema, "technicalReviewRepair");
+    repairEvidence = implementationPlanMutationEvidence(sourcePlan, repairedPlan);
+    // `none` describes the deterministic issue vector, not the semantic review
+    // mutation being attempted. Emitting none here hid real structural repairs in
+    // production traces and made repeated ineffective repairs indistinguishable.
+    if (repairMutationScope === "none") repairMutationScope = "semantic-review";
   }
 
   const validationIssues = technicalPlanRepairIssues({

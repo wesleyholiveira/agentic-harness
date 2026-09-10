@@ -28,6 +28,7 @@ import {
   finalizeHandoffStructured,
   finalizeTechnicalReviewRepair,
   requiresStructuredHandoffFinalization,
+  reviewableHandoffProjection,
 } from "../../.agents/runtime/handoff-structured-finalization.mjs";
 import { resolveAuthoritativeHandoff } from "../../.agents/runtime/handoff-authority.mjs";
 import { isExecutableValidationCommand, invalidValidationCommands } from "../../.agents/runtime/validation-command.mjs";
@@ -380,6 +381,56 @@ function technicalReviewRepairFixture() {
 }
 
 
+test("Technical Refinement review projection excludes resolved Runtime diagnostics from semantic evidence", () => {
+  const { brief, handoff, contextPacket } = technicalReviewRepairFixture();
+  handoff.findings = [
+    { type: "technical_plan_synthesis", status: "succeeded", reason: "deterministic_preflight:implementation_plan_path_overlap:old" },
+    { type: "domain_finding", status: "open", detail: "preserve this semantic finding" },
+  ];
+  handoff.auxiliaryInvocations = [{ purpose: "technical-plan-synthesis" }];
+  handoff.metrics = { inputTokens: 100 };
+  handoff.executionTelemetry = { modelId: "example" };
+
+  const projected = reviewableHandoffProjection(handoff);
+  assert.deepEqual(projected.findings, [{ type: "domain_finding", status: "open", detail: "preserve this semantic finding" }]);
+  assert.equal(Object.hasOwn(projected, "auxiliaryInvocations"), false);
+  assert.equal(Object.hasOwn(projected, "metrics"), false);
+  assert.equal(Object.hasOwn(projected, "executionTelemetry"), false);
+
+  const prompt = buildHandoffFinalizationPrompt({ brief, handoff, contextPacket });
+  assert.doesNotMatch(prompt, /implementation_plan_path_overlap:old/);
+  assert.match(prompt, /domain_finding/);
+  assert.match(prompt, /Never reconstruct requiredDeltas from historical pre-repair diagnostics/);
+});
+
+test("Technical Refinement changes_requested repair canonicalizes missing routing metadata", async () => {
+  const handoffSchema = JSON.parse(readFileSync(resolve(root, ".agents/schemas/handoff-result.schema.json"), "utf8"));
+  const { brief, handoff, contextPacket, requiredDeltas } = technicalReviewRepairFixture();
+  const structuredRunner = async () => ({
+    value: {
+      sddReview: {
+        role: "technical-lead",
+        stage: "technical-refinement",
+        decision: "changes_requested",
+        reviewedRevision: 1,
+        nextRole: null,
+        requiredDeltas: [requiredDeltas[0]],
+      },
+      repairClosure: { resolvedResidualRisks: [], resolvedFollowUps: [] },
+    },
+    info: {},
+    sessionId: "ses-routing-normalization",
+  });
+
+  const finalized = await finalizeTechnicalReviewRepair({
+    workspace: root, model: "openai/gpt-5.6-luna", brief, contextPacket, handoff, handoffSchema, requiredDeltas, structuredRunner,
+  });
+  assert.equal(finalized.handoff.sddReview.decision, "changes_requested");
+  assert.equal(finalized.handoff.sddReview.nextRole, "technical-lead");
+  assert.deepEqual(finalized.handoff.sddReview.requiredDeltas, [requiredDeltas[0]]);
+});
+
+
 
 test("Technical Refinement review boundary never requires downstream execution evidence before plan approval", () => {
   const { brief, handoff, contextPacket, requiredDeltas } = technicalReviewRepairFixture();
@@ -635,6 +686,100 @@ test("Technical Refinement acceptance-coverage repair can only map criteria onto
     registry,
     request: brief.objective,
   }), []);
+});
+
+test("Technical Refinement semantic repair reports real mutation scope and evidence when deterministic preflight is already clean", async () => {
+  const registry = await loadAgentCatalog(root);
+  const implementationPlanSchema = JSON.parse(readFileSync(resolve(root, ".agents/schemas/implementation-plan.schema.json"), "utf8"));
+  const criterion = {
+    id: "CLV2-01",
+    source: "modernization/04-ACCEPTANCE.md",
+    statement: "The bounded ranker slice is implemented and verified.",
+    blocking: true,
+    verification: "npm test",
+    proofStage: "implementation",
+  };
+  const sourcePlan = {
+    schemaVersion: 1,
+    revision: 1,
+    acceptanceCriteria: [criterion],
+    workItems: [{
+      id: "W06-ranker",
+      ownerAgentId: "coding-pro",
+      objective: "Implement the bounded ranker behavior.",
+      dependencies: [],
+      ownedPaths: ["src/ranker.mjs", "test/ranker.test.mjs"],
+      acceptanceCriteria: [criterion.id],
+      validation: ["npm test"],
+      validationExecutionScope: "workspace",
+      complexity: "medium",
+      estimatedFiles: 2,
+      contractChange: false,
+      migration: false,
+    }],
+  };
+  assert.deepEqual(technicalPlanRepairIssues({
+    implementationPlan: sourcePlan,
+    implementationPlanSchema,
+    requiredAcceptanceCriteria: [criterion],
+    registry,
+    request: "Implement the bounded Learning V2 ranker slice.",
+  }), []);
+
+  const handoff = {
+    status: "complete",
+    implementationPlan: structuredClone(sourcePlan),
+    sddReview: {
+      role: "technical-lead",
+      stage: "technical-refinement",
+      decision: "changes_requested",
+      reviewedRevision: 1,
+      nextRole: "technical-lead",
+      requiredDeltas: ["Clarify that the ranker work item preserves the bounded contract during implementation."],
+    },
+    findings: [],
+    auxiliaryInvocations: [],
+    metrics: {},
+  };
+  const brief = {
+    runId: "run-semantic-repair",
+    taskId: "run-semantic-repair:technical-refinement",
+    agentId: "technical-lead",
+    objective: "Implement the bounded Learning V2 ranker slice.",
+    upstreamAcceptanceCriteria: [criterion],
+    sdd: { stage: "technical-refinement" },
+    modelRouting: { attempt: 2 },
+  };
+  const structuredRunner = async () => ({
+    value: {
+      ...structuredClone(sourcePlan),
+      revision: 2,
+      workItems: [{
+        ...structuredClone(sourcePlan.workItems[0]),
+        objective: "Implement the bounded ranker behavior while preserving the bounded contract.",
+      }],
+    },
+    info: { tokens: { input: 8, output: 3 } },
+    sessionId: "ses-semantic-repair",
+    attempts: 1,
+    failures: [],
+  });
+
+  const repaired = await repairImplementationPlanFromReview({
+    workspace: root,
+    brief,
+    handoff,
+    implementationPlanSchema,
+    registry,
+    model: "openai/gpt-5.6-luna",
+    structuredRunner,
+    repairPass: 1,
+  });
+
+  assert.equal(repaired.repairMutationScope, "semantic-review");
+  assert.deepEqual(repaired.repairEvidence, ["work-item-updated:W06-ranker:objective"]);
+  assert.equal(repaired.handoff.findings.at(-1).repairMutationScope, "semantic-review");
+  assert.deepEqual(repaired.handoff.findings.at(-1).repairEvidence, ["work-item-updated:W06-ranker:objective"]);
 });
 
 test("generic coding fallback owns consumer paths only when no domain primary owner exists", async () => {

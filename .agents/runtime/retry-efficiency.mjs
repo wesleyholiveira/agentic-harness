@@ -127,7 +127,15 @@ export function evaluateRetryBudget({ budgetState = {}, retryAfterMs = 0, limits
   const nextDelay = Math.max(0, Number(retryAfterMs ?? 0));
   const remainingElapsedMs = Math.max(0, limits.maxElapsedMs - elapsedMs);
   const remainingBackoffMs = Math.max(0, limits.maxCumulativeBackoffMs - cumulativeBackoffMs);
-  const allowed = nextDelay <= remainingElapsedMs && nextDelay <= remainingBackoffMs;
+  // A zero-delay retry must not bypass an already-exhausted wall-clock budget.
+  // Previously elapsedMs >= maxElapsedMs still produced remainingElapsedMs=0 and
+  // `0 <= 0`, allowing another full attempt after the temporal budget was spent.
+  const elapsedBudgetOpen = elapsedMs < limits.maxElapsedMs;
+  const backoffBudgetOpen = cumulativeBackoffMs <= limits.maxCumulativeBackoffMs;
+  const allowed = elapsedBudgetOpen
+    && backoffBudgetOpen
+    && nextDelay <= remainingElapsedMs
+    && nextDelay <= remainingBackoffMs;
   return { allowed, elapsedMs, cumulativeBackoffMs, retryAfterMs: nextDelay, remainingElapsedMs, remainingBackoffMs, ...limits };
 }
 

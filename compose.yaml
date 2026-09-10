@@ -35,7 +35,9 @@ services:
   context-embeddings:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8.3
     profiles: [runtime, embeddings]
-    command: ["--model-id", "${CONTEXT_SEMANTIC_EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}"]
+    # Semantic task descriptors can be larger than the embedding model context.
+    # TEI 1.8.x does not auto-truncate unless explicitly requested.
+    command: ["--model-id", "${CONTEXT_SEMANTIC_EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}", "--auto-truncate"]
     ports: ["${AGENT_HARNESS_EMBEDDINGS_PORT:-8791}:80"]
 
 
@@ -105,6 +107,7 @@ services:
       AGENT_HARNESS_RUNTIME_RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-agent}:${RABBITMQ_DEFAULT_PASS:-agent}@rabbitmq:5672/%2f
       AGENT_HARNESS_RUNTIME_WORKER_ID: ${AGENT_HARNESS_RUNTIME_WORKER_ID:-agentic-harness-worker}
       AGENT_HARNESS_RUNTIME_WORKER_CONCURRENCY: ${AGENT_HARNESS_RUNTIME_WORKER_CONCURRENCY:-3}
+      RUST_LOG: ${AGENT_HARNESS_RUNTIME_LOG_FILTER:-info}
       AGENT_HARNESS_OPENCODE_CONTINUATION_URL: ${AGENT_HARNESS_OPENCODE_CONTINUATION_URL:-http://host.docker.internal:4096}
       AGENT_HARNESS_OPENCODE_CONTINUATION_USERNAME: ${AGENT_HARNESS_OPENCODE_CONTINUATION_USERNAME:-opencode}
       AGENT_HARNESS_OPENCODE_CONTINUATION_PASSWORD: ${AGENT_HARNESS_OPENCODE_CONTINUATION_PASSWORD:-}
