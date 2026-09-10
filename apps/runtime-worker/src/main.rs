@@ -26,6 +26,9 @@ async fn main() -> Result<()> {
         .json()
         .init();
     let cli = Cli::parse();
-    info!(event="agent_runtime.worker_starting", concurrency=cli.concurrency);
+    info!(
+        event = "agent_runtime.worker_starting",
+        concurrency = cli.concurrency
+    );
     agent_runtime::run(Config::from_env()?, cli.concurrency).await
 }

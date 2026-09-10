@@ -11,6 +11,11 @@ function source(path) {
   return readFileSync(resolve(root, path), "utf8");
 }
 
+function rustInfoEventPattern(event) {
+  const escaped = event.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`info!\\s*\\(\\s*event\\s*=\\s*"${escaped}"`);
+}
+
 test("runtime worker logging is visible by default and remains operator-overridable", () => {
   const main = source("apps/runtime-worker/src/main.rs");
   const compose = source("compose.yaml");
@@ -19,7 +24,7 @@ test("runtime worker logging is visible by default and remains operator-overrida
 
   assert.match(main, /EnvFilter::try_from_default_env\(\)/);
   assert.match(main, /EnvFilter::new\("info"\)/);
-  assert.match(main, /info!\(event="agent_runtime\.worker_starting"/);
+  assert.match(main, rustInfoEventPattern("agent_runtime.worker_starting"));
   assert.match(compose, /RUST_LOG:\s*\$\{AGENT_HARNESS_RUNTIME_LOG_FILTER:-info\}/);
   assert.match(envExample, /AGENT_HARNESS_RUNTIME_LOG_FILTER=info/);
 
@@ -30,7 +35,7 @@ test("runtime worker logging is visible by default and remains operator-overrida
     "agent_runtime.executor_completed",
     "agent_runtime.execution_result_persisted",
   ]) {
-    assert.match(worker, new RegExp(`info!\\(event=\\"${lifecycleEvent.replaceAll(".", "\\.")}\\"`));
+    assert.match(worker, rustInfoEventPattern(lifecycleEvent));
   }
 });
 
