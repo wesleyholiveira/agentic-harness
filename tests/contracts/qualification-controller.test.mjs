@@ -207,6 +207,20 @@ test("R-4 uses bounded HTTP readiness for Context Engine, RabbitMQ management, a
 });
 
 
+test("qualification owns RabbitMQ credentials instead of inheriting product environment", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  assert.match(controller, /const QUALIFICATION_RABBITMQ_USERNAME = "agent"/);
+  assert.match(controller, /const QUALIFICATION_RABBITMQ_PASSWORD = "agent"/);
+  assert.match(controller, /RABBITMQ_DEFAULT_USER:\s*QUALIFICATION_RABBITMQ_USERNAME/);
+  assert.match(controller, /RABBITMQ_DEFAULT_PASS:\s*QUALIFICATION_RABBITMQ_PASSWORD/);
+  assert.equal(
+    (controller.match(/basicAuthHeaders\(QUALIFICATION_RABBITMQ_USERNAME, QUALIFICATION_RABBITMQ_PASSWORD\)/gu) ?? []).length,
+    2,
+  );
+  assert.doesNotMatch(controller, /basicAuthHeaders\("agent", "agent"\)/);
+});
+
+
 test("R-4 proves Context Engine and Runtime worker share the same execution-workspace volume authority", () => {
   const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
   assert.match(controller, /const workspaceDestination = "\/workspace\/agent-workspaces"/);

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-10T18:06:22Z",
+  "generatedAt": "2026-09-11T00:21:00Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 527,
-  "treeSha256": "sha256:9e64a497fc2202a6fc265a6144dd04daaca6a838923d3d5c8f8b2d0ccc6248f1",
+  "treeSha256": "sha256:1d985120725f76916aee1ea936302629c55b88a497b67edf6079a280c84c7290",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -2293,9 +2293,9 @@
       "sha256": "sha256:02561e785ef0db3b2b7595cc43160ce3c8cec37d8e185b8c6cbec863e2388d14"
     },
     {
-      "bytes": 105564,
+      "bytes": 106122,
       "path": "scripts/qualification/standalone-v1.mjs",
-      "sha256": "sha256:ed8b7f3f5ac2a71aa86ecefdc8c80fb71abafae040603573aff8daa65ae53d08"
+      "sha256": "sha256:658a25d6d3a8169075cdb797cfe02864c4e41ee1a1dae76d42e74831cb880a87"
     },
     {
       "bytes": 1892,
@@ -2338,9 +2338,9 @@
       "sha256": "sha256:7f8eadec83654ffd37f54d82bd53c25ba7db879bd6943ef2fef52ab88507f2d1"
     },
     {
-      "bytes": 44282,
+      "bytes": 45051,
       "path": "tests/contracts/qualification-controller.test.mjs",
-      "sha256": "sha256:f482b4ed2f6af67c45e1c8e3dab274cb6467094359f58245d68ffb08da3eb62e"
+      "sha256": "sha256:a2fb3b9502a2260a3d6bb5a6e42c373886d9f751a586950380c04d9aea965f4f"
     },
     {
       "bytes": 3129,

@@ -79,6 +79,9 @@ const state = {
   r10: null,
 };
 
+const QUALIFICATION_RABBITMQ_USERNAME = "agent";
+const QUALIFICATION_RABBITMQ_PASSWORD = "agent";
+
 const gateOrder = ["Q-ENTRY", "PRE-R0", "R-0", "R-1", "R-2", "R-3", "R-4", "R-5", "R-6", "R-7", "R-8", "R-9", "R-10"];
 let firstHold = null;
 
@@ -533,6 +536,11 @@ function buildConsumerEnv() {
     AGENT_HARNESS_POSTGRES_PORT: String(p.postgres),
     AGENT_HARNESS_RABBITMQ_PORT: String(p.rabbitmq),
     AGENT_HARNESS_RABBITMQ_MANAGEMENT_PORT: String(p.rabbitmqManagement),
+    // Qualification owns a disposable RabbitMQ instance. Do not inherit product/host
+    // credentials because the readiness and recovery probes must authenticate against
+    // the exact credentials used to initialize this isolated broker.
+    RABBITMQ_DEFAULT_USER: QUALIFICATION_RABBITMQ_USERNAME,
+    RABBITMQ_DEFAULT_PASS: QUALIFICATION_RABBITMQ_PASSWORD,
     AGENT_HARNESS_REDIS_PORT: String(p.redis),
     AGENT_HARNESS_EMBEDDINGS_PORT: String(p.embeddings),
     AGENT_HARNESS_CONTEXT_ENGINE_PORT: String(p.contextEngine),
@@ -671,7 +679,7 @@ async function r4() {
     service: "rabbitmq-management",
     url: `http://127.0.0.1:${state.ports.rabbitmqManagement}/api/overview`,
     request: {
-      headers: basicAuthHeaders("agent", "agent"),
+      headers: basicAuthHeaders(QUALIFICATION_RABBITMQ_USERNAME, QUALIFICATION_RABBITMQ_PASSWORD),
       timeoutMs: 10_000,
       allowStatuses: [200],
     },
@@ -1819,7 +1827,7 @@ async function r10() {
   for (const [service, recovery] of [
     ["redis", async () => composeCommand(["exec", "-T", "redis", "redis-cli", "ping"], { label: "r10-redis-recovery" })],
     ["context-embeddings", async () => requestJson(`http://127.0.0.1:${state.ports.embeddings}/embed`, { method: "POST", body: { inputs: "recovery" }, allowStatuses: [200], timeoutMs: 10_000 })],
-    ["rabbitmq", async () => requestJson(`http://127.0.0.1:${state.ports.rabbitmqManagement}/api/overview`, { headers: basicAuthHeaders("agent", "agent"), allowStatuses: [200], timeoutMs: 10_000 })],
+    ["rabbitmq", async () => requestJson(`http://127.0.0.1:${state.ports.rabbitmqManagement}/api/overview`, { headers: basicAuthHeaders(QUALIFICATION_RABBITMQ_USERNAME, QUALIFICATION_RABBITMQ_PASSWORD), allowStatuses: [200], timeoutMs: 10_000 })],
     ["context-engine", async () => requestJson(`http://127.0.0.1:${state.ports.contextEngine}/healthz`, { allowStatuses: [200], timeoutMs: 10_000 })],
     ["agent-runtime-worker", async () => {
       const heartbeat = sqlScalar("SELECT heartbeat_at FROM agent_runtime_workers WHERE stopped_at IS NULL ORDER BY heartbeat_at DESC LIMIT 1;");
