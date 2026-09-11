@@ -17,7 +17,7 @@ import {
   repairImplementationPlanFromReview,
   technicalPlanRepairIssues,
 } from "../../.agents/runtime/technical-plan-synthesis.mjs";
-import { cleanupWorkspace, createIsolatedWorkspace, inspectWorkspaceChanges, integrateWorkspace, reconcileHandoffPathDisposition } from "../../.agents/runtime/workspace.mjs";
+import { cleanupWorkspace, createIsolatedWorkspace, inspectWorkspaceChanges, integrateWorkspace, isRetryableImplementationReuseFailure, reconcileHandoffPathDisposition } from "../../.agents/runtime/workspace.mjs";
 import { runProcess } from "../../.agents/runtime/process.mjs";
 import { buildContinuationPrompt } from "../../.agents/runtime/continuation.mjs";
 import {
@@ -32,6 +32,7 @@ import {
 } from "../../.agents/runtime/handoff-structured-finalization.mjs";
 import { resolveAuthoritativeHandoff } from "../../.agents/runtime/handoff-authority.mjs";
 import { isExecutableValidationCommand, invalidValidationCommands } from "../../.agents/runtime/validation-command.mjs";
+import { retryDispositionForFailure } from "../../.agents/runtime/retry-efficiency.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -1080,6 +1081,67 @@ test("phantom reused paths remain fail-closed outside zero-file governance revie
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
+});
+
+test("implementation missing-new reused paths fail closed but receive one bounded semantic retry classification", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "agent-harness-implementation-missing-new-reuse-"));
+  try {
+    const paths = ["src/format-initials.mjs", "test/format-initials.test.mjs"];
+    const task = {
+      taskId: "run-r9:implementation:wi-r9-format-initials",
+      agentId: "coding-pro",
+      role: "implementation",
+      stage: "implementation",
+      executionMode: "agent",
+      estimatedFiles: 2,
+      ownedPaths: ["src/format-initials.mjs", "test/format-initials.test.mjs"],
+    };
+    const handoff = { status: "complete", changedPaths: [], reusedPaths: paths, criterionResults: [], validation: [] };
+    const disposition = await reconcileHandoffPathDisposition({
+      workspace: { mode: "copy", path: tempRoot, baseline: new Map() },
+      task,
+      inspection: { changedPaths: [] },
+      handoff,
+      reusedPaths: handoff.reusedPaths,
+    });
+
+    assert.deepEqual(disposition.invalidReused, paths.map((path) => ({
+      path,
+      valid: false,
+      reason: "missing_in_workspace_and_baseline",
+    })));
+    assert.equal(isRetryableImplementationReuseFailure({ task, handoff, invalidReused: disposition.invalidReused }), true);
+    assert.equal(retryDispositionForFailure({ code: "handoff_reused_paths_invalid", retryable: true }), "true-retry-semantic");
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("invalid reuse remains terminal outside the exact missing-new implementation case", () => {
+  const task = { role: "implementation", stage: "implementation", executionMode: "agent" };
+  const handoff = { status: "complete" };
+  assert.equal(isRetryableImplementationReuseFailure({
+    task,
+    handoff,
+    invalidReused: [{ path: "src/existing.mjs", reason: "missing_in_workspace" }],
+  }), false);
+  assert.equal(isRetryableImplementationReuseFailure({
+    task,
+    handoff,
+    invalidReused: [{ path: "src/foreign.mjs", reason: "ownership_violation" }],
+  }), false);
+  assert.equal(isRetryableImplementationReuseFailure({
+    task: { ...task, executionMode: "deterministic-reuse" },
+    handoff,
+    invalidReused: [{ path: "src/new.mjs", reason: "missing_in_workspace_and_baseline" }],
+  }), false);
+  assert.equal(retryDispositionForFailure({ code: "handoff_reused_paths_invalid", retryable: false }), "terminal");
+});
+
+test("implementation prompt forbids treating required new artifacts as reused outputs", () => {
+  const source = readFileSync(resolve(root, "scripts/internal/opencode-task-executor.mjs"), "utf8");
+  assert.match(source, /required owned artifact that did not exist before this attempt can NEVER be reused/);
+  assert.match(source, /Create it physically and report it in changedPaths/);
 });
 
 test("bootstrap governance prompt forbids invented changed/reused artifact paths for zero-file reviews", () => {

@@ -32,6 +32,7 @@ export const RETRY_FAILURE_STRATEGIES = Object.freeze({
   network_error: { disposition: "true-retry-transient", category: "transport" },
   worker_unavailable: { disposition: "true-retry-transient", category: "worker" },
   handoff_missing: { disposition: "true-retry-semantic", category: "contract" },
+  handoff_reused_paths_invalid: { disposition: "true-retry-semantic", category: "contract" },
   agent_failed: { disposition: "true-retry-semantic", category: "agent" },
 });
 

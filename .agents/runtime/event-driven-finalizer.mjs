@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { evaluateCompletion } from "./completion-gate.mjs";
 import { assertSchema } from "./schema-validator.mjs";
 import { classifyValidationFailure, stageContractFailure } from "./executor.mjs";
-import { classifyWorkspaceChanges, inspectWorkspaceChanges, integrateWorkspace, reconcileHandoffPathDisposition } from "./workspace.mjs";
+import { classifyWorkspaceChanges, inspectWorkspaceChanges, integrateWorkspace, isRetryableImplementationReuseFailure, reconcileHandoffPathDisposition } from "./workspace.mjs";
 import { anyPatternMatches, exists, fileFingerprint, nowIso, readJson, sha256, writeJson } from "./utils.mjs";
 import { SUCCESS_TASK_STATUSES } from "./event-driven-contracts.mjs";
 import { sanitizeHandoffTelemetryShape } from "./handoff-telemetry.mjs";
@@ -510,7 +510,12 @@ export async function finalizeExecutionResult({ repositoryRoot, plan, taskPlan, 
       });
     }
     if (disposition.invalidReused.length > 0) {
-      failure = { code: "handoff_reused_paths_invalid", message: disposition.invalidReused.map((entry) => `${entry.path}:${entry.reason}`).join(","), retryable: false };
+      failure = {
+        code: "handoff_reused_paths_invalid",
+        message: disposition.invalidReused.map((entry) => `${entry.path}:${entry.reason}`).join(","),
+        retryable: isRetryableImplementationReuseFailure({ task: taskPlan, handoff, invalidReused: disposition.invalidReused }),
+        category: "contract",
+      };
     } else if (disposition.missingDeclaredChanges.length > 0) {
       failure = { code: "handoff_changed_paths_mismatch", message: `declared=${disposition.changedPaths.join(",")} actual=${inspection.changedPaths.join(",")} undeclared=${disposition.missingDeclaredChanges.join(",")}`, retryable: false };
     } else {

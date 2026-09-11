@@ -8,7 +8,7 @@ import { evaluateCompletion } from "./completion-gate.mjs";
 import { isSddReviewStage, requiredReviewDecision, validateSddReviewContract } from "./review-contract.mjs";
 import { canonicalizeImplementationPlanAcceptanceCriteria, collectImplementationPlanValidationIssues, compileImplementationDag, saveCompiledDag } from "./dag-compiler.mjs";
 import { assertSchema } from "./schema-validator.mjs";
-import { cleanupWorkspace, createIsolatedWorkspace, inspectWorkspaceChanges, integrateWorkspace, reconcileHandoffPathDisposition } from "./workspace.mjs";
+import { cleanupWorkspace, createIsolatedWorkspace, inspectWorkspaceChanges, integrateWorkspace, isRetryableImplementationReuseFailure, reconcileHandoffPathDisposition } from "./workspace.mjs";
 import { runProcess } from "./process.mjs";
 import { resolveTaskReasoning } from "./reasoning.mjs";
 import { computeEphemeralPort, dockerLifecycleScopeId, ServiceLifecycleManager } from "./service-lifecycle.mjs";
@@ -1200,7 +1200,8 @@ export async function executeTask({ repositoryRoot, runDirectory, plan, taskPlan
       failure = {
         code: "handoff_reused_paths_invalid",
         message: disposition.invalidReused.map((entry) => `${entry.path}:${entry.reason}`).join(","),
-        retryable: false,
+        retryable: isRetryableImplementationReuseFailure({ task: taskPlan, handoff, invalidReused: disposition.invalidReused }),
+        category: "contract",
       };
     } else if (disposition.missingDeclaredChanges.length > 0) {
       const ignoredTooling = inspection.toolingSideEffects.length > 0 ? ` ignored_tooling=${inspection.toolingSideEffects.join(",")}` : "";

@@ -87,6 +87,15 @@ function canDropPhantomGovernanceReuse({ task, handoff, result }) {
     && !handoffReferencesPathOutsideDisposition(handoff, result.path);
 }
 
+export function isRetryableImplementationReuseFailure({ task, handoff, invalidReused = [] } = {}) {
+  return task?.role === "implementation"
+    && String(task?.stage ?? "") === "implementation"
+    && String(task?.executionMode ?? "agent") === "agent"
+    && handoff?.status === "complete"
+    && invalidReused.length > 0
+    && invalidReused.every((entry) => entry?.reason === "missing_in_workspace_and_baseline");
+}
+
 async function verifyReadOnlyContextPath(workspace, path, changedSet) {
   if (isToolingSideEffectPath(path)) return { path, valid: false, reason: "tooling_side_effect" };
   if (changedSet.has(path)) return { path, valid: false, reason: "changed_in_attempt" };

@@ -416,6 +416,7 @@ Path disposition contract:
 - Cite the verification of reused artifacts in criterionResults and/or final validation evidence. Never claim an unchanged path as changed.
 - readOnlyContextPaths in the Task Brief are supporting context only. If you read one, report it in usedContextPaths. Never place a read-only context path in changedPaths or reusedPaths.
 - reusedPaths is not a list of files you read; it is only for pre-existing artifacts inside ownedPaths that are being accepted as task output without modification.
+- A required owned artifact that did not exist before this attempt can NEVER be reused. Create it physically and report it in changedPaths. Claiming an absent/new path in reusedPaths is a failed implementation attempt.
 
 Handoff Result v2 envelope contract:
 - artifactVersion, assumptions, contractChanges, residualRisks and followUps are required. Emit the arrays explicitly even when they are empty.
