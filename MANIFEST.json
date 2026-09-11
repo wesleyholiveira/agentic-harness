@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-11T02:49:08Z",
+  "generatedAt": "2026-09-11T12:02:54Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 527,
-  "treeSha256": "sha256:4556af95788fdb50126a7b3dc0559b94164d7d9c47bf776e0573846d54efc554",
+  "treeSha256": "sha256:35ae0e82c090056c784fe25881628b6d668334c7c85975c8191d2b3e35cbc6e3",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -653,9 +653,9 @@
       "sha256": "sha256:41a3ba2f41f1df7f4101d04d269d41389ccdd93b87bd47ce652807c64f554fe7"
     },
     {
-      "bytes": 39801,
+      "bytes": 54567,
       "path": ".agents/runtime/technical-plan-synthesis.mjs",
-      "sha256": "sha256:ad6b244484b8c474c059875bfc175745556fc171a3e8ee681ca108763968899e"
+      "sha256": "sha256:e7b6586a847100b50f0a0340811d5ae3ee7b0d18ba0607e6626f4b7027fadd01"
     },
     {
       "bytes": 6149,
@@ -2373,9 +2373,9 @@
       "sha256": "sha256:0866c42670f9a961f16b56951eaaefb7a1d1377f47b18a29faedc91bc68fba62"
     },
     {
-      "bytes": 50237,
+      "bytes": 57857,
       "path": "tests/contracts/workflow.test.mjs",
-      "sha256": "sha256:5d024e1c38d18526e74c1075977a096143888bd0c604607531d2d8a28d8b25ec"
+      "sha256": "sha256:f0c9d83036a896dfb4947f29cd4a6237cdccbdf496e28ddad77558f305f7135e"
     },
     {
       "bytes": 1049,

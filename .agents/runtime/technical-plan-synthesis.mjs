@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { extname, relative, resolve, sep } from "node:path";
 import { assertSchema, validateAgainstSchema } from "./schema-validator.mjs";
-import { exists } from "./utils.mjs";
+import { anyPatternMatches, exists } from "./utils.mjs";
 import { loadAgentCatalog } from "./agent-catalog.mjs";
 import { runOpenCodeStructuredOutput } from "./opencode-structured-output.mjs";
 import { auxiliaryInvocationFromStructuredResult } from "./auxiliary-telemetry.mjs";
@@ -54,6 +54,160 @@ function uncoveredCriterionIds(issues = []) {
     .filter((issue) => String(issue).startsWith("implementation_plan_uncovered_criterion:"))
     .map((issue) => String(issue).slice("implementation_plan_uncovered_criterion:".length))
     .filter(Boolean))];
+}
+
+function workItemWithoutImplementationCriterionIds(issues = []) {
+  const prefix = "implementation_plan_work_item_without_implementation_criterion:";
+  return [...new Set((issues ?? [])
+    .filter((issue) => String(issue).startsWith(prefix))
+    .map((issue) => String(issue).slice(prefix.length))
+    .filter(Boolean))];
+}
+
+function implementationAgents(registry) {
+  return (registry?.agents ?? []).filter((agent) => IMPLEMENTATION_EXECUTION_ROLES.has(agent.executionRole));
+}
+
+function agentOwnedPatterns(agent) {
+  return [...new Set([...(agent?.primaryPaths ?? []), ...(agent?.sharedPaths ?? []), ...(agent?.collaborativePaths ?? [])])];
+}
+
+function primaryImplementationOwnersForPath(registry, path) {
+  return implementationAgents(registry)
+    .filter((agent) => agent.ownershipMode !== "fallback-unclaimed-primary")
+    .filter((agent) => anyPatternMatches(agent.primaryPaths ?? [], path));
+}
+
+function agentCanOwnPath(registry, agent, path) {
+  if (anyPatternMatches(agentOwnedPatterns(agent), path)) return true;
+  if (agent?.ownershipMode !== "fallback-unclaimed-primary") return false;
+  return primaryImplementationOwnersForPath(registry, path).length === 0;
+}
+
+function uniqueImplementationOwnerForPaths(registry, paths = []) {
+  if (!Array.isArray(paths) || paths.length === 0) return null;
+  const agents = implementationAgents(registry);
+  const primaryCandidates = agents
+    .filter((agent) => agent.ownershipMode !== "fallback-unclaimed-primary")
+    .filter((agent) => paths.every((path) => anyPatternMatches(agent.primaryPaths ?? [], path)));
+  if (primaryCandidates.length === 1) return primaryCandidates[0];
+  const candidates = agents.filter((agent) => paths.every((path) => agentCanOwnPath(registry, agent, path)));
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
+export function normalizeTechnicalPlanMechanics({ implementationPlan, requiredAcceptanceCriteria, registry }) {
+  const next = clone(implementationPlan);
+  const evidence = [];
+  const criteria = new Map((requiredAcceptanceCriteria ?? []).map((criterion) => [criterion.id, criterion]));
+  const implementationIds = new Set(implementationProofCriteria(requiredAcceptanceCriteria ?? []).map((criterion) => criterion.id));
+
+  if (!criteriaEqual(next.acceptanceCriteria, requiredAcceptanceCriteria)) {
+    next.acceptanceCriteria = clone(requiredAcceptanceCriteria ?? []);
+    evidence.push("acceptance-criteria-canonicalized");
+  }
+
+  for (const item of next.workItems ?? []) {
+    const originalCriteria = [...(item.acceptanceCriteria ?? [])];
+    const implementationCriteria = [...new Set(originalCriteria.filter((id) => implementationIds.has(id)))];
+    if (implementationCriteria.length > 0 && implementationCriteria.length !== originalCriteria.length) {
+      item.acceptanceCriteria = implementationCriteria;
+      evidence.push(`work-item-updated:${item.id}:acceptanceCriteria`);
+    }
+
+    const exactCriterionCommands = implementationCriteria
+      .map((id) => String(criteria.get(id)?.verification ?? "").trim())
+      .filter(isExecutableValidationCommand);
+    const executableCommands = (item.validation ?? []).map((command) => String(command).trim()).filter(isExecutableValidationCommand);
+    const normalizedValidation = [...new Set([...executableCommands, ...exactCriterionCommands])];
+    if (normalizedValidation.length > 0 && JSON.stringify(normalizedValidation) !== JSON.stringify(item.validation ?? [])) {
+      item.validation = normalizedValidation;
+      evidence.push(`work-item-updated:${item.id}:validation`);
+    }
+
+    const currentAgent = (registry?.agents ?? []).find((agent) => agent.id === item.ownerAgentId) ?? null;
+    const currentOwnsAll = currentAgent
+      && IMPLEMENTATION_EXECUTION_ROLES.has(currentAgent.executionRole)
+      && (item.ownedPaths ?? []).every((path) => agentCanOwnPath(registry, currentAgent, path));
+    if (!currentOwnsAll) {
+      const uniqueOwner = uniqueImplementationOwnerForPaths(registry, item.ownedPaths ?? []);
+      if (uniqueOwner && uniqueOwner.id !== item.ownerAgentId) {
+        item.ownerAgentId = uniqueOwner.id;
+        evidence.push(`work-item-updated:${item.id}:ownerAgentId`);
+      }
+    }
+  }
+
+  return { plan: next, evidence: [...new Set(evidence)] };
+}
+
+function criterionAssignmentRepairSchema({ workItemIds, criterionIds }) {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["assignments", "unresolvedWorkItemIds", "unresolvedCriterionIds"],
+    properties: {
+      assignments: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["workItemId", "criterionId"],
+          properties: {
+            workItemId: { type: "string", enum: workItemIds },
+            criterionId: { type: "string", enum: criterionIds },
+          },
+        },
+      },
+      unresolvedWorkItemIds: { type: "array", items: { type: "string", enum: workItemIds } },
+      unresolvedCriterionIds: { type: "array", items: { type: "string", enum: criterionIds } },
+    },
+  };
+}
+
+export function buildCriterionAssignmentRepairPrompt({ brief, implementationPlan, requiredAcceptanceCriteria, targetWorkItemIds, uncoveredIds }) {
+  const implementationCriteria = implementationProofCriteria(requiredAcceptanceCriteria ?? []);
+  const input = {
+    objective: brief.objective,
+    targetWorkItemIds,
+    uncoveredCriterionIds: uncoveredIds,
+    implementationCriteria,
+    workItems: (implementationPlan.workItems ?? []).map((item) => ({
+      id: item.id,
+      objective: item.objective,
+      ownerAgentId: item.ownerAgentId,
+      ownedPaths: item.ownedPaths ?? [],
+      acceptanceCriteria: item.acceptanceCriteria ?? [],
+      validation: item.validation ?? [],
+    })),
+  };
+  return `Repair ONLY implementation-criterion assignments for an existing Agentic Harness implementationPlan.
+
+Return assignment pairs only; you cannot add/remove/rewrite work items, paths, owners, dependencies, objectives or validation scope.
+- Every targetWorkItemId must receive at least one materially relevant implementation criterion, or be listed in unresolvedWorkItemIds.
+- Every uncoveredCriterionId must be assigned to at least one materially relevant existing work item, or be listed in unresolvedCriterionIds.
+- Do not assign a criterion merely to silence validation. If the current decomposition cannot honestly prove it, mark it unresolved so the Runtime can fall back to structural repair.
+- Use only supplied implementationCriteria IDs.
+- The Runtime deterministically appends an exact criterion verification command only when the Product Owner verification is itself executable.
+
+INPUT:
+${JSON.stringify(input, null, 2)}`;
+}
+
+function applyCriterionAssignments({ implementationPlan, requiredAcceptanceCriteria, assignments }) {
+  const next = clone(implementationPlan);
+  const byId = new Map((next.workItems ?? []).map((item) => [item.id, item]));
+  const criteria = new Map((requiredAcceptanceCriteria ?? []).map((criterion) => [criterion.id, criterion]));
+  const touched = [];
+  for (const assignment of assignments ?? []) {
+    const item = byId.get(assignment.workItemId);
+    const criterion = criteria.get(assignment.criterionId);
+    if (!item || !criterion) continue;
+    item.acceptanceCriteria = [...new Set([...(item.acceptanceCriteria ?? []), criterion.id])];
+    const verification = String(criterion.verification ?? "").trim();
+    if (isExecutableValidationCommand(verification)) item.validation = [...new Set([...(item.validation ?? []), verification])];
+    touched.push(`${criterion.id}:${item.id}`);
+  }
+  return { plan: next, touched: [...new Set(touched)] };
 }
 
 function criterionVerificationMissingEntries(issues = []) {
@@ -420,6 +574,161 @@ export async function synthesizeMissingImplementationPlan({
   let aggregateUsage = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, costUsd: 0 };
   let lastModel = null;
   const initialIssues = [...validationIssues];
+  const sourceRevision = Number(currentHandoff.implementationPlan?.revision ?? 1);
+  const hasStructuredPlan = currentHandoff.implementationPlan
+    && typeof currentHandoff.implementationPlan === "object"
+    && !Array.isArray(currentHandoff.implementationPlan);
+  const mechanical = hasStructuredPlan
+    ? normalizeTechnicalPlanMechanics({
+      implementationPlan: currentHandoff.implementationPlan,
+      requiredAcceptanceCriteria,
+      registry: resolvedRegistry,
+    })
+    : { plan: currentHandoff.implementationPlan ?? null, evidence: [] };
+  if (mechanical.evidence.length > 0) {
+    currentHandoff.implementationPlan = mechanical.plan;
+    validationIssues = technicalPlanRepairIssues({
+      implementationPlan: mechanical.plan,
+      implementationPlanSchema,
+      requiredAcceptanceCriteria,
+      registry: resolvedRegistry,
+      request: brief.objective,
+    });
+  }
+
+  const returnBoundedRepair = ({ model = null, result = null, repairEvidence = [], repairKind = "deterministic-mechanics" } = {}) => {
+    const nextHandoff = clone(currentHandoff);
+    nextHandoff.implementationPlan.revision = Number.isInteger(sourceRevision) && sourceRevision >= 1 ? sourceRevision + 1 : 1;
+    nextHandoff.findings = [
+      ...(nextHandoff.findings ?? []),
+      {
+        type: "technical_plan_synthesis",
+        status: "succeeded",
+        reason: `deterministic_preflight:${initialIssues.join(" | ")}`,
+        repairKind,
+        repairPasses: 0,
+        maxRepairPasses: repairPassLimit,
+        modelId: model,
+        sessionId: result?.sessionId ?? null,
+        repairEvidence: [...new Set([...mechanical.evidence, ...repairEvidence])],
+        evidencePaths: evidence.map((item) => item.path),
+      },
+    ];
+    nextHandoff.metrics = {
+      ...(nextHandoff.metrics ?? {}),
+      inputTokens: Number(nextHandoff.metrics?.inputTokens ?? 0) + aggregateUsage.inputTokens,
+      outputTokens: Number(nextHandoff.metrics?.outputTokens ?? 0) + aggregateUsage.outputTokens,
+      cachedInputTokens: Number(nextHandoff.metrics?.cachedInputTokens ?? 0) + aggregateUsage.cachedInputTokens,
+      costUsd: Number(nextHandoff.metrics?.costUsd ?? 0) + aggregateUsage.costUsd,
+    };
+    return {
+      handoff: nextHandoff,
+      attempted: true,
+      model,
+      usage: aggregateUsage,
+      failures,
+      repairPasses: 0,
+      initialIssues,
+      repairKind,
+      repairEvidence: [...new Set([...mechanical.evidence, ...repairEvidence])],
+    };
+  };
+
+  if (validationIssues.length === 0) {
+    return returnBoundedRepair();
+  }
+
+  const criterionlessWorkItemIds = workItemWithoutImplementationCriterionIds(validationIssues);
+  const uncoveredIds = uncoveredCriterionIds(validationIssues);
+  const narrowRepairPrefixes = [
+    "validation_command_not_executable:",
+    "implementation_plan_criterion_verification_missing:",
+    "implementation_plan_work_item_without_implementation_criterion:",
+    "implementation_plan_uncovered_criterion:",
+  ];
+  if ((criterionlessWorkItemIds.length > 0 || uncoveredIds.length > 0)
+    && validationIssues.every((issue) => issueHasPrefix(issue, narrowRepairPrefixes))) {
+    const implementationCriterionIds = implementationProofCriteria(requiredAcceptanceCriteria).map((criterion) => criterion.id);
+    const assignmentSchema = criterionAssignmentRepairSchema({
+      workItemIds: (currentHandoff.implementationPlan.workItems ?? []).map((item) => item.id),
+      criterionIds: implementationCriterionIds,
+    });
+    const model = candidates[0];
+    try {
+      const result = await structuredRunner({
+        workspace,
+        model,
+        agentId: brief.agentId,
+        schema: assignmentSchema,
+        prompt: buildCriterionAssignmentRepairPrompt({
+          brief,
+          implementationPlan: currentHandoff.implementationPlan,
+          requiredAcceptanceCriteria,
+          targetWorkItemIds: criterionlessWorkItemIds,
+          uncoveredIds,
+        }),
+        title: `${brief.taskId} criterion assignment repair`,
+      });
+      assertSchema(result.value, assignmentSchema, "technicalPlanCriterionAssignmentRepair");
+      const unresolvedWorkItems = [...new Set(result.value.unresolvedWorkItemIds ?? [])];
+      const unresolvedCriteria = [...new Set(result.value.unresolvedCriterionIds ?? [])];
+      const assignedWorkItems = new Set((result.value.assignments ?? []).map((item) => item.workItemId));
+      const assignedCriteria = new Set((result.value.assignments ?? []).map((item) => item.criterionId));
+      const missingWorkItems = criterionlessWorkItemIds.filter((id) => !assignedWorkItems.has(id) && !unresolvedWorkItems.includes(id));
+      const missingCriteria = uncoveredIds.filter((id) => !assignedCriteria.has(id) && !unresolvedCriteria.includes(id));
+      if (missingWorkItems.length > 0 || missingCriteria.length > 0) {
+        throw new Error(`technical_plan_criterion_assignment_incomplete:workItems=${missingWorkItems.join(",")}:criteria=${missingCriteria.join(",")}`);
+      }
+      if (unresolvedWorkItems.length === 0 && unresolvedCriteria.length === 0) {
+        const applied = applyCriterionAssignments({
+          implementationPlan: currentHandoff.implementationPlan,
+          requiredAcceptanceCriteria,
+          assignments: result.value.assignments,
+        });
+        const normalized = normalizeTechnicalPlanMechanics({
+          implementationPlan: applied.plan,
+          requiredAcceptanceCriteria,
+          registry: resolvedRegistry,
+        });
+        currentHandoff.implementationPlan = normalized.plan;
+        currentHandoff.auxiliaryInvocations = [
+          ...(currentHandoff.auxiliaryInvocations ?? []),
+          auxiliaryInvocationFromStructuredResult({ purpose: "technical-plan-repair", model, result }),
+        ];
+        const usage = synthesisUsage(result.info);
+        aggregateUsage = {
+          inputTokens: aggregateUsage.inputTokens + usage.inputTokens,
+          outputTokens: aggregateUsage.outputTokens + usage.outputTokens,
+          cachedInputTokens: aggregateUsage.cachedInputTokens + usage.cachedInputTokens,
+          costUsd: aggregateUsage.costUsd + usage.costUsd,
+        };
+        lastModel = model;
+        validationIssues = technicalPlanRepairIssues({
+          implementationPlan: currentHandoff.implementationPlan,
+          implementationPlanSchema,
+          requiredAcceptanceCriteria,
+          registry: resolvedRegistry,
+          request: brief.objective,
+        });
+        if (validationIssues.length === 0) {
+          return returnBoundedRepair({
+            model,
+            result,
+            repairKind: "criterion-assignment",
+            repairEvidence: [...applied.touched, ...normalized.evidence],
+          });
+        }
+      } else {
+        failures.push({
+          model,
+          repairPass: 0,
+          error: `technical_plan_criterion_assignment_unresolved:workItems=${unresolvedWorkItems.join(",")}:criteria=${unresolvedCriteria.join(",")}`,
+        });
+      }
+    } catch (error) {
+      failures.push({ model, repairPass: 0, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
 
   for (let repairPass = 1; repairPass <= repairPassLimit; repairPass += 1) {
     let producedPlan = false;

@@ -14,7 +14,9 @@ import { projectOwnershipRegistry } from "../../.agents/runtime/agent-input-mani
 import { productDiscoveryAcceptanceCriteriaIssue } from "../../.agents/runtime/product-discovery-acceptance-criteria.mjs";
 import {
   classifyTechnicalPlanRepairScope,
+  normalizeTechnicalPlanMechanics,
   repairImplementationPlanFromReview,
+  synthesizeMissingImplementationPlan,
   technicalPlanRepairIssues,
 } from "../../.agents/runtime/technical-plan-synthesis.mjs";
 import { cleanupWorkspace, createIsolatedWorkspace, inspectWorkspaceChanges, integrateWorkspace, isRetryableImplementationReuseFailure, reconcileHandoffPathDisposition } from "../../.agents/runtime/workspace.mjs";
@@ -572,6 +574,192 @@ test("criterion verification prose mentioning npm test is not promoted to an exe
     }],
   };
   assert.deepEqual(collectImplementationPlanValidationIssues(plan, registry), []);
+});
+
+test("Technical Refinement preflight deterministically repairs mechanical plan drift before whole-plan rewrite", async () => {
+  const registry = await loadAgentCatalog(root);
+  const implementationPlanSchema = JSON.parse(readFileSync(resolve(root, ".agents/schemas/implementation-plan.schema.json"), "utf8"));
+  const criteria = [
+    {
+      id: "CLV2-01",
+      source: "modernization/04-ACCEPTANCE.md",
+      statement: "Web identity behavior is implemented and covered.",
+      blocking: true,
+      verification: "npm run test:web",
+      proofStage: "implementation",
+    },
+    {
+      id: "CLV2-02",
+      source: "modernization/04-ACCEPTANCE.md",
+      statement: "Durable execution behavior is implemented and covered.",
+      blocking: true,
+      verification: "npm run test:runtime",
+      proofStage: "implementation",
+    },
+    {
+      id: "CLV2-QA",
+      source: "modernization/04-ACCEPTANCE.md",
+      statement: "Independent QA approves the integrated result.",
+      blocking: true,
+      verification: "Review QA evidence after implementation.",
+      proofStage: "quality-assurance",
+    },
+  ];
+  const sourcePlan = {
+    schemaVersion: 1,
+    revision: 1,
+    acceptanceCriteria: criteria,
+    workItems: [
+      {
+        id: "W-web",
+        ownerAgentId: "frontend-specialist",
+        objective: "Implement the web identity contract.",
+        dependencies: [],
+        ownedPaths: ["apps/web/**"],
+        acceptanceCriteria: ["CLV2-01"],
+        validation: ["npm run test:web"],
+        validationExecutionScope: "workspace",
+        complexity: "medium",
+        estimatedFiles: 3,
+        contractChange: false,
+        migration: false,
+      },
+      {
+        id: "W-web-tests",
+        ownerAgentId: "coding-pro",
+        objective: "Add the web identity integration tests.",
+        dependencies: ["W-web"],
+        ownedPaths: ["apps/web/tests/**"],
+        acceptanceCriteria: ["CLV2-01"],
+        validation: ["Web integration verification via npm run test:web"],
+        validationExecutionScope: "workspace",
+        complexity: "medium",
+        estimatedFiles: 2,
+        contractChange: false,
+        migration: false,
+      },
+      {
+        id: "W-durable",
+        ownerAgentId: "coding-pro",
+        objective: "Implement the durable execution slice.",
+        dependencies: [],
+        ownedPaths: ["src/runtime-durable.mjs"],
+        acceptanceCriteria: ["CLV2-QA"],
+        validation: ["Runtime durability rehearsal must pass"],
+        validationExecutionScope: "workspace",
+        complexity: "high",
+        estimatedFiles: 2,
+        contractChange: false,
+        migration: false,
+      },
+    ],
+  };
+  const initialIssues = technicalPlanRepairIssues({
+    implementationPlan: sourcePlan,
+    implementationPlanSchema,
+    requiredAcceptanceCriteria: criteria,
+    registry,
+    request: "Implement Learning V2 identity and durable execution.",
+  });
+  assert.ok(initialIssues.some((issue) => issue.includes("validation_command_not_executable")));
+  assert.ok(initialIssues.some((issue) => issue.startsWith("implementation_plan_path_outside_agent_ownership:W-web-tests")));
+  assert.ok(initialIssues.some((issue) => issue.startsWith("implementation_plan_path_overlap:")));
+  assert.ok(initialIssues.includes("implementation_plan_work_item_without_implementation_criterion:W-durable"));
+  assert.ok(initialIssues.includes("implementation_plan_uncovered_criterion:CLV2-02"));
+
+  const mechanical = normalizeTechnicalPlanMechanics({ implementationPlan: sourcePlan, requiredAcceptanceCriteria: criteria, registry });
+  assert.equal(mechanical.plan.workItems.find((item) => item.id === "W-web-tests").ownerAgentId, "frontend-specialist");
+  assert.deepEqual(mechanical.plan.workItems.find((item) => item.id === "W-web-tests").validation, ["npm run test:web"]);
+
+  let calls = 0;
+  let observedTitle = "";
+  const structuredRunner = async ({ title, schema }) => {
+    calls += 1;
+    observedTitle = title;
+    assert.ok(schema.properties.assignments);
+    return {
+      value: {
+        assignments: [{ workItemId: "W-durable", criterionId: "CLV2-02" }],
+        unresolvedWorkItemIds: [],
+        unresolvedCriterionIds: [],
+      },
+      info: { tokens: { input: 21, output: 5, cache: { read: 10 } } },
+      sessionId: "ses-mechanical-repair",
+      attempts: 1,
+      failures: [],
+    };
+  };
+  const handoff = { status: "complete", implementationPlan: structuredClone(sourcePlan), findings: [], auxiliaryInvocations: [], metrics: {} };
+  const brief = {
+    runId: "run-mechanical-repair",
+    taskId: "run-mechanical-repair:technical-refinement",
+    agentId: "technical-lead",
+    objective: "Implement Learning V2 identity and durable execution.",
+    upstreamAcceptanceCriteria: criteria,
+    sdd: { stage: "technical-refinement" },
+  };
+  const repaired = await synthesizeMissingImplementationPlan({
+    workspace: root,
+    brief,
+    handoff,
+    implementationPlanSchema,
+    registry,
+    structuredRunner,
+    models: ["openai/gpt-5.6-luna"],
+    maxRepairPasses: 2,
+  });
+
+  assert.equal(calls, 1, "criterion mapping should avoid a whole-plan rewrite");
+  assert.match(observedTitle, /criterion assignment repair/);
+  assert.equal(repaired.repairKind, "criterion-assignment");
+  assert.equal(repaired.handoff.implementationPlan.revision, 2);
+  const repairedWebTests = repaired.handoff.implementationPlan.workItems.find((item) => item.id === "W-web-tests");
+  assert.equal(repairedWebTests.ownerAgentId, "frontend-specialist");
+  assert.deepEqual(repairedWebTests.validation, ["npm run test:web"]);
+  const repairedDurable = repaired.handoff.implementationPlan.workItems.find((item) => item.id === "W-durable");
+  assert.deepEqual(repairedDurable.acceptanceCriteria, ["CLV2-02"]);
+  assert.deepEqual(repairedDurable.validation, ["npm run test:runtime"]);
+  assert.deepEqual(technicalPlanRepairIssues({
+    implementationPlan: repaired.handoff.implementationPlan,
+    implementationPlanSchema,
+    requiredAcceptanceCriteria: criteria,
+    registry,
+    request: brief.objective,
+  }), []);
+});
+
+test("Technical Refinement mechanical normalization stays fail-closed when owner or validation authority is ambiguous", async () => {
+  const registry = await loadAgentCatalog(root);
+  const criterion = {
+    id: "CLV2-AMB",
+    source: "modernization/04-ACCEPTANCE.md",
+    statement: "Shared package behavior is implemented.",
+    blocking: true,
+    verification: "Manual evidence review after implementation.",
+    proofStage: "implementation",
+  };
+  const sourcePlan = {
+    schemaVersion: 1,
+    revision: 1,
+    acceptanceCriteria: [criterion],
+    workItems: [{
+      id: "W-ambiguous",
+      ownerAgentId: "unknown-implementer",
+      objective: "Implement shared package behavior.",
+      dependencies: [],
+      ownedPaths: ["packages/shared/**"],
+      acceptanceCriteria: [criterion.id],
+      validation: ["Shared package verification must pass"],
+      validationExecutionScope: "workspace",
+      complexity: "medium",
+      estimatedFiles: 2,
+      contractChange: false,
+      migration: false,
+    }],
+  };
+  const normalized = normalizeTechnicalPlanMechanics({ implementationPlan: sourcePlan, requiredAcceptanceCriteria: [criterion], registry });
+  assert.equal(normalized.plan.workItems[0].ownerAgentId, "unknown-implementer", "multiple eligible shared owners must not be guessed");
+  assert.deepEqual(normalized.plan.workItems[0].validation, sourcePlan.workItems[0].validation, "prose cannot be replaced when no executable authority exists");
 });
 
 test("Technical Refinement acceptance-coverage repair can only map criteria onto existing work items", async () => {
