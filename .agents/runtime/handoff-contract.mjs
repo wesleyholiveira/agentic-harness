@@ -192,8 +192,11 @@ function normalizeValidationEntries(validation) {
  * Normalize only mechanically safe parts of a model-authored Handoff Result.
  * Runtime identity comes from the already-fenced Task Brief / input manifest, not
  * from the model echo. Missing identity is filled. One isolated conflicting echo
- * may be canonicalized only when the other two identity fields match byte-for-byte;
- * multiple/ambiguous conflicts remain fail-closed. Semantic evidence is never
+ * may be canonicalized when the other two identity fields match byte-for-byte.
+ * A runId typo that is copied mechanically into the taskId prefix may also be
+ * canonicalized only when it is a one-character substitution, agentId still
+ * matches exactly, and the task suffix remains byte-identical. Other multiple or
+ * ambiguous conflicts remain fail-closed. Semantic evidence is never
  * repaired by assignment. Required list containers may receive an empty structural
  * representation, but criterion/validation, review, workspace and diff gates remain
  * authoritative; this function never invents positive evidence, decisions or
@@ -220,6 +223,34 @@ export function normalizeModelHandoffContract({ handoff, brief, attempt = 1 }) {
     .filter(([field, expected]) => nonEmptyString(next[field]) && next[field] !== expected)
     .map(([field, expected]) => ({ field, expected, actual: next[field] }));
   const canCanonicalizeIsolatedEcho = identityConflicts.length === 1 && identityMatches.length >= 2;
+  const conflictFields = new Set(identityConflicts.map((item) => item.field));
+  const expectedRunId = nonEmptyString(brief.runId) ? brief.runId : null;
+  const actualRunId = nonEmptyString(next.runId) ? next.runId : null;
+  const expectedTaskId = nonEmptyString(brief.taskId) ? brief.taskId : null;
+  const actualTaskId = nonEmptyString(next.taskId) ? next.taskId : null;
+  const expectedTaskPrefix = expectedRunId ? `${expectedRunId}:` : null;
+  const actualTaskPrefix = actualRunId ? `${actualRunId}:` : null;
+  const expectedTaskSuffix = expectedTaskPrefix && expectedTaskId?.startsWith(expectedTaskPrefix)
+    ? expectedTaskId.slice(expectedTaskPrefix.length)
+    : null;
+  const actualTaskSuffix = actualTaskPrefix && actualTaskId?.startsWith(actualTaskPrefix)
+    ? actualTaskId.slice(actualTaskPrefix.length)
+    : null;
+  let runIdCharacterDifferences = 0;
+  if (expectedRunId && actualRunId && expectedRunId.length === actualRunId.length) {
+    for (let index = 0; index < expectedRunId.length; index += 1) {
+      if (expectedRunId[index] !== actualRunId[index]) runIdCharacterDifferences += 1;
+    }
+  }
+  const canCanonicalizeCorrelatedRunTaskEcho = identityConflicts.length === 2
+    && conflictFields.size === 2
+    && conflictFields.has("runId")
+    && conflictFields.has("taskId")
+    && identityMatches.some(([field]) => field === "agentId")
+    && runIdCharacterDifferences === 1
+    && expectedTaskSuffix !== null
+    && actualTaskSuffix === expectedTaskSuffix;
+  const canCanonicalizeIdentityConflict = canCanonicalizeIsolatedEcho || canCanonicalizeCorrelatedRunTaskEcho;
 
   for (const [field, expected] of identityFields) {
     if (!nonEmptyString(next[field])) {
@@ -229,7 +260,7 @@ export function normalizeModelHandoffContract({ handoff, brief, attempt = 1 }) {
     }
     if (next[field] === expected) continue;
     const conflict = identityConflicts.find((item) => item.field === field);
-    if (canCanonicalizeIsolatedEcho && conflict) {
+    if (canCanonicalizeIdentityConflict && conflict) {
       next[field] = expected;
       identityEchoCorrections.push(conflict);
     } else if (conflict) {
