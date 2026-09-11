@@ -270,6 +270,13 @@ test("Technical Refinement does not inherit an interactive Superpowers planning 
   assert.match(controller, /r0_technical_refinement_interactive_superpowers_conflict/);
 });
 
+test("runtime-continuation binds durable delivery to the OpenCode session directory before git worktree fallback", () => {
+  const continuationTool = readFileSync(resolve(root, ".opencode/tools/runtime-continuation.ts"), "utf8");
+  assert.match(continuationTool, /directory:\s*context\.directory\s*\|\|\s*context\.worktree/);
+  assert.doesNotMatch(continuationTool, /directory:\s*context\.worktree\s*\|\|\s*context\.directory/);
+});
+
+
 test("persistent Main Orchestrator captures runtime-continuation before agent_start", () => {
   const prompt = readFileSync(resolve(root, ".agents/agents/main-orchestrator/AGENT.md"), "utf8");
   const skill = readFileSync(resolve(root, ".agents/skills/operate-multi-agent-runtime/SKILL.md"), "utf8");

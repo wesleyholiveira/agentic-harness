@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-11T02:12:11Z",
+  "generatedAt": "2026-09-11T02:49:08Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 527,
-  "treeSha256": "sha256:eb0276a0110716ce48ec60d49d1a125c3f3d5fcaba2386cfd904a76fc4923828",
+  "treeSha256": "sha256:4556af95788fdb50126a7b3dc0559b94164d7d9c47bf776e0573846d54efc554",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -945,7 +945,7 @@
     {
       "bytes": 1026,
       "path": ".opencode/tools/runtime-continuation.ts",
-      "sha256": "sha256:11a456cbc7b2d35074ef8b5d61af9efaa75d374e993874e2867d425daf1e9f88"
+      "sha256": "sha256:51d7a39dae799eb94935d6f1bea8c611ef4f17757568f7e40efc02948177c879"
     },
     {
       "bytes": 440,
@@ -2338,9 +2338,9 @@
       "sha256": "sha256:7f8eadec83654ffd37f54d82bd53c25ba7db879bd6943ef2fef52ab88507f2d1"
     },
     {
-      "bytes": 45051,
+      "bytes": 45486,
       "path": "tests/contracts/qualification-controller.test.mjs",
-      "sha256": "sha256:a2fb3b9502a2260a3d6bb5a6e42c373886d9f751a586950380c04d9aea965f4f"
+      "sha256": "sha256:f63a3cda6d79c841f4007959ac030becc1398452da0fdcffbeb4b0c6d4973511"
     },
     {
       "bytes": 3129,

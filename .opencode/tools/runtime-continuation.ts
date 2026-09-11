@@ -17,7 +17,7 @@ export default tool({
       worktree: context.worktree,
       continuation: {
         sessionId: context.sessionID,
-        directory: context.worktree || context.directory,
+        directory: context.directory || context.worktree,
         wakeOn: ["run.completed", "run.failed", "run.blocked", "run.cancelled"],
       },
       security: {
