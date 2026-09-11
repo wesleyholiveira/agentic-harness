@@ -410,6 +410,7 @@ Your final criterionResults MUST contain exactly one entry for every required bl
 If something required cannot be completed, use status \"failed\" or \"blocked\". Never hide unfinished work in followUps or residualRisks while claiming complete.
 
 Path disposition contract:
+- ownedPaths in the Task Brief is the complete write boundary for this attempt. Create, modify or delete ONLY paths matched by ownedPaths. Paths outside ownedPaths are read-only even when a validation command executes or imports them. If a test or fixture outside ownedPaths fails, report the evidence; never edit it to make validation pass. If the assigned work genuinely requires a write outside ownedPaths, return failed/blocked instead of expanding scope yourself.
 - changedPaths must contain only repository paths actually created, modified or deleted during this attempt.
 - If an owned artifact already existed before this attempt, remains byte-identical and you verified it already satisfies the assigned criteria, put it in reusedPaths instead of changedPaths.
 - If you modify an owned artifact during this attempt, it belongs in changedPaths even if it existed before the attempt. The runtime will mechanically normalize an owned path mistakenly reported in reusedPaths when workspace inspection proves it changed, but do not rely on that repair.

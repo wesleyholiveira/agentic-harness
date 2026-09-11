@@ -19,7 +19,7 @@ import {
   synthesizeMissingImplementationPlan,
   technicalPlanRepairIssues,
 } from "../../.agents/runtime/technical-plan-synthesis.mjs";
-import { cleanupWorkspace, createIsolatedWorkspace, inspectWorkspaceChanges, integrateWorkspace, isRetryableImplementationReuseFailure, reconcileHandoffPathDisposition } from "../../.agents/runtime/workspace.mjs";
+import { cleanupWorkspace, createIsolatedWorkspace, inspectWorkspaceChanges, integrateWorkspace, isRetryableImplementationOwnershipFailure, isRetryableImplementationReuseFailure, reconcileHandoffPathDisposition } from "../../.agents/runtime/workspace.mjs";
 import { runProcess } from "../../.agents/runtime/process.mjs";
 import { buildContinuationPrompt } from "../../.agents/runtime/continuation.mjs";
 import {
@@ -1324,6 +1324,131 @@ test("invalid reuse remains terminal outside the exact missing-new implementatio
     invalidReused: [{ path: "src/new.mjs", reason: "missing_in_workspace_and_baseline" }],
   }), false);
   assert.equal(retryDispositionForFailure({ code: "handoff_reused_paths_invalid", retryable: false }), "terminal");
+});
+
+test("implementation ownership violations remain fail-closed but receive bounded semantic retry classification", () => {
+  const task = {
+    role: "implementation",
+    stage: "implementation",
+    executionMode: "agent",
+    ownedPaths: ["src/format-name.mjs"],
+  };
+  const handoff = { status: "complete" };
+  const unauthorizedChanged = ["test/format-name.test.mjs"];
+  const siblingTasks = [{
+    taskId: "run-test:implementation:wi-2",
+    agentId: "coding-fast",
+    role: "implementation",
+    stage: "implementation",
+    ownedPaths: ["test/format-name.test.mjs"],
+  }];
+
+  assert.equal(isRetryableImplementationOwnershipFailure({ task, handoff, unauthorizedChanged, siblingTasks }), true);
+  assert.equal(retryDispositionForFailure({
+    code: "workspace_ownership_violation",
+    retryable: true,
+    category: "contract",
+  }), "true-retry-semantic");
+  assert.equal(isRetryableImplementationOwnershipFailure({
+    task: { ...task, executionMode: "deterministic-reuse" },
+    handoff,
+    unauthorizedChanged,
+    siblingTasks,
+  }), false);
+  assert.equal(isRetryableImplementationOwnershipFailure({
+    task: { ...task, role: "verification" },
+    handoff,
+    unauthorizedChanged,
+    siblingTasks,
+  }), false);
+  assert.equal(isRetryableImplementationOwnershipFailure({
+    task,
+    handoff,
+    unauthorizedChanged,
+    siblingTasks: [],
+  }), false);
+  assert.equal(retryDispositionForFailure({
+    code: "workspace_ownership_violation",
+    retryable: false,
+    category: "contract",
+  }), "terminal");
+});
+
+test("workspace integration still rejects unowned implementation changes before materialization", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "agent-harness-ownership-retry-"));
+  const repositoryRoot = join(tempRoot, "consumer");
+  const workspacePath = join(tempRoot, "implementation-worktree");
+  await mkdir(repositoryRoot, { recursive: true });
+  let workspace = null;
+  try {
+    for (const [args, label] of [
+      [["init", "--quiet"], "git-init"],
+      [["config", "user.email", "qualification@example.invalid"], "git-email"],
+      [["config", "user.name", "Qualification"], "git-name"],
+    ]) {
+      const result = await runProcess("git", args, { cwd: repositoryRoot });
+      assert.equal(result.status, 0, `${label}: ${result.stderr || result.stdout}`);
+    }
+    await mkdir(join(repositoryRoot, "src"), { recursive: true });
+    await mkdir(join(repositoryRoot, "test"), { recursive: true });
+    await writeFile(join(repositoryRoot, "src", "format-name.mjs"), "export const formatName = (name) => String(name).trim();\n", "utf8");
+    await writeFile(join(repositoryRoot, "test", "format-name.test.mjs"), "export const baseline = true;\n", "utf8");
+    let result = await runProcess("git", ["add", "-A"], { cwd: repositoryRoot });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    result = await runProcess("git", ["commit", "--quiet", "-m", "baseline"], { cwd: repositoryRoot });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+
+    const task = {
+      taskId: "run-test:implementation:wi-1",
+      agentId: "coding-fast",
+      role: "implementation",
+      stage: "implementation",
+      executionMode: "agent",
+      dependencies: [],
+      ownedPaths: ["src/format-name.mjs"],
+    };
+    workspace = await createIsolatedWorkspace({ repositoryRoot, task, mode: "worktree", workspacePath });
+    await writeFile(join(workspace.path, "src", "format-name.mjs"), "export const formatName = (name) => String(name).trim() || 'Anonymous';\n", "utf8");
+    await writeFile(join(workspace.path, "test", "format-name.test.mjs"), "export const baseline = false;\n", "utf8");
+
+    const inspection = await inspectWorkspaceChanges(workspace, task);
+    assert.deepEqual(inspection.changedPaths, ["src/format-name.mjs", "test/format-name.test.mjs"]);
+    assert.deepEqual(inspection.unauthorized, ["test/format-name.test.mjs"]);
+
+    const conflicts = [];
+    const store = {
+      async integratedPath() { return null; },
+      async addConflict(entry) { conflicts.push(entry); },
+      async markIntegratedPath() {},
+      async event() {},
+    };
+    await assert.rejects(
+      integrateWorkspace({
+        repositoryRoot,
+        workspace,
+        task,
+        store,
+        runId: "run-test",
+        inspection,
+        approvedChangedPaths: inspection.changedPaths,
+      }),
+      /workspace_ownership_violation:test\/format-name\.test\.mjs/,
+    );
+    assert.equal(conflicts.length, 1);
+    assert.equal(conflicts[0].type, "ownership_violation");
+    assert.equal(await readFile(join(repositoryRoot, "src", "format-name.mjs"), "utf8"), "export const formatName = (name) => String(name).trim();\n");
+    assert.equal(await readFile(join(repositoryRoot, "test", "format-name.test.mjs"), "utf8"), "export const baseline = true;\n");
+  } finally {
+    if (workspace) await cleanupWorkspace(repositoryRoot, workspace).catch(() => {});
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("implementation prompt treats ownedPaths as the complete write boundary", () => {
+  const source = readFileSync(resolve(root, "scripts/internal/opencode-task-executor.mjs"), "utf8");
+  assert.match(source, /ownedPaths in the Task Brief is the complete write boundary/);
+  assert.match(source, /Paths outside ownedPaths are read-only even when a validation command executes or imports them/);
+  assert.match(source, /never edit it to make validation pass/);
 });
 
 test("implementation prompt forbids treating required new artifacts as reused outputs", () => {

@@ -96,6 +96,18 @@ export function isRetryableImplementationReuseFailure({ task, handoff, invalidRe
     && invalidReused.every((entry) => entry?.reason === "missing_in_workspace_and_baseline");
 }
 
+export function isRetryableImplementationOwnershipFailure({ task, handoff, unauthorizedChanged = [], siblingTasks = [] } = {}) {
+  return task?.role === "implementation"
+    && String(task?.stage ?? "") === "implementation"
+    && String(task?.executionMode ?? "agent") === "agent"
+    && handoff?.status === "complete"
+    && unauthorizedChanged.length > 0
+    && unauthorizedChanged.every((path) => (siblingTasks ?? []).some((candidate) =>
+      candidate?.taskId !== task?.taskId
+      && ["implementation", "platform"].includes(String(candidate?.role ?? ""))
+      && anyPatternMatches(candidate?.ownedPaths ?? [], path)));
+}
+
 async function verifyReadOnlyContextPath(workspace, path, changedSet) {
   if (isToolingSideEffectPath(path)) return { path, valid: false, reason: "tooling_side_effect" };
   if (changedSet.has(path)) return { path, valid: false, reason: "changed_in_attempt" };

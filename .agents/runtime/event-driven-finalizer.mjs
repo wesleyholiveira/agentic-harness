@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { evaluateCompletion } from "./completion-gate.mjs";
 import { assertSchema } from "./schema-validator.mjs";
 import { classifyValidationFailure, stageContractFailure } from "./executor.mjs";
-import { classifyWorkspaceChanges, inspectWorkspaceChanges, integrateWorkspace, isRetryableImplementationReuseFailure, reconcileHandoffPathDisposition } from "./workspace.mjs";
+import { classifyWorkspaceChanges, inspectWorkspaceChanges, integrateWorkspace, isRetryableImplementationOwnershipFailure, isRetryableImplementationReuseFailure, reconcileHandoffPathDisposition } from "./workspace.mjs";
 import { anyPatternMatches, exists, fileFingerprint, nowIso, readJson, sha256, writeJson } from "./utils.mjs";
 import { SUCCESS_TASK_STATUSES } from "./event-driven-contracts.mjs";
 import { sanitizeHandoffTelemetryShape } from "./handoff-telemetry.mjs";
@@ -509,7 +509,24 @@ export async function finalizeExecutionResult({ repositoryRoot, plan, taskPlan, 
         scope: "zero-file-governance-review-non-evidentiary-bookkeeping",
       });
     }
-    if (disposition.invalidReused.length > 0) {
+    const unauthorizedChanged = [...new Set([
+      ...(inspection.unauthorized ?? []),
+      ...(disposition.changedPaths ?? []).filter((path) => !anyPatternMatches(taskPlan.ownedPaths ?? [], path)),
+    ])].sort();
+    if (unauthorizedChanged.length > 0) {
+      await store.event(plan.runId, taskPlan.taskId, "workspace.ownership_violation_detected", {
+        paths: unauthorizedChanged,
+        ownedPaths: taskPlan.ownedPaths ?? [],
+        authority: "workspace-change-set-and-task-brief",
+        beforeIntegration: true,
+      });
+      failure = {
+        code: "workspace_ownership_violation",
+        message: `workspace_ownership_violation:${unauthorizedChanged.join(",")}`,
+        retryable: isRetryableImplementationOwnershipFailure({ task: taskPlan, handoff, unauthorizedChanged, siblingTasks: plan.tasks ?? [] }),
+        category: "contract",
+      };
+    } else if (disposition.invalidReused.length > 0) {
       failure = {
         code: "handoff_reused_paths_invalid",
         message: disposition.invalidReused.map((entry) => `${entry.path}:${entry.reason}`).join(","),
