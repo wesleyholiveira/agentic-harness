@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { evaluateCompletion } from "./completion-gate.mjs";
 import { assertSchema } from "./schema-validator.mjs";
 import { classifyValidationFailure, stageContractFailure } from "./executor.mjs";
-import { classifyWorkspaceChanges, inspectWorkspaceChanges, integrateWorkspace, isRetryableImplementationOwnershipFailure, isRetryableImplementationReuseFailure, reconcileHandoffPathDisposition } from "./workspace.mjs";
+import { classifyWorkspaceChanges, inspectWorkspaceChanges, integrateWorkspace, isRetryableGovernanceEvidenceReuseFailure, isRetryableImplementationOwnershipFailure, isRetryableImplementationReuseFailure, reconcileHandoffPathDisposition } from "./workspace.mjs";
 import { anyPatternMatches, exists, fileFingerprint, nowIso, readJson, sha256, writeJson } from "./utils.mjs";
 import { SUCCESS_TASK_STATUSES } from "./event-driven-contracts.mjs";
 import { sanitizeHandoffTelemetryShape } from "./handoff-telemetry.mjs";
@@ -530,7 +530,8 @@ export async function finalizeExecutionResult({ repositoryRoot, plan, taskPlan, 
       failure = {
         code: "handoff_reused_paths_invalid",
         message: disposition.invalidReused.map((entry) => `${entry.path}:${entry.reason}`).join(","),
-        retryable: isRetryableImplementationReuseFailure({ task: taskPlan, handoff, invalidReused: disposition.invalidReused }),
+        retryable: isRetryableImplementationReuseFailure({ task: taskPlan, handoff, invalidReused: disposition.invalidReused })
+          || isRetryableGovernanceEvidenceReuseFailure({ task: taskPlan, handoff, invalidReused: disposition.invalidReused }),
         category: "contract",
       };
     } else if (disposition.missingDeclaredChanges.length > 0) {

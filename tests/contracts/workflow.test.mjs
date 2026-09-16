@@ -19,7 +19,7 @@ import {
   synthesizeMissingImplementationPlan,
   technicalPlanRepairIssues,
 } from "../../.agents/runtime/technical-plan-synthesis.mjs";
-import { cleanupWorkspace, createIsolatedWorkspace, inspectWorkspaceChanges, integrateWorkspace, isRetryableImplementationOwnershipFailure, isRetryableImplementationReuseFailure, reconcileHandoffPathDisposition } from "../../.agents/runtime/workspace.mjs";
+import { cleanupWorkspace, createIsolatedWorkspace, inspectWorkspaceChanges, integrateWorkspace, isRetryableGovernanceEvidenceReuseFailure, isRetryableImplementationOwnershipFailure, isRetryableImplementationReuseFailure, reconcileHandoffPathDisposition } from "../../.agents/runtime/workspace.mjs";
 import { runProcess } from "../../.agents/runtime/process.mjs";
 import { buildContinuationPrompt } from "../../.agents/runtime/continuation.mjs";
 import {
@@ -1283,6 +1283,83 @@ test("governance phantom reused path remains fail-closed when handoff evidence r
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
+});
+
+test("governance evidentiary phantom reuse stays fail-closed but receives semantic retry classification", async () => {
+  const tempRoot = await mkdtemp(join(tmpdir(), "agent-harness-phantom-evidence-retry-"));
+  try {
+    const phantomPath = "docs/architecture/example-anonymous-fallback.md";
+    const task = {
+      taskId: "run-test:architecture-review",
+      agentId: "architecture-governance",
+      role: "contract",
+      stage: "architecture-review",
+      executionMode: "agent",
+      estimatedFiles: 0,
+      ownedPaths: ["docs/architecture/**"],
+    };
+    const handoff = {
+      status: "complete",
+      changedPaths: [],
+      reusedPaths: [phantomPath],
+      criterionResults: [{
+        criterionId: "PROC-ARCH-1",
+        result: "passed",
+        evidence: `Architecture proof is recorded in ${phantomPath}.`,
+      }],
+      validation: [],
+    };
+    const disposition = await reconcileHandoffPathDisposition({
+      workspace: { mode: "copy", path: tempRoot, baseline: new Map() },
+      task,
+      inspection: { changedPaths: [] },
+      handoff,
+      reusedPaths: handoff.reusedPaths,
+    });
+
+    assert.deepEqual(disposition.droppedPhantomReusedPaths, []);
+    assert.deepEqual(disposition.invalidReused, [{
+      path: phantomPath,
+      valid: false,
+      reason: "missing_in_workspace_and_baseline",
+    }]);
+    assert.equal(isRetryableGovernanceEvidenceReuseFailure({ task, handoff, invalidReused: disposition.invalidReused }), true);
+    assert.equal(retryDispositionForFailure({ code: "handoff_reused_paths_invalid", retryable: true }), "true-retry-semantic");
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("governance reuse retry remains terminal for missing baseline artifacts or non-review tasks", () => {
+  const handoff = {
+    status: "complete",
+    criterionResults: [{
+      criterionId: "PROC-ARCH-1",
+      result: "passed",
+      evidence: "Architecture proof is recorded in docs/architecture/example.md.",
+    }],
+  };
+  const reviewTask = {
+    role: "contract",
+    stage: "architecture-review",
+    executionMode: "agent",
+    estimatedFiles: 0,
+  };
+  assert.equal(isRetryableGovernanceEvidenceReuseFailure({
+    task: reviewTask,
+    handoff,
+    invalidReused: [{ path: "docs/architecture/example.md", reason: "missing_in_workspace" }],
+  }), false);
+  assert.equal(isRetryableGovernanceEvidenceReuseFailure({
+    task: { ...reviewTask, stage: "product-discovery" },
+    handoff,
+    invalidReused: [{ path: "docs/architecture/example.md", reason: "missing_in_workspace_and_baseline" }],
+  }), false);
+  assert.equal(isRetryableGovernanceEvidenceReuseFailure({
+    task: { ...reviewTask, executionMode: "deterministic-reuse" },
+    handoff,
+    invalidReused: [{ path: "docs/architecture/example.md", reason: "missing_in_workspace_and_baseline" }],
+  }), false);
 });
 
 test("missing pre-existing reused artifact is never normalized as a phantom", async () => {

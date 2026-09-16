@@ -96,6 +96,18 @@ export function isRetryableImplementationReuseFailure({ task, handoff, invalidRe
     && invalidReused.every((entry) => entry?.reason === "missing_in_workspace_and_baseline");
 }
 
+export function isRetryableGovernanceEvidenceReuseFailure({ task, handoff, invalidReused = [] } = {}) {
+  return task?.role === "contract"
+    && String(task?.stage ?? "").endsWith("-review")
+    && String(task?.executionMode ?? "agent") === "agent"
+    && Number(task?.estimatedFiles ?? -1) === 0
+    && handoff?.status === "complete"
+    && invalidReused.length > 0
+    && invalidReused.every((entry) =>
+      entry?.reason === "missing_in_workspace_and_baseline"
+      && handoffReferencesPathOutsideDisposition(handoff, entry.path));
+}
+
 export function isRetryableImplementationOwnershipFailure({ task, handoff, unauthorizedChanged = [], siblingTasks = [] } = {}) {
   return task?.role === "implementation"
     && String(task?.stage ?? "") === "implementation"
