@@ -1,6 +1,6 @@
 import { validateAgainstSchema } from './schema-validator.mjs';
 import { capabilityCatalogFromRegistry, normalizeBootstrapFactRequirements } from './bootstrap-capabilities.mjs';
-import { normalizeProductDiscoveryReviewAssessment } from './bootstrap-topology-refiner.mjs';
+import { canonicalizeProductDiscoveryRequiredCapabilities, normalizeProductDiscoveryReviewAssessment } from './bootstrap-topology-refiner.mjs';
 import { runOpenCodeStructuredOutput } from './opencode-structured-output.mjs';
 import { auxiliaryInvocationFromStructuredResult } from './auxiliary-telemetry.mjs';
 
@@ -92,18 +92,16 @@ export function reconcileProductDiscoveryBootstrapAssessmentEnvelope(assessment,
   const catalog = capabilityCatalogFromRegistry(registry);
   const sourceReconciled = canonicalizeAuthorizedRepositorySources(assessment, catalog, authorizedRepositoryPaths);
   const reconciledAssessment = sourceReconciled.assessment;
-  const declared = new Set(reconciledAssessment.requiredCapabilities.map((value) => String(value ?? '').trim()).filter(Boolean));
-  for (const capabilityId of declared) {
-    if (!catalog.byId.has(capabilityId)) throw new Error(`product_discovery_bootstrap_capability_unknown:${capabilityId}`);
-  }
-  // Normalize only to validate fact semantics and discover the provider that the
-  // canonical topology would resolve when a unique provider is omitted. The
-  // authored factRequirements remain byte-for-byte otherwise; this repair only
-  // reconciles the redundant requiredCapabilities envelope.
+  // factRequirements carries authoritative topology IDs and remains strict.
+  // requiredCapabilities is only the redundant review-selection envelope.
   const normalizedRequirements = normalizeBootstrapFactRequirements(reconciledAssessment.factRequirements, {
     catalog,
     provenance: 'product-discovery',
   });
+  const declared = new Set(canonicalizeProductDiscoveryRequiredCapabilities(
+    reconciledAssessment.requiredCapabilities,
+    catalog,
+  ));
   for (const requirement of normalizedRequirements) {
     declared.add(requirement.consumerCapabilityId);
     if (requirement.providerCapabilityId) declared.add(requirement.providerCapabilityId);

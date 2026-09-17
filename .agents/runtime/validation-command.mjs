@@ -61,6 +61,11 @@ export function classifyValidationExecutionScope(command) {
   if (/runtime:agent-authoritative:readiness/.test(text)) return "authoritative-host";
   if (/runtime:agent-harness:validate/.test(text) && /--mode(?:=|\s+)authoritative/.test(text)) return "authoritative-host";
   if (/agent_harness_opencode_continuation_host_probe_url|127\.0\.0\.1:4096|localhost:4096/.test(text)) return "authoritative-host";
+  const normalizedPaths = text.replaceAll("\\", "/");
+  // `.runtime/agents/**` is Runtime-owned ephemeral state. It is deliberately
+  // absent from isolated implementation workspaces/worktrees, so validation
+  // that depends on replay capsules or run/task state requires host authority.
+  if (/(?:^|[\s"'=/])\.runtime\/agents\//.test(normalizedPaths)) return "authoritative-host";
   return "workspace";
 }
 

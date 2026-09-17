@@ -12,6 +12,31 @@ function compact(value) {
   return String(value ?? "").trim();
 }
 
+export function canonicalizeProductDiscoveryRequiredCapabilities(values, catalog) {
+  if (!Array.isArray(values)) throw new Error("product_discovery_bootstrap_required_capabilities_missing");
+  const selected = new Set();
+  let unknownOrAmbiguous = false;
+  for (const raw of values) {
+    const token = compact(raw);
+    if (!token) continue;
+    if (catalog.byId.has(token)) {
+      selected.add(token);
+      continue;
+    }
+    const aliases = catalog.capabilities
+      .filter((capability) => capability.stage === token || capability.agentId === token)
+      .map((capability) => capability.capabilityId);
+    if (aliases.length === 1) selected.add(aliases[0]);
+    else unknownOrAmbiguous = true;
+  }
+  if (unknownOrAmbiguous) {
+    for (const capability of catalog.capabilities) selected.add(capability.capabilityId);
+  }
+  return catalog.capabilities
+    .map((capability) => capability.capabilityId)
+    .filter((capabilityId) => selected.has(capabilityId));
+}
+
 export function normalizeProductDiscoveryReviewAssessment(handoff, registry) {
   const raw = handoff?.bootstrapReviewAssessment;
   if (raw == null) return null;
@@ -20,26 +45,18 @@ export function normalizeProductDiscoveryReviewAssessment(handoff, registry) {
   if (!Array.isArray(raw.requiredCapabilities)) throw new Error("product_discovery_bootstrap_required_capabilities_missing");
   if (!Array.isArray(raw.factRequirements)) throw new Error("product_discovery_bootstrap_fact_requirements_missing");
   const catalog = capabilityCatalogFromRegistry(registry);
-  const declaredCapabilities = [...new Set((raw.requiredCapabilities ?? []).map(compact).filter(Boolean))];
-  for (const capabilityId of declaredCapabilities) {
-    if (!catalog.byId.has(capabilityId)) throw new Error(`product_discovery_bootstrap_capability_unknown:${capabilityId}`);
-  }
-  const requiredCapabilities = catalog.capabilities
-    .map((capability) => capability.capabilityId)
-    .filter((capabilityId) => declaredCapabilities.includes(capabilityId));
   const factRequirements = normalizeBootstrapFactRequirements(raw.factRequirements, {
     catalog,
     provenance: "product-discovery",
   });
-  const capabilitySet = new Set(requiredCapabilities);
+  const capabilitySet = new Set(canonicalizeProductDiscoveryRequiredCapabilities(raw.requiredCapabilities, catalog));
   for (const requirement of factRequirements) {
-    if (!capabilitySet.has(requirement.consumerCapabilityId)) {
-      throw new Error(`product_discovery_bootstrap_consumer_capability_not_required:${requirement.consumerCapabilityId}:${requirement.factId}`);
-    }
-    if (requirement.providerCapabilityId && !capabilitySet.has(requirement.providerCapabilityId)) {
-      throw new Error(`product_discovery_bootstrap_provider_capability_not_required:${requirement.providerCapabilityId}:${requirement.factId}`);
-    }
+    capabilitySet.add(requirement.consumerCapabilityId);
+    if (requirement.providerCapabilityId) capabilitySet.add(requirement.providerCapabilityId);
   }
+  const requiredCapabilities = catalog.capabilities
+    .map((capability) => capability.capabilityId)
+    .filter((capabilityId) => capabilitySet.has(capabilityId));
   const evidence = compact(raw.evidence);
   if (!evidence) throw new Error("product_discovery_bootstrap_assessment_evidence_missing");
   return {
