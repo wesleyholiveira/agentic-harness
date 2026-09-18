@@ -31,7 +31,7 @@ function fixture() {
     runId: "run-proof-stage",
     taskId: "run-proof-stage:technical-refinement",
     agentId: "technical-lead",
-    objective: "Compile the Clip Compass V2 implementation plan.",
+    objective: "Compile the generic product implementation plan.",
     acceptanceCriteria,
     upstreamAcceptanceCriteria,
     validation: [],
