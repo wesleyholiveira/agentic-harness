@@ -3,6 +3,7 @@ import { evaluateCompletion } from "./completion-gate.mjs";
 import { runOpenCodeStructuredOutput } from "./opencode-structured-output.mjs";
 import { auxiliaryInvocationFromStructuredResult } from "./auxiliary-telemetry.mjs";
 import { authoritativeReviewRevisionFromContext, isSddReviewStage, requiredReviewDecision, validateSddReviewContract } from "./review-contract.mjs";
+import { acceptanceCriterionProofStage } from "./acceptance-criteria.mjs";
 
 
 const TERMINAL_REVIEW_DECISIONS = new Set(["changes_requested", "blocked"]);
@@ -92,6 +93,83 @@ function allowedReviewDecisions(stage) {
     : ["approved", "changes_requested", "blocked"];
 }
 
+function escapeRegExp(value) {
+  return String(value ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function technicalRefinementCriterionPartition(brief) {
+  const implementationCriterionIds = [];
+  const downstreamCriteria = [];
+  for (const criterion of brief?.upstreamAcceptanceCriteria ?? []) {
+    const proofStage = acceptanceCriterionProofStage(criterion);
+    if (proofStage === "implementation") {
+      implementationCriterionIds.push(String(criterion.id));
+    } else {
+      downstreamCriteria.push({ id: String(criterion.id), proofStage });
+    }
+  }
+  return { implementationCriterionIds, downstreamCriteria };
+}
+
+function deltaDemandsImplementationCoverage(delta) {
+  const text = String(delta ?? "").trim();
+  if (!text) return false;
+  if (/\b(?:do not|must not|never|remove|exclude)\b[\s\S]{0,100}\b(?:assign|map|cover)/i.test(text)) return false;
+  if (/\b(?:only\s+)?(?:proofStage\s*=?\s*implementation|implementation[- ]proof\s+criteria|implementation\s+criteria)\b/i.test(text)) return false;
+  const mappingLanguage = /\b(?:assign(?:ed|ment)?|map(?:ped|ping)?|mapping|cover(?:ed|age)?|acceptanceCriteria)\b/i.test(text);
+  const implementationTarget = /\b(?:work\s*items?|implementation(?:\s+work)?|validation\s+scope|acceptanceCriteria)\b/i.test(text);
+  const globalCoverage = /\b(?:all|every)\b[\s\S]{0,120}\b(?:criterion|criteria|CLV2)\b/i.test(text);
+  return mappingLanguage && (implementationTarget || globalCoverage);
+}
+
+export function technicalRefinementOutOfStageCoverageDeltas({ brief, review }) {
+  if ((brief?.sdd?.stage ?? "implementation") !== "technical-refinement") return [];
+  const criteria = brief?.upstreamAcceptanceCriteria ?? [];
+  const downstreamCriteria = criteria.filter((criterion) => acceptanceCriterionProofStage(criterion) !== "implementation");
+  if (downstreamCriteria.length === 0) return [];
+
+  return normalizedStringSet(review?.requiredDeltas).filter((delta) => {
+    if (!deltaDemandsImplementationCoverage(delta)) return false;
+    const explicitlyMentionsDownstream = downstreamCriteria.some((criterion) => {
+      const id = String(criterion?.id ?? "").trim();
+      if (!id) return false;
+      return new RegExp(`(?:^|[^A-Za-z0-9_-])${escapeRegExp(id)}(?:$|[^A-Za-z0-9_-])`, "i").test(delta);
+    });
+    const globalCoverage = /\b(?:all|every)\b[\s\S]{0,120}\b(?:criterion|criteria|CLV2)\b/i.test(delta);
+    return explicitlyMentionsDownstream || globalCoverage;
+  });
+}
+
+function canonicalizeTechnicalRefinementStageBoundary({ brief, handoff, review }) {
+  const next = canonicalizeTechnicalRefinementRouting(brief, review);
+  if ((brief?.sdd?.stage ?? "implementation") !== "technical-refinement"
+      || next?.decision !== "changes_requested") {
+    return { review: next, canonicalized: false, discardedDeltas: [] };
+  }
+
+  const invalidDeltas = technicalRefinementOutOfStageCoverageDeltas({ brief, review: next });
+  if (invalidDeltas.length === 0) {
+    return { review: next, canonicalized: false, discardedDeltas: [] };
+  }
+
+  const invalid = new Set(invalidDeltas);
+  const remaining = normalizedStringSet(next.requiredDeltas).filter((delta) => !invalid.has(delta));
+  if (remaining.length > 0) {
+    next.requiredDeltas = remaining;
+    return { review: next, canonicalized: true, discardedDeltas: invalidDeltas };
+  }
+
+  const eligibility = completionEvidenceAllowsApproval({ brief, handoff });
+  if (!eligibility.allowed) {
+    return { review: next, canonicalized: false, discardedDeltas: invalidDeltas };
+  }
+
+  next.decision = "approved";
+  next.requiredDeltas = [];
+  next.nextRole = "implementation";
+  return { review: next, canonicalized: true, discardedDeltas: invalidDeltas };
+}
+
 function criterionRevision(criteria) {
   const revisions = [];
   for (const criterion of criteria ?? []) {
@@ -154,6 +232,12 @@ function reviewProjectionIsConsistent({ brief, handoff, review }) {
     return null;
   }
   if (TERMINAL_REVIEW_DECISIONS.has(review.decision)) {
+    if (stage === "technical-refinement") {
+      const invalidDeltas = technicalRefinementOutOfStageCoverageDeltas({ brief, review });
+      if (invalidDeltas.length > 0) {
+        return `technical_refinement_out_of_stage_coverage_delta:${invalidDeltas.length}`;
+      }
+    }
     if (EVIDENCE_DERIVED_REVIEW_STAGES.has(stage) && eligibility.allowed) {
       return `review_negative_contradicts_proven_evidence:${stage}`;
     }
@@ -250,7 +334,7 @@ export function buildHandoffFinalizationPrompt({ brief, handoff, contextPacket }
   const stage = brief.sdd?.stage ?? "implementation";
   const requiredDecision = requiredReviewDecision(stage);
   const technicalRefinementBoundary = stage === "technical-refinement"
-    ? "- Technical Refinement approves implementationPlan readiness, not completed implementation. Do NOT require implementation files to already exist/change, npm test or another work-item validation command to have already run, byte-identical post-state hashes, final diff-isolation evidence, QA receipts, readiness receipts, or Product Acceptance receipts. Future proof is sufficient at this stage when the plan assigns the correct implementation-proof criteria, owned paths/invariants, and exact executable validation commands; later stages own execution receipts."
+    ? "- Technical Refinement approves implementationPlan readiness, not completed implementation. Do NOT require implementation files to already exist/change, npm test or another work-item validation command to have already run, byte-identical post-state hashes, final diff-isolation evidence, QA receipts, readiness receipts, or Product Acceptance receipts. Future proof is sufficient at this stage when the plan assigns the correct implementation-proof criteria, owned paths/invariants, and exact executable validation commands; later stages own execution receipts. Only proofStage=implementation criteria may be assigned to implementationPlan.workItems acceptance coverage. quality-assurance, database-readiness, infrastructure-readiness, ai-readiness and product-acceptance criteria are downstream Runtime gates and MUST NOT be demanded as implementation work-item coverage."
     : "";
   const qaEvidenceBoundary = stage === "quality-assurance"
     ? "- Quality Assurance sddReview is an evidence summary, not an independent veto. criterionResults, Runtime validation receipts, blocking residualRisks and required followUps are the semantic authority. If those fields prove every current-stage gate, decision MUST be approved and requiredDeltas MUST be []; do not invent an ungrounded negative review. If a real QA blocker exists, represent it in the corresponding criterion result, validation receipt, blocking: residual risk, or required: follow-up before returning changes_requested/blocked."
@@ -262,6 +346,7 @@ export function buildHandoffFinalizationPrompt({ brief, handoff, contextPacket }
     objective: brief.objective,
     blockingCriteria: (brief.acceptanceCriteria ?? []).filter((criterion) => criterion.blocking !== false),
     requiredValidation: brief.validation ?? [],
+    proofStagePartition: stage === "technical-refinement" ? technicalRefinementCriterionPartition(brief) : null,
     sourceHandoff: reviewableHandoffProjection(handoff),
     upstreamEvidence: compactUpstreamEvidence(contextPacket, brief),
   };
@@ -352,6 +437,7 @@ export function buildTechnicalReviewRepairProjectionPrompt({ brief, handoff, con
     requiredValidation: brief.validation ?? [],
     validationEvidence: handoff.validation ?? [],
     productAcceptanceCriteria: brief.upstreamAcceptanceCriteria ?? [],
+    proofStagePartition: technicalRefinementCriterionPartition(brief),
     upstreamEvidence: compactUpstreamEvidence(contextPacket, brief),
     repairClosureCandidates: closureCandidates,
   };
@@ -363,7 +449,8 @@ Return ONLY the JSON projection requested by the supplied schema. This is a clos
 Rules:
 - originalRequiredDeltas is the complete and immutable semantic review scope for this repair pass.
 - The repaired implementationPlan has already passed deterministic schema, ownership, Product acceptance-criteria, dependency and executable-validation checks before this re-review.
-- Technical Refinement approves implementationPlan readiness, not completed implementation. A delta that only asks for future implementation files to already exist/change, npm test or another work-item validation command to have already run, byte-identical post-state hashes, final diff-isolation evidence, QA/readiness receipts, or Product Acceptance receipts is outside this stage and MUST NOT remain as a blocking Technical Refinement delta. Treat the future proof as resolved at this stage when repairedImplementationPlan schedules the relevant owned paths/invariant and exact executable validation; later stages own the execution receipt.
+- Only criteria in proofStagePartition.implementationCriterionIds may be required as implementation work-item acceptance coverage. Entries in proofStagePartition.downstreamCriteria belong to QA/readiness/Product Acceptance and MUST NOT be assigned to implementation workItems merely to satisfy Technical Refinement.
+- Technical Refinement approves implementationPlan readiness, not completed implementation. A delta that only asks for future implementation files to already exist/change, npm test or another work-item validation command to have already run, byte-identical post-state hashes, final diff-isolation evidence, QA/readiness receipts, Product Acceptance receipts, or implementation mapping of downstream proof-stage criteria is outside this stage and MUST NOT remain as a blocking Technical Refinement delta. Treat the future proof as resolved at this stage when repairedImplementationPlan schedules the relevant owned paths/invariant and exact executable validation; later stages own the execution receipt.
 - Evaluate each originalRequiredDelta against repairedImplementationPlan plus the supplied authoritative evidence, using that stage boundary.
 - decision=approved only when every in-stage originalRequiredDelta is resolved and no originalRequiredDelta remains a valid Technical Refinement blocker. Then requiredDeltas must be [].
 - decision=changes_requested only when one or more originalRequiredDeltas remain unresolved. requiredDeltas must contain only the exact unresolved subset of originalRequiredDeltas. Never add a new delta.
@@ -406,7 +493,12 @@ export async function finalizeHandoffStructured({
   });
   assertSchema(result.value, schema, "handoffStructuredFinalization");
   const next = clone(handoff);
-  next.sddReview = canonicalizeTechnicalRefinementRouting(brief, result.value.sddReview);
+  const stageBoundary = canonicalizeTechnicalRefinementStageBoundary({
+    brief,
+    handoff: next,
+    review: result.value.sddReview,
+  });
+  next.sddReview = stageBoundary.review;
   const consistencyFailure = reviewProjectionIsConsistent({ brief, handoff: next, review: next.sddReview });
   if (consistencyFailure) throw new Error(`handoff_review_projection_unproven:${consistencyFailure}`);
   assertSchema(next, handoffSchema, "handoffResult");
@@ -463,7 +555,12 @@ export async function finalizeTechnicalReviewRepair({
   assertSchema(result.value, schema, "technicalReviewRepairProjection");
 
   let next = applyTechnicalRepairClosure(handoff, result.value.repairClosure);
-  next.sddReview = canonicalizeTechnicalRefinementRouting(brief, result.value.sddReview);
+  const stageBoundary = canonicalizeTechnicalRefinementStageBoundary({
+    brief,
+    handoff: next,
+    review: result.value.sddReview,
+  });
+  next.sddReview = stageBoundary.review;
   const returnedDeltas = normalizedStringSet(next.sddReview.requiredDeltas);
   const allowedDeltas = new Set(deltaScope);
   if (returnedDeltas.some((delta) => !allowedDeltas.has(delta))) {

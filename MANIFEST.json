@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-18T00:57:45Z",
+  "generatedAt": "2026-09-18T20:06:41Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 530,
-  "treeSha256": "sha256:b253e20c1371be3f7714ff815920a8c7de0bdcd9b33458fe33d8cee3d25f6a4a",
+  "fileCount": 531,
+  "treeSha256": "sha256:2629a45f8b28e90658fc7800effc7dae7010f68af394db860b4f2c6a1ea4ac98",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -408,9 +408,9 @@
       "sha256": "sha256:b7cc79d8d901933065e2c09984235b65c8ad40a3a23817b88314f08199cebf56"
     },
     {
-      "bytes": 27491,
+      "bytes": 32578,
       "path": ".agents/runtime/handoff-structured-finalization.mjs",
-      "sha256": "sha256:f27f8f1e15fa039e6f5fafc598447020a7d62653dbaa0f0215034f702029a52a"
+      "sha256": "sha256:5a51ee6139681041640b6e502bfbffd2de42102c962e41d2745e05b41e78947e"
     },
     {
       "bytes": 2990,
@@ -2381,6 +2381,11 @@
       "bytes": 846,
       "path": "tests/contracts/tcp-port.test.mjs",
       "sha256": "sha256:1585400c555a33d9d38653bd031e1960c8367e009b8ddfa43a7acfa6ee8d797a"
+    },
+    {
+      "bytes": 6427,
+      "path": "tests/contracts/technical-refinement-proof-stage-boundary.test.mjs",
+      "sha256": "sha256:0a29de316e93edb3bc9f23b9f46f27f74c60f0016f54826448650e9b58e9d53a"
     },
     {
       "bytes": 1335,
