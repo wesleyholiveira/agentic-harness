@@ -97,21 +97,35 @@ function consumerEchoesFactLabel(requirement) {
   return consumer === factId || consumer === compactFact;
 }
 
-function reconcileProductDiscoveryFactCapabilityIds(assessment, catalog) {
+function consumerIsKnownNonReviewImplementationAgent(requirement, catalog, registry) {
+  const consumer = String(requirement?.consumerCapabilityId ?? '').trim();
+  if (!consumer) return false;
+  const agent = registry?.byId?.get(consumer);
+  if (!agent || agent.executionRole !== 'implementation') return false;
+  return !catalog.capabilities.some((capability) => capability.agentId === consumer);
+}
+
+function reconcileProductDiscoveryFactCapabilityIds(assessment, catalog, registry) {
   const next = clone(assessment);
   const reconciled = [];
   for (const raw of next.factRequirements ?? []) {
     const requirement = clone(raw);
     const resolution = String(requirement?.resolution ?? '').trim();
     const consumerCapabilityId = canonicalReviewCapabilityId(catalog, requirement.consumerCapabilityId);
+    const authoritativeConsumerProjectionError = resolution === 'authoritative-context'
+      && (
+        consumerEchoesFactLabel(requirement)
+        || consumerIsKnownNonReviewImplementationAgent(requirement, catalog, registry)
+      );
 
     if (consumerCapabilityId) {
       requirement.consumerCapabilityId = consumerCapabilityId;
-    } else if (resolution === 'authoritative-context' && consumerEchoesFactLabel(requirement)) {
-      // The model echoed the fact/domain label into consumerCapabilityId. Since
-      // the fact is already authoritative-context, mapping it to one specific
-      // review would invent semantics. Conservatively expose the frozen fact to
-      // every registered review without creating a review dependency edge.
+    } else if (authoritativeConsumerProjectionError) {
+      // bootstrapReviewAssessment models review consumers only. A fact-label
+      // echo or a known implementation-agent ID is therefore a projection error,
+      // not authority for choosing one review. Because the fact is already
+      // authoritative-context, expose it conservatively to every registered
+      // review without inventing a provider/dependency edge.
       for (const capability of catalog.capabilities) {
         reconciled.push({
           ...clone(requirement),
@@ -156,7 +170,7 @@ export function reconcileProductDiscoveryBootstrapAssessmentEnvelope(assessment,
   }
   const catalog = capabilityCatalogFromRegistry(registry);
   const sourceReconciled = canonicalizeAuthorizedRepositorySources(assessment, catalog, authorizedRepositoryPaths);
-  const reconciledAssessment = reconcileProductDiscoveryFactCapabilityIds(sourceReconciled.assessment, catalog);
+  const reconciledAssessment = reconcileProductDiscoveryFactCapabilityIds(sourceReconciled.assessment, catalog, registry);
   // normalizeBootstrapFactRequirements remains the strict semantic authority.
   // Reconciliation only handles objective review aliases and the narrow
   // authoritative-context fact-label echo case above.

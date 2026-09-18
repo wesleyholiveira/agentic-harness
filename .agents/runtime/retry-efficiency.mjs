@@ -112,7 +112,8 @@ export function deriveRetryBudgetState(events = [], { taskId = null, startedAtMs
   let firstObservedMs = Number(startedAtMs ?? 0) || null;
   for (const event of events ?? []) {
     const eventTaskId = event.task_id ?? event.taskId ?? null;
-    if (taskId && eventTaskId && eventTaskId !== taskId) continue;
+    // Task-scoped budgets exclude run-level and sibling-task history.
+    if (taskId && eventTaskId !== taskId) continue;
     const created = Date.parse(event.created_at ?? event.createdAt ?? "");
     if (Number.isFinite(created)) firstObservedMs = firstObservedMs == null ? created : Math.min(firstObservedMs, created);
     if ((event.event_type ?? event.type) === "retry.backoff_applied") cumulativeBackoffMs += Math.max(0, Number(payloadOf(event).retryAfterMs ?? 0));

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-18T00:57:45Z",
+  "generatedAt": "2026-09-18T17:05:46Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 530,
-  "treeSha256": "sha256:b253e20c1371be3f7714ff815920a8c7de0bdcd9b33458fe33d8cee3d25f6a4a",
+  "fileCount": 531,
+  "treeSha256": "sha256:e94617cf30d71c9b784537a976e2b077ef8a00099cb0e8995de11bde84cf0333",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -533,9 +533,9 @@
       "sha256": "sha256:703da657498f1ff003feb3f0ad5d7aa2ebfdb9a11ce6a2b521bee8523f9a163a"
     },
     {
-      "bytes": 15714,
+      "bytes": 16391,
       "path": ".agents/runtime/product-discovery-bootstrap-assessment.mjs",
-      "sha256": "sha256:d0f649902580c171963ecbebca38f3be8f3b16f1fd83cde2fb8bd1521047f057"
+      "sha256": "sha256:4c78db5ab2fa820607b984537ba468836f9973df4f9d66b245ef209d5d279c35"
     },
     {
       "bytes": 7863,
@@ -588,9 +588,9 @@
       "sha256": "sha256:3836f0f926b33103f69fb9453d9634ef1d56421ce9206045007ff8b00460a4ff"
     },
     {
-      "bytes": 10640,
+      "bytes": 10696,
       "path": ".agents/runtime/retry-efficiency.mjs",
-      "sha256": "sha256:9154c7e222f2a1004c42b89419ccaabc4dd1dd5314ec2648f843edbc1e049468"
+      "sha256": "sha256:a0ca154cbfa42e53eb278a9a50bb3f221b6c5f3e826b863f9b69f32f108e94dc"
     },
     {
       "bytes": 8116,
@@ -2341,6 +2341,11 @@
       "bytes": 999,
       "path": "tests/contracts/migrations.test.mjs",
       "sha256": "sha256:7f8eadec83654ffd37f54d82bd53c25ba7db879bd6943ef2fef52ab88507f2d1"
+    },
+    {
+      "bytes": 3791,
+      "path": "tests/contracts/post-run-authority-regressions.test.mjs",
+      "sha256": "sha256:5449ee0dc184e77f61f0e37dac3aabed9683c550a4119c97478290f54a75fd3f"
     },
     {
       "bytes": 5494,
