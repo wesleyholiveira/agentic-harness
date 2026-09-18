@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-18T21:29:31Z",
+  "generatedAt": "2026-09-18T22:09:24Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 532,
-  "treeSha256": "sha256:f72803a1de8fa49d7395a1b937dc64caadd2b36f10cbf8a92254b7d2c62abd39",
+  "fileCount": 533,
+  "treeSha256": "sha256:f2f8d5b29cb0a71d1a9272ae4b2012f01961e7e7010796996265743f7ab9e097",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
