@@ -228,6 +228,28 @@ export async function buildContextPacket({ repositoryRoot, registry, plan, task,
   };
 }
 
+function compactRetryDiagnostic(value, maxLength = 4_000) {
+  return String(value ?? "").replace(/\s+/gu, " ").trim().slice(0, maxLength);
+}
+
+export function retryFailureInvariants(reasoning) {
+  const attempt = Number(reasoning?.attempt ?? 1);
+  if (!Number.isInteger(attempt) || attempt < 2) return [];
+
+  const code = compactRetryDiagnostic(reasoning?.priorFailureCode);
+  const message = compactRetryDiagnostic(reasoning?.priorFailureMessage);
+  if (!code && !message) return [];
+
+  return [
+    `Retry corrective attempt ${attempt}: the immediately preceding semantic attempt failed and its diagnostic is authoritative retry context.`,
+    `Previous failure code: ${code || "unknown"}.`,
+    `Previous failure diagnostic: ${message || "unavailable"}.`,
+    "Start from the current authoritative workspace; do not assume edits from the failed workspace survived integration.",
+    "Before changing an existing owned artifact, inspect and preserve already-required behavior/tests that are unrelated to the failure. Make the smallest correction that resolves the prior diagnostic.",
+    "Before returning status=complete, execute every command in Task Brief.validation. Any validation command named by the previous failure diagnostic must pass exactly; do not repeat the same completion claim while that failure remains reproducible.",
+  ];
+}
+
 export async function buildTaskBrief({ repositoryRoot, registry, plan, task, contextPacket, schemas, maxAttempts = 3, reasoning = null }) {
   const agent = registry.byId.get(task.agentId);
   const modelRouting = resolveModelRoute({
@@ -273,6 +295,7 @@ export async function buildTaskBrief({ repositoryRoot, registry, plan, task, con
       "Do not hide blocked validation, required deltas, or required follow-ups.",
       "Task Brief.validation is the complete blocking executable validation authority for this task; catalog/manifests/AGENTS/skills are reusable guidance and do not silently add commands.",
       "Task Brief.validation executes only in Task Brief.validationExecutionScope. Never reinterpret container/workspace localhost as the authoritative host.",
+      ...retryFailureInvariants(reasoning),
       ...(task.stage === "implementation" ? ["Implementation validation is workspace scoped. Authoritative-host and live/TUI proofs belong to downstream operational-readiness or live qualification gates and cannot block implementation completion."] : []),
       ...(task.stage === "product-discovery" ? [
         "Product Discovery is upstream of all governance reviews, Technical Refinement, QA/readiness and Product Acceptance. Pending downstream stages are expected and cannot block this task.",
