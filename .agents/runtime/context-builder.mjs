@@ -240,14 +240,44 @@ export function retryFailureInvariants(reasoning) {
   const message = compactRetryDiagnostic(reasoning?.priorFailureMessage);
   if (!code && !message) return [];
 
+  const ownershipFailure = code.includes("workspace_ownership_violation")
+    || message.includes("workspace_ownership_violation:");
+
   return [
     `Retry corrective attempt ${attempt}: the immediately preceding semantic attempt failed and its diagnostic is authoritative retry context.`,
     `Previous failure code: ${code || "unknown"}.`,
     `Previous failure diagnostic: ${message || "unavailable"}.`,
     "Start from the current authoritative workspace; do not assume edits from the failed workspace survived integration.",
     "Before changing an existing owned artifact, inspect and preserve already-required behavior/tests that are unrelated to the failure. Make the smallest correction that resolves the prior diagnostic.",
+    ...(ownershipFailure ? [
+      "The previous attempt violated workspace ownership. Every path named by that diagnostic remains a forbidden write target unless the CURRENT Task Brief.ownedPaths explicitly matches it. Do not recreate, modify, delete, stage, or rename that path merely to satisfy TDD or validation; leave separately owned work to its assigned work item.",
+    ] : []),
     "Before returning status=complete, execute every command in Task Brief.validation. Any validation command named by the previous failure diagnostic must pass exactly; do not repeat the same completion claim while that failure remains reproducible.",
   ];
+}
+
+function looksLikeWritableTestPath(value) {
+  const path = String(value ?? "").replaceAll("\\", "/");
+  if (!path) return false;
+  return /(?:^|\/)(?:test|tests|__tests__|spec|specs|e2e)(?:\/|$)/iu.test(path)
+    || /\.(?:test|spec)\.[^/]+$/iu.test(path)
+    || /(?:^|\/)test_[^/]+$/iu.test(path)
+    || /_test\.[^/]+$/iu.test(path);
+}
+
+export function requiredSuperpowersForTask(agent, task) {
+  const configured = Array.isArray(agent?.superpowersSkills)
+    ? [...agent.superpowersSkills]
+    : ["verification-before-completion"];
+
+  if (task?.stage !== "implementation" || !configured.includes("test-driven-development")) {
+    return configured;
+  }
+
+  const ownsWritableTestPath = (task?.ownedPaths ?? []).some(looksLikeWritableTestPath);
+  return ownsWritableTestPath
+    ? configured
+    : configured.filter((skill) => skill !== "test-driven-development");
 }
 
 export async function buildTaskBrief({ repositoryRoot, registry, plan, task, contextPacket, schemas, maxAttempts = 3, reasoning = null }) {
@@ -296,7 +326,10 @@ export async function buildTaskBrief({ repositoryRoot, registry, plan, task, con
       "Task Brief.validation is the complete blocking executable validation authority for this task; catalog/manifests/AGENTS/skills are reusable guidance and do not silently add commands.",
       "Task Brief.validation executes only in Task Brief.validationExecutionScope. Never reinterpret container/workspace localhost as the authoritative host.",
       ...retryFailureInvariants(reasoning),
-      ...(task.stage === "implementation" ? ["Implementation validation is workspace scoped. Authoritative-host and live/TUI proofs belong to downstream operational-readiness or live qualification gates and cannot block implementation completion."] : []),
+      ...(task.stage === "implementation" ? [
+        "Implementation validation is workspace scoped. Authoritative-host and live/TUI proofs belong to downstream operational-readiness or live qualification gates and cannot block implementation completion.",
+        "Task ownership is stronger than generic workflow skills. Superpowers, TDD guidance, validation commands and acceptance coverage never expand ownedPaths. Create, modify, delete, stage or rename a test artifact only when its path matches this task's ownedPaths. If tests are assigned to another work item, leave them untouched and implement only this task's owned slice.",
+      ] : []),
       ...(task.stage === "product-discovery" ? [
         "Product Discovery is upstream of all governance reviews, Technical Refinement, QA/readiness and Product Acceptance. Pending downstream stages are expected and cannot block this task.",
         "Task Brief.acceptanceCriteria are Runtime process gates (PROC-PO-*). Prove them only in handoff.criterionResults; never copy those process IDs into handoff.acceptanceCriteria.",
@@ -334,7 +367,7 @@ export async function buildTaskBrief({ repositoryRoot, registry, plan, task, con
       ...(task.stage === "technical-refinement" ? ["implementationPlan"] : []),
     ])],
     validation: taskValidation, validationExecutionScope: task.validationExecutionScope ?? "workspace", executionMode: task.executionMode ?? "agent", contextPacketId: contextPacket.packetId, attemptBudget: maxAttempts, deadlineOrBudget: null,
-    sdd: { role: task.sddRole ?? "developer", stage: task.stage ?? "implementation", workItemId: task.workItemId ?? plan.runId, workflowSkill: "agent-harness-sdd-workflow", requiredSuperpowers: agent.superpowersSkills ?? ["verification-before-completion"], reviewedRevision: authoritativeReviewRevisionFromContext({ stage: task.stage ?? "implementation", contextPacket }) },
+    sdd: { role: task.sddRole ?? "developer", stage: task.stage ?? "implementation", workItemId: task.workItemId ?? plan.runId, workflowSkill: "agent-harness-sdd-workflow", requiredSuperpowers: requiredSuperpowersForTask(agent, task), reviewedRevision: authoritativeReviewRevisionFromContext({ stage: task.stage ?? "implementation", contextPacket }) },
     modelRouting,
     executionTopology: taskExecutionTopologyForAgent(agent),
     ...(reasoning ? { reasoning } : {}),

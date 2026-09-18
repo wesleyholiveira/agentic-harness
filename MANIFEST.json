@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-18T22:09:24Z",
+  "generatedAt": "2026-09-18T22:42:24Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 533,
-  "treeSha256": "sha256:f2f8d5b29cb0a71d1a9272ae4b2012f01961e7e7010796996265743f7ab9e097",
+  "fileCount": 534,
+  "treeSha256": "sha256:ebd7a8ece261fb3c3191ed347920039be850f19a94dedab5774b7eff6c6077bf",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -298,9 +298,9 @@
       "sha256": "sha256:179e6449bb66752be6bcbd43fc78ac91444e768373cf04d6a356522d9ebc9916"
     },
     {
-      "bytes": 21566,
+      "bytes": 23329,
       "path": ".agents/runtime/context-builder.mjs",
-      "sha256": "sha256:87e54288e8e453a45de5b69e311f777787c0c3e8eb779b9fd4b91f350c8bcec1"
+      "sha256": "sha256:12a9f0a39126a81f9825ef48e114a6d7737b18e8ba0477015aa86a0ae35e6560"
     },
     {
       "bytes": 1030,
@@ -2331,6 +2331,11 @@
       "bytes": 4033,
       "path": "tests/contracts/doctor-execution-plane.test.mjs",
       "sha256": "sha256:5789781479612136c4d6da6f7409a83accabc70db4ca8348f871d1243f2b959a"
+    },
+    {
+      "bytes": 2234,
+      "path": "tests/contracts/implementation-superpower-ownership-boundary.test.mjs",
+      "sha256": "sha256:1f108edc48b0042c26fdaa5647507e7aa28645f6df0d6ec16d3facd962b7b9dc"
     },
     {
       "bytes": 867,
