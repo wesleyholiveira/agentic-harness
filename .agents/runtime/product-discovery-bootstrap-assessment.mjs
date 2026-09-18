@@ -79,6 +79,71 @@ function canonicalizeAuthorizedRepositorySources(assessment, catalog, authorized
   return { assessment: next, changed };
 }
 
+function canonicalReviewCapabilityId(catalog, value) {
+  const token = String(value ?? '').trim();
+  if (!token) return null;
+  if (catalog.byId.has(token)) return token;
+  const aliases = catalog.capabilities
+    .filter((capability) => capability.stage === token || capability.agentId === token)
+    .map((capability) => capability.capabilityId);
+  return aliases.length === 1 ? aliases[0] : null;
+}
+
+function consumerEchoesFactLabel(requirement) {
+  const consumer = String(requirement?.consumerCapabilityId ?? '').trim();
+  const factId = String(requirement?.factId ?? '').trim();
+  if (!consumer || !factId) return false;
+  const compactFact = factId.replace(/^decision[.-]/, '');
+  return consumer === factId || consumer === compactFact;
+}
+
+function reconcileProductDiscoveryFactCapabilityIds(assessment, catalog) {
+  const next = clone(assessment);
+  const reconciled = [];
+  for (const raw of next.factRequirements ?? []) {
+    const requirement = clone(raw);
+    const resolution = String(requirement?.resolution ?? '').trim();
+    const consumerCapabilityId = canonicalReviewCapabilityId(catalog, requirement.consumerCapabilityId);
+
+    if (consumerCapabilityId) {
+      requirement.consumerCapabilityId = consumerCapabilityId;
+    } else if (resolution === 'authoritative-context' && consumerEchoesFactLabel(requirement)) {
+      // The model echoed the fact/domain label into consumerCapabilityId. Since
+      // the fact is already authoritative-context, mapping it to one specific
+      // review would invent semantics. Conservatively expose the frozen fact to
+      // every registered review without creating a review dependency edge.
+      for (const capability of catalog.capabilities) {
+        reconciled.push({
+          ...clone(requirement),
+          consumerCapabilityId: capability.capabilityId,
+        });
+      }
+      continue;
+    }
+
+    if (resolution === 'review' && requirement.providerCapabilityId) {
+      const providerCapabilityId = canonicalReviewCapabilityId(catalog, requirement.providerCapabilityId);
+      if (providerCapabilityId) requirement.providerCapabilityId = providerCapabilityId;
+    }
+    reconciled.push(requirement);
+  }
+  next.factRequirements = reconciled;
+  return next;
+}
+
+function publicFactRequirement(requirement) {
+  return {
+    factId: requirement.factId,
+    consumerCapabilityId: requirement.consumerCapabilityId,
+    resolution: requirement.resolution,
+    providerCapabilityId: requirement.providerCapabilityId ?? null,
+    source: requirement.source,
+    evidence: requirement.evidence,
+    rationale: requirement.rationale,
+    ...(requirement.provenance ? { provenance: requirement.provenance } : {}),
+  };
+}
+
 export function reconcileProductDiscoveryBootstrapAssessmentEnvelope(assessment, registry, { authorizedRepositoryPaths = new Set() } = {}) {
   if (!assessment || typeof assessment !== 'object' || Array.isArray(assessment)) {
     throw new Error('product_discovery_bootstrap_review_assessment_invalid');
@@ -91,13 +156,15 @@ export function reconcileProductDiscoveryBootstrapAssessmentEnvelope(assessment,
   }
   const catalog = capabilityCatalogFromRegistry(registry);
   const sourceReconciled = canonicalizeAuthorizedRepositorySources(assessment, catalog, authorizedRepositoryPaths);
-  const reconciledAssessment = sourceReconciled.assessment;
-  // factRequirements carries authoritative topology IDs and remains strict.
-  // requiredCapabilities is only the redundant review-selection envelope.
+  const reconciledAssessment = reconcileProductDiscoveryFactCapabilityIds(sourceReconciled.assessment, catalog);
+  // normalizeBootstrapFactRequirements remains the strict semantic authority.
+  // Reconciliation only handles objective review aliases and the narrow
+  // authoritative-context fact-label echo case above.
   const normalizedRequirements = normalizeBootstrapFactRequirements(reconciledAssessment.factRequirements, {
     catalog,
     provenance: 'product-discovery',
   });
+  const factRequirements = normalizedRequirements.map(publicFactRequirement);
   const declared = new Set(canonicalizeProductDiscoveryRequiredCapabilities(
     reconciledAssessment.requiredCapabilities,
     catalog,
@@ -112,6 +179,7 @@ export function reconcileProductDiscoveryBootstrapAssessmentEnvelope(assessment,
   return {
     ...reconciledAssessment,
     requiredCapabilities,
+    factRequirements,
   };
 }
 
