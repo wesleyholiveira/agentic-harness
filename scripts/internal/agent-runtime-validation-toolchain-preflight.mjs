@@ -50,9 +50,20 @@ function npmScriptName(value) {
 
 export function requiredValidationExecutables({ commands = [], packageJson = {} } = {}) {
   const required = new Set();
+  const shellBuiltins = new Set(["cd", "export", "set", "test", "true", "false", "echo", "printf", "pwd"]);
+
   const visit = (command, seenScripts = new Set()) => {
     const normalized = String(command ?? "").trim();
     if (!normalized) return;
+
+    const segments = normalized
+      .split(/\s*(?:&&|\|\||;|\|(?!\|))\s*/u)
+      .map((segment) => segment.trim())
+      .filter(Boolean);
+    if (segments.length > 1) {
+      for (const segment of segments) visit(segment, seenScripts);
+      return;
+    }
 
     const scriptName = npmScriptName(normalized);
     if (scriptName) {
@@ -69,7 +80,7 @@ export function requiredValidationExecutables({ commands = [], packageJson = {} 
     }
 
     const executable = commandExecutable(normalized);
-    if (!executable) return;
+    if (!executable || shellBuiltins.has(executable)) return;
     if (executable === "python3") required.add("python");
     else if (executable === "python") required.add("python");
     else required.add(executable);
