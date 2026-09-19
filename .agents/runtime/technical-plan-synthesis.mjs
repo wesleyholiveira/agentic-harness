@@ -820,7 +820,10 @@ export function technicalPlanRepairIssues({
   const canonicalPlan = clone(implementationPlan);
   canonicalPlan.acceptanceCriteria = clone(requiredAcceptanceCriteria ?? []);
   const validationDirective = implementationValidationDirectiveFromRequest(request);
-  issues.push(...collectImplementationPlanValidationIssues(canonicalPlan, registry, { validationDirective }));
+  issues.push(...collectImplementationPlanValidationIssues(canonicalPlan, registry, {
+    validationDirective,
+    validationCommandCatalog,
+  }));
   return [...new Set(issues)];
 }
 
