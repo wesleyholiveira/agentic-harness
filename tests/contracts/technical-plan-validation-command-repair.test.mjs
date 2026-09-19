@@ -1,23 +1,28 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
 import {
   applyValidationCommandRepairs,
+  buildTechnicalPlanStructuredSchema,
   buildValidationCommandCatalog,
   buildValidationCommandRepairPrompt,
   normalizeTechnicalPlanMechanics,
+  technicalPlanRepairIssues,
 } from "../../.agents/runtime/technical-plan-synthesis.mjs";
 
-test("validation command catalog uses only deterministic command evidence", async () => {
+test("validation command catalog uses only independent deterministic command authority", async () => {
   const workspace = await mkdtemp(join(tmpdir(), "agent-harness-validation-catalog-"));
   try {
     await writeFile(join(workspace, "package.json"), JSON.stringify({
       packageManager: "npm@11",
       scripts: {
         dev: "node dev.mjs",
-        "test:schema": "pytest tests/test_schema.py",
+        "test:ml": "python apps/ml/run_tests.py",
+        "test:schema": "node scripts/test-schema.mjs",
         "check:types": "tsc --noEmit",
       },
     }), "utf8");
@@ -28,15 +33,16 @@ test("validation command catalog uses only deterministic command evidence", asyn
         objective: "Implement schema validation.",
         validation: [],
       },
+      // These legacy arguments are deliberately ignored as command authority.
       implementationPlan: {
         workItems: [{
           id: "W01",
-          validation: ["Migration numbering and historical immutability check"],
+          validation: ["pytest -q tests/learning_v2/unit"],
         }],
       },
       requiredAcceptanceCriteria: [{
         id: "AC-1",
-        verification: "pytest tests/test_identity.py -k tenant_isolation",
+        verification: "npm run test:ml",
       }],
       evidence: [{
         path: "docs/plan.md",
@@ -45,12 +51,14 @@ test("validation command catalog uses only deterministic command evidence", asyn
     });
 
     const commands = catalog.map((entry) => entry.command);
-    assert.ok(commands.includes("pytest tests/test_identity.py -k tenant_isolation"));
-    assert.ok(commands.includes("pytest tests/test_upgrade.py -k populated_upgrade"));
+    assert.ok(commands.includes("npm run test:ml"));
     assert.ok(commands.includes("npm run test:schema"));
     assert.ok(commands.includes("npm run check:types"));
     assert.ok(!commands.includes("npm run dev"));
-    assert.ok(!commands.includes("Migration numbering and historical immutability check"));
+    assert.ok(!commands.includes("pytest -q tests/learning_v2/unit"));
+    assert.ok(!commands.includes("pytest tests/test_upgrade.py -k populated_upgrade"));
+    assert.ok(!catalog.some((entry) => String(entry.source).startsWith("implementation-plan:")));
+    assert.ok(!catalog.some((entry) => String(entry.source).startsWith("technical-artifact:")));
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
@@ -181,4 +189,94 @@ test("validation repair prompt forbids invented commands", () => {
   assert.match(prompt, /MUST be selected byte-for-byte from validationCommandCatalog\.command/u);
   assert.match(prompt, /Do NOT guess/u);
   assert.match(prompt, /full Technical Lead retry with repository tools/u);
+});
+
+test("syntactically executable model-authored validation cannot self-authorize", () => {
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+  const implementationPlanSchema = JSON.parse(
+    readFileSync(resolve(root, ".agents/schemas/implementation-plan.schema.json"), "utf8"),
+  );
+  const criteria = [{
+    id: "AC-1",
+    source: "spec",
+    statement: "Learning V2 domain contracts are verified.",
+    blocking: true,
+    verification: "npm run test:ml",
+    proofStage: "implementation",
+  }];
+  const registry = {
+    orchestrator: "main-orchestrator",
+    agents: [
+      {
+        id: "main-orchestrator",
+        role: "delivery-orchestrator",
+        kind: "orchestrator",
+        executionRole: "contract",
+        orchestrationRole: "orchestrator",
+        skills: ["operate-multi-agent-runtime"],
+        primaryPaths: [],
+        sharedPaths: [],
+        collaborativePaths: [],
+      },
+      {
+        id: "coding-pro",
+        role: "coding-pro",
+        kind: "implementation",
+        executionRole: "implementation",
+        orchestrationRole: "specialist",
+        ownershipMode: "fallback-unclaimed-primary",
+        skills: [],
+        primaryPaths: [],
+        sharedPaths: [],
+        collaborativePaths: [],
+      },
+    ],
+  };
+  const plan = {
+    schemaVersion: 1,
+    revision: 1,
+    coordinatorAgentId: "main-orchestrator",
+    acceptanceCriteria: structuredClone(criteria),
+    workItems: [{
+      id: "W01",
+      ownerAgentId: "coding-pro",
+      objective: "Implement Learning V2 domain contracts.",
+      dependencies: [],
+      ownedPaths: ["apps/ml/clip_compass_ml/learning_v2/contracts.py"],
+      acceptanceCriteria: ["AC-1"],
+      validation: ["pytest -q tests/learning_v2/unit"],
+      validationExecutionScope: "workspace",
+      complexity: "medium",
+      estimatedFiles: 1,
+      contractChange: true,
+      migration: false,
+    }],
+  };
+  const trustedCatalog = [{
+    command: "npm run test:ml",
+    source: "package.json#scripts.test:ml",
+  }];
+
+  const issues = technicalPlanRepairIssues({
+    implementationPlan: plan,
+    implementationPlanSchema,
+    requiredAcceptanceCriteria: criteria,
+    registry,
+    validationCommandCatalog: trustedCatalog,
+  });
+
+  assert.ok(issues.includes(
+    "implementation_plan_validation_command_unauthorized:W01:0:pytest -q tests/learning_v2/unit",
+  ));
+
+  const schema = buildTechnicalPlanStructuredSchema({
+    implementationPlanSchema,
+    requiredAcceptanceCriteria: criteria,
+    registry,
+    validationCommandCatalog: trustedCatalog,
+  });
+  assert.deepEqual(
+    schema.properties.workItems.items.properties.validation.items.enum,
+    ["npm run test:ml"],
+  );
 });
