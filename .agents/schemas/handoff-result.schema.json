@@ -412,6 +412,7 @@
             "enum": [
               "technical-plan-synthesis",
               "technical-plan-repair",
+              "technical-plan-validation-command-repair",
               "completion-evidence-synthesis",
               "handoff-review-projection",
               "technical-review-repair-projection",

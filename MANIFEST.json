@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-18T22:42:24Z",
+  "generatedAt": "2026-09-19T00:33:25Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 534,
-  "treeSha256": "sha256:ebd7a8ece261fb3c3191ed347920039be850f19a94dedab5774b7eff6c6077bf",
+  "fileCount": 535,
+  "treeSha256": "sha256:31621b02556d48f0f52aa68daea816c96c41eea1e605a6056b0063af49da5cf2",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -653,9 +653,9 @@
       "sha256": "sha256:41a3ba2f41f1df7f4101d04d269d41389ccdd93b87bd47ce652807c64f554fe7"
     },
     {
-      "bytes": 55164,
+      "bytes": 68466,
       "path": ".agents/runtime/technical-plan-synthesis.mjs",
-      "sha256": "sha256:94ede37913d00b304fbd8fd67a8252ff29b0c30926f9259bf70ed0703345c407"
+      "sha256": "sha256:2d282b6a05ae7ece38167c5f8b2d4090a66f60f73c331304c6c3cab08d4b1262"
     },
     {
       "bytes": 6149,
@@ -703,9 +703,9 @@
       "sha256": "sha256:e3b3ba94c00aec3eac1a8bc417e6cfb318833531f57c2023cb3051a5c95ed85f"
     },
     {
-      "bytes": 13005,
+      "bytes": 13063,
       "path": ".agents/schemas/handoff-result.schema.json",
-      "sha256": "sha256:057122100115cba82a4de53e4050e1b2af81513dca486dd7177b7a2b40781fed"
+      "sha256": "sha256:c96401144567e2b834887384276f53a74680ee8ac7e54daa787348d4af3d3fee"
     },
     {
       "bytes": 4361,
@@ -2396,6 +2396,11 @@
       "bytes": 846,
       "path": "tests/contracts/tcp-port.test.mjs",
       "sha256": "sha256:1585400c555a33d9d38653bd031e1960c8367e009b8ddfa43a7acfa6ee8d797a"
+    },
+    {
+      "bytes": 6056,
+      "path": "tests/contracts/technical-plan-validation-command-repair.test.mjs",
+      "sha256": "sha256:1058eb4a4d9fcb51fc2f19339264a196984cfeb648af92d538e4e8a5ad131df3"
     },
     {
       "bytes": 6427,

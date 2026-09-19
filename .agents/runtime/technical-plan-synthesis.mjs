@@ -432,7 +432,206 @@ async function planningEvidence({ workspace, handoff, maxBytes = 80_000 }) {
   return evidence;
 }
 
-export function buildTechnicalPlanSynthesisPrompt({ brief, handoff, registry, evidence, deterministicValidationIssues = [], repairPass = 1 }) {
+function addValidationCommandEvidence(target, command, source) {
+  const normalized = String(command ?? "").trim();
+  if (!isExecutableValidationCommand(normalized)) return;
+  if (!target.some((entry) => entry.command === normalized)) {
+    target.push({ command: normalized, source: String(source ?? "unknown") });
+  }
+}
+
+function validationCommandsFromText(value, source, target) {
+  const text = String(value ?? "");
+  for (const line of text.split(/\r?\n/u)) {
+    const trimmed = line.trim();
+    addValidationCommandEvidence(target, trimmed, source);
+  }
+  const inline = /`([^`\r\n]+)`/gu;
+  let match;
+  while ((match = inline.exec(text)) !== null) {
+    addValidationCommandEvidence(target, match[1], source);
+  }
+}
+
+function packageManagerRunPrefix(packageJson) {
+  const manager = String(packageJson?.packageManager ?? "").split("@")[0].trim().toLowerCase();
+  if (manager === "pnpm") return "pnpm run";
+  if (manager === "yarn") return "yarn";
+  if (manager === "bun") return "bun run";
+  return "npm run";
+}
+
+const VALIDATION_SCRIPT_NAME = /(?:^|:|-)(?:test|tests|check|lint|typecheck|verify|validate|validation|quality|schema|migration|migrations|build)(?:$|:|-)/iu;
+
+export async function buildValidationCommandCatalog({
+  workspace,
+  brief,
+  implementationPlan,
+  requiredAcceptanceCriteria,
+  evidence = [],
+}) {
+  const catalog = [];
+
+  for (const criterion of requiredAcceptanceCriteria ?? []) {
+    addValidationCommandEvidence(catalog, criterion?.verification, `acceptance-criterion:${criterion?.id ?? "unknown"}`);
+  }
+  for (const item of implementationPlan?.workItems ?? []) {
+    for (const command of item.validation ?? []) {
+      addValidationCommandEvidence(catalog, command, `implementation-plan:${item.id}`);
+    }
+  }
+  for (const command of brief?.validation ?? []) {
+    addValidationCommandEvidence(catalog, command, "task-brief.validation");
+  }
+  const directive = implementationValidationDirectiveFromRequest(brief?.objective ?? "");
+  for (const command of directive.commands ?? []) {
+    addValidationCommandEvidence(catalog, command, "request.focused-validation");
+  }
+
+  const packageJsonPath = resolve(workspace, "package.json");
+  if (await exists(packageJsonPath)) {
+    try {
+      const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
+      const prefix = packageManagerRunPrefix(packageJson);
+      for (const name of Object.keys(packageJson?.scripts ?? {}).sort()) {
+        if (!VALIDATION_SCRIPT_NAME.test(name)) continue;
+        addValidationCommandEvidence(catalog, `${prefix} ${name}`, `package.json#scripts.${name}`);
+      }
+    } catch {
+      // Invalid/non-JSON package metadata is not command authority.
+    }
+  }
+
+  for (const artifact of evidence ?? []) {
+    validationCommandsFromText(artifact?.content, `technical-artifact:${artifact?.path ?? "unknown"}`, catalog);
+  }
+
+  return catalog;
+}
+
+function validationRepairWorkItemIds(issues = []) {
+  const ids = [];
+  for (const issue of issues ?? []) {
+    const value = String(issue);
+    for (const prefix of [
+      "validation_command_not_executable:",
+      "implementation_plan_criterion_verification_missing:",
+    ]) {
+      if (!value.startsWith(prefix)) continue;
+      const rest = value.slice(prefix.length);
+      const separator = rest.indexOf(":");
+      const id = separator >= 0 ? rest.slice(0, separator) : rest;
+      if (id && !ids.includes(id)) ids.push(id);
+    }
+  }
+  return ids;
+}
+
+function validationRepairIssuesOnly(issues = []) {
+  return (issues ?? []).length > 0 && (issues ?? []).every((issue) => issueHasPrefix(issue, [
+    "validation_command_not_executable:",
+    "implementation_plan_criterion_verification_missing:",
+  ]));
+}
+
+function validationCommandRepairSchema({ workItemIds, commands }) {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["repairs", "unresolvedWorkItemIds"],
+    properties: {
+      repairs: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["workItemId", "validation"],
+          properties: {
+            workItemId: { type: "string", enum: workItemIds },
+            validation: {
+              type: "array",
+              minItems: 1,
+              uniqueItems: true,
+              items: { type: "string", enum: commands },
+            },
+          },
+        },
+      },
+      unresolvedWorkItemIds: {
+        type: "array",
+        uniqueItems: true,
+        items: { type: "string", enum: workItemIds },
+      },
+    },
+  };
+}
+
+export function buildValidationCommandRepairPrompt({
+  brief,
+  implementationPlan,
+  requiredAcceptanceCriteria,
+  targetWorkItemIds,
+  validationCommandCatalog,
+  deterministicValidationIssues,
+}) {
+  const criteria = new Map((requiredAcceptanceCriteria ?? []).map((criterion) => [criterion.id, criterion]));
+  const input = {
+    objective: brief.objective,
+    deterministicValidationIssues,
+    targetWorkItems: (implementationPlan?.workItems ?? [])
+      .filter((item) => targetWorkItemIds.includes(item.id))
+      .map((item) => ({
+        id: item.id,
+        objective: item.objective,
+        ownedPaths: item.ownedPaths ?? [],
+        acceptanceCriteria: (item.acceptanceCriteria ?? []).map((id) => criteria.get(id) ?? { id }),
+        currentValidation: item.validation ?? [],
+      })),
+    validationCommandCatalog,
+  };
+
+  return `Repair ONLY workItems[*].validation for an existing Agentic Harness implementationPlan.
+
+This is a bounded validation-command projection. You cannot change work items, criteria, ownership, paths, dependencies, objectives, execution mode, complexity, migration or contract flags.
+
+Hard requirements:
+- Every validation entry MUST be selected byte-for-byte from validationCommandCatalog.command. Never invent a command, path, test name, script name, flag or shell fragment.
+- Remove prose descriptions from validation. Descriptions such as "migration numbering check", "fresh-database tests", "identity tampering tests" and similar natural language are NOT executable validation commands.
+- A selected command must materially prove the work item's objective and/or an assigned implementation criterion. Do not select a command merely because it is executable.
+- When an assigned criterion has an executable verification command present in the catalog, include that exact command.
+- Prefer the narrowest relevant command. A broad repository suite is acceptable only when the catalog contains no narrower command that materially proves the same work.
+- Every target work item must either receive one-or-more materially relevant catalog commands or appear in unresolvedWorkItemIds.
+- If the catalog lacks trustworthy evidence for a work item, mark it unresolved. Do NOT guess. Unresolved means the Runtime should fall back to a full Technical Lead retry with repository tools.
+
+INPUT:
+${JSON.stringify(input, null, 2)}`;
+}
+
+export function applyValidationCommandRepairs({
+  implementationPlan,
+  requiredAcceptanceCriteria,
+  repairs,
+}) {
+  const next = clone(implementationPlan);
+  const byId = new Map((next.workItems ?? []).map((item) => [item.id, item]));
+  const criteria = new Map((requiredAcceptanceCriteria ?? []).map((criterion) => [criterion.id, criterion]));
+  const touched = [];
+
+  for (const repair of repairs ?? []) {
+    const item = byId.get(repair.workItemId);
+    if (!item) continue;
+    const selected = [...new Set((repair.validation ?? []).map((value) => String(value).trim()).filter(Boolean))];
+    const exactCriterionCommands = (item.acceptanceCriteria ?? [])
+      .map((id) => String(criteria.get(id)?.verification ?? "").trim())
+      .filter(isExecutableValidationCommand);
+    item.validation = [...new Set([...selected, ...exactCriterionCommands])];
+    touched.push(item.id);
+  }
+
+  return { plan: next, touched: [...new Set(touched)] };
+}
+
+export function buildTechnicalPlanSynthesisPrompt({ brief, handoff, registry, evidence, validationCommandCatalog = [], deterministicValidationIssues = [], repairPass = 1 }) {
   const implementationValidationDirective = implementationValidationDirectiveFromRequest(brief.objective);
   const input = {
     objective: brief.objective,
@@ -455,6 +654,7 @@ export function buildTechnicalPlanSynthesisPrompt({ brief, handoff, registry, ev
     implementationAgentOwnership: registrySummary(registry),
     deterministicValidationIssues: [...deterministicValidationIssues],
     implementationValidationDirective,
+    validationCommandCatalog,
     repairPass,
     technicalArtifacts: evidence,
   };
@@ -472,6 +672,7 @@ Hard requirements:
 - primaryPaths are the domain-authority preference and block fallback ownership. Shared/collaborative patterns permit cooperation but do not reserve a path against the fallback owner. Do not route a path with a concrete primary owner to coding-fast/coding-pro.
 - dependencies must refer only to work item IDs and must form an acyclic graph.
 - validation must contain executable shell commands that prove the work item and assigned acceptance criteria. Never place prose/evidence descriptions in validation. The runtime executes each string via the shell. Runtime-owned diff-isolation evidence belongs in criteria/findings, not in workItems[*].validation.
+- validationCommandCatalog is deterministic repository/context evidence supplied to this tool-less projector. When it is non-empty, validation entries MUST be selected byte-for-byte from validationCommandCatalog.command. Never invent a command/path/test/script/flag that is absent from the catalog. If no catalog command can honestly prove a work item, preserve fail-closed semantics rather than fabricating validation.
 - if an implementation product criterion uses an executable shell command in its verification field, every work item that claims that criterion must preserve that exact command in validation rather than replacing it with an ad-hoc equivalent.
 - criterion.verification may also be descriptive prose. Treat it as an executable command only when the ENTIRE value is command-shaped under the Runtime validation-command contract; a sentence that merely mentions npm test or another executable is prose and MUST NOT be copied into workItems[*].validation.
 - if implementationValidationDirective.mode=focused, its commands are byte-exact and EXCLUSIVE implementation validation authority: include every listed command and do not add substitute or extra work-item validation commands. Downstream QA/readiness may still add their own independent evidence.
@@ -597,6 +798,14 @@ export async function synthesizeMissingImplementationPlan({
     });
   }
 
+  const validationCommandCatalog = await buildValidationCommandCatalog({
+    workspace,
+    brief,
+    implementationPlan: currentHandoff.implementationPlan,
+    requiredAcceptanceCriteria,
+    evidence,
+  });
+
   const returnBoundedRepair = ({ model = null, result = null, repairEvidence = [], repairKind = "deterministic-mechanics" } = {}) => {
     const nextHandoff = clone(currentHandoff);
     nextHandoff.implementationPlan.revision = Number.isInteger(sourceRevision) && sourceRevision >= 1 ? sourceRevision + 1 : 1;
@@ -637,6 +846,109 @@ export async function synthesizeMissingImplementationPlan({
 
   if (validationIssues.length === 0) {
     return returnBoundedRepair();
+  }
+
+  const validationTargetWorkItemIds = validationRepairWorkItemIds(validationIssues);
+  const coverageRepairPending = workItemWithoutImplementationCriterionIds(validationIssues).length > 0
+    || uncoveredCriterionIds(validationIssues).length > 0;
+  if (validationTargetWorkItemIds.length > 0 && !coverageRepairPending) {
+    const catalogCommands = validationCommandCatalog.map((entry) => entry.command);
+    if (catalogCommands.length === 0 && validationRepairIssuesOnly(validationIssues)) {
+      throw new Error(`technical_plan_validation_command_evidence_missing:workItems=${validationTargetWorkItemIds.join(",")}:issues=${validationIssues.join(" | ")}`);
+    }
+
+    if (catalogCommands.length > 0) {
+      const repairSchema = validationCommandRepairSchema({
+        workItemIds: validationTargetWorkItemIds,
+        commands: catalogCommands,
+      });
+      const model = candidates[0];
+      try {
+        const result = await structuredRunner({
+          workspace,
+          model,
+          agentId: brief.agentId,
+          schema: repairSchema,
+          prompt: buildValidationCommandRepairPrompt({
+            brief,
+            implementationPlan: currentHandoff.implementationPlan,
+            requiredAcceptanceCriteria,
+            targetWorkItemIds: validationTargetWorkItemIds,
+            validationCommandCatalog,
+            deterministicValidationIssues: validationIssues,
+          }),
+          title: `${brief.taskId} validation command repair`,
+        });
+        assertSchema(result.value, repairSchema, "technicalPlanValidationCommandRepair");
+
+        const repairedIds = new Set((result.value.repairs ?? []).map((entry) => entry.workItemId));
+        const unresolvedIds = new Set(result.value.unresolvedWorkItemIds ?? []);
+        const unaccountedIds = validationTargetWorkItemIds.filter((id) => !repairedIds.has(id) && !unresolvedIds.has(id));
+        if (unaccountedIds.length > 0) {
+          throw new Error(`technical_plan_validation_command_repair_incomplete:${unaccountedIds.join(",")}`);
+        }
+
+        const applied = applyValidationCommandRepairs({
+          implementationPlan: currentHandoff.implementationPlan,
+          requiredAcceptanceCriteria,
+          repairs: result.value.repairs,
+        });
+        const normalized = normalizeTechnicalPlanMechanics({
+          implementationPlan: applied.plan,
+          requiredAcceptanceCriteria,
+          registry: resolvedRegistry,
+        });
+        currentHandoff.implementationPlan = normalized.plan;
+        currentHandoff.auxiliaryInvocations = [
+          ...(currentHandoff.auxiliaryInvocations ?? []),
+          auxiliaryInvocationFromStructuredResult({ purpose: "technical-plan-validation-command-repair", model, result }),
+        ];
+        const usage = synthesisUsage(result.info);
+        aggregateUsage = {
+          inputTokens: aggregateUsage.inputTokens + usage.inputTokens,
+          outputTokens: aggregateUsage.outputTokens + usage.outputTokens,
+          cachedInputTokens: aggregateUsage.cachedInputTokens + usage.cachedInputTokens,
+          costUsd: aggregateUsage.costUsd + usage.costUsd,
+        };
+        lastModel = model;
+        validationIssues = technicalPlanRepairIssues({
+          implementationPlan: currentHandoff.implementationPlan,
+          implementationPlanSchema,
+          requiredAcceptanceCriteria,
+          registry: resolvedRegistry,
+          request: brief.objective,
+        });
+
+        if (validationIssues.length === 0 && unresolvedIds.size === 0) {
+          return returnBoundedRepair({
+            model,
+            result,
+            repairKind: "validation-command-catalog",
+            repairEvidence: [
+              ...applied.touched.map((id) => `work-item-updated:${id}:validation`),
+              ...normalized.evidence,
+            ],
+          });
+        }
+
+        if (unresolvedIds.size > 0) {
+          failures.push({
+            model,
+            repairPass: 0,
+            error: `technical_plan_validation_command_unresolved:${[...unresolvedIds].join(",")}`,
+          });
+        }
+
+        if (validationRepairIssuesOnly(validationIssues)) {
+          throw new Error(`technical_plan_validation_command_repair_exhausted:remaining=${validationIssues.join(" | ")}:unresolved=${[...unresolvedIds].join(",")}`);
+        }
+      } catch (error) {
+        failures.push({ model, repairPass: 0, error: error instanceof Error ? error.message : String(error) });
+        if (validationRepairIssuesOnly(validationIssues)) {
+          throw new Error(`technical_plan_validation_command_repair_failed_fast:remaining=${validationIssues.join(" | ")}:cause=${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    }
   }
 
   const criterionlessWorkItemIds = workItemWithoutImplementationCriterionIds(validationIssues);
@@ -740,6 +1052,7 @@ export async function synthesizeMissingImplementationPlan({
           handoff: currentHandoff,
           registry: resolvedRegistry,
           evidence,
+          validationCommandCatalog,
           deterministicValidationIssues: validationIssues,
           repairPass,
         });
