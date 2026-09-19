@@ -141,7 +141,11 @@ function registryAgent(registry, agentId) {
   return (registry?.agents ?? []).find((agent) => agent.id === agentId) ?? null;
 }
 
-function inspectImplementationPlan(plan, registry, { validationDirective = null } = {}) {
+function inspectImplementationPlan(
+  plan,
+  registry,
+  { validationDirective = null, validationCommandCatalog = null } = {},
+) {
   const issues = [];
   const criteria = new Map();
   for (const criterion of plan.acceptanceCriteria ?? []) {
@@ -162,6 +166,14 @@ function inspectImplementationPlan(plan, registry, { validationDirective = null 
     ? unique((validationDirective.commands ?? []).map((command) => String(command).trim()).filter(isExecutableValidationCommand))
     : [];
   const focusedValidationSet = new Set(focusedValidationCommands);
+  const trustedValidationSet = Array.isArray(validationCommandCatalog)
+    ? new Set(validationCommandCatalog.map((entry) => String(entry?.command ?? "").trim()).filter(Boolean))
+    : null;
+  const criterionVerificationIsCommand = (verification) => {
+    const normalized = String(verification ?? "").trim();
+    if (!isExecutableValidationCommand(normalized)) return false;
+    return trustedValidationSet === null || trustedValidationSet.has(normalized);
+  };
 
   for (const item of workItems) {
     if (workIds.has(item.id)) issues.push(`implementation_plan_duplicate_work_item:${item.id}`);
@@ -218,7 +230,7 @@ function inspectImplementationPlan(plan, registry, { validationDirective = null 
         const criterion = criteria.get(criterionId);
         if (!criterion || !implementationCriterionIds.has(criterionId)) continue;
         const verification = String(criterion.verification ?? "").trim();
-        if (!isExecutableValidationCommand(verification)) {
+        if (!criterionVerificationIsCommand(verification)) {
           issues.push(`implementation_plan_deterministic_reuse_non_executable_criterion:${item.id}:${criterionId}`);
         } else if (!(item.validation ?? []).includes(verification)) {
           issues.push(`implementation_plan_deterministic_reuse_criterion_validation_missing:${item.id}:${criterionId}:${JSON.stringify(verification)}`);
@@ -236,7 +248,7 @@ function inspectImplementationPlan(plan, registry, { validationDirective = null 
       assignedImplementationCriteria += 1;
       coverage.set(criterionId, (coverage.get(criterionId) ?? 0) + 1);
       const criterionVerification = String(criteria.get(criterionId)?.verification ?? "").trim();
-      if (isExecutableValidationCommand(criterionVerification) && !(item.validation ?? []).includes(criterionVerification)) {
+      if (criterionVerificationIsCommand(criterionVerification) && !(item.validation ?? []).includes(criterionVerification)) {
         issues.push(`implementation_plan_criterion_verification_missing:${item.id}:${criterionId}:${JSON.stringify(criterionVerification)}`);
       }
     }
