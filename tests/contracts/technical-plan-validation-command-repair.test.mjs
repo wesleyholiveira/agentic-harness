@@ -21,6 +21,7 @@ test("validation command catalog uses only independent deterministic command aut
       packageManager: "npm@11",
       scripts: {
         dev: "node dev.mjs",
+        test: "node --test",
         "test:ml": "python apps/ml/run_tests.py",
         "test:schema": "node scripts/test-schema.mjs",
         "check:types": "tsc --noEmit",
@@ -42,7 +43,7 @@ test("validation command catalog uses only independent deterministic command aut
       },
       requiredAcceptanceCriteria: [{
         id: "AC-1",
-        verification: "npm run test:ml",
+        verification: "npm test exits with code 0.",
       }],
       evidence: [{
         path: "docs/plan.md",
@@ -51,10 +52,14 @@ test("validation command catalog uses only independent deterministic command aut
     });
 
     const commands = catalog.map((entry) => entry.command);
+    assert.ok(commands.includes("npm test"));
+    assert.ok(commands.includes("npm run test"));
     assert.ok(commands.includes("npm run test:ml"));
     assert.ok(commands.includes("npm run test:schema"));
     assert.ok(commands.includes("npm run check:types"));
     assert.ok(!commands.includes("npm run dev"));
+    assert.ok(!commands.includes("npm test exits with code 0."));
+    assert.ok(!catalog.some((entry) => String(entry.source).startsWith("acceptance-criterion:")));
     assert.ok(!commands.includes("pytest -q tests/domain-contracts"));
     assert.ok(!commands.includes("pytest tests/test_upgrade.py -k populated_upgrade"));
     assert.ok(!catalog.some((entry) => String(entry.source).startsWith("implementation-plan:")));
@@ -279,4 +284,52 @@ test("syntactically executable model-authored validation cannot self-authorize",
     schema.properties.workItems.items.properties.validation.items.enum,
     ["npm run test:ml"],
   );
+});
+
+test("trusted catalog prevents exact-looking Product criterion text from being reintroduced by mechanics", () => {
+  const criteria = [{
+    id: "AC-1",
+    source: "spec",
+    statement: "Tests stay green.",
+    blocking: true,
+    verification: "npm run product-only-check",
+    proofStage: "implementation",
+  }];
+  const plan = {
+    schemaVersion: 1,
+    revision: 1,
+    acceptanceCriteria: criteria,
+    workItems: [{
+      id: "W01",
+      ownerAgentId: "coding-pro",
+      objective: "Implement product behavior.",
+      dependencies: [],
+      ownedPaths: ["src/product.mjs"],
+      acceptanceCriteria: ["AC-1"],
+      validation: ["npm test"],
+      validationExecutionScope: "workspace",
+      complexity: "small",
+      estimatedFiles: 1,
+      contractChange: false,
+      migration: false,
+    }],
+  };
+
+  const normalized = normalizeTechnicalPlanMechanics({
+    implementationPlan: plan,
+    requiredAcceptanceCriteria: criteria,
+    registry: {
+      agents: [{
+        id: "coding-pro",
+        executionRole: "implementation",
+        ownershipMode: "fallback-unclaimed-primary",
+        primaryPaths: [],
+        sharedPaths: [],
+        collaborativePaths: [],
+      }],
+    },
+    validationCommandCatalog: [{ command: "npm test", source: "package.json#scripts.test" }],
+  });
+
+  assert.deepEqual(normalized.plan.workItems[0].validation, ["npm test"]);
 });
