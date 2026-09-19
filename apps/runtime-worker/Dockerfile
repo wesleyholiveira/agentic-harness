@@ -5,7 +5,13 @@ RUN cargo build --release --manifest-path apps/runtime-worker/Cargo.toml
 
 FROM node:22-bookworm-slim
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates git \
+    && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      git \
+      python3 \
+      python3-pip \
+      python3-venv \
+      python-is-python3 \
     && rm -rf /var/lib/apt/lists/* \
     && npm install -g opencode-ai@1.18.26
 WORKDIR /workspace/harness
