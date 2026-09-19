@@ -18,6 +18,11 @@
       "type": "integer",
       "minimum": 1
     },
+    "coordinatorAgentId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Explicit coordinator for the implementation DAG. Technical Refinement constrains this field to coordinator-capable registry agents and requires it to differ from every workItems[*].ownerAgentId."
+    },
     "acceptanceCriteria": {
       "type": "array",
       "minItems": 1,

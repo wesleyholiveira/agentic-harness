@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-19T01:23:24Z",
+  "generatedAt": "2026-09-19T17:38:47Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 537,
-  "treeSha256": "sha256:534eb19db65eaba4153a5db1eb909a379f5e25312e2e77fac4821b748ee0436c",
+  "fileCount": 538,
+  "treeSha256": "sha256:30e9f86a03d680f77549131e440dcb9e20610ce214fd391d281378bbc4de633d",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -408,9 +408,9 @@
       "sha256": "sha256:b7cc79d8d901933065e2c09984235b65c8ad40a3a23817b88314f08199cebf56"
     },
     {
-      "bytes": 32578,
+      "bytes": 33151,
       "path": ".agents/runtime/handoff-structured-finalization.mjs",
-      "sha256": "sha256:5a51ee6139681041640b6e502bfbffd2de42102c962e41d2745e05b41e78947e"
+      "sha256": "sha256:c9ac2c1b96d08483bd46588a9106ec83e268d24b3fdb37efa855cc0bd201b9ce"
     },
     {
       "bytes": 2990,
@@ -653,9 +653,9 @@
       "sha256": "sha256:41a3ba2f41f1df7f4101d04d269d41389ccdd93b87bd47ce652807c64f554fe7"
     },
     {
-      "bytes": 68466,
+      "bytes": 72203,
       "path": ".agents/runtime/technical-plan-synthesis.mjs",
-      "sha256": "sha256:2d282b6a05ae7ece38167c5f8b2d4090a66f60f73c331304c6c3cab08d4b1262"
+      "sha256": "sha256:b085988ea98b3ed2d5970f33b161b1ede84e72622aaaf126d939762a8c9891e6"
     },
     {
       "bytes": 6149,
@@ -708,9 +708,9 @@
       "sha256": "sha256:c96401144567e2b834887384276f53a74680ee8ac7e54daa787348d4af3d3fee"
     },
     {
-      "bytes": 4361,
+      "bytes": 4660,
       "path": ".agents/schemas/implementation-plan.schema.json",
-      "sha256": "sha256:2abc848ed7f8e97710412a4232b397fb8cf01b773d4a62e27a89538b51de65ff"
+      "sha256": "sha256:e475e1414ad92fa8d144dd242c4eaa20b5393a9f1057aa9f87675d98e59b6767"
     },
     {
       "bytes": 2559,
@@ -2341,6 +2341,11 @@
       "bytes": 4033,
       "path": "tests/contracts/doctor-execution-plane.test.mjs",
       "sha256": "sha256:5789781479612136c4d6da6f7409a83accabc70db4ca8348f871d1243f2b959a"
+    },
+    {
+      "bytes": 10181,
+      "path": "tests/contracts/implementation-plan-coordinator-authority.test.mjs",
+      "sha256": "sha256:24f29c56ede651f25200f7d48b279df27e4bb3645c28aa339f380464086d0d5c"
     },
     {
       "bytes": 2234,

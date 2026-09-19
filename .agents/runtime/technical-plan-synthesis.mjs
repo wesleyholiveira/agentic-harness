@@ -46,6 +46,15 @@ export function classifyTechnicalPlanRepairScope(issues = []) {
   if (normalized.every((issue) => issueHasPrefix(issue, dagPrefixes))) {
     return { scope: "dag-only", issues: normalized };
   }
+  const coordinationPrefixes = [
+    "implementation_plan_coordinator_missing",
+    "implementation_plan_coordinator_unknown:",
+    "implementation_plan_coordinator_not_capable:",
+    "implementation_plan_coordinator_is_owner:",
+  ];
+  if (normalized.every((issue) => issueHasPrefix(issue, coordinationPrefixes))) {
+    return { scope: "coordination-only", issues: normalized };
+  }
   return { scope: "mixed", issues: normalized };
 }
 
@@ -328,6 +337,9 @@ function implementationPlanMutationEvidence(sourcePlan, repairedPlan) {
   const sourceItems = new Map((sourcePlan?.workItems ?? []).map((item) => [item.id, item]));
   const repairedItems = new Map((repairedPlan?.workItems ?? []).map((item) => [item.id, item]));
   const evidence = [];
+  if (String(sourcePlan?.coordinatorAgentId ?? "").trim() !== String(repairedPlan?.coordinatorAgentId ?? "").trim()) {
+    evidence.push("implementation-plan-updated:coordinatorAgentId");
+  }
   for (const id of [...new Set([...sourceItems.keys(), ...repairedItems.keys()])].sort()) {
     const before = sourceItems.get(id);
     const after = repairedItems.get(id);
@@ -341,20 +353,23 @@ function implementationPlanMutationEvidence(sourcePlan, repairedPlan) {
 }
 
 function immutablePlanStructure(plan) {
-  return (plan.workItems ?? []).map((item) => ({
-    id: item.id,
-    ownerAgentId: item.ownerAgentId,
-    objective: item.objective,
-    dependencies: clone(item.dependencies ?? []),
-    ownedPaths: clone(item.ownedPaths ?? []),
-    complexity: item.complexity,
-    estimatedFiles: item.estimatedFiles,
-    contractChange: item.contractChange,
-    migration: item.migration,
-    notes: clone(item.notes ?? []),
-    validationExecutionScope: item.validationExecutionScope ?? null,
-    executionMode: item.executionMode ?? null,
-  }));
+  return {
+    coordinatorAgentId: String(plan?.coordinatorAgentId ?? "").trim() || null,
+    workItems: (plan.workItems ?? []).map((item) => ({
+      id: item.id,
+      ownerAgentId: item.ownerAgentId,
+      objective: item.objective,
+      dependencies: clone(item.dependencies ?? []),
+      ownedPaths: clone(item.ownedPaths ?? []),
+      complexity: item.complexity,
+      estimatedFiles: item.estimatedFiles,
+      contractChange: item.contractChange,
+      migration: item.migration,
+      notes: clone(item.notes ?? []),
+      validationExecutionScope: item.validationExecutionScope ?? null,
+      executionMode: item.executionMode ?? null,
+    })),
+  };
 }
 
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
@@ -367,11 +382,59 @@ function implementerAgentIds(registry) {
     .sort();
 }
 
+function isCoordinatorCapableAgent(agent) {
+  if (!agent) return false;
+  return agent.orchestrationRole === "orchestrator"
+    || agent.kind === "runtime"
+    || (agent.skills ?? []).includes("operate-multi-agent-runtime");
+}
+
+function coordinatorAgentIds(registry) {
+  return (registry.agents ?? [])
+    .filter(isCoordinatorCapableAgent)
+    .map((agent) => agent.id)
+    .sort();
+}
+
+function coordinatorAgentSummaries(registry) {
+  const eligible = new Set(coordinatorAgentIds(registry));
+  return (registry.agents ?? [])
+    .filter((agent) => eligible.has(agent.id))
+    .map((agent) => ({
+      id: agent.id,
+      role: agent.role,
+      kind: agent.kind,
+      executionRole: agent.executionRole,
+      orchestrationRole: agent.orchestrationRole,
+    }));
+}
+
+function implementationPlanCoordinatorIssues(implementationPlan, registry) {
+  const coordinatorAgentId = String(implementationPlan?.coordinatorAgentId ?? "").trim();
+  if (!coordinatorAgentId) return ["implementation_plan_coordinator_missing"];
+
+  const agent = (registry.agents ?? []).find((candidate) => candidate.id === coordinatorAgentId) ?? null;
+  if (!agent) return [`implementation_plan_coordinator_unknown:${coordinatorAgentId}`];
+  if (!isCoordinatorCapableAgent(agent)) return [`implementation_plan_coordinator_not_capable:${coordinatorAgentId}`];
+
+  const ownerIds = new Set((implementationPlan?.workItems ?? []).map((item) => String(item?.ownerAgentId ?? "").trim()).filter(Boolean));
+  if (ownerIds.has(coordinatorAgentId)) return [`implementation_plan_coordinator_is_owner:${coordinatorAgentId}`];
+  return [];
+}
+
 export function buildTechnicalPlanStructuredSchema({ implementationPlanSchema, requiredAcceptanceCriteria, registry }) {
   const schema = clone(implementationPlanSchema);
   schema.properties.acceptanceCriteria = {
     description: "Product acceptance criteria copied byte-for-byte from the Product Owner. Do not add, remove, rename, weaken, or rewrite them.",
     const: clone(requiredAcceptanceCriteria),
+  };
+  const coordinatorIds = coordinatorAgentIds(registry);
+  if (coordinatorIds.length === 0) throw new Error("technical_plan_coordinator_catalog_empty");
+  schema.required = [...new Set([...(schema.required ?? []), "coordinatorAgentId"])];
+  schema.properties.coordinatorAgentId = {
+    type: "string",
+    enum: coordinatorIds,
+    description: "One coordinator-capable registry agent. It MUST NOT equal any workItems[*].ownerAgentId. Review-only roles stay in Runtime/bootstrap review topology and are not duplicated as implementation owners.",
   };
   const ownerSchema = schema.properties?.workItems?.items?.properties?.ownerAgentId;
   if (ownerSchema) {
@@ -652,6 +715,7 @@ export function buildTechnicalPlanSynthesisPrompt({ brief, handoff, registry, ev
       implementationPlan: handoff.implementationPlan ?? null,
     },
     implementationAgentOwnership: registrySummary(registry),
+    coordinatorCandidates: coordinatorAgentSummaries(registry),
     deterministicValidationIssues: [...deterministicValidationIssues],
     implementationValidationDirective,
     validationCommandCatalog,
@@ -664,6 +728,8 @@ This is a STRUCTURING pass, not a new architecture/design pass. Do not edit the 
 
 Hard requirements:
 - productAcceptanceCriteria are immutable and must appear exactly as supplied.
+- coordinatorAgentId is mandatory and MUST be selected from coordinatorCandidates. It MUST NOT equal any workItems[*].ownerAgentId.
+- review-only agents are Runtime/bootstrap review authority. Do not invent reviewRoles/reviewAgentIds fields in implementationPlan and never use contract/verification-only agents as implementation owners.
 - workItems contain implementation work only; the runtime adds independent QA, operational-readiness and Product Acceptance tasks.
 - every blocking product criterion whose proofStage resolves to implementation must be covered by at least one work item.
 - product criteria with proofStage quality-assurance or product-acceptance are downstream runtime gates and MUST NOT be assigned to implementation workItems.
@@ -705,6 +771,7 @@ export function technicalPlanRepairIssues({ implementationPlan, implementationPl
   if (!criteriaEqual(implementationPlan.acceptanceCriteria, requiredAcceptanceCriteria)) {
     issues.push("product_criteria_mutated");
   }
+  issues.push(...implementationPlanCoordinatorIssues(implementationPlan, registry));
 
   const implementers = new Set(implementerAgentIds(registry));
   for (const item of implementationPlan.workItems ?? []) {
@@ -1155,6 +1222,7 @@ export function buildTechnicalReviewRepairPrompt({ brief, handoff, registry, evi
     repairPass,
     sourceRevision,
     implementationAgentOwnership: registrySummary(registry),
+    coordinatorCandidates: coordinatorAgentSummaries(registry),
     implementationValidationDirective,
     technicalArtifacts: evidence,
   };
@@ -1169,6 +1237,8 @@ Hard requirements:
 - Acceptance coverage does not imply path ownership. If an existing work item materially satisfies an uncovered criterion, map that criterion to the existing item rather than inventing a documentation/verification work item.
 - Handoff evidence, reconciliation records and verification reports are artifacts, not ownedPaths, unless the product contract explicitly requires that repository file.
 - Increment revision exactly once from sourceRevision.
+- coordinatorAgentId is mandatory and MUST be selected from coordinatorCandidates. It MUST NOT equal any workItems[*].ownerAgentId.
+- review-only agents are Runtime/bootstrap review authority. Do not invent reviewRoles/reviewAgentIds fields in implementationPlan and never use contract/verification-only agents as implementation owners.
 - workItems remain implementation-only and model-agnostic.
 - ownerAgentId and ownedPaths must remain valid under implementationAgentOwnership.
 - implementation validation remains workspace scoped; host/live/readiness commands are forbidden in implementation workItems.
