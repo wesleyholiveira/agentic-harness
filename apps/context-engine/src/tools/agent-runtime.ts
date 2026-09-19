@@ -38,6 +38,50 @@ function assertRuntimeIngressProvenance(toolName: string): void {
   }
 }
 
+type AgentStartArgs = {
+  continuation?: {
+    sessionId?: string;
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+};
+
+type RuntimeIngressContext = {
+  transport?: string | null;
+  agentId?: string | null;
+  invocationProvenanceSource?: string | null;
+  invocationSessionId?: string | null;
+} | null | undefined;
+
+/**
+ * OpenCode session identity is transport authority, not model-authored data.
+ * The runtime-continuation tool exposes the current session to the model only
+ * to express durable-continuation intent. For authenticated Main Orchestrator
+ * HTTP ingress, canonicalize the opaque session id from the trusted plugin
+ * sidechannel before Runtime continuation preflight.
+ */
+export function authoritativeAgentStartArgs(
+  args: AgentStartArgs,
+  requestContext: RuntimeIngressContext,
+): AgentStartArgs {
+  if (!args?.continuation) return args;
+  if (requestContext?.transport !== "http") return args;
+  if (requestContext.agentId?.trim() !== "main-orchestrator") return args;
+  if (requestContext.invocationProvenanceSource !== "opencode-plugin-sidechannel") return args;
+
+  const trustedSessionId = requestContext.invocationSessionId?.trim() ?? "";
+  if (!trustedSessionId) return args;
+  if (String(args.continuation.sessionId ?? "").trim() === trustedSessionId) return args;
+
+  return {
+    ...args,
+    continuation: {
+      ...args.continuation,
+      sessionId: trustedSessionId,
+    },
+  };
+}
+
 async function assertObservationAllowed(
   control: AgentRuntimeControlAdapter,
   toolName: string,
@@ -92,7 +136,8 @@ export function registerAgentRuntimeTools(
       assertControlCaller();
       assertRuntimeIngressProvenance("agent_start");
       const requestContext = getContextEngineRequestContext();
-      const data = await control.start(args, {
+      const authoritativeArgs = authoritativeAgentStartArgs(args, requestContext);
+      const data = await control.start(authoritativeArgs, {
         origin: requestContext?.invocationOrigin ?? "unknown",
         sessionId: requestContext?.invocationSessionId ?? null,
         callId: requestContext?.invocationCallId ?? null,
