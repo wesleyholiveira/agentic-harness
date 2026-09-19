@@ -462,7 +462,7 @@ export function buildTechnicalPlanStructuredSchema({
       const trustedCommands = Array.isArray(validationCommandCatalog)
         ? [...new Set(validationCommandCatalog.map((entry) => String(entry?.command ?? "").trim()).filter(Boolean))]
         : [];
-      if (trustedCommands.length > 0) {
+      if (Array.isArray(validationCommandCatalog)) {
         delete workItem.properties.validation.items.pattern;
         workItem.properties.validation.items.enum = trustedCommands;
       } else {
