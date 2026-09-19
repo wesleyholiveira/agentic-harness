@@ -2,7 +2,7 @@
 
 import { access, readFile, realpath } from "node:fs/promises";
 import { constants } from "node:fs";
-import { join, resolve } from "node:path";
+import { delimiter, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 async function readJson(path) {
@@ -33,6 +33,97 @@ async function exists(path) {
   } catch {
     return false;
   }
+}
+
+function commandExecutable(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const match = text.match(/^(?:[A-Za-z_][A-Za-z0-9_]*=[^\s]+\s+)*([^\s;&|]+)/u);
+  return match?.[1] ?? null;
+}
+
+function npmScriptName(value) {
+  const match = String(value ?? "").trim().match(/^(?:npm\s+run|npm\s+test(?:\s+--)?)\s+([^\s;&|]+)/u);
+  if (!match) return String(value ?? "").trim() === "npm test" ? "test" : null;
+  return match[1] === "--" ? "test" : match[1];
+}
+
+export function requiredValidationExecutables({ commands = [], packageJson = {} } = {}) {
+  const required = new Set();
+  const visit = (command, seenScripts = new Set()) => {
+    const normalized = String(command ?? "").trim();
+    if (!normalized) return;
+
+    const scriptName = npmScriptName(normalized);
+    if (scriptName) {
+      required.add("npm");
+      if (!seenScripts.has(scriptName)) {
+        const script = packageJson?.scripts?.[scriptName];
+        if (typeof script === "string" && script.trim()) {
+          const nextSeen = new Set(seenScripts);
+          nextSeen.add(scriptName);
+          visit(script, nextSeen);
+        }
+      }
+      return;
+    }
+
+    const executable = commandExecutable(normalized);
+    if (!executable) return;
+    if (executable === "python3") required.add("python");
+    else if (executable === "python") required.add("python");
+    else required.add(executable);
+  };
+
+  for (const command of commands ?? []) visit(command);
+  return [...required].sort();
+}
+
+async function executableAvailable(executable, { env = process.env, platform = process.platform } = {}) {
+  const names = platform === "win32"
+    ? [`${executable}.exe`, `${executable}.cmd`, `${executable}.bat`, executable]
+    : [executable];
+  for (const directory of String(env.PATH ?? "").split(delimiter).filter(Boolean)) {
+    for (const name of names) {
+      if (await exists(join(directory, name))) return true;
+    }
+  }
+  return false;
+}
+
+export async function inspectValidationCommandToolchain({
+  root = process.cwd(),
+  commands = [],
+  env = process.env,
+  platform = process.platform,
+  availability = executableAvailable,
+} = {}) {
+  const repositoryRoot = resolve(root);
+  let packageJson = {};
+  try {
+    packageJson = await readJson(join(repositoryRoot, "package.json"));
+  } catch {
+    // A repository without package.json can still use direct validation commands.
+  }
+
+  const requiredExecutables = requiredValidationExecutables({ commands, packageJson });
+  const missingExecutables = [];
+  for (const executable of requiredExecutables) {
+    if (!(await availability(executable, { env, platform }))) missingExecutables.push(executable);
+  }
+
+  return {
+    ok: missingExecutables.length === 0,
+    code: missingExecutables.length === 0
+      ? "agent_runtime_validation_command_toolchain_ready"
+      : "agent_runtime_validation_command_toolchain_unavailable",
+    repositoryRoot,
+    requiredExecutables,
+    missingExecutables,
+    remediation: missingExecutables.length > 0
+      ? `rebuild_agent_runtime_worker_with_required_executables:${missingExecutables.join(",")}`
+      : null,
+  };
 }
 
 export async function inspectAgentRuntimeValidationToolchain({
