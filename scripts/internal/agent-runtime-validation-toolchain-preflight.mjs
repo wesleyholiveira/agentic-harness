@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
-import { access, readFile, realpath } from "node:fs/promises";
+import { access, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
-import { delimiter, join, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { delimiter, dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 async function readJson(path) {
@@ -100,6 +102,246 @@ async function executableAvailable(executable, { env = process.env, platform = p
     }
   }
   return false;
+}
+
+function validationCommandSegments({ commands = [], packageJson = {} } = {}) {
+  const output = [];
+  const visit = (command, seenScripts = new Set()) => {
+    const normalized = String(command ?? "").trim();
+    if (!normalized) return;
+
+    const segments = normalized
+      .split(/\s*(?:&&|\|\||;|\|(?!\|))\s*/u)
+      .map((segment) => segment.trim())
+      .filter(Boolean);
+    if (segments.length > 1) {
+      for (const segment of segments) visit(segment, seenScripts);
+      return;
+    }
+
+    const scriptName = npmScriptName(normalized);
+    if (scriptName) {
+      const script = packageJson?.scripts?.[scriptName];
+      if (typeof script === "string" && script.trim() && !seenScripts.has(scriptName)) {
+        const nextSeen = new Set(seenScripts);
+        nextSeen.add(scriptName);
+        visit(script, nextSeen);
+      } else {
+        output.push(normalized);
+      }
+      return;
+    }
+    output.push(normalized);
+  };
+  for (const command of commands ?? []) visit(command);
+  return output;
+}
+
+function pythonScriptPathFromCommand(command) {
+  const normalized = String(command ?? "").trim();
+  if (!/^(?:[A-Za-z_][A-Za-z0-9_]*=[^\s]+\s+)*(?:python|python3)\b/u.test(normalized)) return null;
+  const match = normalized.match(/\b(?:python|python3)\s+(?!-m\b)(?:"([^"]+\.py)"|'([^']+\.py)'|([^\s;&|]+\.py))/u);
+  return match?.[1] ?? match?.[2] ?? match?.[3] ?? null;
+}
+
+export async function discoverPythonRequirementFiles({ root = process.cwd(), commands = [] } = {}) {
+  const repositoryRoot = resolve(root);
+  let packageJson = {};
+  try {
+    packageJson = await readJson(join(repositoryRoot, "package.json"));
+  } catch {}
+
+  const candidates = new Set();
+  for (const command of validationCommandSegments({ commands, packageJson })) {
+    const scriptPath = pythonScriptPathFromCommand(command);
+    if (!scriptPath) continue;
+    const absoluteScript = resolve(repositoryRoot, scriptPath);
+    if (!absoluteScript.startsWith(repositoryRoot)) continue;
+    let current = dirname(absoluteScript);
+    while (current.startsWith(repositoryRoot)) {
+      for (const name of ["requirements.txt", "requirements-test.txt", "requirements-dev.txt"]) {
+        const requirementPath = join(current, name);
+        if (await exists(requirementPath)) candidates.add(requirementPath);
+      }
+      if (current === repositoryRoot) break;
+      const parent = dirname(current);
+      if (parent === current) break;
+      current = parent;
+    }
+  }
+  return [...candidates].sort();
+}
+
+async function pythonToolchainFingerprint(requirementFiles, repositoryRoot) {
+  const hash = createHash("sha256");
+  hash.update("agent-runtime-python-toolchain/v1\0");
+  for (const path of requirementFiles) {
+    const rel = relative(repositoryRoot, path).replaceAll("\\", "/");
+    hash.update(rel);
+    hash.update("\0");
+    hash.update(await readFile(path));
+    hash.update("\0");
+  }
+  return hash.digest("hex");
+}
+
+function runToolchainCommand(command, args, { env = process.env } = {}) {
+  const result = spawnSync(command, args, {
+    env,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: false,
+  });
+  return {
+    status: result.status,
+    stdout: String(result.stdout ?? ""),
+    stderr: String(result.stderr ?? ""),
+    error: result.error ?? null,
+  };
+}
+
+async function acquireDirectoryLock(lockPath, readyPath, {
+  timeoutMs = 900_000,
+  pollMs = 500,
+  sleepFn = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms)),
+} = {}) {
+  const started = Date.now();
+  while (true) {
+    try {
+      await mkdir(lockPath);
+      return { acquired: true };
+    } catch (error) {
+      if (error?.code !== "EEXIST") throw error;
+      if (await exists(readyPath)) return { acquired: false };
+      if (Date.now() - started >= timeoutMs) {
+        const timeout = new Error(`validation_python_toolchain_lock_timeout:${lockPath}`);
+        timeout.code = "validation_python_toolchain_lock_timeout";
+        throw timeout;
+      }
+      await sleepFn(pollMs);
+    }
+  }
+}
+
+export async function prepareValidationCommandToolchain({
+  root = process.cwd(),
+  commands = [],
+  env = process.env,
+  platform = process.platform,
+  availability = executableAvailable,
+  commandRunner = runToolchainCommand,
+  toolchainRoot = env.AGENT_HARNESS_AGENT_WORKSPACE_ROOT
+    ? join(env.AGENT_HARNESS_AGENT_WORKSPACE_ROOT, ".toolchains")
+    : join(repositoryRootFallback(), ".agent-harness-toolchains"),
+} = {}) {
+  const inspected = await inspectValidationCommandToolchain({
+    root,
+    commands,
+    env,
+    platform,
+    availability,
+  });
+  if (!inspected.ok) return { ...inspected, environment: {} };
+  if (!inspected.requiredExecutables.includes("python")) {
+    return { ...inspected, environment: {}, python: null };
+  }
+
+  const repositoryRoot = resolve(root);
+  const requirementFiles = await discoverPythonRequirementFiles({ root: repositoryRoot, commands });
+  if (requirementFiles.length === 0) {
+    return {
+      ...inspected,
+      environment: {},
+      python: {
+        mode: "system",
+        requirementFiles: [],
+        fingerprint: null,
+        venvPath: null,
+      },
+    };
+  }
+
+  const fingerprint = await pythonToolchainFingerprint(requirementFiles, repositoryRoot);
+  const venvPath = join(resolve(toolchainRoot), "python", fingerprint);
+  const readyPath = join(venvPath, ".ready");
+  const lockPath = `${venvPath}.lock`;
+  const binDir = platform === "win32" ? join(venvPath, "Scripts") : join(venvPath, "bin");
+  const pythonPath = platform === "win32" ? join(binDir, "python.exe") : join(binDir, "python");
+
+  await mkdir(dirname(venvPath), { recursive: true });
+  if (!(await exists(readyPath))) {
+    const lock = await acquireDirectoryLock(lockPath, readyPath);
+    if (lock.acquired) {
+      try {
+        await rm(venvPath, { recursive: true, force: true });
+        const created = commandRunner("python", ["-m", "venv", venvPath], { env });
+        if (created.status !== 0) {
+          return {
+            ...inspected,
+            ok: false,
+            code: "agent_runtime_validation_python_venv_failed",
+            failures: [created.stderr || created.stdout || String(created.error ?? "python_venv_failed")],
+            environment: {},
+            python: { mode: "venv", requirementFiles, fingerprint, venvPath },
+          };
+        }
+        const installArgs = [
+          "-m", "pip", "install", "--disable-pip-version-check",
+          ...requirementFiles.flatMap((path) => ["-r", path]),
+        ];
+        const installed = commandRunner(pythonPath, installArgs, {
+          env: {
+            ...env,
+            PIP_CACHE_DIR: env.PIP_CACHE_DIR
+              ?? join(resolve(toolchainRoot), "pip-cache"),
+          },
+        });
+        if (installed.status !== 0) {
+          return {
+            ...inspected,
+            ok: false,
+            code: "agent_runtime_validation_python_requirements_failed",
+            failures: [installed.stderr || installed.stdout || String(installed.error ?? "python_requirements_failed")],
+            environment: {},
+            python: { mode: "venv", requirementFiles, fingerprint, venvPath },
+          };
+        }
+        await writeFile(readyPath, "ready\n", "utf8");
+      } finally {
+        await rm(lockPath, { recursive: true, force: true }).catch(() => {});
+      }
+    }
+  }
+
+  if (!(await exists(readyPath)) || !(await exists(pythonPath))) {
+    return {
+      ...inspected,
+      ok: false,
+      code: "agent_runtime_validation_python_toolchain_unavailable",
+      failures: ["python_toolchain_not_materialized"],
+      environment: {},
+      python: { mode: "venv", requirementFiles, fingerprint, venvPath },
+    };
+  }
+
+  return {
+    ...inspected,
+    environment: {
+      VIRTUAL_ENV: venvPath,
+      PATH: `${binDir}${delimiter}${env.PATH ?? ""}`,
+      PIP_CACHE_DIR: env.PIP_CACHE_DIR ?? join(resolve(toolchainRoot), "pip-cache"),
+    },
+    python: {
+      mode: "venv",
+      requirementFiles,
+      fingerprint,
+      venvPath,
+    },
+  };
+}
+
+function repositoryRootFallback() {
+  return process.env.TMPDIR || process.env.TEMP || process.env.TMP || "/tmp";
 }
 
 export async function inspectValidationCommandToolchain({
