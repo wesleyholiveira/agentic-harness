@@ -93,6 +93,16 @@ function agentCanOwnPath(registry, agent, path) {
   return primaryImplementationOwnersForPath(registry, path).length === 0;
 }
 
+function trustedCriterionVerificationCommand(value, validationCommandCatalog = null) {
+  const normalized = String(value ?? "").trim();
+  if (!isExecutableValidationCommand(normalized)) return null;
+  if (!Array.isArray(validationCommandCatalog)) return normalized;
+  const trusted = new Set(
+    validationCommandCatalog.map((entry) => String(entry?.command ?? "").trim()).filter(Boolean),
+  );
+  return trusted.has(normalized) ? normalized : null;
+}
+
 function uniqueImplementationOwnerForPaths(registry, paths = []) {
   if (!Array.isArray(paths) || paths.length === 0) return null;
   const agents = implementationAgents(registry);
@@ -104,7 +114,12 @@ function uniqueImplementationOwnerForPaths(registry, paths = []) {
   return candidates.length === 1 ? candidates[0] : null;
 }
 
-export function normalizeTechnicalPlanMechanics({ implementationPlan, requiredAcceptanceCriteria, registry }) {
+export function normalizeTechnicalPlanMechanics({
+  implementationPlan,
+  requiredAcceptanceCriteria,
+  registry,
+  validationCommandCatalog = null,
+}) {
   const next = clone(implementationPlan);
   const evidence = [];
   const criteria = new Map((requiredAcceptanceCriteria ?? []).map((criterion) => [criterion.id, criterion]));
@@ -124,8 +139,8 @@ export function normalizeTechnicalPlanMechanics({ implementationPlan, requiredAc
     }
 
     const exactCriterionCommands = implementationCriteria
-      .map((id) => String(criteria.get(id)?.verification ?? "").trim())
-      .filter(isExecutableValidationCommand);
+      .map((id) => trustedCriterionVerificationCommand(criteria.get(id)?.verification, validationCommandCatalog))
+      .filter(Boolean);
     const executableCommands = (item.validation ?? []).map((command) => String(command).trim()).filter(isExecutableValidationCommand);
     const normalizedValidation = [...new Set([...executableCommands, ...exactCriterionCommands])];
     if (normalizedValidation.length > 0 && JSON.stringify(normalizedValidation) !== JSON.stringify(item.validation ?? [])) {
@@ -202,7 +217,12 @@ INPUT:
 ${JSON.stringify(input, null, 2)}`;
 }
 
-function applyCriterionAssignments({ implementationPlan, requiredAcceptanceCriteria, assignments }) {
+function applyCriterionAssignments({
+  implementationPlan,
+  requiredAcceptanceCriteria,
+  assignments,
+  validationCommandCatalog = null,
+}) {
   const next = clone(implementationPlan);
   const byId = new Map((next.workItems ?? []).map((item) => [item.id, item]));
   const criteria = new Map((requiredAcceptanceCriteria ?? []).map((criterion) => [criterion.id, criterion]));
@@ -212,8 +232,8 @@ function applyCriterionAssignments({ implementationPlan, requiredAcceptanceCrite
     const criterion = criteria.get(assignment.criterionId);
     if (!item || !criterion) continue;
     item.acceptanceCriteria = [...new Set([...(item.acceptanceCriteria ?? []), criterion.id])];
-    const verification = String(criterion.verification ?? "").trim();
-    if (isExecutableValidationCommand(verification)) item.validation = [...new Set([...(item.validation ?? []), verification])];
+    const verification = trustedCriterionVerificationCommand(criterion.verification, validationCommandCatalog);
+    if (verification) item.validation = [...new Set([...(item.validation ?? []), verification])];
     touched.push(`${criterion.id}:${item.id}`);
   }
   return { plan: next, touched: [...new Set(touched)] };
@@ -309,7 +329,13 @@ INPUT:
 ${JSON.stringify(input, null, 2)}`;
 }
 
-function applyAcceptanceCoverageAssignments({ implementationPlan, requiredAcceptanceCriteria, assignments, preexistingVerificationMissing = [] }) {
+function applyAcceptanceCoverageAssignments({
+  implementationPlan,
+  requiredAcceptanceCriteria,
+  assignments,
+  preexistingVerificationMissing = [],
+  validationCommandCatalog = null,
+}) {
   const next = clone(implementationPlan);
   const byId = new Map((next.workItems ?? []).map((item) => [item.id, item]));
   const criteria = new Map((requiredAcceptanceCriteria ?? []).map((criterion) => [criterion.id, criterion]));
@@ -319,16 +345,16 @@ function applyAcceptanceCoverageAssignments({ implementationPlan, requiredAccept
     const criterion = criteria.get(assignment.criterionId);
     if (!item || !criterion) continue;
     item.acceptanceCriteria = [...new Set([...(item.acceptanceCriteria ?? []), criterion.id])];
-    const verification = String(criterion.verification ?? "").trim();
-    if (isExecutableValidationCommand(verification)) item.validation = [...new Set([...(item.validation ?? []), verification])];
+    const verification = trustedCriterionVerificationCommand(criterion.verification, validationCommandCatalog);
+    if (verification) item.validation = [...new Set([...(item.validation ?? []), verification])];
     touched.add(`${criterion.id}:${item.id}`);
   }
   for (const entry of preexistingVerificationMissing) {
     const item = byId.get(entry.workItemId);
     const criterion = criteria.get(entry.criterionId);
     if (!item || !criterion) continue;
-    const verification = String(criterion.verification ?? "").trim();
-    if (isExecutableValidationCommand(verification)) item.validation = [...new Set([...(item.validation ?? []), verification])];
+    const verification = trustedCriterionVerificationCommand(criterion.verification, validationCommandCatalog);
+    if (verification) item.validation = [...new Set([...(item.validation ?? []), verification])];
   }
   return { plan: next, touched: [...touched] };
 }
@@ -698,6 +724,7 @@ export function applyValidationCommandRepairs({
   implementationPlan,
   requiredAcceptanceCriteria,
   repairs,
+  validationCommandCatalog = null,
 }) {
   const next = clone(implementationPlan);
   const byId = new Map((next.workItems ?? []).map((item) => [item.id, item]));
@@ -709,8 +736,8 @@ export function applyValidationCommandRepairs({
     if (!item) continue;
     const selected = [...new Set((repair.validation ?? []).map((value) => String(value).trim()).filter(Boolean))];
     const exactCriterionCommands = (item.acceptanceCriteria ?? [])
-      .map((id) => String(criteria.get(id)?.verification ?? "").trim())
-      .filter(isExecutableValidationCommand);
+      .map((id) => trustedCriterionVerificationCommand(criteria.get(id)?.verification, validationCommandCatalog))
+      .filter(Boolean);
     item.validation = [...new Set([...selected, ...exactCriterionCommands])];
     touched.push(item.id);
   }
