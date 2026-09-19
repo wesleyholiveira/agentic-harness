@@ -98,6 +98,18 @@ function firstExecutableToken(command) {
   return stripQuotes(tokens[index]);
 }
 
+function looksLikeValidationProse(command) {
+  const text = String(command ?? "").trim();
+  if (!text) return false;
+
+  // A Product criterion may start with a real executable while still being an
+  // English assertion about the command, e.g. "npm test exits with code 0.".
+  // Such prose is evidence semantics, not shell authority.
+  if (/\s(?:exits?|returns?)\s+(?:with\s+)?(?:exit\s+)?(?:code|status)\b/iu.test(text)) return true;
+  if (/\s(?:passes?|succeeds?|fails?|completes?)\s*(?:successfully|cleanly|with\s+(?:success|failure))?[.!?]?$/iu.test(text)) return true;
+  return false;
+}
+
 // `test` is intentionally not accepted as a direct validation executable.
 // It is both a POSIX shell builtin and an ordinary English verb/noun, so prose
 // such as "Test file is present and npm test executes successfully." would be
@@ -107,7 +119,7 @@ function firstExecutableToken(command) {
 // while preserving an explicit shell-command escape hatch.
 export function isExecutableValidationCommand(command) {
   const root = firstExecutableToken(command);
-  if (!root) return false;
+  if (!root || looksLikeValidationProse(command)) return false;
   const normalized = root.toLowerCase();
   if (KNOWN_VALIDATION_EXECUTABLES.has(normalized)) return true;
   if (/^(?:\.{0,2}[\\/]|~[\\/]|[A-Za-z]:[\\/])/.test(root)) return true;
