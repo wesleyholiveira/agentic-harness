@@ -21,6 +21,7 @@ import { deriveRetryBudgetState, repairEffectKey } from "./retry-efficiency.mjs"
 import { bootstrapTopologyReadyForTask, normalizeProductDiscoveryReviewAssessment } from "./bootstrap-topology-refiner.mjs";
 import { recordReplayCapsuleArtifact, updateReplayCapsuleEvidence } from "./run-replay.mjs";
 import { stableFingerprint } from "./event-driven-contracts.mjs";
+import { inspectValidationCommandToolchain } from "../../scripts/internal/agent-runtime-validation-toolchain-preflight.mjs";
 
 function commandFromTemplate(template, values) {
   return template.replace(/\{([A-Za-z][A-Za-z0-9]*)\}/g, (match, key) => {
@@ -663,6 +664,48 @@ export async function executeTask({ repositoryRoot, runDirectory, plan, taskPlan
     reasoning_effort: brief.modelRouting.reasoningEffort,
     steps_limit: brief.modelRouting.stepsLimit,
   });
+
+  if ((taskPlan.stage ?? "implementation") === "implementation") {
+    const validationToolchain = await inspectValidationCommandToolchain({
+      root: repositoryRoot,
+      commands: brief.validation ?? [],
+    });
+    if (!validationToolchain.ok) {
+      const completedAt = nowIso();
+      const durationMs = Date.parse(completedAt) - Date.parse(startedAt);
+      const failure = {
+        code: "validation_toolchain_unavailable",
+        message: `Required validation executables are unavailable before implementation: ${validationToolchain.missingExecutables.join(", ")}`,
+        retryable: false,
+        blocked: true,
+        category: "environmental",
+        toolchain: validationToolchain,
+      };
+      await store.updateTask(taskPlan.taskId, {
+        status: "blocked",
+        completed_at: completedAt,
+        duration_ms: durationMs,
+        error_code: failure.code,
+        error_message: failure.message,
+      });
+      await store.event(plan.runId, taskPlan.taskId, "task.blocked", {
+        attempt,
+        code: failure.code,
+        retryable: false,
+        category: failure.category,
+        requiredExecutables: validationToolchain.requiredExecutables,
+        missingExecutables: validationToolchain.missingExecutables,
+        phase: "pre-executor-toolchain",
+      });
+      return { status: "blocked", failure };
+    }
+    await store.event(plan.runId, taskPlan.taskId, "validation.toolchain.ready", {
+      attempt,
+      requiredExecutables: validationToolchain.requiredExecutables,
+      phase: "pre-executor-toolchain",
+    });
+  }
+
   const executionTopology = resolveTaskExecutionTopology(brief);
   await store.event(plan.runId, taskPlan.taskId, "model.route.selected", brief.modelRouting);
   await store.event(plan.runId, taskPlan.taskId, "execution.topology.selected", {
