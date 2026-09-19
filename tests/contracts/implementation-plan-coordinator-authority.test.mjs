@@ -24,7 +24,7 @@ const criteria = [{
   source: "spec",
   statement: "Transactional materialization is implemented.",
   blocking: true,
-  verification: "npm run test:product-contracts",
+  verification: "npm run harness:test",
   proofStage: "implementation",
 }];
 
@@ -97,7 +97,7 @@ function validPlan() {
       dependencies: [],
       ownedPaths: ["src/materialization.mjs"],
       acceptanceCriteria: ["AC-1"],
-      validation: ["npm run test:product-contracts"],
+      validation: ["npm run harness:test"],
       validationExecutionScope: "workspace",
       complexity: "medium",
       estimatedFiles: 1,
