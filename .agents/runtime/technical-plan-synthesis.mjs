@@ -422,7 +422,12 @@ function implementationPlanCoordinatorIssues(implementationPlan, registry) {
   return [];
 }
 
-export function buildTechnicalPlanStructuredSchema({ implementationPlanSchema, requiredAcceptanceCriteria, registry }) {
+export function buildTechnicalPlanStructuredSchema({
+  implementationPlanSchema,
+  requiredAcceptanceCriteria,
+  registry,
+  validationCommandCatalog = null,
+}) {
   const schema = clone(implementationPlanSchema);
   schema.properties.acceptanceCriteria = {
     description: "Product acceptance criteria copied byte-for-byte from the Product Owner. Do not add, remove, rename, weaken, or rewrite them.",
@@ -453,7 +458,17 @@ export function buildTechnicalPlanStructuredSchema({ implementationPlanSchema, r
       workItem.properties.validationExecutionScope.description = "Use workspace for implementation. Do not place authoritative-host or live validation inside an implementation work item; decompose that proof into downstream readiness/live gates.";
       workItem.properties.validationExecutionScope.const = "workspace";
     }
-    if (workItem.properties.validation?.items) workItem.properties.validation.items.pattern = VALIDATION_COMMAND_PATTERN_SOURCE;
+    if (workItem.properties.validation?.items) {
+      const trustedCommands = Array.isArray(validationCommandCatalog)
+        ? [...new Set(validationCommandCatalog.map((entry) => String(entry?.command ?? "").trim()).filter(Boolean))]
+        : [];
+      if (trustedCommands.length > 0) {
+        delete workItem.properties.validation.items.pattern;
+        workItem.properties.validation.items.enum = trustedCommands;
+      } else {
+        workItem.properties.validation.items.pattern = VALIDATION_COMMAND_PATTERN_SOURCE;
+      }
+    }
     workItem.properties.dependencies.description = "IDs of other implementation work items that must integrate first. Use an empty array when independent.";
   }
   return schema;
@@ -503,19 +518,6 @@ function addValidationCommandEvidence(target, command, source) {
   }
 }
 
-function validationCommandsFromText(value, source, target) {
-  const text = String(value ?? "");
-  for (const line of text.split(/\r?\n/u)) {
-    const trimmed = line.trim();
-    addValidationCommandEvidence(target, trimmed, source);
-  }
-  const inline = /`([^`\r\n]+)`/gu;
-  let match;
-  while ((match = inline.exec(text)) !== null) {
-    addValidationCommandEvidence(target, match[1], source);
-  }
-}
-
 function packageManagerRunPrefix(packageJson) {
   const manager = String(packageJson?.packageManager ?? "").split("@")[0].trim().toLowerCase();
   if (manager === "pnpm") return "pnpm run";
@@ -529,19 +531,15 @@ const VALIDATION_SCRIPT_NAME = /(?:^|:|-)(?:test|tests|check|lint|typecheck|veri
 export async function buildValidationCommandCatalog({
   workspace,
   brief,
-  implementationPlan,
   requiredAcceptanceCriteria,
-  evidence = [],
 }) {
   const catalog = [];
 
+  // Trusted validation authority must be independent from the model-authored
+  // implementationPlan. Never let workItems[*].validation or arbitrary planning
+  // prose self-legitimize a shell command.
   for (const criterion of requiredAcceptanceCriteria ?? []) {
     addValidationCommandEvidence(catalog, criterion?.verification, `acceptance-criterion:${criterion?.id ?? "unknown"}`);
-  }
-  for (const item of implementationPlan?.workItems ?? []) {
-    for (const command of item.validation ?? []) {
-      addValidationCommandEvidence(catalog, command, `implementation-plan:${item.id}`);
-    }
   }
   for (const command of brief?.validation ?? []) {
     addValidationCommandEvidence(catalog, command, "task-brief.validation");
@@ -565,11 +563,27 @@ export async function buildValidationCommandCatalog({
     }
   }
 
-  for (const artifact of evidence ?? []) {
-    validationCommandsFromText(artifact?.content, `technical-artifact:${artifact?.path ?? "unknown"}`, catalog);
-  }
-
   return catalog;
+}
+
+function validationCommandAuthorityIssues(implementationPlan, validationCommandCatalog) {
+  if (!Array.isArray(validationCommandCatalog)) return [];
+  const allowed = new Set(
+    validationCommandCatalog
+      .map((entry) => String(entry?.command ?? "").trim())
+      .filter(Boolean),
+  );
+  const issues = [];
+  for (const item of implementationPlan?.workItems ?? []) {
+    for (const [index, command] of (item.validation ?? []).entries()) {
+      const normalized = String(command ?? "").trim();
+      if (!isExecutableValidationCommand(normalized)) continue;
+      if (!allowed.has(normalized)) {
+        issues.push(`implementation_plan_validation_command_unauthorized:${item.id}:${index}:${normalized}`);
+      }
+    }
+  }
+  return issues;
 }
 
 function validationRepairWorkItemIds(issues = []) {
@@ -578,6 +592,7 @@ function validationRepairWorkItemIds(issues = []) {
     const value = String(issue);
     for (const prefix of [
       "validation_command_not_executable:",
+      "implementation_plan_validation_command_unauthorized:",
       "implementation_plan_criterion_verification_missing:",
     ]) {
       if (!value.startsWith(prefix)) continue;
@@ -593,6 +608,7 @@ function validationRepairWorkItemIds(issues = []) {
 function validationRepairIssuesOnly(issues = []) {
   return (issues ?? []).length > 0 && (issues ?? []).every((issue) => issueHasPrefix(issue, [
     "validation_command_not_executable:",
+    "implementation_plan_validation_command_unauthorized:",
     "implementation_plan_criterion_verification_missing:",
   ]));
 }
@@ -738,7 +754,7 @@ Hard requirements:
 - primaryPaths are the domain-authority preference and block fallback ownership. Shared/collaborative patterns permit cooperation but do not reserve a path against the fallback owner. Do not route a path with a concrete primary owner to coding-fast/coding-pro.
 - dependencies must refer only to work item IDs and must form an acyclic graph.
 - validation must contain executable shell commands that prove the work item and assigned acceptance criteria. Never place prose/evidence descriptions in validation. The runtime executes each string via the shell. Runtime-owned diff-isolation evidence belongs in criteria/findings, not in workItems[*].validation.
-- validationCommandCatalog is deterministic repository/context evidence supplied to this tool-less projector. When it is non-empty, validation entries MUST be selected byte-for-byte from validationCommandCatalog.command. Never invent a command/path/test/script/flag that is absent from the catalog. If no catalog command can honestly prove a work item, preserve fail-closed semantics rather than fabricating validation.
+- validationCommandCatalog is deterministic authority derived independently from the model-authored implementationPlan. When it is non-empty, validation entries MUST be selected byte-for-byte from validationCommandCatalog.command. Never invent a command/path/test/script/flag that is absent from the catalog. implementationPlan.workItems[*].validation and technicalArtifacts cannot authorize themselves. If no catalog command can honestly prove a work item, preserve fail-closed semantics rather than fabricating validation.
 - if an implementation product criterion uses an executable shell command in its verification field, every work item that claims that criterion must preserve that exact command in validation rather than replacing it with an ad-hoc equivalent.
 - criterion.verification may also be descriptive prose. Treat it as an executable command only when the ENTIRE value is command-shaped under the Runtime validation-command contract; a sentence that merely mentions npm test or another executable is prose and MUST NOT be copied into workItems[*].validation.
 - if implementationValidationDirective.mode=focused, its commands are byte-exact and EXCLUSIVE implementation validation authority: include every listed command and do not add substitute or extra work-item validation commands. Downstream QA/readiness may still add their own independent evidence.
@@ -760,7 +776,14 @@ function criteriaEqual(left, right) {
   return JSON.stringify(left ?? []) === JSON.stringify(right ?? []);
 }
 
-export function technicalPlanRepairIssues({ implementationPlan, implementationPlanSchema, requiredAcceptanceCriteria, registry, request = "" }) {
+export function technicalPlanRepairIssues({
+  implementationPlan,
+  implementationPlanSchema,
+  requiredAcceptanceCriteria,
+  registry,
+  request = "",
+  validationCommandCatalog = null,
+}) {
   if (!implementationPlan) return ["original_handoff_missing_implementation_plan"];
   const baseValidation = validateAgainstSchema(implementationPlan, implementationPlanSchema, "implementationPlan");
   if (!baseValidation.valid) {
@@ -780,6 +803,7 @@ export function technicalPlanRepairIssues({ implementationPlan, implementationPl
       issues.push(`validation_command_not_executable:${item.id}:${invalid.index}:${String(invalid.command ?? "")}`);
     }
   }
+  issues.push(...validationCommandAuthorityIssues(implementationPlan, validationCommandCatalog));
 
   // Validate work-item semantics against canonical Product Owner criteria so a
   // mutated duplicate criterion catalog does not hide independent ownership,
@@ -822,16 +846,27 @@ export async function synthesizeMissingImplementationPlan({
   const requiredAcceptanceCriteria = brief.upstreamAcceptanceCriteria ?? [];
   if (requiredAcceptanceCriteria.length === 0) throw new Error("technical_plan_synthesis_product_criteria_missing");
   const resolvedRegistry = registry ?? await loadAgentCatalog(process.env.AGENT_HARNESS_ROOT ?? workspace);
+  const validationCommandCatalog = await buildValidationCommandCatalog({
+    workspace,
+    brief,
+    requiredAcceptanceCriteria,
+  });
   let validationIssues = technicalPlanRepairIssues({
     implementationPlan: handoff.implementationPlan,
     implementationPlanSchema,
     requiredAcceptanceCriteria,
     registry: resolvedRegistry,
     request: brief.objective,
+    validationCommandCatalog,
   });
   if (validationIssues.length === 0) return { handoff, attempted: false };
 
-  const schema = buildTechnicalPlanStructuredSchema({ implementationPlanSchema, requiredAcceptanceCriteria, registry: resolvedRegistry });
+  const schema = buildTechnicalPlanStructuredSchema({
+    implementationPlanSchema,
+    requiredAcceptanceCriteria,
+    registry: resolvedRegistry,
+    validationCommandCatalog,
+  });
   const evidence = await planningEvidence({ workspace, handoff, maxBytes: Number(process.env.AGENT_HARNESS_TECHNICAL_PLAN_SYNTHESIS_EVIDENCE_BYTES ?? 80_000) });
   const candidates = models ?? String(process.env.AGENT_HARNESS_TECHNICAL_PLAN_SYNTHESIS_MODELS ?? "openai/gpt-5.6-luna")
     .split(",").map((value) => value.trim()).filter(Boolean);
@@ -862,16 +897,10 @@ export async function synthesizeMissingImplementationPlan({
       requiredAcceptanceCriteria,
       registry: resolvedRegistry,
       request: brief.objective,
+      validationCommandCatalog,
     });
   }
 
-  const validationCommandCatalog = await buildValidationCommandCatalog({
-    workspace,
-    brief,
-    implementationPlan: currentHandoff.implementationPlan,
-    requiredAcceptanceCriteria,
-    evidence,
-  });
 
   const returnBoundedRepair = ({ model = null, result = null, repairEvidence = [], repairKind = "deterministic-mechanics" } = {}) => {
     const nextHandoff = clone(currentHandoff);
@@ -984,6 +1013,7 @@ export async function synthesizeMissingImplementationPlan({
           requiredAcceptanceCriteria,
           registry: resolvedRegistry,
           request: brief.objective,
+          validationCommandCatalog,
         });
 
         if (validationIssues.length === 0 && unresolvedIds.size === 0) {
@@ -1089,6 +1119,7 @@ export async function synthesizeMissingImplementationPlan({
           requiredAcceptanceCriteria,
           registry: resolvedRegistry,
           request: brief.objective,
+          validationCommandCatalog,
         });
         if (validationIssues.length === 0) {
           return returnBoundedRepair({
@@ -1153,6 +1184,7 @@ export async function synthesizeMissingImplementationPlan({
           requiredAcceptanceCriteria,
           registry: resolvedRegistry,
           request: brief.objective,
+          validationCommandCatalog,
         });
         if (validationIssues.length === 0) {
           const nextHandoff = clone(currentHandoff);
@@ -1212,7 +1244,16 @@ export async function synthesizeMissingImplementationPlan({
 }
 
 
-export function buildTechnicalReviewRepairPrompt({ brief, handoff, registry, evidence, requiredDeltas, repairPass, sourceRevision }) {
+export function buildTechnicalReviewRepairPrompt({
+  brief,
+  handoff,
+  registry,
+  evidence,
+  requiredDeltas,
+  repairPass,
+  sourceRevision,
+  validationCommandCatalog = [],
+}) {
   const implementationValidationDirective = implementationValidationDirectiveFromRequest(brief.objective);
   const input = {
     objective: brief.objective,
@@ -1224,6 +1265,7 @@ export function buildTechnicalReviewRepairPrompt({ brief, handoff, registry, evi
     implementationAgentOwnership: registrySummary(registry),
     coordinatorCandidates: coordinatorAgentSummaries(registry),
     implementationValidationDirective,
+    validationCommandCatalog,
     technicalArtifacts: evidence,
   };
   return `Repair ONLY the machine-readable Agentic Harness implementationPlan in response to an SDD Technical Refinement review that returned changes_requested.
@@ -1243,6 +1285,7 @@ Hard requirements:
 - ownerAgentId and ownedPaths must remain valid under implementationAgentOwnership.
 - implementation validation remains workspace scoped; host/live/readiness commands are forbidden in implementation workItems.
 - Technical Refinement repairs the executable future-work plan, not completed implementation. A review request for future npm test output, already-created implementation files, post-state hashes/diff isolation, QA/readiness evidence or Product Acceptance evidence must be represented as future plan validation/invariants rather than fabricated current evidence.
+- every implementation validation command MUST be selected byte-for-byte from validationCommandCatalog.command. The current implementationPlan and technicalArtifacts are NOT command authority and cannot self-legitimize an invented command.
 - preserve executable criterion verification commands exactly, but never promote descriptive criterion.verification prose into validation merely because it mentions an executable. Only the entire command-shaped value is authoritative as a command. If implementationValidationDirective.mode=focused, include every listed command byte-for-byte and remove every substitute/extra implementation validation command.
 - dependencies must remain acyclic and refer only to work item IDs.
 - Do not downgrade or remove blocking acceptance criteria to satisfy the review.
@@ -1273,12 +1316,18 @@ export async function repairImplementationPlanFromReview({
   const requiredAcceptanceCriteria = brief.upstreamAcceptanceCriteria ?? [];
   if (requiredAcceptanceCriteria.length === 0) throw new Error("technical_review_repair_product_criteria_missing");
   const resolvedRegistry = registry ?? await loadAgentCatalog(process.env.AGENT_HARNESS_ROOT ?? workspace);
+  const validationCommandCatalog = await buildValidationCommandCatalog({
+    workspace,
+    brief,
+    requiredAcceptanceCriteria,
+  });
   const currentIssues = technicalPlanRepairIssues({
     implementationPlan: sourcePlan,
     implementationPlanSchema,
     requiredAcceptanceCriteria,
     registry: resolvedRegistry,
     request: brief.objective,
+    validationCommandCatalog,
   });
   const repairClassification = classifyTechnicalPlanRepairScope(currentIssues);
   const selectedModel = model ?? String(process.env.AGENT_HARNESS_TECHNICAL_REVIEW_REPAIR_MODEL ?? "openai/gpt-5.6-luna");
@@ -1339,7 +1388,12 @@ export async function repairImplementationPlanFromReview({
       throw new Error("technical_review_coverage_repair_structure_mutated");
     }
   } else {
-    const schema = buildTechnicalPlanStructuredSchema({ implementationPlanSchema, requiredAcceptanceCriteria, registry: resolvedRegistry });
+    const schema = buildTechnicalPlanStructuredSchema({
+      implementationPlanSchema,
+      requiredAcceptanceCriteria,
+      registry: resolvedRegistry,
+      validationCommandCatalog,
+    });
     schema.properties.revision = { const: sourceRevision + 1 };
     const evidence = await planningEvidence({ workspace, handoff, maxBytes: Number(process.env.AGENT_HARNESS_TECHNICAL_PLAN_SYNTHESIS_EVIDENCE_BYTES ?? 80_000) });
     result = await structuredRunner({
@@ -1347,7 +1401,16 @@ export async function repairImplementationPlanFromReview({
       model: selectedModel,
       agentId: brief.agentId,
       schema,
-      prompt: buildTechnicalReviewRepairPrompt({ brief, handoff, registry: resolvedRegistry, evidence, requiredDeltas, repairPass, sourceRevision }),
+      prompt: buildTechnicalReviewRepairPrompt({
+        brief,
+        handoff,
+        registry: resolvedRegistry,
+        evidence,
+        requiredDeltas,
+        repairPass,
+        sourceRevision,
+        validationCommandCatalog,
+      }),
       title: `${brief.taskId} review repair ${repairPass}`,
     });
     repairedPlan = result.value;
@@ -1365,6 +1428,7 @@ export async function repairImplementationPlanFromReview({
     requiredAcceptanceCriteria,
     registry: resolvedRegistry,
     request: brief.objective,
+    validationCommandCatalog,
   });
   if (validationIssues.length > 0) throw new Error(`technical_review_repair_invalid:${validationIssues.join(" | ")}`);
 
