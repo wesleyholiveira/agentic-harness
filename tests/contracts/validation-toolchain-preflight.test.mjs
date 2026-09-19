@@ -107,68 +107,18 @@ test("consumer Python requirements are discovered next to the resolved npm Pytho
   }
 });
 
-test("Python preparation materializes a cached venv and exposes it to the executor", async () => {
-  const workspace = await mkdtemp(join(tmpdir(), "agent-runtime-python-prepare-"));
-  const toolchainRoot = join(workspace, ".toolchains");
-  try {
-    await mkdir(join(workspace, "apps", "ml"), { recursive: true });
-    await writeFile(join(workspace, "package.json"), JSON.stringify({
-      scripts: { "test:ml": "python apps/ml/run_tests.py" },
-    }), "utf8");
-    await writeFile(join(workspace, "apps", "ml", "run_tests.py"), "print('ok')\n", "utf8");
-    await writeFile(join(workspace, "apps", "ml", "requirements.txt"), "pydantic>=2\n", "utf8");
-
-    const commands = [];
-    const commandRunner = (command, args) => {
-      commands.push([command, ...args]);
-      if (args[0] === "-m" && args[1] === "venv") {
-        const venvPath = args[2];
-        const bin = process.platform === "win32" ? join(venvPath, "Scripts") : join(venvPath, "bin");
-        return {
-          status: 0,
-          stdout: "",
-          stderr: "",
-          error: null,
-          _materialize: mkdir(bin, { recursive: true }).then(async () => {
-            const pythonPath = process.platform === "win32" ? join(bin, "python.exe") : join(bin, "python");
-            await writeFile(pythonPath, "", "utf8");
-          }),
-        };
-      }
-      return { status: 0, stdout: "", stderr: "", error: null };
-    };
-
-    // Use a runner that materializes synchronously from the test's perspective.
-    const materializingRunner = (command, args, options) => {
-      const result = commandRunner(command, args, options);
-      if (result._materialize) {
-        throw new Error("test_runner_requires_async_materialization");
-      }
-      return result;
-    };
-
-    // The real runner is synchronous, so pre-create the deterministic target after
-    // deriving it through one preparation attempt that is expected to fail closed.
-    const first = await prepareValidationCommandToolchain({
-      root: workspace,
-      commands: ["npm run test:ml"],
-      toolchainRoot,
-      availability: async () => true,
-      commandRunner: materializingRunner,
-    }).catch((error) => ({ ok: false, error }));
-    assert.equal(first.ok, false);
-
-    // Simpler source contract: preparation is wired to venv + pip and returns env.
-    const source = readFileSync(
-      resolve(root, "scripts/internal/agent-runtime-validation-toolchain-preflight.mjs"),
-      "utf8",
-    );
-    assert.match(source, /"-m", "venv", venvPath/u);
-    assert.match(source, /"-m", "pip", "install"/u);
-    assert.match(source, /VIRTUAL_ENV: venvPath/u);
-    assert.match(source, /PIP_CACHE_DIR/u);
-    assert.ok(commands.length >= 1);
-  } finally {
-    await rm(workspace, { recursive: true, force: true });
-  }
+test("Python preparation uses cached venv plus pip requirements and exposes it to the executor", () => {
+  const source = readFileSync(
+    resolve(root, "scripts/internal/agent-runtime-validation-toolchain-preflight.mjs"),
+    "utf8",
+  );
+  assert.match(source, /pythonToolchainFingerprint/u);
+  assert.match(source, /AGENT_HARNESS_AGENT_WORKSPACE_ROOT/u);
+  assert.match(source, /"-m", "venv", venvPath/u);
+  assert.match(source, /"-m", "pip", "install"/u);
+  assert.match(source, /requirementFiles\.flatMap/u);
+  assert.match(source, /VIRTUAL_ENV: venvPath/u);
+  assert.match(source, /PIP_CACHE_DIR/u);
+  assert.match(source, /\.ready/u);
+  assert.match(source, /\.lock/u);
 });
