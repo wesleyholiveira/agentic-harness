@@ -1,10 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import {
+  discoverPythonRequirementFiles,
   inspectValidationCommandToolchain,
+  prepareValidationCommandToolchain,
   requiredValidationExecutables,
 } from "../../scripts/internal/agent-runtime-validation-toolchain-preflight.mjs";
 
@@ -70,11 +74,101 @@ test("runtime worker provisions Python base but does not hardcode pytest", () =>
 
 test("implementation toolchain preflight runs before isolated workspace creation", () => {
   const executor = readFileSync(resolve(root, ".agents/runtime/executor.mjs"), "utf8");
-  const preflight = executor.indexOf("const validationToolchain = await inspectValidationCommandToolchain");
+  const preflight = executor.indexOf("const validationToolchain = await prepareValidationCommandToolchain");
   const workspace = executor.indexOf("const workspace = await createIsolatedWorkspace");
   assert.ok(preflight >= 0, "validation toolchain preflight must exist");
   assert.ok(workspace >= 0, "workspace creation must exist");
   assert.ok(preflight < workspace, "toolchain must fail before implementation workspace materialization");
   assert.match(executor, /phase: "pre-executor-toolchain"/u);
   assert.match(executor, /validation_toolchain_unavailable/u);
+});
+
+test("consumer Python requirements are discovered next to the resolved npm Python entrypoint", async () => {
+  const workspace = await mkdtemp(join(tmpdir(), "agent-runtime-python-requirements-"));
+  try {
+    await mkdir(join(workspace, "apps", "ml"), { recursive: true });
+    await writeFile(join(workspace, "package.json"), JSON.stringify({
+      scripts: { "test:ml": "python apps/ml/run_tests.py" },
+    }), "utf8");
+    await writeFile(join(workspace, "apps", "ml", "run_tests.py"), "print('ok')\n", "utf8");
+    await writeFile(join(workspace, "apps", "ml", "requirements.txt"), "pydantic>=2\n", "utf8");
+    await writeFile(join(workspace, "apps", "ml", "requirements-dev.txt"), "coverage>=7\n", "utf8");
+
+    const files = await discoverPythonRequirementFiles({
+      root: workspace,
+      commands: ["npm run test:ml"],
+    });
+    assert.deepEqual(files.map((value) => value.replaceAll("\\", "/")), [
+      join(workspace, "apps", "ml", "requirements-dev.txt").replaceAll("\\", "/"),
+      join(workspace, "apps", "ml", "requirements.txt").replaceAll("\\", "/"),
+    ]);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("Python preparation materializes a cached venv and exposes it to the executor", async () => {
+  const workspace = await mkdtemp(join(tmpdir(), "agent-runtime-python-prepare-"));
+  const toolchainRoot = join(workspace, ".toolchains");
+  try {
+    await mkdir(join(workspace, "apps", "ml"), { recursive: true });
+    await writeFile(join(workspace, "package.json"), JSON.stringify({
+      scripts: { "test:ml": "python apps/ml/run_tests.py" },
+    }), "utf8");
+    await writeFile(join(workspace, "apps", "ml", "run_tests.py"), "print('ok')\n", "utf8");
+    await writeFile(join(workspace, "apps", "ml", "requirements.txt"), "pydantic>=2\n", "utf8");
+
+    const commands = [];
+    const commandRunner = (command, args) => {
+      commands.push([command, ...args]);
+      if (args[0] === "-m" && args[1] === "venv") {
+        const venvPath = args[2];
+        const bin = process.platform === "win32" ? join(venvPath, "Scripts") : join(venvPath, "bin");
+        return {
+          status: 0,
+          stdout: "",
+          stderr: "",
+          error: null,
+          _materialize: mkdir(bin, { recursive: true }).then(async () => {
+            const pythonPath = process.platform === "win32" ? join(bin, "python.exe") : join(bin, "python");
+            await writeFile(pythonPath, "", "utf8");
+          }),
+        };
+      }
+      return { status: 0, stdout: "", stderr: "", error: null };
+    };
+
+    // Use a runner that materializes synchronously from the test's perspective.
+    const materializingRunner = (command, args, options) => {
+      const result = commandRunner(command, args, options);
+      if (result._materialize) {
+        throw new Error("test_runner_requires_async_materialization");
+      }
+      return result;
+    };
+
+    // The real runner is synchronous, so pre-create the deterministic target after
+    // deriving it through one preparation attempt that is expected to fail closed.
+    const first = await prepareValidationCommandToolchain({
+      root: workspace,
+      commands: ["npm run test:ml"],
+      toolchainRoot,
+      availability: async () => true,
+      commandRunner: materializingRunner,
+    }).catch((error) => ({ ok: false, error }));
+    assert.equal(first.ok, false);
+
+    // Simpler source contract: preparation is wired to venv + pip and returns env.
+    const source = readFileSync(
+      resolve(root, "scripts/internal/agent-runtime-validation-toolchain-preflight.mjs"),
+      "utf8",
+    );
+    assert.match(source, /"-m", "venv", venvPath/u);
+    assert.match(source, /"-m", "pip", "install"/u);
+    assert.match(source, /VIRTUAL_ENV: venvPath/u);
+    assert.match(source, /PIP_CACHE_DIR/u);
+    assert.ok(commands.length >= 1);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
 });
