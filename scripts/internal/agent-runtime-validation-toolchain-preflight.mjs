@@ -45,9 +45,9 @@ function commandExecutable(value) {
 }
 
 function npmScriptName(value) {
-  const match = String(value ?? "").trim().match(/^(?:npm\s+run|npm\s+test(?:\s+--)?)\s+([^\s;&|]+)/u);
-  if (!match) return String(value ?? "").trim() === "npm test" ? "test" : null;
-  return match[1] === "--" ? "test" : match[1];
+  const normalized = String(value ?? "").trim().replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=[^\s]+\s+)+/u, "");
+  if (/^npm\s+test(?:\s|$)/u.test(normalized)) return "test";
+  return normalized.match(/^npm\s+run\s+([^\s;&|]+)/u)?.[1] ?? null;
 }
 
 export function requiredValidationExecutables({ commands = [], packageJson = {} } = {}) {
