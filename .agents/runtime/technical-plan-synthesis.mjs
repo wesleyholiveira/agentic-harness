@@ -535,12 +535,12 @@ export async function buildValidationCommandCatalog({
 }) {
   const catalog = [];
 
-  // Trusted validation authority must be independent from the model-authored
-  // implementationPlan. Never let workItems[*].validation or arbitrary planning
-  // prose self-legitimize a shell command.
-  for (const criterion of requiredAcceptanceCriteria ?? []) {
-    addValidationCommandEvidence(catalog, criterion?.verification, `acceptance-criterion:${criterion?.id ?? "unknown"}`);
-  }
+  // Trusted validation authority must be independent from model-authored plans
+  // and from Product acceptance prose. criterion.verification describes how a
+  // criterion is proven; it is not shell authority unless the exact command is
+  // independently present in Task Brief, request-focused validation, or package
+  // scripts below.
+  void requiredAcceptanceCriteria;
   for (const command of brief?.validation ?? []) {
     addValidationCommandEvidence(catalog, command, "task-brief.validation");
   }
@@ -556,7 +556,15 @@ export async function buildValidationCommandCatalog({
       const prefix = packageManagerRunPrefix(packageJson);
       for (const name of Object.keys(packageJson?.scripts ?? {}).sort()) {
         if (!VALIDATION_SCRIPT_NAME.test(name)) continue;
-        addValidationCommandEvidence(catalog, `${prefix} ${name}`, `package.json#scripts.${name}`);
+        const source = `package.json#scripts.${name}`;
+        addValidationCommandEvidence(catalog, `${prefix} ${name}`, source);
+        // npm exposes the root "test" script canonically as both
+        // "npm run test" and "npm test". Preserve both exact spellings so a
+        // trusted plan can use the conventional shorthand without relying on
+        // Product criterion prose to authorize it.
+        if (prefix === "npm run" && name === "test") {
+          addValidationCommandEvidence(catalog, "npm test", source);
+        }
       }
     } catch {
       // Invalid/non-JSON package metadata is not command authority.
