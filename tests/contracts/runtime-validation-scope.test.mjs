@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   classifyValidationExecutionScope,
+  isExecutableValidationCommand,
   validationScopeCompatibilityIssue,
 } from "../../.agents/runtime/validation-command.mjs";
 
@@ -32,4 +33,13 @@ test("ordinary repository validation remains workspace scoped", () => {
     }),
     null,
   );
+});
+
+test("command-shaped Product verification prose is not executable validation authority", () => {
+  assert.equal(isExecutableValidationCommand("npm test"), true);
+  assert.equal(isExecutableValidationCommand("npm test -- test/format-name.test.mjs"), true);
+  assert.equal(isExecutableValidationCommand("npm run test:ml"), true);
+  assert.equal(isExecutableValidationCommand("npm test exits with code 0."), false);
+  assert.equal(isExecutableValidationCommand("npm run check succeeds."), false);
+  assert.equal(isExecutableValidationCommand("python scripts/check.py returns status 0"), false);
 });
