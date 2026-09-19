@@ -37,7 +37,7 @@ test("validation command catalog uses only independent deterministic command aut
       implementationPlan: {
         workItems: [{
           id: "W01",
-          validation: ["pytest -q tests/learning_v2/unit"],
+          validation: ["pytest -q tests/domain-contracts"],
         }],
       },
       requiredAcceptanceCriteria: [{
@@ -55,7 +55,7 @@ test("validation command catalog uses only independent deterministic command aut
     assert.ok(commands.includes("npm run test:schema"));
     assert.ok(commands.includes("npm run check:types"));
     assert.ok(!commands.includes("npm run dev"));
-    assert.ok(!commands.includes("pytest -q tests/learning_v2/unit"));
+    assert.ok(!commands.includes("pytest -q tests/domain-contracts"));
     assert.ok(!commands.includes("pytest tests/test_upgrade.py -k populated_upgrade"));
     assert.ok(!catalog.some((entry) => String(entry.source).startsWith("implementation-plan:")));
     assert.ok(!catalog.some((entry) => String(entry.source).startsWith("technical-artifact:")));
@@ -199,7 +199,7 @@ test("syntactically executable model-authored validation cannot self-authorize",
   const criteria = [{
     id: "AC-1",
     source: "spec",
-    statement: "Learning V2 domain contracts are verified.",
+    statement: "Domain contracts are verified.",
     blocking: true,
     verification: "npm run test:ml",
     proofStage: "implementation",
@@ -240,11 +240,11 @@ test("syntactically executable model-authored validation cannot self-authorize",
     workItems: [{
       id: "W01",
       ownerAgentId: "coding-pro",
-      objective: "Implement Learning V2 domain contracts.",
+      objective: "Implement domain contracts.",
       dependencies: [],
-      ownedPaths: ["apps/ml/clip_compass_ml/learning_v2/contracts.py"],
+      ownedPaths: ["src/domain-contracts.py"],
       acceptanceCriteria: ["AC-1"],
-      validation: ["pytest -q tests/learning_v2/unit"],
+      validation: ["pytest -q tests/domain-contracts"],
       validationExecutionScope: "workspace",
       complexity: "medium",
       estimatedFiles: 1,
@@ -266,7 +266,7 @@ test("syntactically executable model-authored validation cannot self-authorize",
   });
 
   assert.ok(issues.includes(
-    "implementation_plan_validation_command_unauthorized:W01:0:pytest -q tests/learning_v2/unit",
+    "implementation_plan_validation_command_unauthorized:W01:0:pytest -q tests/domain-contracts",
   ));
 
   const schema = buildTechnicalPlanStructuredSchema({
