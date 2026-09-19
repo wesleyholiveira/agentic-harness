@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-19T17:43:42Z",
+  "generatedAt": "2026-09-19T19:32:27Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 538,
-  "treeSha256": "sha256:4fcfb6ead93d0f91b4b2f4b036c5a18da0db9a9817a42d652e3f873a8d8a47a2",
+  "fileCount": 539,
+  "treeSha256": "sha256:e456e3170afd401cdd7b75c2db64b57d3cc1f9e94536c5b26b0048932995c166",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -383,9 +383,9 @@
       "sha256": "sha256:1aef37497980a95b2d5c840fd78005118afa816a7381c9e83e3fe0312604ec6c"
     },
     {
-      "bytes": 75019,
+      "bytes": 77198,
       "path": ".agents/runtime/executor.mjs",
-      "sha256": "sha256:8db5d026a3a2f7d5674226ebb8c39b0f04486c9aa0378c9a945522d449310cc9"
+      "sha256": "sha256:7905b521306802aeb84e09d858a36dd4f99aa27c3d5618c4b6ed08886047d2b7"
     },
     {
       "bytes": 4285,
@@ -653,9 +653,9 @@
       "sha256": "sha256:41a3ba2f41f1df7f4101d04d269d41389ccdd93b87bd47ce652807c64f554fe7"
     },
     {
-      "bytes": 72203,
+      "bytes": 73990,
       "path": ".agents/runtime/technical-plan-synthesis.mjs",
-      "sha256": "sha256:b085988ea98b3ed2d5970f33b161b1ede84e72622aaaf126d939762a8c9891e6"
+      "sha256": "sha256:2654138db83386eeb0587fe0a6417c7b4bd54f1613dc54b1db7be9c63f45411e"
     },
     {
       "bytes": 6149,
@@ -1168,9 +1168,9 @@
       "sha256": "sha256:9083311c8a5f620cbef93fc153fdef0c9c4f55ce6e013ae554baecb5fd0cfc4a"
     },
     {
-      "bytes": 1120,
+      "bytes": 1219,
       "path": "apps/runtime-worker/Dockerfile",
-      "sha256": "sha256:8da109b08a586fbbe6f6e606e610b15f05fa0787d71fb9c43ac893aa2ad34005"
+      "sha256": "sha256:aa943a045146cf9deaa646d5a40a7410446b94a8f32eee6bea94c6b0c7dea3d7"
     },
     {
       "bytes": 1129,
@@ -2208,9 +2208,9 @@
       "sha256": "sha256:842ba57a31f0ae80f7a4b07d4e9026ea664d8c84a6011ce475f38b52935a66a9"
     },
     {
-      "bytes": 5156,
+      "bytes": 16951,
       "path": "scripts/internal/agent-runtime-validation-toolchain-preflight.mjs",
-      "sha256": "sha256:e5f00ad4b602ffb4c04f4ab9cc7e25756d361316200c9406213c59e45e2e46ac"
+      "sha256": "sha256:5d53ebf620c116498cbe3df0e0b63a3b6a4612bbf1e78faed543e5d983f11d61"
     },
     {
       "bytes": 2116,
@@ -2413,14 +2413,19 @@
       "sha256": "sha256:1585400c555a33d9d38653bd031e1960c8367e009b8ddfa43a7acfa6ee8d797a"
     },
     {
-      "bytes": 6056,
+      "bytes": 9141,
       "path": "tests/contracts/technical-plan-validation-command-repair.test.mjs",
-      "sha256": "sha256:1058eb4a4d9fcb51fc2f19339264a196984cfeb648af92d538e4e8a5ad131df3"
+      "sha256": "sha256:9f927b92e39021db7072ae29687d0df88a459ea3223bf96e1ba3e4084c6ada6c"
     },
     {
       "bytes": 6427,
       "path": "tests/contracts/technical-refinement-proof-stage-boundary.test.mjs",
       "sha256": "sha256:5642ec64097b7588366613f34c8b05870e552806067e9ef7bb83d6652315fa92"
+    },
+    {
+      "bytes": 5292,
+      "path": "tests/contracts/validation-toolchain-preflight.test.mjs",
+      "sha256": "sha256:fb80322ea581a7476857ee9b5f4d9facf55b1d7cf726ab8abf2880250bff5a15"
     },
     {
       "bytes": 1335,
