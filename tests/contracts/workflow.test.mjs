@@ -775,6 +775,7 @@ test("Technical Refinement preflight deterministically repairs mechanical plan d
     agentId: "technical-lead",
     objective: "Implement Learning V2 identity and durable execution.",
     upstreamAcceptanceCriteria: criteria,
+    validation: ["npm run test:web", "npm run test:runtime"],
     sdd: { stage: "technical-refinement" },
   };
   const repaired = await synthesizeMissingImplementationPlan({
@@ -906,6 +907,7 @@ test("Technical Refinement acceptance-coverage repair can only map criteria onto
     agentId: "technical-lead",
     objective: "Implement the bounded Learning V2 ranker slice.",
     upstreamAcceptanceCriteria: criteria,
+    validation: ["npm test"],
     sdd: { stage: "technical-refinement" },
     modelRouting: { attempt: 1 },
   };
@@ -1017,6 +1019,7 @@ test("Technical Refinement semantic repair reports real mutation scope and evide
     agentId: "technical-lead",
     objective: "Implement the bounded Learning V2 ranker slice.",
     upstreamAcceptanceCriteria: [criterion],
+    validation: ["npm test"],
     sdd: { stage: "technical-refinement" },
     modelRouting: { attempt: 2 },
   };
