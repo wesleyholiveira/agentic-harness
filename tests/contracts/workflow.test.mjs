@@ -686,6 +686,7 @@ test("Technical Refinement preflight deterministically repairs mechanical plan d
   const sourcePlan = {
     schemaVersion: 1,
     revision: 1,
+    coordinatorAgentId: "main-orchestrator",
     acceptanceCriteria: criteria,
     workItems: [
       {
@@ -854,6 +855,7 @@ test("Technical Refinement acceptance-coverage repair can only map criteria onto
   const sourcePlan = {
     schemaVersion: 1,
     revision: 1,
+    coordinatorAgentId: "main-orchestrator",
     acceptanceCriteria: criteria,
     workItems: [{
       id: "W06-ranker",
@@ -969,6 +971,7 @@ test("Technical Refinement semantic repair reports real mutation scope and evide
   const sourcePlan = {
     schemaVersion: 1,
     revision: 1,
+    coordinatorAgentId: "main-orchestrator",
     acceptanceCriteria: [criterion],
     workItems: [{
       id: "W06-ranker",
