@@ -925,6 +925,7 @@ export async function synthesizeMissingImplementationPlan({
       implementationPlan: currentHandoff.implementationPlan,
       requiredAcceptanceCriteria,
       registry: resolvedRegistry,
+      validationCommandCatalog,
     })
     : { plan: currentHandoff.implementationPlan ?? null, evidence: [] };
   if (mechanical.evidence.length > 0) {
@@ -1026,11 +1027,13 @@ export async function synthesizeMissingImplementationPlan({
           implementationPlan: currentHandoff.implementationPlan,
           requiredAcceptanceCriteria,
           repairs: result.value.repairs,
+          validationCommandCatalog,
         });
         const normalized = normalizeTechnicalPlanMechanics({
           implementationPlan: applied.plan,
           requiredAcceptanceCriteria,
           registry: resolvedRegistry,
+          validationCommandCatalog,
         });
         currentHandoff.implementationPlan = normalized.plan;
         currentHandoff.auxiliaryInvocations = [
@@ -1132,11 +1135,13 @@ export async function synthesizeMissingImplementationPlan({
           implementationPlan: currentHandoff.implementationPlan,
           requiredAcceptanceCriteria,
           assignments: result.value.assignments,
+          validationCommandCatalog,
         });
         const normalized = normalizeTechnicalPlanMechanics({
           implementationPlan: applied.plan,
           requiredAcceptanceCriteria,
           registry: resolvedRegistry,
+          validationCommandCatalog,
         });
         currentHandoff.implementationPlan = normalized.plan;
         currentHandoff.auxiliaryInvocations = [
@@ -1409,6 +1414,7 @@ export async function repairImplementationPlanFromReview({
         requiredAcceptanceCriteria,
         assignments: result.value.assignments,
         preexistingVerificationMissing: verificationMissing,
+        validationCommandCatalog,
       });
       repairedPlan = applied.plan;
       repairEvidence = applied.touched;
@@ -1419,6 +1425,7 @@ export async function repairImplementationPlanFromReview({
         requiredAcceptanceCriteria,
         assignments: [],
         preexistingVerificationMissing: verificationMissing,
+        validationCommandCatalog,
       }).plan;
     }
     repairedPlan.revision = sourceRevision + 1;
