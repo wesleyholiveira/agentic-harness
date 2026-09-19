@@ -21,7 +21,7 @@ import { deriveRetryBudgetState, repairEffectKey } from "./retry-efficiency.mjs"
 import { bootstrapTopologyReadyForTask, normalizeProductDiscoveryReviewAssessment } from "./bootstrap-topology-refiner.mjs";
 import { recordReplayCapsuleArtifact, updateReplayCapsuleEvidence } from "./run-replay.mjs";
 import { stableFingerprint } from "./event-driven-contracts.mjs";
-import { inspectValidationCommandToolchain } from "../../scripts/internal/agent-runtime-validation-toolchain-preflight.mjs";
+import { prepareValidationCommandToolchain } from "../../scripts/internal/agent-runtime-validation-toolchain-preflight.mjs";
 
 function commandFromTemplate(template, values) {
   return template.replace(/\{([A-Za-z][A-Za-z0-9]*)\}/g, (match, key) => {
@@ -665,8 +665,9 @@ export async function executeTask({ repositoryRoot, runDirectory, plan, taskPlan
     steps_limit: brief.modelRouting.stepsLimit,
   });
 
+  let validationToolchainEnv = {};
   if ((taskPlan.stage ?? "implementation") === "implementation") {
-    const validationToolchain = await inspectValidationCommandToolchain({
+    const validationToolchain = await prepareValidationCommandToolchain({
       root: repositoryRoot,
       commands: brief.validation ?? [],
     });
@@ -674,8 +675,10 @@ export async function executeTask({ repositoryRoot, runDirectory, plan, taskPlan
       const completedAt = nowIso();
       const durationMs = Date.parse(completedAt) - Date.parse(startedAt);
       const failure = {
-        code: "validation_toolchain_unavailable",
-        message: `Required validation executables are unavailable before implementation: ${validationToolchain.missingExecutables.join(", ")}`,
+        code: validationToolchain.code ?? "validation_toolchain_unavailable",
+        message: validationToolchain.missingExecutables?.length
+          ? `Required validation executables are unavailable before implementation: ${validationToolchain.missingExecutables.join(", ")}`
+          : `Validation toolchain preparation failed before implementation: ${(validationToolchain.failures ?? []).join(" | ") || "unknown"}`,
         retryable: false,
         blocked: true,
         category: "environmental",
@@ -694,14 +697,17 @@ export async function executeTask({ repositoryRoot, runDirectory, plan, taskPlan
         retryable: false,
         category: failure.category,
         requiredExecutables: validationToolchain.requiredExecutables,
-        missingExecutables: validationToolchain.missingExecutables,
+        missingExecutables: validationToolchain.missingExecutables ?? [],
+        python: validationToolchain.python ?? null,
         phase: "pre-executor-toolchain",
       });
       return { status: "blocked", failure };
     }
+    validationToolchainEnv = validationToolchain.environment ?? {};
     await store.event(plan.runId, taskPlan.taskId, "validation.toolchain.ready", {
       attempt,
       requiredExecutables: validationToolchain.requiredExecutables,
+      python: validationToolchain.python ?? null,
       phase: "pre-executor-toolchain",
     });
   }
@@ -921,6 +927,7 @@ export async function executeTask({ repositoryRoot, runDirectory, plan, taskPlan
         signal: taskAbort.signal,
         env: {
           ...process.env,
+          ...validationToolchainEnv,
           ...(lifecycleEnv ?? {}),
           AGENT_HARNESS_AGENT_ID: taskPlan.agentId,
           AGENT_HARNESS_AGENT_RUN_ID: plan.runId,
