@@ -16,6 +16,7 @@ import { InvocationProvenanceRegistry, invocationArgsDigest, mcpToolCallIdentity
 const host = process.env.CONTEXT_ENGINE_HTTP_HOST?.trim() || "0.0.0.0";
 const port = Number(process.env.CONTEXT_ENGINE_HTTP_PORT ?? 8789);
 const maxBodyBytes = Number(process.env.CONTEXT_ENGINE_HTTP_MAX_BODY_BYTES ?? 2 * 1024 * 1024);
+const MAX_AGENT_START_USER_MESSAGE_BYTES = 1024 * 1024;
 const projectRoot = resolve(process.env.AGENT_HARNESS_PROJECT_ROOT?.trim() || process.cwd());
 const harnessRoot = resolve(process.env.AGENT_HARNESS_ROOT?.trim() || process.cwd());
 const services = createContextEngineServices(undefined, { cwd: projectRoot });
@@ -184,6 +185,34 @@ function optionalBoundedString(value: unknown, maxLength = 512): string | null {
   return text;
 }
 
+function normalizeInvocationUserMessageAuthority(
+  input: Record<string, unknown>,
+  toolName: string,
+  userMessageId: string | null,
+): { text: string | null; sha256: string | null; bytes: number | null } {
+  if (input.userMessageText === undefined || input.userMessageText === null) {
+    return { text: null, sha256: null, bytes: null };
+  }
+  if (toolName !== "agent_start") throw new Error("runtime_invocation_user_message_tool_invalid");
+  if (!userMessageId) throw new Error("runtime_invocation_user_message_id_required");
+  if (typeof input.userMessageText !== "string" || !input.userMessageText.trim()) {
+    throw new Error("runtime_invocation_user_message_text_invalid");
+  }
+  const text = input.userMessageText;
+  const bytes = Buffer.byteLength(text, "utf8");
+  if (bytes > MAX_AGENT_START_USER_MESSAGE_BYTES) {
+    throw new Error(`runtime_invocation_user_message_too_large:${bytes}:${MAX_AGENT_START_USER_MESSAGE_BYTES}`);
+  }
+  const declaredBytes = Number(input.userMessageBytes);
+  const sha256 = optionalBoundedString(input.userMessageSha256, 96);
+  if (!Number.isInteger(declaredBytes) || declaredBytes !== bytes || !/^sha256:[a-f0-9]{64}$/u.test(sha256 ?? "")) {
+    throw new Error("runtime_invocation_user_message_identity_invalid");
+  }
+  const actualSha256 = `sha256:${createHash("sha256").update(text, "utf8").digest("hex")}`;
+  if (actualSha256 !== sha256) throw new Error("runtime_invocation_user_message_hash_mismatch");
+  return { text, sha256, bytes };
+}
+
 function normalizeRuntimeProgressObservation(body: unknown): Record<string, unknown> {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("runtime_progress_observation_body_invalid");
   const input = body as Record<string, unknown>;
@@ -266,6 +295,13 @@ export function createContextEngineHttpServer() {
           json(response, 400, { error: "runtime_invocation_provenance_invalid" });
           return;
         }
+        let userMessageAuthority: { text: string | null; sha256: string | null; bytes: number | null };
+        try {
+          userMessageAuthority = normalizeInvocationUserMessageAuthority(input, toolName, userMessageId);
+        } catch (error) {
+          json(response, 400, { error: error instanceof Error ? error.message : String(error) });
+          return;
+        }
         const expectedPluginSourceSha256 = expectedInvocationProvenancePluginSourceSha256;
         if (!invocationProvenancePluginSourceIdentityOk) {
           contextEngineLog("error", "mcp.invocation_provenance_container_source_mismatch", {
@@ -296,10 +332,17 @@ export function createContextEngineHttpServer() {
         const registration = invocationProvenanceRegistry.register({
           agentId, toolName, argsDigest: invocationArgsDigest(input.arguments ?? {}),
           origin: origin as "explicit-human-turn" | "autonomous-assistant" | "durable-continuation" | "qualification-harness",
-          sessionId, callId, userMessageId, pluginSourceSha256, historySource, historyErrorCode, observedAt: Date.now(),
+          sessionId, callId, userMessageId,
+          userMessageText: userMessageAuthority.text,
+          userMessageSha256: userMessageAuthority.sha256,
+          userMessageBytes: userMessageAuthority.bytes,
+          pluginSourceSha256, historySource, historyErrorCode, observedAt: Date.now(),
         });
         contextEngineLog("info", "mcp.invocation_provenance_registered", {
-          agentId, toolName, origin, sessionId, callId, userMessageId, pluginSourceSha256, historySource, historyErrorCode, expiresAt: registration.expiresAt,
+          agentId, toolName, origin, sessionId, callId, userMessageId,
+          userMessageSha256: userMessageAuthority.sha256,
+          userMessageBytes: userMessageAuthority.bytes,
+          pluginSourceSha256, historySource, historyErrorCode, expiresAt: registration.expiresAt,
         });
         json(response, 202, { accepted: true, toolName, origin, expiresAt: registration.expiresAt });
         return;
@@ -451,13 +494,27 @@ export function createContextEngineHttpServer() {
         invocationSessionId: invocationProvenance?.sessionId ?? null,
         invocationCallId: invocationProvenance?.callId ?? null,
         invocationUserMessageId: invocationProvenance?.userMessageId ?? null,
+        invocationUserMessageText: invocationProvenance?.userMessageText ?? null,
+        invocationUserMessageSha256: invocationProvenance?.userMessageSha256 ?? null,
+        invocationUserMessageBytes: invocationProvenance?.userMessageBytes ?? null,
         invocationProvenanceSource: invocationProvenance ? "opencode-plugin-sidechannel" as const : "missing" as const,
         invocationHistorySource: invocationProvenance?.historySource ?? null,
         invocationHistoryErrorCode: invocationProvenance?.historyErrorCode ?? null,
       };
+      const invocationLogContext = {
+        invocationOrigin: invocationContext.invocationOrigin,
+        invocationSessionId: invocationContext.invocationSessionId,
+        invocationCallId: invocationContext.invocationCallId,
+        invocationUserMessageId: invocationContext.invocationUserMessageId,
+        invocationUserMessageSha256: invocationContext.invocationUserMessageSha256,
+        invocationUserMessageBytes: invocationContext.invocationUserMessageBytes,
+        invocationProvenanceSource: invocationContext.invocationProvenanceSource,
+        invocationHistorySource: invocationContext.invocationHistorySource,
+        invocationHistoryErrorCode: invocationContext.invocationHistoryErrorCode,
+      };
       const requestStartedAt = Date.now();
       contextEngineLog("info", "mcp.request_started", {
-        ...requestDescription, callerAgentId: normalizedCallerAgentId, ...invocationContext,
+        ...requestDescription, callerAgentId: normalizedCallerAgentId, ...invocationLogContext,
       });
       try {
         await runWithContextEngineRequestContext(
@@ -472,12 +529,12 @@ export function createContextEngineHttpServer() {
           },
         );
         contextEngineLog("info", "mcp.request_completed", {
-          ...requestDescription, callerAgentId: normalizedCallerAgentId, ...invocationContext,
+          ...requestDescription, callerAgentId: normalizedCallerAgentId, ...invocationLogContext,
           statusCode: response.statusCode, durationMs: Date.now() - requestStartedAt,
         });
       } catch (error) {
         contextEngineLog("error", "mcp.request_failed", {
-          ...requestDescription, callerAgentId: normalizedCallerAgentId, ...invocationContext,
+          ...requestDescription, callerAgentId: normalizedCallerAgentId, ...invocationLogContext,
           durationMs: Date.now() - requestStartedAt, error: error instanceof Error ? error.message : String(error),
         });
         throw error;
