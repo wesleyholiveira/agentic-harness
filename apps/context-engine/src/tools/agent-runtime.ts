@@ -39,6 +39,8 @@ function assertRuntimeIngressProvenance(toolName: string): void {
 }
 
 type AgentStartArgs = {
+  request?: string;
+  requestSource?: "current-user-message";
   continuation?: {
     sessionId?: string;
     [key: string]: unknown;
@@ -49,37 +51,64 @@ type AgentStartArgs = {
 type RuntimeIngressContext = {
   transport?: string | null;
   agentId?: string | null;
+  invocationOrigin?: string | null;
   invocationProvenanceSource?: string | null;
   invocationSessionId?: string | null;
+  invocationUserMessageId?: string | null;
+  invocationUserMessageText?: string | null;
+  invocationUserMessageSha256?: string | null;
+  invocationUserMessageBytes?: number | null;
 } | null | undefined;
 
+function isTrustedMainOrchestratorIngress(requestContext: RuntimeIngressContext): boolean {
+  return requestContext?.transport === "http"
+    && requestContext.agentId?.trim() === "main-orchestrator"
+    && requestContext.invocationProvenanceSource === "opencode-plugin-sidechannel";
+}
+
 /**
- * OpenCode session identity is transport authority, not model-authored data.
- * The runtime-continuation tool exposes the current session to the model only
- * to express durable-continuation intent. For authenticated Main Orchestrator
- * HTTP ingress, canonicalize the opaque session id from the trusted plugin
- * sidechannel before Runtime continuation preflight.
+ * OpenCode session identity and the current explicit human request are transport
+ * authority, not model-authored data. Trusted HTTP Main Orchestrator ingress can
+ * materialize request from the provenance sidechannel so long prompts never need
+ * to be regenerated inside tool-call JSON.
  */
 export function authoritativeAgentStartArgs(
   args: AgentStartArgs,
   requestContext: RuntimeIngressContext,
 ): AgentStartArgs {
-  if (!args?.continuation) return args;
-  if (requestContext?.transport !== "http") return args;
-  if (requestContext.agentId?.trim() !== "main-orchestrator") return args;
-  if (requestContext.invocationProvenanceSource !== "opencode-plugin-sidechannel") return args;
+  const trustedIngress = isTrustedMainOrchestratorIngress(requestContext);
+  let next = args;
+  let changed = false;
 
-  const trustedSessionId = requestContext.invocationSessionId?.trim() ?? "";
-  if (!trustedSessionId) return args;
-  if (String(args.continuation.sessionId ?? "").trim() === trustedSessionId) return args;
+  if (args?.requestSource === "current-user-message") {
+    if (!trustedIngress || requestContext?.invocationOrigin !== "explicit-human-turn") {
+      throw new Error("agent_start_current_user_message_provenance_required");
+    }
+    if (typeof args.request === "string" && args.request.trim()) {
+      throw new Error("agent_start_request_source_conflict");
+    }
+    const trustedRequest = String(requestContext.invocationUserMessageText ?? "").trim();
+    if (!trustedRequest) throw new Error("agent_start_current_user_message_text_missing");
+    const { requestSource: _requestSource, ...rest } = next;
+    next = { ...rest, request: trustedRequest };
+    changed = true;
+  }
 
-  return {
-    ...args,
-    continuation: {
-      ...args.continuation,
-      sessionId: trustedSessionId,
-    },
-  };
+  if (next?.continuation && trustedIngress) {
+    const trustedSessionId = requestContext?.invocationSessionId?.trim() ?? "";
+    if (trustedSessionId && String(next.continuation.sessionId ?? "").trim() !== trustedSessionId) {
+      next = {
+        ...next,
+        continuation: {
+          ...next.continuation,
+          sessionId: trustedSessionId,
+        },
+      };
+      changed = true;
+    }
+  }
+
+  return changed ? next : args;
 }
 
 async function assertObservationAllowed(
@@ -122,9 +151,10 @@ export function registerAgentRuntimeTools(
     "agent_start",
     {
       description:
-        "Start the Agentic Harness Dynamic DAG V2 asynchronously for a product/runtime workload. The outer Runtime qualification procedure itself is not a workload: requests that try to execute SOURCE/R-* or H-* qualification gates/runbooks inside the DAG are rejected fail-closed before engine.plan with agent_runtime_qualification_meta_run_forbidden. With a durable continuation, the OpenCode server/session target is session-exclusive: if that same target already owns a non-terminal Runtime V2 run, agent_start returns the existing authoritative run with deduplicated=true instead of creating a competing DAG. Terminal Runtime V2 events resume the same session without LLM polling. PostgreSQL owns identity/deduplication and the Rust continuation worker delivers through OpenCode prompt_async. agent_wait remains an observation fallback.",
+        "Start the Agentic Harness Dynamic DAG V2 asynchronously for a product/runtime workload. Persistent HTTP Main Orchestrator calls SHOULD use requestSource=current-user-message and omit request for self-contained human delivery turns, avoiding long request duplication inside tool JSON. The outer Runtime qualification procedure itself is not a workload: requests that try to execute SOURCE/R-* or H-* qualification gates/runbooks inside the DAG are rejected fail-closed before engine.plan with agent_runtime_qualification_meta_run_forbidden. With a durable continuation, the OpenCode server/session target is session-exclusive: if that same target already owns a non-terminal Runtime V2 run, agent_start returns the existing authoritative run with deduplicated=true instead of creating a competing DAG. Terminal Runtime V2 events resume the same session without LLM polling. PostgreSQL owns identity/deduplication and the Rust continuation worker delivers through OpenCode prompt_async. agent_wait remains an observation fallback.",
       inputSchema: {
-        request: z.string().min(1).describe("Complete implementation request to execute through the SDD multi-agent DAG"),
+        request: z.string().min(1).optional().describe("Explicit implementation request. For persistent HTTP Main Orchestrator delivery, prefer requestSource=current-user-message and omit this field so the original human message is materialized server-side without LLM reserialization"),
+        requestSource: z.literal("current-user-message").optional().describe("Use the provenance-bound current explicit human message as the authoritative Runtime request. Valid only for trusted HTTP Main Orchestrator ingress; omit request when this is set"),
         agents: z.array(z.string()).optional().describe("Optional explicit specialist hints; the Technical Lead remains authoritative for implementation ownership"),
         maxParallel: z.number().int().min(1).max(16).optional(),
         maxAttempts: z.number().int().min(1).max(9).optional(),
@@ -142,6 +172,9 @@ export function registerAgentRuntimeTools(
         sessionId: requestContext?.invocationSessionId ?? null,
         callId: requestContext?.invocationCallId ?? null,
         userMessageId: requestContext?.invocationUserMessageId ?? null,
+        userMessageSha256: requestContext?.invocationUserMessageSha256 ?? null,
+        userMessageBytes: requestContext?.invocationUserMessageBytes ?? null,
+        requestSource: args.requestSource ?? "explicit",
         provenanceSource: requestContext?.invocationProvenanceSource ?? "missing",
         historySource: requestContext?.invocationHistorySource ?? null,
         historyErrorCode: requestContext?.invocationHistoryErrorCode ?? null,
