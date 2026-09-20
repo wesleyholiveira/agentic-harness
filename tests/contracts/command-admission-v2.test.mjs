@@ -67,7 +67,7 @@ for(const [name,mutate,reason] of [
   assert.equal(result.status,'HOLD'); assert.ok(result.reasons.includes(reason));
 });
 for(const [name,grantChange,commandChange,reason] of [
-  ['command digest',{},c=>c.argv.push('--x'),'descriptor-digest-mismatch'],
+  ['command digest',{},c=>c.argv.push('--x'),'command-digest-mismatch'],
   ['runner digest',{runnerDigest:'sha256:'+'b'.repeat(64)},null,'runner-digest-mismatch'],
   ['scope',{allowedScopes:['container']},null,'scope-forbidden'],
   ['network',{allowedNetworkPolicies:['service-only']},null,'network-forbidden'],
