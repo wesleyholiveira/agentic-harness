@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-20T00:46:34Z",
+  "generatedAt": "2026-09-20T00:48:17Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 546,
-  "treeSha256": "sha256:5bd40779c38e51acfef989ed74334386e121bf91847988d62839a9000a5f5aa8",
+  "treeSha256": "sha256:b023c19e4864ee5e2a610ef2ce15dd5d14844fffa210152174aab8f9a3d6a02a",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -2399,8 +2399,8 @@
     },
     {
       "path": "tests/contracts/product-discovery-bootstrap-source-repair.test.mjs",
-      "bytes": 5731,
-      "sha256": "sha256:72ea7f8b2540514aed615efb0e09272296726141204bb561b9dcc6dde5dd6172"
+      "bytes": 5737,
+      "sha256": "sha256:d53f2e6269230cef0c83236df15e6eb96c347630d0f484a96ddd2b6ec83b0ffa"
     },
     {
       "bytes": 5494,
