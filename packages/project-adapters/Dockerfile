@@ -11,6 +11,7 @@ COPY --chown=node:node scripts/internal/source-manifest.mjs scripts/internal/sou
 COPY --chown=node:node tests/contracts/portable-contracts.test.mjs tests/contracts/portable-contracts.test.mjs
 COPY --chown=node:node tests/contracts/source-identity-v2.test.mjs tests/contracts/source-identity-v2.test.mjs
 COPY --chown=node:node tests/contracts/project-descriptor.test.mjs tests/contracts/project-descriptor.test.mjs
+COPY --chown=node:node tests/contracts/command-admission-v2.test.mjs tests/contracts/command-admission-v2.test.mjs
 USER node
 FROM toolchain AS test
-CMD ["sh", "-ec", "node --version; git --version; id; node --test tests/contracts/portable-contracts.test.mjs tests/contracts/source-identity-v2.test.mjs tests/contracts/project-descriptor.test.mjs"]
+CMD ["sh", "-ec", "node --version; git --version; id; node --test tests/contracts/portable-contracts.test.mjs tests/contracts/source-identity-v2.test.mjs tests/contracts/project-descriptor.test.mjs tests/contracts/command-admission-v2.test.mjs"]

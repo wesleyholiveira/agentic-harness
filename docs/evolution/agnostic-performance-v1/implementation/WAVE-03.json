@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "implementation-wave-report/v1",
+  "wave": "WAVE-03",
+  "branch": "fix/agent-start-current-user-message-authority-20260919",
+  "parent": "e64d25346b810f9dd5390f897a0ff2f29a1f933c",
+  "status": "implemented-slice-pending-execution",
+  "tasks": {
+    "T01": "execution-policy-contract-partial",
+    "T03": "docker-image-toolchain-probe-partial",
+    "T04": "command-authority-foundation-partial"
+  },
+  "operatorEvidence": {
+    "wave02Focused": {
+      "tests": 151,
+      "pass": 151,
+      "fail": 0,
+      "skip": 0,
+      "shellTail": "bash_syntax_error_after_tap",
+      "dockerIdentityInPastedLog": false
+    }
+  },
+  "newTests": {
+    "file": "tests/contracts/command-admission-v2.test.mjs",
+    "expectedAdditional": 22,
+    "executed": false
+  },
+  "notRun": [
+    "new WAVE-03 tests",
+    "Docker target with new tests",
+    "live Docker image toolchain probe",
+    "Windows",
+    "aggregate harness:test",
+    "Runtime qualification",
+    "consumer adoption"
+  ],
+  "boundaries": [
+    "policy structural match is not source trust",
+    "toolchain receipt is not behavior/release qualification",
+    "project CommandSpec is never executed by toolchain probe",
+    "active runtime validation strings are unchanged",
+    "DockerRunner declaration/materialization split remains pending"
+  ],
+  "preservation": {
+    "cacheMemoryWorkerRoutingTouched": false,
+    "mainChanged": false,
+    "consumerPinChanged": false,
+    "manifestRegenerated": false
+  }
+}
