@@ -20,6 +20,24 @@ function readOnlyGitEnvironment() {
   for (const key of Object.keys(env)) if (key.startsWith('GIT_')) delete env[key];
   return { ...env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null', GIT_NO_REPLACE_OBJECTS: '1', GIT_NO_LAZY_FETCH: '1', GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0' };
 }
+function canonicalRootKey(value) {
+  const canonical = realpathSync(resolve(value)).replace(/^\\\\\?\\/u, '').replaceAll('\\\\', '/');
+  return process.platform === 'win32' ? canonical.toLowerCase() : canonical;
+}
+function sameDirectoryIdentity(left, right) {
+  try {
+    const leftPath = realpathSync(resolve(left));
+    const rightPath = realpathSync(resolve(right));
+    const leftStat = lstatSync(leftPath, { bigint: true });
+    const rightStat = lstatSync(rightPath, { bigint: true });
+    if (!leftStat.isDirectory() || !rightStat.isDirectory()) return false;
+    const inodeAvailable = leftStat.dev !== 0n || leftStat.ino !== 0n || rightStat.dev !== 0n || rightStat.ino !== 0n;
+    if (inodeAvailable && leftStat.dev === rightStat.dev && leftStat.ino === rightStat.ino) return true;
+    return canonicalRootKey(leftPath) === canonicalRootKey(rightPath);
+  } catch {
+    return false;
+  }
+}
 function readTree(root, options) {
   const timeout = positive(options.timeoutMs, 30_000);
   const maxEntries = positive(options.maxEntries, 100_000);
@@ -37,7 +55,7 @@ function readTree(root, options) {
     } catch { fail(`source_git_command_failed:${args[0]}`); }
   }
   const toplevel = utf8(git(['rev-parse', '--show-toplevel'])).trim();
-  if (realpathSync(toplevel) !== directory) fail('source_git_root_mismatch');
+  if (!sameDirectoryIdentity(toplevel, directory)) fail('source_git_root_mismatch');
   const objectFormat = assertObjectFormat(utf8(git(['rev-parse', '--show-object-format'])).trim());
   const requested = options.commit ?? 'HEAD';
   if (requested !== 'HEAD') assertObjectId(requested, objectFormat);
