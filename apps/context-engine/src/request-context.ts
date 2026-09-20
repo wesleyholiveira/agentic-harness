@@ -14,6 +14,9 @@ export interface ContextEngineRequestContext {
   invocationSessionId: string | null;
   invocationCallId: string | null;
   invocationUserMessageId: string | null;
+  invocationUserMessageText: string | null;
+  invocationUserMessageSha256: string | null;
+  invocationUserMessageBytes: number | null;
   invocationProvenanceSource: "opencode-plugin-sidechannel" | "missing";
   invocationHistorySource: string | null;
   invocationHistoryErrorCode: string | null;
