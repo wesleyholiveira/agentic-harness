@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-20T00:49:52Z",
+  "generatedAt": "2026-09-20T00:51:28Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 546,
-  "treeSha256": "sha256:34a35f57d8b6f871693c62da4e0a58c0a7020f293dc9575a36508a27dd137021",
+  "treeSha256": "sha256:91c7571cdbf49f0c2f1235262e63f0c6d57a82424d8e22888cbc81b79a88be50",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -133,9 +133,9 @@
       "sha256": "sha256:006a94e35e79a7ef93a0a0e747d80e18def761b6c8aea402fec1184266b8ab09"
     },
     {
-      "bytes": 4719,
+      "bytes": 4736,
       "path": ".agents/agents/main-orchestrator/AGENT.md",
-      "sha256": "sha256:0392e1e0dc1ba464963e5faf13a165f2deda84961cb8be31ed5c548cc8976579"
+      "sha256": "sha256:6ddda2523feed8571237ba5a7836463ffd5fbb5ac1de3d4001dded64185b34cd"
     },
     {
       "bytes": 1228,
@@ -1429,8 +1429,8 @@
     },
     {
       "path": "docs/adr/0041-product-discovery-bootstrap-assessment-repair.md",
-      "bytes": 2659,
-      "sha256": "sha256:ba990e0449eebc175ad52bbf1075d4767e6742684723449c8488419be4be774c"
+      "bytes": 2664,
+      "sha256": "sha256:7aa297d67e4084f26b8d81669064affb029ba191d26a9df2280817b4b3a326d6"
     },
     {
       "bytes": 2250,
@@ -1514,8 +1514,8 @@
     },
     {
       "path": "docs/plans/2026-09-19-product-discovery-bootstrap-source-repair.md",
-      "bytes": 1514,
-      "sha256": "sha256:049f2be62a6af8f73d738480a4ea69997b11b2ceb001cdae1ab4c1b6d6377c43"
+      "bytes": 1505,
+      "sha256": "sha256:2092317a5ef1b6e6588698aa8a76a699a5cd1829bd3ebb7c78c8ebb520e0900c"
     },
     {
       "bytes": 6803,
