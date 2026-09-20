@@ -54,7 +54,7 @@ function normalizeRepositoryEvidencePath(value) {
     .replace(/#.*$/, '');
 }
 
-function authorizedRepositoryEvidencePaths({ contextPacket = null } = {}) {
+export function authorizedRepositoryEvidencePaths({ contextPacket = null } = {}) {
   const paths = new Set();
   for (const reference of contextPacket?.references ?? []) {
     if (reference?.included === false || !reference?.path) continue;
@@ -64,6 +64,15 @@ function authorizedRepositoryEvidencePaths({ contextPacket = null } = {}) {
   return paths;
 }
 
+function repositorySourcePaths(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw || raw.includes('#')) return [];
+  return [...new Set(raw
+    .split(/[;\n]+/u)
+    .map((entry) => normalizeRepositoryEvidencePath(entry.replace(/^[`"'\s]+|[`"'\s]+$/gu, '')))
+    .filter(Boolean))];
+}
+
 function canonicalizeAuthorizedRepositorySources(assessment, catalog, authorizedPaths) {
   const next = clone(assessment);
   let changed = false;
@@ -71,8 +80,8 @@ function canonicalizeAuthorizedRepositorySources(assessment, catalog, authorized
     if (requirement?.resolution !== 'authoritative-context') continue;
     const source = String(requirement.source ?? '').trim();
     if (catalog.authoritativeSources.has(source)) continue;
-    const repositoryPath = normalizeRepositoryEvidencePath(source);
-    if (!repositoryPath || !authorizedPaths.has(repositoryPath)) continue;
+    const repositoryPaths = repositorySourcePaths(source);
+    if (repositoryPaths.length === 0 || !repositoryPaths.every((path) => authorizedPaths.has(path))) continue;
     requirement.source = 'repository-context';
     changed = true;
   }
@@ -258,7 +267,10 @@ Rules:
 - requiredCapabilities contains only review capabilities genuinely needed by this scoped increment.
 - Every consumerCapabilityId and every review providerCapabilityId named by factRequirements MUST also appear in requiredCapabilities. The Runtime will deterministically reconcile this redundant envelope, but the projection should emit it correctly on the first pass.
 - factRequirements must be explicit, including [] when safe fan-out is proven.
-- An authoritative-context fact source MUST be exactly one label from supplied authoritativeFactSources. Repository filenames/anchors belong in evidence, never in source. The Runtime may canonicalize a repository filename to repository-context only when that exact file is already an authorized Context Packet reference.
+- An authoritative-context fact source MUST be exactly one label from supplied authoritativeFactSources. Concrete repository paths/anchors belong ONLY in evidence, never in source.
+- Example: source="repository-context", evidence="modernization/03-CONTRACTS.md#1 ..." is valid when that evidence is actually present; source="modernization/03-CONTRACTS.md#1" is invalid.
+- NEVER invent a heading/section anchor. If sourceHandoff mentions an anchor that is absent from contextEvidence, do not copy it as evidence.
+- The Runtime may deterministically canonicalize one-or-more semicolon/newline-separated repository paths to repository-context only when every path is already an authorized Context Packet reference. Anchored source values deliberately require this bounded projection instead of deterministic canonicalization.
 - An authoritative-context fact may use only the supplied authoritativeFactSources and must cite concrete evidence already present in sourceHandoff/contextEvidence.
 - A review-provided fact must identify exactly one providerCapabilityId that advertises that fact.
 - Never create an edge merely because two reviews are both selected.
