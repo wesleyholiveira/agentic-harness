@@ -13,3 +13,5 @@
 
 - Consumer-scoped Compose identity: Docker containers, networks and named volumes are namespaced by a deterministic hash of the canonical consuming-project root; only `AGENT_HARNESS_COMPOSE_PROJECT_NAME` may explicitly override it.
 - R-10 continuation outage proof: an unavailable OpenCode endpoint is proven before prompt dispatch by `attempts=0`, no `dispatch_started_at`, a recognized transport error, published wake outbox identity and deferred Runtime inbox; `attempts` is prompt-dispatch authority, not inbox-consumption count.
+
+- Agent-start current-user-message authority: persistent HTTP Main Orchestrator delivery may set `requestSource=current-user-message`; the OpenCode provenance sidechannel transports the bounded current explicit human message plus SHA-256/byte count, Context Engine verifies it, and Runtime materializes `request` server-side. Long human prompts are never required to be regenerated inside model-authored tool JSON; untrusted/non-human use fails closed.
