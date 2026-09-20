@@ -15,6 +15,9 @@ export interface InvocationProvenanceRegistration {
   sessionId: string | null;
   callId: string | null;
   userMessageId: string | null;
+  userMessageText?: string | null;
+  userMessageSha256?: string | null;
+  userMessageBytes?: number | null;
   pluginSourceSha256?: string | null;
   historySource?: string | null;
   historyErrorCode?: string | null;
