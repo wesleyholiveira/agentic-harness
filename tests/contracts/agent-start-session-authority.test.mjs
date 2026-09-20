@@ -18,9 +18,13 @@ test("agent_start canonicalizes continuation session from trusted plugin-sidecha
 test("agent_start session canonicalization preserves explicit continuation intent boundary", () => {
   const source = readFileSync(resolve(root, "apps/context-engine/src/tools/agent-runtime.ts"), "utf8");
 
-  assert.match(source, /if \(!args\?\.continuation\) return args;/u);
-  assert.match(source, /if \(requestContext\?\.transport !== "http"\) return args;/u);
-  assert.match(source, /if \(requestContext\.agentId\?\.trim\(\) !== "main-orchestrator"\) return args;/u);
+  assert.match(source, /function isTrustedMainOrchestratorIngress\(requestContext: RuntimeIngressContext\): boolean/u);
+  assert.match(source, /requestContext\?\.transport === "http"/u);
+  assert.match(source, /requestContext\.agentId\?\.trim\(\) === "main-orchestrator"/u);
+  assert.match(source, /requestContext\.invocationProvenanceSource === "opencode-plugin-sidechannel"/u);
+  assert.match(source, /if \(next\?\.continuation && trustedIngress\)/u);
+  assert.match(source, /return changed \? next : args;/u);
+  assert.doesNotMatch(source, /continuation:\s*\{\s*sessionId:\s*trustedSessionId\s*\}\s*[,}]/u);
 });
 
 
