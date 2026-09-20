@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-20T00:51:28Z",
+  "generatedAt": "2026-09-20T01:44:00Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -1138,8 +1138,8 @@
       "sha256": "sha256:a79c3f52246188bb051a1e2f6c472f546a4d02de53ee9652756bd4adb1acebad"
     },
     {
-      "path": "apps/context-engine/test/invocation-provenance.test.ts",
       "bytes": 1496,
+      "path": "apps/context-engine/test/invocation-provenance.test.ts",
       "sha256": "sha256:bebbafb06be7ba5d95f5587436720a0b1c7b39b8165900de9bbd55a3f266249d"
     },
     {
@@ -1423,13 +1423,13 @@
       "sha256": "sha256:9a3a7c69bfe0c92c13af5013dccb1586070117403540cafb794f08c7446d4a82"
     },
     {
-      "path": "docs/adr/0040-agent-start-current-user-message-authority.md",
       "bytes": 2785,
+      "path": "docs/adr/0040-agent-start-current-user-message-authority.md",
       "sha256": "sha256:b6ac81fd3aa02a81cea4a57f186f374e33329d1c4057a2951e29e50460f7e481"
     },
     {
-      "path": "docs/adr/0041-product-discovery-bootstrap-assessment-repair.md",
       "bytes": 2664,
+      "path": "docs/adr/0041-product-discovery-bootstrap-assessment-repair.md",
       "sha256": "sha256:7aa297d67e4084f26b8d81669064affb029ba191d26a9df2280817b4b3a326d6"
     },
     {
@@ -1508,13 +1508,13 @@
       "sha256": "sha256:f075c1111223c7026cb53481099d0e9e21d843bb165e81b6801dd36cbd7fda90"
     },
     {
-      "path": "docs/plans/2026-09-19-agent-start-current-user-message-authority.md",
       "bytes": 1653,
+      "path": "docs/plans/2026-09-19-agent-start-current-user-message-authority.md",
       "sha256": "sha256:ff03d1b3ae8b6e907719a9a5ec3126d84abb166bd0a759529979a8439234e879"
     },
     {
-      "path": "docs/plans/2026-09-19-product-discovery-bootstrap-source-repair.md",
       "bytes": 1505,
+      "path": "docs/plans/2026-09-19-product-discovery-bootstrap-source-repair.md",
       "sha256": "sha256:2092317a5ef1b6e6588698aa8a76a699a5cd1829bd3ebb7c78c8ebb520e0900c"
     },
     {
@@ -2338,8 +2338,8 @@
       "sha256": "sha256:341037612cbdaa7dd8bbcde1f9a8dc6f4a9008ac6f6468ff4931b2795586d5a5"
     },
     {
-      "path": "tests/contracts/agent-start-current-user-message-authority.test.mjs",
       "bytes": 1957,
+      "path": "tests/contracts/agent-start-current-user-message-authority.test.mjs",
       "sha256": "sha256:bd08d2747b1f7e190e203692621e758ffac57b69bf55831ac8a7ee3ed80bb62d"
     },
     {
@@ -2398,8 +2398,8 @@
       "sha256": "sha256:5449ee0dc184e77f61f0e37dac3aabed9683c550a4119c97478290f54a75fd3f"
     },
     {
-      "path": "tests/contracts/product-discovery-bootstrap-source-repair.test.mjs",
       "bytes": 5737,
+      "path": "tests/contracts/product-discovery-bootstrap-source-repair.test.mjs",
       "sha256": "sha256:d53f2e6269230cef0c83236df15e6eb96c347630d0f484a96ddd2b6ec83b0ffa"
     },
     {
