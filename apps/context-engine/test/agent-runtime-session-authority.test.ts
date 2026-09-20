@@ -69,6 +69,67 @@ describe("agent_start continuation session authority", () => {
     })).toBe(args);
   });
 
+  it("materializes the current explicit human request from trusted sidechannel authority", () => {
+    const args = {
+      requestSource: "current-user-message" as const,
+      continuation: {
+        sessionId: "ses_model_copy_with_typo",
+        directory: "/workspace/repository",
+      },
+    };
+
+    const result = authoritativeAgentStartArgs(args, {
+      transport: "http",
+      agentId: "main-orchestrator",
+      invocationOrigin: "explicit-human-turn",
+      invocationProvenanceSource: "opencode-plugin-sidechannel",
+      invocationSessionId: "ses_authoritative_current_session",
+      invocationUserMessageId: "msg_authoritative",
+      invocationUserMessageText: "Implement the full committed modernization package.\n".repeat(4_000),
+      invocationUserMessageSha256: "sha256:fixture",
+      invocationUserMessageBytes: 200_000,
+    });
+
+    expect(result.request).toContain("Implement the full committed modernization package.");
+    expect(result.requestSource).toBeUndefined();
+    expect(result.continuation?.sessionId).toBe("ses_authoritative_current_session");
+    expect(args).not.toHaveProperty("request");
+  });
+
+  it("fails closed for untrusted/non-human current-message sourcing and inline conflicts", () => {
+    const args = {
+      requestSource: "current-user-message" as const,
+      continuation: { sessionId: "ses_target" },
+    };
+
+    expect(() => authoritativeAgentStartArgs(args, {
+      transport: "http",
+      agentId: "main-orchestrator",
+      invocationOrigin: "durable-continuation",
+      invocationProvenanceSource: "opencode-plugin-sidechannel",
+      invocationSessionId: "ses_target",
+      invocationUserMessageText: "Runtime continuation event.",
+    })).toThrow("agent_start_current_user_message_provenance_required");
+
+    expect(() => authoritativeAgentStartArgs({ ...args, request: "model copy" }, {
+      transport: "http",
+      agentId: "main-orchestrator",
+      invocationOrigin: "explicit-human-turn",
+      invocationProvenanceSource: "opencode-plugin-sidechannel",
+      invocationSessionId: "ses_target",
+      invocationUserMessageText: "human authority",
+    })).toThrow("agent_start_request_source_conflict");
+
+    expect(() => authoritativeAgentStartArgs(args, {
+      transport: "http",
+      agentId: "main-orchestrator",
+      invocationOrigin: "explicit-human-turn",
+      invocationProvenanceSource: "opencode-plugin-sidechannel",
+      invocationSessionId: "ses_target",
+      invocationUserMessageText: null,
+    })).toThrow("agent_start_current_user_message_text_missing");
+  });
+
   it("does not synthesize continuation intent when continuation is absent", () => {
     const args = { request: "No continuation operator flow." };
 
