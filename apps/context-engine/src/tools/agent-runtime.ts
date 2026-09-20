@@ -87,7 +87,7 @@ export function authoritativeAgentStartArgs(
     if (typeof args.request === "string" && args.request.trim()) {
       throw new Error("agent_start_request_source_conflict");
     }
-    const trustedRequest = String(requestContext.invocationUserMessageText ?? "").trim();
+    const trustedRequest = String(requestContext?.invocationUserMessageText ?? "").trim();
     if (!trustedRequest) throw new Error("agent_start_current_user_message_text_missing");
     const { requestSource: _requestSource, ...rest } = next;
     next = { ...rest, request: trustedRequest };
