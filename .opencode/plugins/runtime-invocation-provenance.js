@@ -20,6 +20,7 @@ function runtimeInvocationProvenanceUrl(environment = process.env) {
 const DEFAULT_PROVENANCE_URL = runtimeInvocationProvenanceUrl();
 const PARK_TRIGGER = "session-resume-event";
 const HOST_REQUEST_TIMEOUT_MS = 5_000;
+const MAX_AGENT_START_USER_MESSAGE_BYTES = 1024 * 1024;
 const GRACEFUL_PARK_SENTINEL = "PARKED_FOR_H9R_CONTINUATION";
 const LIVE_IDENTITY_SCHEMA = "runtime-invocation-provenance-live/v1";
 const LIVE_IDENTITY_RELATIVE_PATH = ".runtime/agents/runtime-invocation-provenance-live.json";
@@ -100,6 +101,21 @@ function messageText(message) {
 
 function messageId(message) {
   return String(message?.info?.id ?? "").trim() || null;
+}
+
+function agentStartUserMessageAuthority(toolName, message) {
+  if (toolName !== "agent_start" || !message) return {};
+  const userMessageText = messageText(message);
+  if (!userMessageText) throw new Error("runtime_invocation_user_message_text_missing");
+  const userMessageBytes = Buffer.byteLength(userMessageText, "utf8");
+  if (userMessageBytes > MAX_AGENT_START_USER_MESSAGE_BYTES) {
+    throw new Error(`runtime_invocation_user_message_too_large:${userMessageBytes}:${MAX_AGENT_START_USER_MESSAGE_BYTES}`);
+  }
+  return {
+    userMessageText,
+    userMessageBytes,
+    userMessageSha256: `sha256:${createHash("sha256").update(userMessageText, "utf8").digest("hex")}`,
+  };
 }
 
 function isProgressMessage(message) {
@@ -383,7 +399,8 @@ function parkedToolError(toolName, parked) {
   return new Error(`agent_runtime_main_orchestrator_graceful_park_tool_denied:${String(toolName ?? "tool")}:${runId}:${GRACEFUL_PARK_SENTINEL}`);
 }
 
-async function registerProvenance({ sessionID, callID, toolName, args, origin, userMessageId, historySource, historyErrorCode, fetchImpl = globalThis.fetch }) {
+async function registerProvenance({ sessionID, callID, toolName, args, origin, userMessageId, userMessage, historySource, historyErrorCode, fetchImpl = globalThis.fetch }) {
+  const userMessageAuthority = agentStartUserMessageAuthority(toolName, userMessage);
   const body = {
     agentId: "main-orchestrator",
     toolName,
@@ -393,6 +410,7 @@ async function registerProvenance({ sessionID, callID, toolName, args, origin, u
     sessionId: sessionID,
     callId: callID,
     userMessageId,
+    ...userMessageAuthority,
     pluginId: PLUGIN_ID,
     pluginSourceSha256: PLUGIN_SOURCE_SHA256,
     historySource: historySource ?? null,
@@ -516,6 +534,7 @@ export const RuntimeInvocationProvenance = async ({ serverUrl, directory, client
           args: output?.args ?? {},
           origin,
           userMessageId: currentUserMessageId,
+          userMessage: currentUserMessage,
           historySource: history.source,
           historyErrorCode: history.errorCode,
         });
