@@ -8,14 +8,14 @@ export function projectRoot(root) {
   try { const absolute = realpathSync(resolve(root)); if (!lstatSync(absolute).isDirectory()) fail('project_root_invalid'); return absolute; }
   catch { fail('project_root_invalid'); }
 }
-export function checkedPath(root, path, { missing = false } = {}) {
+export function checkedPath(root, path, { missing = false, lstat = lstatSync } = {}) {
   assertProjectPath(path, { root: true });
   let current = root;
   const parts = path === '.' ? [] : path.split('/');
   for (const [index, part] of parts.entries()) {
     current = join(current, part);
     let stat;
-    try { stat = lstatSync(current); } catch (error) { if (missing && error.code === 'ENOENT') return null; fail('project_path_unreadable'); }
+    try { stat = lstat(current); } catch (error) { if (missing && error.code === 'ENOENT') return null; fail('project_path_unreadable'); }
     if (stat.isSymbolicLink()) fail('project_path_symlink');
     if (index < parts.length - 1 && !stat.isDirectory()) fail('project_path_not_directory');
   }
