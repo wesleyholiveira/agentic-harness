@@ -51,6 +51,14 @@ function isProductAuthorityArtifact(artifact) {
   return artifactStage(artifact) === "product-discovery";
 }
 
+function isImplementationPlanAuthorityArtifact(artifact) {
+  // Technical Refinement exclusively owns the implementation-plan revision.
+  // Implementation/verification handoffs may legitimately carry a projected or
+  // stale implementationPlan object as evidence. Payload shape must never let
+  // those downstream artifacts redefine the semantic revision under review.
+  return artifactStage(artifact) === "technical-refinement";
+}
+
 export function authoritativeReviewRevisionFromContext({ stage, contextPacket }) {
   if (!isSddReviewStage(stage)) return 1;
   const artifacts = contextPacket?.upstreamArtifacts ?? [];
@@ -74,8 +82,9 @@ export function authoritativeReviewRevisionFromContext({ stage, contextPacket })
     return productRevision ?? 1;
   }
 
+  const implementationPlanArtifacts = artifacts.filter(isImplementationPlanAuthorityArtifact);
   const implementationPlanRevision = uniqueRevision(
-    artifacts.map((artifact) => artifact?.content?.implementationPlan?.revision),
+    implementationPlanArtifacts.map((artifact) => artifact?.content?.implementationPlan?.revision),
     "implementation-plan",
   );
   // Review revisions are scoped to the authority they attest. Bootstrap reviews
