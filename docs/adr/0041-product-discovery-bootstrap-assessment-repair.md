@@ -4,7 +4,7 @@ Status: Accepted
 
 ## Context
 
-A real Clip Compass Runtime V2 run reached Product Discovery with healthy execution infrastructure but failed all three Product Owner attempts on the same bootstrap-facts/v1 envelope mistake. The model populated `factRequirements[*].source` with repository locators such as semicolon-separated file paths and Markdown anchors. The contract requires `source` to be one semantic authority label while concrete repository references belong in `evidence`.
+A real consuming-project Runtime V2 run reached Product Discovery with healthy execution infrastructure but failed all three Product Owner attempts on the same bootstrap-facts/v1 envelope mistake. The model populated `factRequirements[*].source` with repository locators such as semicolon-separated file paths and Markdown anchors. The contract requires `source` to be one semantic authority label while concrete repository references belong in `evidence`.
 
 The harness already contained `projectMissingProductDiscoveryBootstrapAssessment()`, including a narrowed projection schema whose source field is the authoritative-source enum, but the executor did not invoke that bounded repair before the generic Handoff schema/completion gates. Consequently a mechanically repairable envelope error consumed full Product Owner retries and prevented Technical Refinement from dispatching.
 
