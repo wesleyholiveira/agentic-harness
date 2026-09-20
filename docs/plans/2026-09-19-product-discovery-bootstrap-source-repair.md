@@ -30,4 +30,4 @@ node scripts/internal/source-manifest.mjs --check
 npm run harness:qualify
 ```
 
-A fresh Runtime run against the Clip Compass modernization request is required after promotion to prove Product Discovery no longer exhausts retries on this envelope class.
+A fresh Runtime run against the consuming project request is required after promotion to prove Product Discovery no longer exhausts retries on this envelope class.
