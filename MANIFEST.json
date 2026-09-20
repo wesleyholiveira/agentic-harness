@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-19T23:07:17Z",
+  "generatedAt": "2026-09-20T00:37:46Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 539,
-  "treeSha256": "sha256:d29b2d81641143cd8c611bce444ea8fb0dc559009d05c5479238a9b664365ff9",
+  "fileCount": 543,
+  "treeSha256": "sha256:f4788ba27d9fb7114a7fe2dc1d8ca9c3df8793b311475ca6fba5f73df4a7d5d3",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -133,9 +133,9 @@
       "sha256": "sha256:006a94e35e79a7ef93a0a0e747d80e18def761b6c8aea402fec1184266b8ab09"
     },
     {
-      "bytes": 4268,
+      "bytes": 4719,
       "path": ".agents/agents/main-orchestrator/AGENT.md",
-      "sha256": "sha256:21f0158e2645ebff45d4ea5cb54381d4c1580c4427346563f3aae786d991b09d"
+      "sha256": "sha256:0392e1e0dc1ba464963e5faf13a165f2deda84961cb8be31ed5c548cc8976579"
     },
     {
       "bytes": 1228,
@@ -933,9 +933,9 @@
       "sha256": "sha256:f4c652227c84363b1464293cc3c4f25cac7a308028c49a54eac97e66252b9fd0"
     },
     {
-      "bytes": 23265,
+      "bytes": 24174,
       "path": ".opencode/plugins/runtime-invocation-provenance.js",
-      "sha256": "sha256:0ee7e1a1f9c88660715678a36b271407ab338fe59eb23b2d6f0ec4082074a147"
+      "sha256": "sha256:ad59e144a4c3f083b567c9c1e5b0800671f3ea8bc304edd50014279358de001a"
     },
     {
       "bytes": 21828,
@@ -998,9 +998,9 @@
       "sha256": "sha256:cd8bb0759335e5f09c0e1e7cbe2233491b9b6fceb418bf467b8392dfcafd494d"
     },
     {
-      "bytes": 23910,
+      "bytes": 27115,
       "path": "apps/context-engine/src/http.ts",
-      "sha256": "sha256:1a5be20772e3006bc0c7c22152545e6e68ba163083a33e3e93bc20c925fa1d14"
+      "sha256": "sha256:f313d745b7c18e09090d2adb1bb3fd0c0f18eb5318a752a7766a43ca8af29a76"
     },
     {
       "bytes": 279,
@@ -1008,14 +1008,14 @@
       "sha256": "sha256:7f0ef638aa366e9498271828fced047d4dfcd47e1a117f63aa9b44f4b7fcb638"
     },
     {
-      "bytes": 3556,
+      "bytes": 3664,
       "path": "apps/context-engine/src/invocation-provenance.ts",
-      "sha256": "sha256:b716e07e8909f2cf505635fc59432a74a96f426b77bf2894edaf243c8224ea1b"
+      "sha256": "sha256:bf1cda7f500e86110adb3420fd32ef97699a471c1aeb8921218e4768657631d1"
     },
     {
-      "bytes": 1016,
+      "bytes": 1151,
       "path": "apps/context-engine/src/request-context.ts",
-      "sha256": "sha256:8d052834f33d63b22f08fb3b0a42502739037d81273881d205d9616b0c5f9de0"
+      "sha256": "sha256:f25749502d8b6e45c7cc737248e28d1f6bfb901afdb7b8930daf7f422d2af13f"
     },
     {
       "bytes": 13144,
@@ -1048,9 +1048,9 @@
       "sha256": "sha256:23ecb71d559298fdb217a898c28bd6667001c2fa4dc39010282ebbb148ee6292"
     },
     {
-      "bytes": 15700,
+      "bytes": 17671,
       "path": "apps/context-engine/src/tools/agent-runtime.ts",
-      "sha256": "sha256:ecfc14a9f768852a5d4e69e24ac56bd19b87214783fc19182db1070018efa7e4"
+      "sha256": "sha256:8349a676af3f90cda8b6a0ef8dbff0728ddd66fd5de29e8040dc5fc72951b724"
     },
     {
       "bytes": 798,
@@ -1123,9 +1123,9 @@
       "sha256": "sha256:624848828eac1eed5163e2f740421bd74daf80205f9e6b4dad0705b3a4ef33e9"
     },
     {
-      "bytes": 2676,
+      "bytes": 5235,
       "path": "apps/context-engine/test/agent-runtime-session-authority.test.ts",
-      "sha256": "sha256:2efb40d92a3a3bda634d4c6104b151870647e5c19c7c21b557389bd270d1b857"
+      "sha256": "sha256:7fe8fdbbc8a0d088df1a2c5b238185ef55ddd8d5a5e5139656dae1ae74a738e4"
     },
     {
       "bytes": 936,
@@ -1136,6 +1136,11 @@
       "bytes": 2103,
       "path": "apps/context-engine/test/efficiency.test.ts",
       "sha256": "sha256:a79c3f52246188bb051a1e2f6c472f546a4d02de53ee9652756bd4adb1acebad"
+    },
+    {
+      "path": "apps/context-engine/test/invocation-provenance.test.ts",
+      "bytes": 1496,
+      "sha256": "sha256:bebbafb06be7ba5d95f5587436720a0b1c7b39b8165900de9bbd55a3f266249d"
     },
     {
       "bytes": 3685,
@@ -1418,9 +1423,14 @@
       "sha256": "sha256:9a3a7c69bfe0c92c13af5013dccb1586070117403540cafb794f08c7446d4a82"
     },
     {
-      "bytes": 1462,
+      "path": "docs/adr/0040-agent-start-current-user-message-authority.md",
+      "bytes": 2785,
+      "sha256": "sha256:b6ac81fd3aa02a81cea4a57f186f374e33329d1c4057a2951e29e50460f7e481"
+    },
+    {
+      "bytes": 1916,
       "path": "docs/architecture/DECISIONS.md",
-      "sha256": "sha256:3c92fc56b736e3e8df788cf72e1d24651d5f1bdab7af0cfbc04af213e1eaeeda"
+      "sha256": "sha256:c984ccf17f9f942bc96e515cb6b724cc292399ab26488649e5db51f5fb452f41"
     },
     {
       "bytes": 6993,
@@ -1491,6 +1501,11 @@
       "bytes": 7748,
       "path": "docs/architecture/lineage/0137-terminal-continuation-delivery-vs-consumer-completion.md",
       "sha256": "sha256:f075c1111223c7026cb53481099d0e9e21d843bb165e81b6801dd36cbd7fda90"
+    },
+    {
+      "path": "docs/plans/2026-09-19-agent-start-current-user-message-authority.md",
+      "bytes": 1653,
+      "sha256": "sha256:ff03d1b3ae8b6e907719a9a5ec3126d84abb166bd0a759529979a8439234e879"
     },
     {
       "bytes": 6803,
@@ -2313,9 +2328,14 @@
       "sha256": "sha256:341037612cbdaa7dd8bbcde1f9a8dc6f4a9008ac6f6468ff4931b2795586d5a5"
     },
     {
-      "bytes": 1255,
+      "path": "tests/contracts/agent-start-current-user-message-authority.test.mjs",
+      "bytes": 1957,
+      "sha256": "sha256:bd08d2747b1f7e190e203692621e758ffac57b69bf55831ac8a7ee3ed80bb62d"
+    },
+    {
+      "bytes": 2289,
       "path": "tests/contracts/agent-start-session-authority.test.mjs",
-      "sha256": "sha256:cddb37e8cea0693713fa79301f403263fe29dcbb40f8df8299b072b7c51a615f"
+      "sha256": "sha256:1489f9079f41b5c8d01ecd8b18e1555be22dbfb95be6c7c5649c8bcde9a18002"
     },
     {
       "bytes": 2816,
