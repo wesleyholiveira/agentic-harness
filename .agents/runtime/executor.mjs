@@ -1082,11 +1082,6 @@ export async function executeTask({ repositoryRoot, runDirectory, plan, taskPlan
         });
         await writeJson(handoffPath, handoff);
       }
-      assertSchema(handoff, schemas.handoffResult, "handoffResult");
-      if (handoff.runId !== plan.runId || handoff.taskId !== taskPlan.taskId || handoff.agentId !== taskPlan.agentId) {
-        throw new Error("handoff_identity_mismatch");
-      }
-
       if (taskPlan.stage === "product-discovery" && handoff.status === "complete") {
         const bootstrapAssessmentRepair = await projectMissingProductDiscoveryBootstrapAssessment({
           workspace: workspace.path,
@@ -1099,10 +1094,6 @@ export async function executeTask({ repositoryRoot, runDirectory, plan, taskPlan
         });
         if (bootstrapAssessmentRepair.attempted || bootstrapAssessmentRepair.deterministicRepaired) {
           handoff = bootstrapAssessmentRepair.handoff;
-          assertSchema(handoff, schemas.handoffResult, "handoffResult");
-          if (handoff.runId !== plan.runId || handoff.taskId !== taskPlan.taskId || handoff.agentId !== taskPlan.agentId) {
-            throw new Error("handoff_identity_mismatch");
-          }
           await writeJson(handoffPath, handoff);
           await store.event(plan.runId, taskPlan.taskId, "product_discovery.bootstrap_assessment_repaired", {
             attemptedProjection: bootstrapAssessmentRepair.attempted === true,
@@ -1114,6 +1105,11 @@ export async function executeTask({ repositoryRoot, runDirectory, plan, taskPlan
               : "deterministic-bootstrap-assessment-reconciliation",
           });
         }
+      }
+
+      assertSchema(handoff, schemas.handoffResult, "handoffResult");
+      if (handoff.runId !== plan.runId || handoff.taskId !== taskPlan.taskId || handoff.agentId !== taskPlan.agentId) {
+        throw new Error("handoff_identity_mismatch");
       }
     } catch (error) {
       failure = classifyHandoffValidationError(error);
