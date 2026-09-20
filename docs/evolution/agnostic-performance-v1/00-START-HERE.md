@@ -1,6 +1,6 @@
 # Evolução agnóstica e econômica — pacote de implementação SDD/TDD
 
-Revisão documental: 2. Estado: PLANEJADO; implementação, aceites de execução e promoção PENDENTES.
+Revisão documental: 3 (amendment Docker sobre a revisão 2). Estado: PLANEJADO; implementação, aceites de execução e promoção PENDENTES.
 Branch exclusiva de trabalho: `fix/agent-start-current-user-message-authority-20260919`.
 Baseline do harness: `66c13d914ec038cfa7bf27cac8c13524a19196b6`.
 
@@ -26,3 +26,6 @@ Os SHAs acima identificam o código auditado, não o commit documental nem um fu
 
 ## Preservação obrigatória
 L1 RAM, L2 exact Redis, pool Redis compartilhado, semantic candidate cache, ProjectMemory PostgreSQL, raw/component/static artifact caches, ctxref/ctxpack, entrega compacta, otimização de budget, CBM, instrumentos de eficiência e recuperação determinística continuam no desenho. Uma troca interna só é aceita com teste de paridade e migração explícita. SQLite steady-state, uma segunda memória concorrente e semantic cache de aprovações/certificados ficam fora do escopo.
+
+## Tooling — leitura obrigatória R3
+`09-DOCKER-TOOLCHAIN-AUTHORITY.md` e `docker-toolchain-contract.json` complementam PRD/AP-D02/AP-D06/AP-D08, contratos, qualificação e TODOS os briefs aplicáveis. Para projetos em containers, toolchain é provado no runner Docker/Compose efetivo; host não o substitui. DTC-01–DTC-08 refinam os critérios AP existentes. Não ativam novas flags nem alegam teste Docker realizado. O snapshot funcional auditado e as pendências de manifest/promoção acima permanecem inalterados.
