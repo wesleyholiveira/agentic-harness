@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "implementation-wave-report/v1",
+  "status": "implemented-foundation-pending-target-validation",
+  "authorization": "user-message:2026-09-20T19:50:53Z",
+  "branch": "fix/agent-start-current-user-message-authority-20260919",
+  "baselineCommit": "3b05bcd0bab2689b602eed0a64c0666da2bdc08f",
+  "tasks": {
+    "T00": "remote-baseline-observed; target-host-inventory-pending",
+    "T01": "source-and-docker-contract-slices-implemented; remaining-contracts-pending",
+    "T02": "codec-batch-reader-generator-slice-implemented; migration-and-release-integration-pending",
+    "T03-T21": "not-completed-by-this-wave"
+  },
+  "tests": {
+    "command": "node --test tests/contracts/portable-contracts.test.mjs tests/contracts/source-identity-v2.test.mjs",
+    "environment": {
+      "kind": "sandbox",
+      "platform": "linux",
+      "node": "v22.16.0",
+      "git": "2.47.3",
+      "docker": false
+    },
+    "passed": 74,
+    "failed": 0,
+    "skipped": 0,
+    "redOriginalGenerator": {
+      "total": 6,
+      "passed": 1,
+      "failed": 5,
+      "originalGitBlob": "5e520d94275f736f578e709be9b640f8f1710808"
+    },
+    "dockerTarget": "NOT_RUN",
+    "windowsMatrix": "NOT_RUN",
+    "aggregateHarnessTest": "NOT_RUN",
+    "runtimeQualification": "NOT_RUN"
+  },
+  "preservation": {
+    "cacheMemoryRuntimeFilesModified": false,
+    "runtimeParityReexecuted": false
+  },
+  "distributionManifest": {
+    "regenerated": false,
+    "reason": "full byte-verified checkout not available; use official generator on target; no manual hash substitution"
+  },
+  "promotion": {
+    "mainChanged": false,
+    "consumerGitlinkChanged": false,
+    "certificateIssued": false
+  },
+  "sourceArtifacts": [
+    {
+      "path": "packages/harness-contracts/README.md",
+      "bytes": 1626,
+      "sha256": "sha256:9509db4449ea27db4888f9682f009b29c86734b7c6f01c99f98a37956cfbd69d",
+      "gitBlobSha1": "e311a6d60ae6359f00d184134eb88766be7990c1"
+    },
+    {
+      "path": "packages/harness-contracts/src/docker-runner.mjs",
+      "bytes": 7802,
+      "sha256": "sha256:51bf9c3eeb1bbcdc0979a1c0acdb310a72848fd37510c04e76beddda7de56311",
+      "gitBlobSha1": "c4912a109447b4275475d4620b9e20a7a28ba6a9"
+    },
+    {
+      "path": "packages/harness-contracts/src/source-identity.mjs",
+      "bytes": 3341,
+      "sha256": "sha256:c08900e3ae1a50b546820a9005d1dd6fe6ec3e785b42bfe3c3d956ac4fded7ac",
+      "gitBlobSha1": "791745b5f7d162461765139ec94857288def3dd0"
+    },
+    {
+      "path": "packages/source-identity/Dockerfile",
+      "bytes": 1092,
+      "sha256": "sha256:e344e3bacf6c7102a378e3a9c106113e24271c7493254bc9be25d5dad3b659e9",
+      "gitBlobSha1": "e088d4b851753b45ebcbc92588f0f07f447a7bee"
+    },
+    {
+      "path": "packages/source-identity/README.md",
+      "bytes": 4446,
+      "sha256": "sha256:9d0e828f35da2fb46fe0f95ee4133cca310df269e72ab4696761da10e4acfcad",
+      "gitBlobSha1": "09496dfa1f5d8895467a83315af3962232236562"
+    },
+    {
+      "path": "packages/source-identity/bin/verify.mjs",
+      "bytes": 1333,
+      "sha256": "sha256:e9e2dd72662105d0c45e0b00ea88416806d53eb6d3a8d649ba6e6e76d0737880",
+      "gitBlobSha1": "4cfde75463774cdcfedbbbd8af09aeaf7253e7cb"
+    },
+    {
+      "path": "packages/source-identity/src/codec.mjs",
+      "bytes": 6187,
+      "sha256": "sha256:9e67ee0daed44721be2abcc77e2460e6e48db6d0b863ad99a948e2aea719a73a",
+      "gitBlobSha1": "c5bd79f96ac34100ab63adc9517b81d48fea9508"
+    },
+    {
+      "path": "packages/source-identity/src/git-snapshot.mjs",
+      "bytes": 11471,
+      "sha256": "sha256:edd344dcdd5965614451a442cde32643642ef8229aee97284a15cabd19838743",
+      "gitBlobSha1": "04ec0352659c5651a404527c5be636d2e8d9ee3b"
+    },
+    {
+      "path": "scripts/internal/source-manifest.mjs",
+      "bytes": 8061,
+      "sha256": "sha256:e4c1f188397d9767f39424e0a5b31f70b11b898b86fc926de5d1f05c44b6b25d",
+      "gitBlobSha1": "c1e71a66ace2e3014196c8507d4dc3d39df3b8b3"
+    },
+    {
+      "path": "tests/contracts/portable-contracts.test.mjs",
+      "bytes": 6925,
+      "sha256": "sha256:bfe8b5d5779153041fbc6fc64a4922710c851870e1475cae521c9f09bda00f7d",
+      "gitBlobSha1": "465b711e5c2e70d7c57d79ed851ea8f4b18acce3"
+    },
+    {
+      "path": "tests/contracts/source-identity-v2.test.mjs",
+      "bytes": 20323,
+      "sha256": "sha256:2ce18fd38fd76b1296939d253ae0accb731122966452763c6c9ce097ba570ac1",
+      "gitBlobSha1": "540349ce9579e912e99ae1bbda852ac79db70b06"
+    }
+  ],
+  "evidenceFiles": [
+    {
+      "path": "evidence/red-original-generator.txt",
+      "bytes": 5593,
+      "sha256": "sha256:24a98a26469fcb8ad75a99dcced675c2b464a7ba485addf2daf40132a23d81d7"
+    },
+    {
+      "path": "evidence/red-hardening.txt",
+      "bytes": 14665,
+      "sha256": "sha256:339590379201a08e272cbe1bbf37b825475f38ee15bb9da472cddf94f87dd22f"
+    },
+    {
+      "path": "evidence/green-final.txt",
+      "bytes": 14244,
+      "sha256": "sha256:8ee160afdb3c96ddbcdf08be77c135fee1a5f595a1e049b2447838151635be12"
+    },
+    {
+      "path": "evidence/batch-benchmark.json",
+      "bytes": 1395,
+      "sha256": "sha256:5eea96038ec9c5471a96332cb2dbfa4d32bd757f785f4e57b3ce2759e02cbc83"
+    }
+  ]
+}

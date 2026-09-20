@@ -2,9 +2,11 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { readFile, lstat, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { canonicalLegacyFiles, legacyManifestTreeDigest } from "../../packages/source-identity/src/codec.mjs";
+import { LEGACY_MANIFEST_VERSION, assertRepositoryPath } from "../../packages/harness-contracts/src/source-identity.mjs";
 
 const root = resolve(process.env.AGENT_HARNESS_ROOT || resolve(dirname(fileURLToPath(import.meta.url)), "../.."));
 const manifestPath = resolve(root, "MANIFEST.json");
@@ -51,6 +53,14 @@ assertGitWorktree();
 const trackedPaths = gitPaths(["ls-files"]);
 const manifestTracked = trackedPaths.includes("MANIFEST.json");
 const sourcePaths = trackedPaths.filter((path) => path !== "MANIFEST.json");
+// v1 cannot represent symlinks/gitlinks/modes completely. Reject unsupported
+// index entries explicitly instead of dereferencing links or dropping folders.
+const sourceModes = new Map(git(["ls-files", "--stage", "-z"]).split("\0").filter(Boolean).map((record) => {
+  const tab = record.indexOf("\t");
+  const header = record.slice(0, tab).split(" ");
+  if (tab < 0 || header.length !== 3 || header[2] !== "0") throw new Error("agent_harness_source_index_invalid");
+  return [record.slice(tab + 1), header[0]];
+}));
 const untrackedNonIgnored = gitPaths(["ls-files", "--others", "--exclude-standard"]);
 const gitStatus = git(["status", "--porcelain=v1", "--untracked-files=all"]);
 const gitStatusClean = gitStatus.trim().length === 0;
@@ -58,14 +68,24 @@ const gitStatusClean = gitStatus.trim().length === 0;
 async function buildFiles() {
   const output = [];
   for (const path of sourcePaths) {
+    assertRepositoryPath(path);
+    if (!["100644", "100755"].includes(sourceModes.get(path))) throw new Error("agent_harness_source_entry_kind_unsupported");
+    // Check every ancestor before reading; a worktree directory symlink must not
+    // turn a tracked path into a read outside the repository.
+    let parent = root;
+    for (const segment of path.split("/").slice(0, -1)) {
+      parent = resolve(parent, segment);
+      const info = await lstat(parent);
+      if (!info.isDirectory() || info.isSymbolicLink()) throw new Error("agent_harness_source_entry_kind_unsupported");
+    }
     const absolute = resolve(root, path);
     if (!existsSync(absolute)) {
       const error = new Error(`Tracked source path is missing from the worktree: ${path}`);
       error.code = "agent_harness_tracked_source_missing";
       throw error;
     }
-    const info = await stat(absolute);
-    if (!info.isFile()) continue;
+    const info = await lstat(absolute);
+    if (!info.isFile() || info.isSymbolicLink()) throw new Error("agent_harness_source_entry_kind_unsupported");
     const bytes = await readFile(absolute);
     output.push({ bytes: bytes.byteLength, path, sha256: digest(bytes) });
   }
@@ -73,12 +93,20 @@ async function buildFiles() {
 }
 
 const files = await buildFiles();
-const canonicalFiles = files.map(({ bytes, path, sha256 }) => ({ bytes, path, sha256 }));
-const treeSha256 = digest(Buffer.from(JSON.stringify(canonicalFiles), "utf8"));
+const canonicalFiles = canonicalLegacyFiles(files);
+const treeSha256 = legacyManifestTreeDigest(canonicalFiles);
 
 let previous = {};
 if (existsSync(manifestPath)) {
+  const info = await lstat(manifestPath);
+  if (!info.isFile() || info.isSymbolicLink()
+      || (sourceModes.has("MANIFEST.json") && !["100644", "100755"].includes(sourceModes.get("MANIFEST.json")))) {
+    throw new Error("agent_harness_source_entry_kind_unsupported");
+  }
   previous = JSON.parse(await readFile(manifestPath, "utf8"));
+}
+if (previous.schemaVersion && previous.schemaVersion !== LEGACY_MANIFEST_VERSION) {
+  throw new Error("source_manifest_version_unsupported");
 }
 const manifest = {
   ...previous,
@@ -120,8 +148,8 @@ if (mode === "check") {
     process.exit(2);
   }
   const current = JSON.parse(await readFile(manifestPath, "utf8"));
-  const currentFiles = Array.isArray(current.files) ? current.files.map(({ bytes, path, sha256 }) => ({ bytes, path, sha256 })) : [];
-  const sourceMatches = current.treeSha256 === treeSha256 && JSON.stringify(currentFiles) === JSON.stringify(canonicalFiles);
+  const currentFiles = Array.isArray(current.files) ? canonicalLegacyFiles(current.files) : [];
+  const sourceMatches = current.fileCount === currentFiles.length && current.treeSha256 === treeSha256 && JSON.stringify(currentFiles) === JSON.stringify(canonicalFiles);
   const authorityMatches = current.sourceAuthority === "git-tracked-worktree";
   const parityOk = manifestTracked && untrackedNonIgnored.length === 0;
   const ok = sourceMatches && authorityMatches && parityOk && gitStatusClean;
