@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "target-host-red-evidence/v1",
+  "wave": "WAVE-03",
+  "environment": "Windows target host",
+  "status": "RED_FIXED_PENDING_RERUN",
+  "sourceLogSummary": {
+    "commandAdmissionOracle": 1,
+    "javaParser": 1,
+    "symlinkPrivilegeTests": 3,
+    "sourceRootIdentityCascade": "multiple tests blocked by one root canonicalization failure"
+  },
+  "corrections": [
+    "command-digest-mismatch test oracle",
+    "Java version banner parser",
+    "deterministic lstat seam for symlink policy tests",
+    "physical/canonical Windows Git root comparison"
+  ],
+  "skipsAdded": 0,
+  "greenAfterFix": "NOT_RUN",
+  "dockerAfterFix": "NOT_RUN",
+  "aggregateHarnessTest": "NOT_RUN",
+  "runtimeQualification": "NOT_RUN"
+}
