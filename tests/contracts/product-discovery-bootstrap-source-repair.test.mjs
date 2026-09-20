@@ -126,7 +126,7 @@ test("invalid anchored source is repaired by bounded projection using the closed
 
   assert.equal(result.attempted, true);
   assert.equal(result.handoff.bootstrapReviewAssessment.factRequirements[0].source, "repository-context");
-  assert.match(observedPrompt, /Repository paths\/anchors belong ONLY in evidence/u);
+  assert.match(observedPrompt, /paths\/anchors belong ONLY in evidence, never in source/u);
   assert.match(observedPrompt, /NEVER invent a heading\/section anchor/u);
 });
 
