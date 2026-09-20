@@ -537,8 +537,13 @@
                 ]
               },
               "source": {
-                "type": "string",
-                "minLength": 1
+                "enum": [
+                  "product-discovery",
+                  "frozen-adr",
+                  "project-memory",
+                  "repository-context"
+                ],
+                "description": "Authoritative source category only. Repository paths, filenames, headings, anchors, and excerpts belong in evidence."
               },
               "evidence": {
                 "type": "string",
