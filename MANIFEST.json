@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-20T00:37:46Z",
+  "generatedAt": "2026-09-20T00:46:34Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 543,
-  "treeSha256": "sha256:f4788ba27d9fb7114a7fe2dc1d8ca9c3df8793b311475ca6fba5f73df4a7d5d3",
+  "fileCount": 546,
+  "treeSha256": "sha256:5bd40779c38e51acfef989ed74334386e121bf91847988d62839a9000a5f5aa8",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -153,9 +153,9 @@
       "sha256": "sha256:f68cd3c774dc3099a481be27d68ea010af59a967b857b71b2f2951c3b50fde50"
     },
     {
-      "bytes": 1033,
+      "bytes": 1414,
       "path": ".agents/agents/product-owner/AGENT.md",
-      "sha256": "sha256:7e0e0666721856502c91e3b9792e260f51186bab1dc78fc4314c489d670dcb1a"
+      "sha256": "sha256:df2d0cc77174f96c0f46986bedf580adb2777a291551d49da8e3d04efd34222a"
     },
     {
       "bytes": 1015,
@@ -383,9 +383,9 @@
       "sha256": "sha256:1aef37497980a95b2d5c840fd78005118afa816a7381c9e83e3fe0312604ec6c"
     },
     {
-      "bytes": 77198,
+      "bytes": 78569,
       "path": ".agents/runtime/executor.mjs",
-      "sha256": "sha256:7905b521306802aeb84e09d858a36dd4f99aa27c3d5618c4b6ed08886047d2b7"
+      "sha256": "sha256:9de7c49b7773e412f17497230218b13275503b0b254ff92baa94277ee22c7b96"
     },
     {
       "bytes": 4285,
@@ -533,9 +533,9 @@
       "sha256": "sha256:703da657498f1ff003feb3f0ad5d7aa2ebfdb9a11ce6a2b521bee8523f9a163a"
     },
     {
-      "bytes": 16391,
+      "bytes": 17224,
       "path": ".agents/runtime/product-discovery-bootstrap-assessment.mjs",
-      "sha256": "sha256:4c78db5ab2fa820607b984537ba468836f9973df4f9d66b245ef209d5d279c35"
+      "sha256": "sha256:684ff896a03686b653aa5e8a0bc44bd70df53c9b020582020c9566b2eb418d41"
     },
     {
       "bytes": 7863,
@@ -703,9 +703,9 @@
       "sha256": "sha256:e3b3ba94c00aec3eac1a8bc417e6cfb318833531f57c2023cb3051a5c95ed85f"
     },
     {
-      "bytes": 13063,
+      "bytes": 13339,
       "path": ".agents/schemas/handoff-result.schema.json",
-      "sha256": "sha256:c96401144567e2b834887384276f53a74680ee8ac7e54daa787348d4af3d3fee"
+      "sha256": "sha256:29044bc8ecbae15716ff41d2853e7278470ad952638a151b03b0adcae9257c8f"
     },
     {
       "bytes": 4660,
@@ -1428,9 +1428,14 @@
       "sha256": "sha256:b6ac81fd3aa02a81cea4a57f186f374e33329d1c4057a2951e29e50460f7e481"
     },
     {
-      "bytes": 1916,
+      "path": "docs/adr/0041-product-discovery-bootstrap-assessment-repair.md",
+      "bytes": 2659,
+      "sha256": "sha256:ba990e0449eebc175ad52bbf1075d4767e6742684723449c8488419be4be774c"
+    },
+    {
+      "bytes": 2250,
       "path": "docs/architecture/DECISIONS.md",
-      "sha256": "sha256:c984ccf17f9f942bc96e515cb6b724cc292399ab26488649e5db51f5fb452f41"
+      "sha256": "sha256:46a3f775ba683fb27d1dfafbb6f6c879ad6d753f0bdab10cac0ca14829b5971f"
     },
     {
       "bytes": 6993,
@@ -1506,6 +1511,11 @@
       "path": "docs/plans/2026-09-19-agent-start-current-user-message-authority.md",
       "bytes": 1653,
       "sha256": "sha256:ff03d1b3ae8b6e907719a9a5ec3126d84abb166bd0a759529979a8439234e879"
+    },
+    {
+      "path": "docs/plans/2026-09-19-product-discovery-bootstrap-source-repair.md",
+      "bytes": 1514,
+      "sha256": "sha256:049f2be62a6af8f73d738480a4ea69997b11b2ceb001cdae1ab4c1b6d6377c43"
     },
     {
       "bytes": 6803,
@@ -2386,6 +2396,11 @@
       "bytes": 3791,
       "path": "tests/contracts/post-run-authority-regressions.test.mjs",
       "sha256": "sha256:5449ee0dc184e77f61f0e37dac3aabed9683c550a4119c97478290f54a75fd3f"
+    },
+    {
+      "path": "tests/contracts/product-discovery-bootstrap-source-repair.test.mjs",
+      "bytes": 5731,
+      "sha256": "sha256:72ea7f8b2540514aed615efb0e09272296726141204bb561b9dcc6dde5dd6172"
     },
     {
       "bytes": 5494,
