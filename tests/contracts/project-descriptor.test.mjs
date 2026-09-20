@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, lstatSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +9,7 @@ import { validateProjectDescriptor, projectDescriptorDigest, validateCommandSpec
 import { discoverProject, loadProjectDescriptor } from '../../packages/project-adapters/src/discovery.mjs';
 import { planDockerCommand } from '../../packages/project-adapters/src/planner.mjs';
 import { probeDockerIdentity } from '../../packages/project-adapters/src/docker-probe.mjs';
+import { checkedPath } from '../../packages/project-adapters/src/safe-files.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const H = 'sha256:' + 'a'.repeat(64);
@@ -128,13 +129,23 @@ test('discovery never reads env values or emits source body', t => {
   assert.ok(!JSON.stringify(report).includes('password'));
   assert.ok(report.modules[0].evidence.every(e => e.sha256.startsWith('sha256:')));
 });
-test('symlinked marker is rejected rather than reading outside repository', t => {
-  const dir = fixture(t, { 'elsewhere.txt': 'secret' }); symlinkSync('elsewhere.txt', resolve(dir, 'package.json'));
-  assert.throws(() => discover(dir), /project_path_symlink/);
+test('symlinked marker policy is exercised without requiring Windows symlink privilege', t => {
+  const dir = fixture(t, { 'package.json': '{}' });
+  const marker = resolve(dir, 'package.json');
+  assert.throws(() => checkedPath(dir, 'package.json', {
+    lstat: path => path === marker
+      ? { isSymbolicLink: () => true, isDirectory: () => false }
+      : lstatSync(path),
+  }), /project_path_symlink/);
 });
-test('symlinked ancestor is rejected', t => {
-  const dir = fixture(t, { 'real/Cargo.toml': '' }); symlinkSync('real', resolve(dir, 'alias'), 'dir');
-  assert.throws(() => discover(dir, ['alias']), /project_path_symlink/);
+test('symlinked ancestor policy is exercised without requiring Windows symlink privilege', t => {
+  const dir = fixture(t, { 'alias/Cargo.toml': '' });
+  const alias = resolve(dir, 'alias');
+  assert.throws(() => checkedPath(dir, 'alias/Cargo.toml', {
+    lstat: path => path === alias
+      ? { isSymbolicLink: () => true, isDirectory: () => true }
+      : lstatSync(path),
+  }), /project_path_symlink/);
 });
 test('metadata quota and invalid JSON fail with redacted typed error', t => {
   const dir = fixture(t, { 'package.json': 'PRIVATE_NOT_JSON' });
@@ -274,9 +285,14 @@ test('Docker timeout and malformed output stay HOLD without printing tool output
     assert.equal(p.status, 'HOLD'); assert.ok(!JSON.stringify(p).includes('SECRET'));
   }
 });
-test('descriptor paths cannot resolve symlinked .agent-harness directory', t => {
-  const d = descriptor(), dir = fixture(t, { 'real/project.json': JSON.stringify(d) }); symlinkSync('real', resolve(dir, '.agent-harness'), 'dir');
-  assert.throws(() => loadProjectDescriptor(dir), /project_path_symlink/);
+test('descriptor path policy rejects a symlinked .agent-harness ancestor without OS privilege', t => {
+  const dir = fixture(t, { '.agent-harness/project.json': JSON.stringify(descriptor()) });
+  const harnessDir = resolve(dir, '.agent-harness');
+  assert.throws(() => checkedPath(dir, '.agent-harness/project.json', {
+    lstat: path => path === harnessDir
+      ? { isSymbolicLink: () => true, isDirectory: () => true }
+      : lstatSync(path),
+  }), /project_path_symlink/);
 });
 test('JSON strings with braces or commas do not confuse duplicate-field detection', t => {
   const dir = fixture(t, { 'package.json': JSON.stringify({ description: 'x \\" } , {', scripts: { test: 'hello, {world}' }, nested: [{ x: 1 }, { x: 2 }] }) });
