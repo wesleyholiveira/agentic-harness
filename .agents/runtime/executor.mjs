@@ -15,6 +15,7 @@ import { computeEphemeralPort, dockerLifecycleScopeId, ServiceLifecycleManager }
 import { exists, fileFingerprint, nowIso, readJson, sha256, sleep, writeJson, runtimeTaskDirectoryName } from "./utils.mjs";
 import { sanitizeHandoffTelemetryShape } from "./handoff-telemetry.mjs";
 import { productDiscoveryAcceptanceCriteriaIssue } from "./product-discovery-acceptance-criteria.mjs";
+import { projectMissingProductDiscoveryBootstrapAssessment } from "./product-discovery-bootstrap-assessment.mjs";
 import { classifyHandoffValidationError, normalizeModelHandoffContract } from "./handoff-contract.mjs";
 import { assertPolicyAllowed, recordPolicyDecision } from "./policy-engine.mjs";
 import { deriveRetryBudgetState, repairEffectKey } from "./retry-efficiency.mjs";
@@ -1084,6 +1085,35 @@ export async function executeTask({ repositoryRoot, runDirectory, plan, taskPlan
       assertSchema(handoff, schemas.handoffResult, "handoffResult");
       if (handoff.runId !== plan.runId || handoff.taskId !== taskPlan.taskId || handoff.agentId !== taskPlan.agentId) {
         throw new Error("handoff_identity_mismatch");
+      }
+
+      if (taskPlan.stage === "product-discovery" && handoff.status === "complete") {
+        const bootstrapAssessmentRepair = await projectMissingProductDiscoveryBootstrapAssessment({
+          workspace: workspace.path,
+          model: brief.modelRouting.model,
+          brief,
+          contextPacket: packet,
+          handoff,
+          handoffSchema: schemas.handoffResult,
+          registry,
+        });
+        if (bootstrapAssessmentRepair.attempted || bootstrapAssessmentRepair.deterministicRepaired) {
+          handoff = bootstrapAssessmentRepair.handoff;
+          assertSchema(handoff, schemas.handoffResult, "handoffResult");
+          if (handoff.runId !== plan.runId || handoff.taskId !== taskPlan.taskId || handoff.agentId !== taskPlan.agentId) {
+            throw new Error("handoff_identity_mismatch");
+          }
+          await writeJson(handoffPath, handoff);
+          await store.event(plan.runId, taskPlan.taskId, "product_discovery.bootstrap_assessment_repaired", {
+            attemptedProjection: bootstrapAssessmentRepair.attempted === true,
+            deterministicRepaired: bootstrapAssessmentRepair.deterministicRepaired === true,
+            model: bootstrapAssessmentRepair.model ?? null,
+            sessionId: bootstrapAssessmentRepair.sessionId ?? null,
+            authority: bootstrapAssessmentRepair.attempted
+              ? "bounded-product-discovery-assessment-projection"
+              : "deterministic-bootstrap-assessment-reconciliation",
+          });
+        }
       }
     } catch (error) {
       failure = classifyHandoffValidationError(error);
