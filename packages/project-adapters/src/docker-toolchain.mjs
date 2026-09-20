@@ -14,7 +14,7 @@ const PROBES = Object.freeze({
     { capability: 'toolchain.cargo', executable: 'cargo', argv: ['--version'], parse: text => /^cargo ([^\s]+)(?:\s.*)?$/u.exec(text)?.[1] ?? null },
   ],
   go: [{ capability: 'toolchain.go', executable: 'go', argv: ['version'], parse: text => /^go version go([^\s]+)\s+[^\s]+$/u.exec(text)?.[1] ?? null }],
-  java: [{ capability: 'toolchain.java', executable: 'java', argv: ['-version'], parse: text => /^(?:openjdk|java) version "([^"]+)"(?:\r?\n[\s\S]*)?$/u.exec(text)?.[1] ?? null }],
+  java: [{ capability: 'toolchain.java', executable: 'java', argv: ['-version'], parse: text => /^(?:openjdk|java) version "([^"]+)"[^\r\n]*(?:\r?\n[\s\S]*)?$/u.exec(text)?.[1] ?? null }],
   dotnet: [{ capability: 'toolchain.dotnet', executable: 'dotnet', argv: ['--version'], parse: text => /^(\d+\.\d+\.\d+(?:[-+][^\s]+)?)$/u.exec(text)?.[1] ?? null }],
 });
 const MAX_OUTPUT = 32768;
