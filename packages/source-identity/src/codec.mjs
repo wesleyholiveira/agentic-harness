@@ -60,13 +60,17 @@ function canonicalEntries(entries, objectFormat, symlinkPolicy, exclusions) {
     for (let i = 1; i < parts.length; i++) if (paths.has(parts.slice(0, i).join('/'))) fail('source_path_parent_conflict');
     if (entry.kind !== 'symlink') continue;
     if (symlinkPolicy === 'reject') fail('source_symlink_not_allowed');
+    const bytes = Buffer.from(entry.target, 'utf8');
+    if (bytes.length !== entry.bytes || digestBytes(bytes) !== entry.sha256) fail('source_symlink_identity_mismatch');
+    // record-only binds the link bytes into source identity without authorizing
+    // dereference. Filesystem/evidence readers must still reject symlink traversal.
+    if (symlinkPolicy === 'record-only') continue;
     if (/^[A-Za-z]:|^\/|[\\\u0000-\u001f\u007f]/u.test(entry.target)) fail('source_symlink_target_invalid');
     const target = posix.normalize(posix.join(posix.dirname(entry.path), entry.target));
     try { assertRepositoryPath(target); } catch { fail('source_symlink_target_invalid'); }
-    // Explicit, narrow policy: no directory links, chains, loops, or missing targets.
+    // internal-file is the stronger reusable-content policy: no directory links,
+    // chains, loops, missing targets or repository escapes.
     if (paths.get(target)?.kind !== 'file') fail('source_symlink_target_not_regular');
-    const bytes = Buffer.from(entry.target, 'utf8');
-    if (bytes.length !== entry.bytes || digestBytes(bytes) !== entry.sha256) fail('source_symlink_identity_mismatch');
   }
   return output.sort((a, b) => compareUtf8Paths(a.path, b.path));
 }

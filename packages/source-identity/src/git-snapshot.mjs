@@ -130,6 +130,49 @@ export function snapshotGitSource(root, options = {}) {
   const identity = createSourceIdentity(entries, { objectFormat: source.objectFormat, symlinkPolicy: options.symlinkPolicy ?? 'reject', exclusions });
   return { commit: source.commit, proofKind: 'committed-source-integrity', workingTreeChecked: false, qualificationVerdict: null, gitCommands: source.gitCommands, identity };
 }
+
+/**
+ * Reads selected regular files from the same immutable Git object snapshot used
+ * to compute source identity. The selected bytes never come from the worktree.
+ * This proves committed-source provenance only; it does not prove that a mutable
+ * workspace currently equals the commit.
+ */
+export function readGitSourceFiles(root, options = {}) {
+  const requestedPaths = options.paths ?? [];
+  if (!Array.isArray(requestedPaths) || requestedPaths.length === 0 || requestedPaths.length > 128) fail('source_selected_paths_invalid');
+  const unique = new Set();
+  for (const path of requestedPaths) {
+    assertRepositoryPath(path);
+    if (unique.has(path)) fail('source_selected_paths_invalid');
+    unique.add(path);
+  }
+  const source = readTree(root, options);
+  const exclusions = options.exclusions ?? [];
+  const entries = source.records.filter(record => !exclusions.includes(record.path)).map(record => entryFor(record, source.objects));
+  const identity = createSourceIdentity(entries, {
+    objectFormat: source.objectFormat,
+    symlinkPolicy: options.symlinkPolicy ?? 'reject',
+    exclusions,
+  });
+  const records = new Map(source.records.map(record => [record.path, record]));
+  const files = requestedPaths.map(path => {
+    const record = records.get(path);
+    if (!record || !['100644','100755'].includes(record.mode) || record.type !== 'blob') fail('source_selected_file_missing_or_not_regular');
+    const bytes = source.objects.get(record.oid);
+    if (!bytes) fail('source_git_object_missing');
+    return { path, mode: record.mode, bytes: Buffer.from(bytes), sha256: digestBytes(bytes) };
+  });
+  return {
+    commit: source.commit,
+    objectFormat: source.objectFormat,
+    proofKind: 'committed-source-selected-files',
+    workingTreeChecked: false,
+    qualificationVerdict: null,
+    gitCommands: source.gitCommands,
+    identity,
+    files,
+  };
+}
 /** Compatibility verifier. v1 does not bind file modes, so never claim v2 proof. */
 export function verifyGitManifest(root, options = {}) {
   const source = readTree(root, options);

@@ -133,3 +133,29 @@ Trusted descriptor/policy admission, full adapter/toolchain conformance, approve
 execution, env-file/mount/entrypoint resolution, network enforcement, active schema
 integration, Docker target and Windows validation, and consumer adoption are still
 pending. Preserve P01–P16 and do not update .harness/locks for this unqualified wave.
+
+
+## Wave 04 committed configuration trust
+
+The v2 path is intentionally separate from the legacy v1 runner contract.
+
+- ProjectDescriptor/v2 stores DockerRunnerSpec/v2 only.
+- Materialized source/daemon/image/mount hashes are outside the descriptor.
+- `trust-config.mjs` reads descriptor and policy from immutable Git blobs.
+- A committed source/policy match upgrades a command only to
+  `SOURCE_POLICY_TRUSTED`; it is still not executable.
+- Source binding hashes declared Compose/dependency files from the same commit.
+- `record-only` source symlink identity records link bytes without authorizing
+  filesystem dereference.
+
+Read-only inspection:
+
+```sh
+node packages/project-adapters/bin/trust-config.mjs --root /path/to/project
+node packages/project-adapters/bin/trust-config.mjs --root /path/to/project --command unit
+```
+
+The CLI does not emit CommandSpec argv/executable, does not call Docker, does not
+check a mutable workspace, and does not produce qualification. Live
+DockerRunnerMaterialization, task-workspace binding and behavior execution remain
+later gates.

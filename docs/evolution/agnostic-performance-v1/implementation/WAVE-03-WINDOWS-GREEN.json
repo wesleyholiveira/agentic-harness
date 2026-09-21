@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "target-host-green-evidence/v1",
+  "wave": "WAVE-03",
+  "environment": "Windows target host",
+  "status": "GREEN_OPERATOR_CONFIRMED",
+  "evidenceSource": "user statement in conversation",
+  "machineLogAttached": false,
+  "exactTestCounts": null,
+  "dockerImageId": null,
+  "dockerContext": null,
+  "runtimeQualification": "NOT_INFERRED",
+  "mainPromoted": false,
+  "consumerPinChanged": false
+}

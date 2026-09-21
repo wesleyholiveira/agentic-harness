@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "implementation-wave-report/v1",
+  "wave": "WAVE-04",
+  "status": "implemented-slice-pending-target-validation",
+  "tasks": {
+    "T01": "v2-descriptor-runner-contracts-partial",
+    "T02": "committed-source-configuration-trust-partial",
+    "T03": "runner-spec-source-binding-materialization-contracts-partial",
+    "T04": "committed-command-admission-seam-partial"
+  },
+  "delivered": [
+    "DockerRunnerSpec/v2",
+    "DockerRunnerSourceBinding/v1",
+    "DockerRunnerMaterialization/v1",
+    "ProjectDescriptor/v2",
+    "ExecutionPolicy/v2",
+    "Git-blob committed configuration loader",
+    "SOURCE_POLICY_TRUSTED non-executable admission",
+    "record-only source symlink identity"
+  ],
+  "targetValidation": "NOT_RUN",
+  "aggregateHarnessTest": "NOT_RUN",
+  "runtimeQualification": "NOT_RUN",
+  "consumerAdoption": "NOT_RUN",
+  "preservation": {
+    "cacheMemoryWorkerRoutingTouched": false,
+    "mainChanged": false,
+    "consumerPinChanged": false,
+    "manifestRegenerated": false
+  }
+}

@@ -43,7 +43,7 @@ export function assertRepositoryPath(value) {
   return value;
 }
 export function assertSymlinkPolicy(value) {
-  if (!['reject', 'internal-file'].includes(value)) fail('source_symlink_policy_unsupported');
+  if (!['reject', 'internal-file', 'record-only'].includes(value)) fail('source_symlink_policy_unsupported');
   return value;
 }
 export function assertSourceEntry(entry, objectFormat = 'sha1') {

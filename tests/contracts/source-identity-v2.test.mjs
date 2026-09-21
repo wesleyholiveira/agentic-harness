@@ -98,6 +98,15 @@ test('symlink bytes must match declared target and nested aliases cannot hide pa
   assert.throws(() => createSourceIdentity([file('a'), link, file('alias/child')], { symlinkPolicy: 'internal-file' }), /source_path_parent_conflict/);
 });
 
+test('record-only symlink policy binds link bytes without authorizing dereference', () => {
+  const target = '../outside';
+  const link = { path: 'external-link', kind: 'symlink', mode: '120000', target, bytes: Buffer.byteLength(target), sha256: sha(target) };
+  const identity = createSourceIdentity([link], { symlinkPolicy: 'record-only' });
+  assert.equal(identity.entries[0].target, target);
+  assert.equal(identity.entries[0].kind, 'symlink');
+  assert.throws(() => createSourceIdentity([{ ...link, sha256: sha('different') }], { symlinkPolicy: 'record-only' }), /source_symlink_identity_mismatch/);
+});
+
 test('gitlink is a pinned commit identity, not invented nested file content', () => {
   const entry = { path: '.harness', kind: 'gitlink', mode: '160000', objectId: 'a'.repeat(40) };
   const a = createSourceIdentity([entry]);
