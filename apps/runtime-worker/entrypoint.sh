@@ -13,8 +13,9 @@ export AGENT_HARNESS_OPENCODE_CONFIG_OUTPUT="${AGENT_HARNESS_OPENCODE_CONFIG_OUT
 export OPENCODE_CONFIG="$(node "$AGENT_HARNESS_ROOT/scripts/generate-opencode-config.mjs" | tail -n 1)"
 export OPENCODE_CONFIG_DIR="$AGENT_HARNESS_ROOT/.opencode"
 
-# Typed behavior agents run as uid 10001 after the Rust worker has prepared the
-# task. They need the Context Engine MCP and public model/provider endpoints, but
+# Every model-controlled agent runs as uid 10001 after the Rust worker has
+# prepared the task. It needs the Context Engine MCP and public model/provider
+# endpoints, but
 # they must not share control-plane access to PostgreSQL, RabbitMQ, Redis, the
 # Docker gateway, or host-published service ports. Install a UID-scoped egress
 # chain before starting the worker, then drop NET_ADMIN from the worker itself.
