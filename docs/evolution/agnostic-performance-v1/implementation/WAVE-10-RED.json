@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "target-host-red-evidence/v1",
+  "wave": "WAVE-10",
+  "status": "RED_FIXED_PENDING_RERUN",
+  "failures": [
+    {
+      "gate": "node-contracts",
+      "test": "typed behavior gateway executes only after agent completion under the existing task fence",
+      "rootCause": "stale source assertion expected capability_fingerprint instead of capability_proof",
+      "productionLogicBug": false
+    },
+    {
+      "gate": "cargo-test-locked",
+      "rootCause": "agentic-harness-worker Cargo.lock root dependency used ambiguous hmac while 0.12.1 and 0.13.0 coexist",
+      "correction": "hmac 0.12.1"
+    }
+  ],
+  "hardening": [
+    "runtime-regressions asserts version-qualified hmac direct lock dependency",
+    "runtime-worker Docker build now uses cargo build --locked --release"
+  ],
+  "greenAfterFix": "NOT_RUN"
+}
