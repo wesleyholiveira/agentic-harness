@@ -8,6 +8,7 @@ COPY --chown=node:node packages/source-identity/bin/ packages/source-identity/bi
 COPY --chown=node:node packages/project-adapters/src/ packages/project-adapters/src/
 COPY --chown=node:node packages/project-adapters/bin/ packages/project-adapters/bin/
 COPY --chown=node:node apps/docker-gateway/ apps/docker-gateway/
+COPY --chown=node:node compose.yaml compose.yaml
 COPY --chown=node:node .agents/runtime/ .agents/runtime/
 COPY --chown=node:node .agents/schemas/ .agents/schemas/
 COPY --chown=node:node scripts/internal/source-manifest.mjs scripts/internal/source-manifest.mjs
