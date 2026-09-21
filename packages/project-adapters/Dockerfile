@@ -7,6 +7,7 @@ COPY --chown=node:node packages/source-identity/src/ packages/source-identity/sr
 COPY --chown=node:node packages/source-identity/bin/ packages/source-identity/bin/
 COPY --chown=node:node packages/project-adapters/src/ packages/project-adapters/src/
 COPY --chown=node:node packages/project-adapters/bin/ packages/project-adapters/bin/
+COPY --chown=node:node apps/docker-gateway/ apps/docker-gateway/
 COPY --chown=node:node .agents/runtime/ .agents/runtime/
 COPY --chown=node:node .agents/schemas/ .agents/schemas/
 COPY --chown=node:node scripts/internal/source-manifest.mjs scripts/internal/source-manifest.mjs
@@ -19,6 +20,7 @@ COPY --chown=node:node tests/contracts/command-readiness-v2.test.mjs tests/contr
 COPY --chown=node:node tests/contracts/validation-command-authority-v2.test.mjs tests/contracts/validation-command-authority-v2.test.mjs
 COPY --chown=node:node tests/contracts/command-spec-execution-v2.test.mjs tests/contracts/command-spec-execution-v2.test.mjs
 COPY --chown=node:node tests/contracts/behavior-fence-attestation-v2.test.mjs tests/contracts/behavior-fence-attestation-v2.test.mjs
+COPY --chown=node:node tests/contracts/docker-behavior-gateway-v1.test.mjs tests/contracts/docker-behavior-gateway-v1.test.mjs
 USER node
 FROM toolchain AS test
-CMD ["sh", "-ec", "node --version; git --version; id; node --test tests/contracts/portable-contracts.test.mjs tests/contracts/source-identity-v2.test.mjs tests/contracts/project-descriptor.test.mjs tests/contracts/command-admission-v2.test.mjs tests/contracts/trusted-project-config-v2.test.mjs tests/contracts/command-readiness-v2.test.mjs tests/contracts/validation-command-authority-v2.test.mjs tests/contracts/command-spec-execution-v2.test.mjs tests/contracts/behavior-fence-attestation-v2.test.mjs"]
+CMD ["sh", "-ec", "node --version; git --version; id; node --test tests/contracts/portable-contracts.test.mjs tests/contracts/source-identity-v2.test.mjs tests/contracts/project-descriptor.test.mjs tests/contracts/command-admission-v2.test.mjs tests/contracts/trusted-project-config-v2.test.mjs tests/contracts/command-readiness-v2.test.mjs tests/contracts/validation-command-authority-v2.test.mjs tests/contracts/command-spec-execution-v2.test.mjs tests/contracts/behavior-fence-attestation-v2.test.mjs tests/contracts/docker-behavior-gateway-v1.test.mjs"]

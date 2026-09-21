@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "target-host-green-evidence/v1",
+  "wave": "WAVE-08",
+  "status": "GREEN_OPERATOR_CONFIRMED",
+  "exactTestCounts": null,
+  "dockerImageId": null,
+  "dockerContext": null,
+  "runtimeQualification": "NOT_INFERRED",
+  "releasePromotion": "NOT_INFERRED"
+}

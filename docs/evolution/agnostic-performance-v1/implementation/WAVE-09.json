@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "implementation-wave-report/v1",
+  "wave": "WAVE-09",
+  "status": "implemented-slice-pending-target-validation",
+  "parent": "83b517606f889a35d126bf9f55cde0b917292ad8",
+  "delivered": [
+    "command-authority/v1 propagation",
+    "named-volume read-only workspace behavior mount",
+    "CommandSpec.cwd container resolution",
+    "restricted docker-behavior-gateway",
+    "isolated behavior-gateway Compose profile"
+  ],
+  "security": {
+    "dockerSocketOnWorker": false,
+    "dockerSocketOnGateway": true,
+    "gatewayHostPortPublished": false,
+    "gatewayTokenOnWorker": false,
+    "gatewayRootFilesystemReadOnly": true,
+    "gatewayCapabilities": "ALL_DROPPED"
+  },
+  "activeRuntimeWorkerIntegrated": false,
+  "newTests": 11,
+  "expectedFocusedTotal": 247,
+  "targetValidation": "NOT_RUN",
+  "runtimeQualification": "NOT_RUN",
+  "preservation": {
+    "mainChanged": false,
+    "consumerPinChanged": false,
+    "cacheMemoryWorkerRoutingTouched": false,
+    "manifestRegenerated": false
+  }
+}

@@ -93,6 +93,36 @@ services:
         source: agent-harness-agent-workspaces
         target: /workspace/agent-workspaces
 
+  docker-behavior-gateway:
+    build:
+      context: .
+      dockerfile: apps/docker-gateway/Dockerfile
+    profiles: [behavior-gateway]
+    environment:
+      AGENT_HARNESS_PROJECT_ROOT: /workspace/repository
+      AGENT_HARNESS_AGENT_WORKSPACE_ROOT: /workspace/agent-workspaces
+      AGENT_HARNESS_DOCKER_GATEWAY_TOKEN: ${AGENT_HARNESS_DOCKER_GATEWAY_TOKEN:-}
+      AGENT_HARNESS_DOCKER_GATEWAY_PORT: "8792"
+    expose: ["8792"]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+      - type: bind
+        source: ${AGENT_HARNESS_PROJECT_ROOT:-.}
+        target: /workspace/repository
+        read_only: true
+      - type: volume
+        source: agent-harness-agent-workspaces
+        target: /workspace/agent-workspaces
+        read_only: true
+
   agent-runtime-worker:
     build:
       context: .

@@ -378,6 +378,7 @@ test("behavior executor uses immutable image and argv without shell or raw outpu
   const receipt = executeDockerBehaviorCommandV2(f, {
     root: f.root,
     execute,
+    workspaceMount: { type: "volume", source: "project_workspaces", subpath: "run/task--attempt-1" },
     reobserve: () => ({ status: "MATERIALIZED", materialization: { ...f.materialization, observedAt: new Date(1).toISOString() } }),
   });
   assert.equal(receipt.status, "BEHAVIOR_PASSED");
@@ -391,10 +392,28 @@ test("behavior executor uses immutable image and argv without shell or raw outpu
   }
   assert.ok(argv.includes("--read-only"));
   assert.ok(argv.includes("--cap-drop"));
+  const mountIndex = argv.indexOf("--mount");
+  assert.equal(argv[mountIndex + 1], "type=volume,src=project_workspaces,dst=/workspace,readonly,volume-subpath=run/task--attempt-1");
+  const workdirIndex = argv.indexOf("--workdir");
+  assert.equal(argv[workdirIndex + 1], "/workspace");
   assert.ok(argv.includes(IMAGE));
   assert.ok(argv.includes("--version"));
   assert.ok(!argv.includes("sh"));
   assert.ok(!argv.includes("bash"));
+});
+
+test("behavior executor applies CommandSpec cwd below the mounted workspace root", t => {
+  const f = behaviorFixture(t, { commandOverrides: { cwd: "packages/api" } });
+  const calls = [];
+  const receipt = executeDockerBehaviorCommandV2(f, {
+    root: f.root,
+    execute: argv => { calls.push(argv); return { status: 0, stdout: "", stderr: "" }; },
+    workspaceMount: { type: "volume", source: "project_workspaces", subpath: "run/task--attempt-1" },
+    reobserve: () => ({ status: "MATERIALIZED", materialization: { ...f.materialization, observedAt: new Date(1).toISOString() } }),
+  });
+  assert.equal(receipt.status, "BEHAVIOR_PASSED");
+  const workdirIndex = calls[0].indexOf("--workdir");
+  assert.equal(calls[0][workdirIndex + 1], "/workspace/packages/api");
 });
 
 test("behavior executor records a nonzero exit without converting it to authorization failure", t => {

@@ -314,7 +314,7 @@ function validateCoverage(plan, registry, options = {}) {
   };
 }
 
-function implementationTask({ runId, technicalLeadTaskId, item, criteria, implementationCriterionIds, registry }) {
+function implementationTask({ runId, technicalLeadTaskId, item, criteria, implementationCriterionIds, registry, commandAuthority = null }) {
   const agent = registry.byId.get(item.ownerAgentId);
   if (!agent) throw new Error(`implementation_plan_agent_unknown:${item.ownerAgentId}`);
   if (!IMPLEMENTATION_EXECUTION_ROLES.has(agent.executionRole)) throw new Error(`implementation_plan_agent_not_implementer:${item.ownerAgentId}`);
@@ -336,6 +336,7 @@ function implementationTask({ runId, technicalLeadTaskId, item, criteria, implem
     validation: item.validation,
     validationCommandIds: item.validationCommandIds ?? [],
     commandSpecIds: item.commandSpecIds ?? [],
+    commandAuthority,
     validationExecutionScope: item.validationExecutionScope ?? "workspace",
     complexity: item.complexity,
     estimatedFiles: item.estimatedFiles,
@@ -423,6 +424,7 @@ export function compileImplementationDag({ registry, plan, technicalLeadHandoff,
     criteria,
     implementationCriterionIds,
     registry,
+    commandAuthority: authoritativePlan.commandAuthority ?? null,
   }));
   const qa = registry.byId.get(plan.workflow.qualityAgentId);
   const productOwner = registry.byId.get("product-owner");

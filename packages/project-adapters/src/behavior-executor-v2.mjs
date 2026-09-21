@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { posix } from 'node:path';
 
 import { contractDigest, validateCommandSpec } from '../../harness-contracts/src/project-descriptor.mjs';
 import {
@@ -34,6 +35,19 @@ function nativeDocker(argv, { cwd, timeoutMs }) {
 function hashText(value) {
   return `sha256:${createHash('sha256').update(String(value ?? ''), 'utf8').digest('hex')}`;
 }
+function behaviorWorkdir(spec, command) {
+  return command.cwd === '.' ? spec.containerCwd : posix.join(spec.containerCwd, command.cwd);
+}
+function validatedWorkspaceMount(value, spec) {
+  if (value == null) return null;
+  if (!value || value.type !== 'volume' || typeof value.source !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,255}$/u.test(value.source)
+      || typeof value.subpath !== 'string' || !value.subpath || value.subpath.startsWith('/') || value.subpath.includes('\\')
+      || value.subpath.split('/').some(part => !part || part === '.' || part === '..')) {
+    throw new Error('behavior_workspace_mount_invalid');
+  }
+  return `type=volume,src=${value.source},dst=${spec.containerCwd},readonly,volume-subpath=${value.subpath}`;
+}
+
 function resultEvidence(result) {
   const stdout = typeof result?.stdout === 'string' ? result.stdout : '';
   const stderr = typeof result?.stderr === 'string' ? result.stderr : '';
@@ -132,6 +146,7 @@ export function executeDockerBehaviorCommandV2(input, {
   root = process.cwd(),
   execute = nativeDocker,
   reobserve = probeDockerRunnerMaterialization,
+  workspaceMount = null,
 } = {}) {
   const admission = evaluateBehaviorAdmission(input);
   const configuration = input.configuration;
@@ -173,6 +188,10 @@ export function executeDockerBehaviorCommandV2(input, {
     return { ...base, code: 'behavior_materialization_invalid', executed: false };
   }
 
+  let mountArg = null;
+  try { mountArg = validatedWorkspaceMount(workspaceMount, spec); }
+  catch { return { ...base, code: 'behavior_workspace_mount_invalid', executed: false }; }
+
   const argv = [
     '--context', spec.dockerContext,
     'run', '--rm', '--pull', 'never',
@@ -184,7 +203,8 @@ export function executeDockerBehaviorCommandV2(input, {
     '--pids-limit', '128',
     '--platform', spec.platform,
     '--user', spec.user,
-    '--workdir', spec.containerCwd,
+    ...(mountArg ? ['--mount', mountArg] : []),
+    '--workdir', behaviorWorkdir(spec, command),
     '--entrypoint', command.executable,
     checkedMaterialization.imageId,
     ...command.argv,

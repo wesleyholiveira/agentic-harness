@@ -307,3 +307,41 @@ and an active execution fence. This hardening is still a library seam: the activ
 Rust worker is not yet dispatching behavior execution automatically. That final
 bridge must retain worker heartbeat/cancellation supervision and must not expose
 Docker socket authority to model-controlled processes.
+
+
+## Wave 09 restricted Docker behavior gateway
+
+The Docker daemon is intentionally not exposed to `agent-runtime-worker` or
+model-controlled child processes.
+
+A separate `docker-behavior-gateway` service owns the Docker socket behind the
+explicit `behavior-gateway` Compose profile. It has:
+- no published host port;
+- read-only repository and agent-workspace mounts;
+- read-only root filesystem plus bounded /tmp;
+- all Linux capabilities dropped and no-new-privileges;
+- bearer authentication with a minimum 32-byte shared token.
+
+The gateway request carries:
+- Runtime-canonicalized `commandAuthority/v1`;
+- one-or-more committed CommandSpec IDs;
+- the active `task-execution-fence/v1`;
+- the exact task workspace path.
+
+The gateway independently reloads the exact committed source configuration,
+checks the workspace authority inputs, resolves the Docker workspace volume,
+materializes the declared runner, validates image/source attestation, probes the
+toolchain, then executes the bounded behavior command.
+
+Task workspaces are mounted into the behavior container as a Docker named-volume
+subpath, read-only. Host/container-local workspace paths are never passed to the
+daemon as bind-source authority. `CommandSpec.cwd` is resolved below the runner
+`containerCwd`.
+
+`commandAuthority` is now propagated mechanically from committed Technical
+Refinement catalog provenance into the implementation plan/DAG/Task Brief. It is
+a source binding, not a capability.
+
+This wave does not yet add the gateway token to the Rust worker or invoke the
+gateway from the worker. The active Runtime therefore remains unchanged until
+the gateway itself passes target-host/Docker qualification.

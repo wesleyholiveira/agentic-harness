@@ -313,6 +313,7 @@ export async function buildTaskBrief({ repositoryRoot, registry, plan, task, con
   const taskValidation = task.validation ?? agent.validationCommands ?? [];
   const taskValidationCommandIds = task.validationCommandIds ?? [];
   const taskCommandSpecIds = task.commandSpecIds ?? [];
+  const taskCommandAuthority = task.commandAuthority ?? null;
   assertExecutableValidationCommands(taskValidation, { label: `taskBrief.${task.taskId}.validation` });
   if (taskValidationCommandIds.length > 0) {
     const projectionIssues = validationCommandProjectionIssues({
@@ -377,7 +378,7 @@ export async function buildTaskBrief({ repositoryRoot, registry, plan, task, con
       ...(isSddReviewStage(task.stage) ? ["sddReview"] : []),
       ...(task.stage === "technical-refinement" ? ["implementationPlan"] : []),
     ])],
-    validation: taskValidation, ...(taskValidationCommandIds.length > 0 ? { validationCommandIds: taskValidationCommandIds } : {}), ...(taskCommandSpecIds.length > 0 ? { commandSpecIds: taskCommandSpecIds } : {}), validationExecutionScope: task.validationExecutionScope ?? "workspace", executionMode: task.executionMode ?? "agent", contextPacketId: contextPacket.packetId, attemptBudget: maxAttempts, deadlineOrBudget: null,
+    validation: taskValidation, ...(taskValidationCommandIds.length > 0 ? { validationCommandIds: taskValidationCommandIds } : {}), ...(taskCommandSpecIds.length > 0 ? { commandSpecIds: taskCommandSpecIds } : {}), ...(taskCommandAuthority ? { commandAuthority: taskCommandAuthority } : {}), validationExecutionScope: task.validationExecutionScope ?? "workspace", executionMode: task.executionMode ?? "agent", contextPacketId: contextPacket.packetId, attemptBudget: maxAttempts, deadlineOrBudget: null,
     sdd: { role: task.sddRole ?? "developer", stage: task.stage ?? "implementation", workItemId: task.workItemId ?? plan.runId, workflowSkill: "agent-harness-sdd-workflow", requiredSuperpowers: requiredSuperpowersForTask(agent, task), reviewedRevision: authoritativeReviewRevisionFromContext({ stage: task.stage ?? "implementation", contextPacket }) },
     modelRouting,
     executionTopology: taskExecutionTopologyForAgent(agent),
