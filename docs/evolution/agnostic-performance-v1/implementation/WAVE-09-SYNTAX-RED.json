@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "target-host-red-evidence/v1",
+  "wave": "WAVE-09",
+  "status": "RED_FIXED_PENDING_RERUN",
+  "classification": "SOURCE_SYNTAX",
+  "observedError": "SyntaxError: Unexpected token ')'",
+  "source": "apps/docker-gateway/server.mjs",
+  "rootCause": "extra closing parenthesis in gateway request validation",
+  "sourceFixCommit": "b90e56a0f8fd9739b8f3229052a78208b42b66d4",
+  "syntaxCheckAddedCommit": "f97fbf683a9286b5f6c19d71c26919392d15286b",
+  "nodeCheckAfterFix": "PASS",
+  "targetTestsAfterFix": "NOT_RUN"
+}
