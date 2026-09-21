@@ -118,6 +118,37 @@ test("model-controlled executor child cannot inherit Runtime infrastructure cred
   }
 });
 
+test("typed model child can reach Context Engine but not private control-plane networks", () => {
+  const dockerfile = source("apps/runtime-worker/Dockerfile");
+  const entrypoint = source("apps/runtime-worker/entrypoint.sh");
+  const compose = source("compose.yaml");
+
+  assert.match(dockerfile, /iptables/);
+  assert.match(dockerfile, /util-linux/);
+  assert.match(compose, /agent-runtime-worker:[\s\S]*cap_add: \[NET_ADMIN\]/);
+
+  assert.match(entrypoint, /--uid-owner 10001/);
+  assert.match(entrypoint, /context-engine/);
+  assert.match(entrypoint, /--dport 8789 -j RETURN/);
+  for (const cidr of [
+    "10.0.0.0/8",
+    "172.16.0.0/12",
+    "192.168.0.0/16",
+    "169.254.0.0/16",
+  ]) {
+    assert.ok(entrypoint.includes(cidr));
+  }
+  assert.match(entrypoint, /--bounding-set=-net_admin/);
+  assert.match(entrypoint, /--inh-caps=-net_admin/);
+  assert.match(entrypoint, /--ambient-caps=-net_admin/);
+  assert.match(entrypoint, /--no-new-privs/);
+
+  const contextAllow = entrypoint.indexOf('--dport 8789 -j RETURN');
+  const privateReject = entrypoint.indexOf('10.0.0.0/8');
+  const workerExec = entrypoint.indexOf('/usr/local/bin/agentic-harness-worker');
+  assert.ok(contextAllow >= 0 && privateReject > contextAllow && workerExec > privateReject);
+});
+
 test("Docker gateway capability is fence-bound in PostgreSQL and no permanent bearer token remains", () => {
   const gateway = source("apps/docker-gateway/server.mjs");
   const fenceStore = source("apps/docker-gateway/fence-store.mjs");
