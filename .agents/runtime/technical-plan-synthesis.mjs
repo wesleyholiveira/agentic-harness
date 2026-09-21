@@ -1409,7 +1409,7 @@ export async function repairImplementationPlanFromReview({
   if (handoff?.sddReview?.decision !== "changes_requested") return { handoff, attempted: false };
   const requiredDeltas = (handoff.sddReview.requiredDeltas ?? []).filter((value) => typeof value === "string" && value.trim());
   if (requiredDeltas.length === 0) throw new Error("technical_review_repair_required_deltas_missing");
-  const sourcePlan = handoff.implementationPlan;
+  let sourcePlan = handoff.implementationPlan;
   if (!sourcePlan || typeof sourcePlan !== "object" || Array.isArray(sourcePlan)) throw new Error("technical_review_repair_source_plan_missing");
   const sourceRevision = Number(sourcePlan.revision);
   if (!Number.isInteger(sourceRevision) || sourceRevision < 1) throw new Error("technical_review_repair_source_revision_invalid");
@@ -1422,6 +1422,16 @@ export async function repairImplementationPlanFromReview({
     brief,
     requiredAcceptanceCriteria,
   });
+  const mechanical = normalizeTechnicalPlanMechanics({
+    implementationPlan: sourcePlan,
+    requiredAcceptanceCriteria,
+    registry: resolvedRegistry,
+    validationCommandCatalog,
+  });
+  if (mechanical.evidence.length > 0) {
+    handoff.implementationPlan = mechanical.plan;
+    sourcePlan = mechanical.plan;
+  }
   const currentIssues = technicalPlanRepairIssues({
     implementationPlan: sourcePlan,
     implementationPlanSchema,
@@ -1435,7 +1445,7 @@ export async function repairImplementationPlanFromReview({
   let result;
   let repairedPlan;
   let repairMutationScope = repairClassification.scope;
-  let repairEvidence = [];
+  let repairEvidence = [...mechanical.evidence];
 
   if (repairClassification.scope === "acceptance-coverage-only") {
     const missingCriterionIds = uncoveredCriterionIds(currentIssues);
