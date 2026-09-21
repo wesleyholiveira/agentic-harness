@@ -1279,6 +1279,28 @@ async fn prepare_restricted_behavior_agent(
         .await
         .context("behavior_agent_opencode_auth_copy_failed")?;
 
+    let handoff = PathBuf::from(&descriptor.handoff_path);
+    let task_output_dir = handoff
+        .parent()
+        .context("behavior_agent_handoff_parent_missing")?
+        .to_path_buf();
+    for output_path in [
+        &descriptor.log_path,
+        &descriptor.result_path,
+        &descriptor.change_set_path,
+    ] {
+        let parent = Path::new(output_path)
+            .parent()
+            .context("behavior_agent_output_parent_missing")?;
+        if parent != task_output_dir.as_path() {
+            bail!("behavior_agent_output_directory_mismatch");
+        }
+    }
+
+    // Workspace and HOME are disposable attempt-scoped trees and may be owned
+    // recursively by the restricted model UID. The task output directory is
+    // chowned only at its root so already-materialized Task Brief/context
+    // evidence remains control-plane owned while the child can create handoff.
     for path in [&workspace, &home] {
         let output = Command::new("chown")
             .args(["-R", &format!("{BEHAVIOR_AGENT_UID}:{BEHAVIOR_AGENT_GID}")])
@@ -1289,6 +1311,15 @@ async fn prepare_restricted_behavior_agent(
         if !output.status.success() {
             bail!("behavior_agent_chown_failed");
         }
+    }
+    let task_dir_chown = Command::new("chown")
+        .arg(format!("{BEHAVIOR_AGENT_UID}:{BEHAVIOR_AGENT_GID}"))
+        .arg(&task_output_dir)
+        .output()
+        .await
+        .context("behavior_agent_task_output_chown_spawn_failed")?;
+    if !task_dir_chown.status.success() {
+        bail!("behavior_agent_task_output_chown_failed");
     }
     Ok(home)
 }
