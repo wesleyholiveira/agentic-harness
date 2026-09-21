@@ -35,7 +35,14 @@ export async function createPostgresCapabilityVerifier({
   if (!ownedPool) {
     const pg = await import('pg');
     const Pool = pg.default?.Pool ?? pg.Pool;
-    ownedPool = new Pool({ connectionString, max: 4 });
+    ownedPool = new Pool({
+      connectionString,
+      max: 4,
+      connectionTimeoutMillis: 2_000,
+      query_timeout: 2_000,
+      statement_timeout: 2_000,
+      idleTimeoutMillis: 30_000,
+    });
   }
   const table = name => `"${schema}"."${name}"`;
 
