@@ -27,12 +27,20 @@
     "childInfrastructureEnvRemoved": true
   },
   "expectedFocusedTotalApprox": 257,
-  "rustTests": "NOT_RUN",
-  "dockerContractTarget": "NOT_RUN",
-  "workerImageBuild": "NOT_RUN",
-  "gatewayImageBuild": "NOT_RUN",
+  "nodeFocusedValidation": "PENDING_POST_FIX_RERUN",
+  "rustTests": "PENDING_POST_FIX_RERUN",
+  "dockerComposeConfig": "NOT_REPORTED_POST_FIX",
+  "dockerContractTarget": "PENDING_POST_FIX_RERUN",
+  "workerImageBuild": "PASS_OPERATOR_CONFIRMED_2026-09-21",
+  "gatewayImageBuild": "PASS_OPERATOR_CONFIRMED_2026-09-21",
   "endToEndBehaviorTask": "NOT_RUN",
   "runtimeQualification": "NOT_RUN",
+  "operatorEvidence": {
+    "workerImageBuild": "PASS",
+    "gatewayImageBuild": "PASS",
+    "reportedAt": "2026-09-21",
+    "source": "operator-confirmed"
+  },
   "preservation": {
     "mainChanged": false,
     "consumerPinChanged": false,
