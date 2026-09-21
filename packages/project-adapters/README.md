@@ -159,3 +159,39 @@ The CLI does not emit CommandSpec argv/executable, does not call Docker, does no
 check a mutable workspace, and does not produce qualification. Live
 DockerRunnerMaterialization, task-workspace binding and behavior execution remain
 later gates.
+
+
+## Wave 05 workspace/materialization/toolchain chain
+
+Wave 05 keeps command execution disabled while joining the previously separate
+authority observations:
+
+1. `bindWorkspaceAuthorityInputs(root, committedConfiguration)` checks only the
+   immutable authority inputs in the mutable task workspace: descriptor, policy,
+   declared Compose files and declared dependency files. Owned implementation
+   files may change. The observation is point-in-time and is not a capability.
+2. `probeDockerRunnerMaterialization({spec,sourceBinding})` performs read-only
+   Docker observations and binds daemon, immutable image, public container config,
+   a redacted mount projection and exact Compose container identity to the source
+   binding. Raw bind source paths and env values are not emitted.
+3. `probeDockerToolchainV2` uses fixed adapter-owned version probes. For an
+   `exec` runner it executes inside the exact observed container ID. For a
+   `one-off` runner it uses the immutable image with no network, read-only root,
+   dropped capabilities and no-new-privileges. It never executes CommandSpec argv.
+   The runner is re-observed afterward; replacement/restart/config changes reject
+   the receipt.
+4. `evaluateCommandReadiness` can reach `TOOLCHAIN_READY` only when committed
+   source/policy, workspace authority inputs, materialization and toolchain receipt
+   all refer to the same project/source/runner. Even then:
+   `effectsEnforced=false`, `networkEnforced=false`,
+   `secretsResolved=false`, `behaviorAuthorized=false`,
+   `executableNow=false`.
+
+This is intentionally not the behavior-command executor. T04 still needs to wire
+command IDs into Technical Refinement and later enforcement must resolve
+effects/network/secrets immediately before execution under a workspace lease.
+
+The dedicated Docker test target now includes
+`tests/contracts/command-readiness-v2.test.mjs`. Those tests use controlled
+Docker responses; a real target-host materialization/toolchain run remains a
+separate operational proof.

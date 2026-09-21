@@ -137,7 +137,7 @@ export function validateDockerRunnerMaterialization(materialization, { spec, sou
   if (materialization.schemaVersion !== DOCKER_RUNNER_MATERIALIZATION_VERSION) fail('docker_runner_materialization_invalid');
   name(materialization.runnerId);
   for (const key of ['runnerSpecDigest','sourceBindingDigest','sourceSnapshotSha256','imageId','configPublicSha256','mountsSha256']) assertSha256(materialization[key]);
-  name(materialization.daemonId);
+  if (typeof materialization.daemonId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$/u.test(materialization.daemonId)) fail('docker_runner_materialization_invalid');
   if (typeof materialization.platform !== 'string' || !/^[a-z0-9]+\/[a-z0-9_]+(?:\/[a-z0-9_]+)?$/u.test(materialization.platform)) fail('docker_runner_materialization_invalid');
   if (materialization.containerId !== null && (typeof materialization.containerId !== 'string' || !/^[a-f0-9]{64}$/u.test(materialization.containerId))) fail('docker_runner_materialization_invalid');
   if (typeof materialization.observedAt !== 'string' || !Number.isFinite(Date.parse(materialization.observedAt))
@@ -158,6 +158,12 @@ export function validateDockerRunnerMaterialization(materialization, { spec, sou
         || materialization.sourceSnapshotSha256 !== checkedBinding.sourceSnapshotSha256) fail('docker_runner_materialization_mismatch');
   }
   return structuredClone(materialization);
+}
+
+export function dockerRunnerMaterializationIdentityDigest(materialization, options = {}) {
+  const checked = validateDockerRunnerMaterialization(materialization, options);
+  const { observedAt: _observedAt, ...identity } = checked;
+  return digest(identity);
 }
 
 export function dockerRunnerMaterializationDigest(materialization, options = {}) {

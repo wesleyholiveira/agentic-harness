@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "implementation-wave-report/v1",
+  "wave": "WAVE-05",
+  "branch": "fix/agent-start-current-user-message-authority-20260919",
+  "parent": "604286ec452698c26a0a8da3683c290a90610124",
+  "status": "implemented-slice-pending-target-validation",
+  "priorEvidence": {
+    "wave03Windows": "GREEN_OPERATOR_CONFIRMED",
+    "clipRebase": "GREEN_OPERATOR_CONFIRMED",
+    "wave04FocusedTests": "NOT_RUN",
+    "wave04DockerTarget": "NOT_RUN"
+  },
+  "tasks": {
+    "T02": "workspace-authority-input-binding-partial",
+    "T03": "docker-v2-materialization-and-toolchain-partial",
+    "T04": "command-readiness-seam-partial"
+  },
+  "delivered": [
+    "workspace-authority-binding/v1",
+    "live DockerRunnerMaterialization/v1 observer",
+    "docker-toolchain-receipt/v2 bound to materialization",
+    "TOOLCHAIN_READY non-executable readiness state"
+  ],
+  "newTests": {
+    "file": "tests/contracts/command-readiness-v2.test.mjs",
+    "expectedAdditional": 15,
+    "executed": false
+  },
+  "expectedFocusedTotal": 204,
+  "targetValidation": "NOT_RUN",
+  "aggregateHarnessTest": "NOT_RUN",
+  "runtimeQualification": "NOT_RUN",
+  "consumerAdoption": "NOT_RUN",
+  "preservation": {
+    "cacheMemoryWorkerRoutingTouched": false,
+    "mainChanged": false,
+    "consumerPinChanged": false,
+    "manifestRegenerated": false
+  }
+}
