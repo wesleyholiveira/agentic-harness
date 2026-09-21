@@ -311,6 +311,16 @@ function removeNamedContainer(dockerContext, containerName, { cwd }) {
   }
 }
 
+async function verifyNamedContainerRemovedAfterAbort(dockerContext, containerName, { cwd }) {
+  // A killed Docker CLI may have already submitted create/run to the daemon.
+  // Reap the fence-bound name more than once before reporting cancellation so a
+  // late daemon-side create cannot outlive the revoked authority window.
+  for (const delayMs of [0, 100, 400, 1_000]) {
+    if (delayMs) await new Promise(resolve => setTimeout(resolve, delayMs));
+    removeNamedContainer(dockerContext, containerName, { cwd });
+  }
+}
+
 function nativeDockerAsync(argv, {
   cwd,
   timeoutMs,
@@ -371,12 +381,14 @@ function nativeDockerAsync(argv, {
     timer.unref?.();
     const onAbort = () => stop('abort');
     signal?.addEventListener('abort', onAbort, { once: true });
-    child.on('close', (code, childSignal) => {
+    child.on('close', async (code, childSignal) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       signal?.removeEventListener('abort', onAbort);
-      if (aborted || timedOut || outputLimit) finishCleanup();
+      if (aborted || timedOut || outputLimit) {
+        await verifyNamedContainerRemovedAfterAbort(dockerContext, containerName, { cwd });
+      }
       resolve({
         status: Number.isInteger(code) ? code : null,
         signal: childSignal ?? null,
