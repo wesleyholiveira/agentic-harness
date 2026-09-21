@@ -159,6 +159,9 @@ services:
       rabbitmq: {condition: service_started}
       context-engine: {condition: service_started}
     restart: unless-stopped
+    # NET_ADMIN is startup-only: entrypoint installs UID 10001 egress rules and
+    # drops NET_ADMIN from the worker bounding set before exec.
+    cap_add: [NET_ADMIN]
     volumes:
       - type: bind
         source: ${AGENT_HARNESS_PROJECT_ROOT:-.}
