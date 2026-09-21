@@ -277,3 +277,33 @@ git archive --format=tar HEAD \
 This expands only the deterministic test build context. It does not mount host
 credentials, Docker sockets, product runtime state or consumer source into the
 test container.
+
+
+## Wave 08 image/source attestation and task fencing
+
+Before active Runtime integration, behavior execution now requires two additional
+proofs:
+
+1. `docker-image-source-attestation/v1`: the materialized image must expose
+   exactly the expected source snapshot, runner-spec digest and source-binding
+   digest through the dedicated `org.agentic-harness.*` image labels. This
+   prevents a digest-pinned but stale/unrelated image from becoming validation
+   authority merely because its toolchain is healthy.
+2. `task-execution-fence/v1`: run/task/attempt/dispatchGeneration/fencingToken
+   and lease owner must still identify an unexpired running task.
+
+`probeDockerImageSourceAttestation` queries only the exact image ID and the
+three authority labels. Missing or mismatched labels return HOLD; the probe does
+not emit arbitrary image metadata.
+
+`.agents/runtime/behavior-fence.mjs` observes the authoritative task row through
+the existing Runtime store. `executeBehaviorUnderTaskFence` checks the same
+fence immediately before and after behavior execution. Heartbeat lease-expiry
+extension is allowed without changing fence identity; replacement generation,
+fencing token or lease owner invalidates the receipt.
+
+The WAVE-07 behavior executor now requires both a valid image/source attestation
+and an active execution fence. This hardening is still a library seam: the active
+Rust worker is not yet dispatching behavior execution automatically. That final
+bridge must retain worker heartbeat/cancellation supervision and must not expose
+Docker socket authority to model-controlled processes.

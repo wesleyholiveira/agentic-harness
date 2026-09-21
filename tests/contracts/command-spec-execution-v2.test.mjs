@@ -286,6 +286,29 @@ function behaviorFixture(t, { runnerOverrides = {}, commandOverrides = {} } = {}
     observedAt: new Date(0).toISOString(),
   };
   const materializationIdentityDigest = dockerRunnerMaterializationIdentityDigest(materialization, { spec: runner, sourceBinding: binding });
+  const imageSourceAttestation = {
+    schemaVersion: "docker-image-source-attestation/v1",
+    attestationKind: "docker-image-labels-v1",
+    runnerId: runner.id,
+    runnerSpecDigest: dockerRunnerSpecDigest(runner),
+    sourceBindingDigest: dockerRunnerSourceBindingDigest(binding, { spec: runner }),
+    sourceSnapshotSha256: SOURCE,
+    imageId: IMAGE,
+    platform: runner.platform,
+    materializationIdentityDigest,
+    observedAt: "2026-09-20T00:00:00.000Z",
+  };
+  const executionFence = {
+    schemaVersion: "task-execution-fence/v1",
+    runId: "run-a",
+    taskId: "task-a",
+    attempt: 1,
+    dispatchGeneration: 1,
+    fencingToken: 1,
+    leaseOwner: "worker-a",
+    leaseExpiresAt: "2099-01-01T00:00:00.000Z",
+    observedAt: "2026-09-20T00:00:00.000Z",
+  };
   const toolchainReceipt = {
     schemaVersion: "docker-toolchain-receipt/v2",
     status: "TOOLCHAIN_VERIFIED",
@@ -304,7 +327,10 @@ function behaviorFixture(t, { runnerOverrides = {}, commandOverrides = {} } = {}
     trustVerified: true,
     qualificationVerdict: null,
   };
-  return { root, runner, command, commandId: command.id, descriptor, policy, binding, configuration, workspaceBinding, materialization, toolchainReceipt };
+  return {
+    root, runner, command, commandId: command.id, descriptor, policy, binding, configuration,
+    workspaceBinding, materialization, imageSourceAttestation, executionFence, toolchainReceipt,
+  };
 }
 
 test("missing commandId fails closed before behavior admission", t => {

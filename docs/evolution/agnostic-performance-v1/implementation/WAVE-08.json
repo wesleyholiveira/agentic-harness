@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "implementation-wave-report/v1",
+  "wave": "WAVE-08",
+  "status": "implemented-slice-pending-target-validation",
+  "baseline": {
+    "wave07": {
+      "tests": 226,
+      "pass": 226,
+      "fail": 0,
+      "skip": 0,
+      "status": "GREEN"
+    }
+  },
+  "tasks": {
+    "T03": "image-source-attestation-hardening-partial",
+    "T08": "task-fence-behavior-bridge-partial"
+  },
+  "delivered": [
+    "docker-image-source-attestation/v1",
+    "task-execution-fence/v1",
+    "probeDockerImageSourceAttestation",
+    "executeBehaviorUnderTaskFence",
+    "behavior admission requires attestation + active fence"
+  ],
+  "activeRuntimeExecutorIntegrated": false,
+  "dockerSocketExposedToWorker": false,
+  "newTests": {
+    "file": "tests/contracts/behavior-fence-attestation-v2.test.mjs",
+    "count": 10,
+    "executed": false
+  },
+  "expectedFocusedTotal": 236,
+  "dockerTarget": "NOT_RUN_FOR_WAVE08",
+  "runtimeQualification": "NOT_RUN",
+  "preservation": {
+    "mainChanged": false,
+    "consumerPinChanged": false,
+    "cacheMemoryWorkerRoutingTouched": false,
+    "manifestRegenerated": false
+  }
+}

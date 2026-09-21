@@ -9,6 +9,14 @@ import {
 } from '../../harness-contracts/src/docker-runner-v2.mjs';
 import { evaluateCommandReadiness } from './command-readiness.mjs';
 import { probeDockerRunnerMaterialization } from './docker-materialization-v2.mjs';
+import {
+  dockerImageSourceAttestationIdentityDigest,
+  validateDockerImageSourceAttestation,
+} from '../../harness-contracts/src/image-source-attestation.mjs';
+import {
+  taskExecutionFenceIdentityDigest,
+  validateActiveTaskExecutionFence,
+} from '../../harness-contracts/src/execution-fence.mjs';
 
 const MAX_OUTPUT_BYTES = 1024 * 1024;
 
@@ -43,6 +51,7 @@ function resultEvidence(result) {
 
 export function evaluateBehaviorAdmission({
   configuration, commandId, workspaceBinding, materialization, toolchainReceipt,
+  imageSourceAttestation, executionFence, now = new Date(),
 }) {
   const readiness = evaluateCommandReadiness({
     configuration, commandId, workspaceBinding, materialization, toolchainReceipt,
@@ -51,7 +60,36 @@ export function evaluateBehaviorAdmission({
   const runner = command
     ? configuration.descriptor.runners.find(item => item.id === command.runnerId) ?? null
     : null;
+  const sourceBinding = runner
+    ? configuration?.runnerSourceBindings?.find(item => item.runnerId === runner.id) ?? null
+    : null;
   const reasons = [...(readiness.reasons ?? [])];
+  let imageSourceAttestationIdentityDigest = null;
+  if (!runner || !sourceBinding) {
+    reasons.push('image-source-attestation-prerequisite-missing');
+  } else {
+    try {
+      const checkedAttestation = validateDockerImageSourceAttestation(imageSourceAttestation, {
+        spec: runner,
+        sourceBinding,
+        materialization,
+      });
+      imageSourceAttestationIdentityDigest = dockerImageSourceAttestationIdentityDigest(checkedAttestation, {
+        spec: runner,
+        sourceBinding,
+        materialization,
+      });
+    } catch {
+      reasons.push('image-source-attestation-invalid');
+    }
+  }
+  let executionFenceIdentityDigest = null;
+  try {
+    const checkedFence = validateActiveTaskExecutionFence(executionFence, { now });
+    executionFenceIdentityDigest = taskExecutionFenceIdentityDigest(checkedFence);
+  } catch {
+    reasons.push('task-execution-fence-invalid');
+  }
   if (readiness.status !== 'TOOLCHAIN_READY') reasons.push('toolchain-readiness-required');
   if (!command || !runner) reasons.push('command-or-runner-missing');
   if (command?.phase !== 'behavior') reasons.push('behavior-phase-required');
@@ -78,6 +116,8 @@ export function evaluateBehaviorAdmission({
     sourceSnapshotSha256: configuration?.sourceSnapshotSha256 ?? null,
     workspaceBindingDigest: workspaceBinding?.workspaceBindingDigest ?? null,
     materializationIdentityDigest: readiness.materializationIdentityDigest ?? null,
+    imageSourceAttestationIdentityDigest,
+    executionFenceIdentityDigest,
     toolchainVerified: readiness.toolchainVerified === true,
     effectsEnforced: reasons.length === 0,
     networkEnforced: reasons.length === 0,
@@ -115,6 +155,8 @@ export function executeDockerBehaviorCommandV2(input, {
     sourceSnapshotSha256: admission.sourceSnapshotSha256,
     workspaceBindingDigest: admission.workspaceBindingDigest,
     materializationIdentityDigest: admission.materializationIdentityDigest,
+    imageSourceAttestationIdentityDigest: admission.imageSourceAttestationIdentityDigest,
+    executionFenceIdentityDigest: admission.executionFenceIdentityDigest,
     qualificationVerdict: null,
   };
   if (admission.status !== 'BEHAVIOR_AUTHORIZED' || !command || !spec || !sourceBinding) {

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "docker-target-evidence/v1",
+  "wave": "WAVE-07",
+  "status": "GREEN",
+  "tests": 226,
+  "pass": 226,
+  "fail": 0,
+  "skip": 0,
+  "todo": 0,
+  "durationMs": 4177.474773,
+  "evidenceSource": "operator-provided corrected Docker rerun TAP",
+  "dockerContext": null,
+  "dockerImageId": null,
+  "supersedes": "WAVE-07-DOCKER-RED",
+  "runtimeQualification": "NOT_INFERRED",
+  "releasePromotion": "NOT_INFERRED"
+}
