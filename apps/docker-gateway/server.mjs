@@ -56,7 +56,7 @@ export function validateGatewayRequest(request) {
   if (!request || typeof request !== 'object' || Array.isArray(request)) throw new Error('docker_gateway_request_invalid');
   const keys = Object.keys(request).sort();
   const allowed = ['schemaVersion','commandAuthority','commandSpecIds','executionFence','workspacePath'].sort();
-  if (JSON.stringify(keys) !== JSON.stringify(allowed) || request.schemaVersion !== 'docker-behavior-gateway-request/v1')) {
+  if (JSON.stringify(keys) !== JSON.stringify(allowed) || request.schemaVersion !== 'docker-behavior-gateway-request/v1') {
     throw new Error('docker_gateway_request_invalid');
   }
   if (!request.commandAuthority || request.commandAuthority.schemaVersion !== 'command-authority/v1') throw new Error('docker_gateway_command_authority_invalid');
