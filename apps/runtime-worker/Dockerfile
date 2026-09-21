@@ -12,6 +12,8 @@ RUN apt-get update \
       python3-pip \
       python3-venv \
       python-is-python3 \
+      iptables \
+      util-linux \
     && rm -rf /var/lib/apt/lists/* \
     && printf '%s\n' 'agentexec:x:10001:' >> /etc/group \
     && printf '%s\n' 'agentexec:x:10001:10001::/home/agentexec:/usr/sbin/nologin' >> /etc/passwd \
