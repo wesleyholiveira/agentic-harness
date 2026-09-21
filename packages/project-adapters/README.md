@@ -241,3 +241,39 @@ This library is not yet wired automatically into the active Runtime executor.
 Existing runs therefore retain their current semantics until the next integration
 slice. The Docker foundation target includes
 `tests/contracts/command-spec-execution-v2.test.mjs`.
+
+
+## Wave 07 Docker target packaging correction
+
+The WAVE-07 integrated contract tests import active Runtime planning modules
+(`.agents/runtime/**`) and read active JSON Schemas (`.agents/schemas/**`).
+The Docker target therefore must receive those committed paths in its build
+context and copy them into the image. Omitting them can make package-local tests
+pass while integrated test files fail at ESM module resolution.
+
+Current archive context:
+
+```sh
+git archive --format=tar HEAD \
+  .agents/runtime \
+  .agents/schemas \
+  packages/harness-contracts/src \
+  packages/source-identity/src \
+  packages/source-identity/bin \
+  packages/project-adapters/src \
+  packages/project-adapters/bin \
+  packages/project-adapters/Dockerfile \
+  scripts/internal/source-manifest.mjs \
+  tests/contracts/portable-contracts.test.mjs \
+  tests/contracts/source-identity-v2.test.mjs \
+  tests/contracts/project-descriptor.test.mjs \
+  tests/contracts/command-admission-v2.test.mjs \
+  tests/contracts/trusted-project-config-v2.test.mjs \
+  tests/contracts/command-readiness-v2.test.mjs \
+  tests/contracts/validation-command-authority-v2.test.mjs \
+  tests/contracts/command-spec-execution-v2.test.mjs
+```
+
+This expands only the deterministic test build context. It does not mount host
+credentials, Docker sockets, product runtime state or consumer source into the
+test container.
