@@ -13,6 +13,10 @@ RUN apt-get update \
       python3-venv \
       python-is-python3 \
     && rm -rf /var/lib/apt/lists/* \
+    && printf '%s\n' 'agentexec:x:10001:' >> /etc/group \
+    && printf '%s\n' 'agentexec:x:10001:10001::/home/agentexec:/usr/sbin/nologin' >> /etc/passwd \
+    && mkdir -p /home/agentexec \
+    && chown 10001:10001 /home/agentexec \
     && npm install -g opencode-ai@1.18.26
 WORKDIR /workspace/harness
 COPY package.json ./

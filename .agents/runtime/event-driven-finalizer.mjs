@@ -284,6 +284,33 @@ export async function finalizeExecutionResult({ repositoryRoot, plan, taskPlan, 
     aborted: Boolean(result.aborted),
     error: result.error ?? null,
   };
+  const behaviorGate = result.behaviorGate ?? null;
+  if (behaviorGate) {
+    await store.event(plan.runId, taskPlan.taskId, "behavior.gateway.result", {
+      attempt: result.attempt,
+      dispatchGeneration: result.dispatchGeneration,
+      fencingToken: result.fencingToken,
+      status: behaviorGate.status ?? null,
+      code: behaviorGate.code ?? null,
+      receiptCount: Array.isArray(behaviorGate.receipts) ? behaviorGate.receipts.length : 0,
+    });
+    if (typeof store.writeCheckpoint === "function") {
+      await store.writeCheckpoint({
+        runId: plan.runId,
+        taskId: taskPlan.taskId,
+        type: "behavior.gateway.receipt",
+        attempt: result.attempt,
+        dispatchGeneration: result.dispatchGeneration,
+        fencingToken: result.fencingToken,
+        reusable: false,
+        payload: {
+          status: behaviorGate.status ?? null,
+          code: behaviorGate.code ?? null,
+          receiptCount: Array.isArray(behaviorGate.receipts) ? behaviorGate.receipts.length : 0,
+        },
+      });
+    }
+  }
   if (processResult.aborted) {
     failure = { code: "executor_cancelled", message: "Executor cancelled", retryable: false, cancelled: true, category: "code" };
   } else if (processResult.status !== 0) {
@@ -316,6 +343,15 @@ export async function finalizeExecutionResult({ repositoryRoot, plan, taskPlan, 
         });
       }
     }
+  } else if (behaviorGate && behaviorGate.status !== "PASSED") {
+    const gatewayCode = String(behaviorGate.code ?? "behavior_gateway_not_passed");
+    const failed = behaviorGate.status === "FAILED";
+    failure = {
+      code: failed ? "behavior_validation_failed" : "behavior_gateway_hold",
+      message: `Behavior gateway ${behaviorGate.status ?? "unknown"}: ${gatewayCode}`,
+      retryable: failed,
+      category: failed ? "code" : "contract",
+    };
   } else if (!handoffPath || !(await exists(handoffPath))) {
     failure = { code: "handoff_missing", message: `Executor exited successfully without writing ${handoffPath ?? "handoff"}`, retryable: true };
   } else {

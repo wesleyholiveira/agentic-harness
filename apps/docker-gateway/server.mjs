@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { createServer } from 'node:http';
-import { timingSafeEqual } from 'node:crypto';
 import { relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -10,10 +9,18 @@ import { probeDockerRunnerMaterialization } from '../../packages/project-adapter
 import { probeDockerToolchainV2 } from '../../packages/project-adapters/src/docker-toolchain-v2.mjs';
 import { probeDockerImageSourceAttestation } from '../../packages/project-adapters/src/docker-image-attestation.mjs';
 import { executeDockerBehaviorCommandV2 } from '../../packages/project-adapters/src/behavior-executor-v2.mjs';
+import { createPostgresCapabilityVerifier } from './fence-store.mjs';
 import { spawnSync } from 'node:child_process';
 
 const BODY_LIMIT = 128 * 1024;
 const MAX_COMMANDS = 32;
+
+let defaultCapabilityVerifierPromise = null;
+async function verifyWithDefaultCapabilityStore(request, options) {
+  defaultCapabilityVerifierPromise ??= createPostgresCapabilityVerifier();
+  const verifier = await defaultCapabilityVerifierPromise;
+  return await verifier(request, options);
+}
 
 function nativeDocker(argv, { cwd, timeoutMs }) {
   return spawnSync('docker', argv, {
@@ -55,7 +62,7 @@ function authorityMatches(actual, expected) {
 export function validateGatewayRequest(request) {
   if (!request || typeof request !== 'object' || Array.isArray(request)) throw new Error('docker_gateway_request_invalid');
   const keys = Object.keys(request).sort();
-  const allowed = ['schemaVersion','commandAuthority','commandSpecIds','executionFence','workspacePath'].sort();
+  const allowed = ['schemaVersion','commandAuthority','commandSpecIds','executionFence','workspacePath','capability'].sort();
   if (JSON.stringify(keys) !== JSON.stringify(allowed) || request.schemaVersion !== 'docker-behavior-gateway-request/v1') {
     throw new Error('docker_gateway_request_invalid');
   }
@@ -66,6 +73,7 @@ export function validateGatewayRequest(request) {
   }
   if (typeof request.workspacePath !== 'string' || !request.workspacePath) throw new Error('docker_gateway_workspace_invalid');
   if (!request.executionFence || request.executionFence.schemaVersion !== 'task-execution-fence/v1') throw new Error('docker_gateway_fence_invalid');
+  if (typeof request.capability !== 'string' || !/^[a-f0-9]{64}$/u.test(request.capability)) throw new Error('docker_gateway_capability_invalid');
   return request;
 }
 export function workspaceSubpath(workspaceRoot, workspacePath) {
@@ -107,11 +115,22 @@ export async function runBehaviorGateRequest(request, {
   executeBehavior = executeDockerBehaviorCommandV2,
   volumeResolver = discoverWorkspaceVolume,
   executeDocker = nativeDocker,
+  verifyCapability = verifyWithDefaultCapabilityStore,
   now = new Date(),
 } = {}) {
   let checked;
   try { checked = validateGatewayRequest(request); }
   catch (error) { return hold(error?.message ?? 'docker_gateway_request_invalid'); }
+
+  let capabilityDecision;
+  try {
+    capabilityDecision = await verifyCapability(checked, { now });
+  } catch {
+    return hold('docker_gateway_capability_verifier_unavailable');
+  }
+  if (capabilityDecision?.status !== 'VERIFIED') {
+    return hold(capabilityDecision?.code ?? 'docker_gateway_capability_not_verified');
+  }
 
   let configuration;
   try {
@@ -193,13 +212,6 @@ export async function runBehaviorGateRequest(request, {
   };
 }
 
-function authorized(request, token) {
-  const header = String(request.headers.authorization ?? '');
-  if (!header.startsWith('Bearer ') || !token) return false;
-  const supplied = Buffer.from(header.slice(7), 'utf8');
-  const expected = Buffer.from(token, 'utf8');
-  return supplied.length === expected.length && timingSafeEqual(supplied, expected);
-}
 async function readBody(request) {
   const chunks = [];
   let bytes = 0;
@@ -211,10 +223,8 @@ async function readBody(request) {
   return Buffer.concat(chunks).toString('utf8');
 }
 export function createDockerGatewayServer({
-  token = process.env.AGENT_HARNESS_DOCKER_GATEWAY_TOKEN ?? '',
   runGate = runBehaviorGateRequest,
 } = {}) {
-  if (Buffer.byteLength(token) < 32) throw new Error('docker_gateway_token_required');
   return createServer(async (request, response) => {
     response.setHeader('content-type','application/json');
     if (request.method === 'GET' && request.url === '/health') {
@@ -225,11 +235,6 @@ export function createDockerGatewayServer({
     if (request.method !== 'POST' || request.url !== '/v1/behavior') {
       response.statusCode = 404;
       response.end(JSON.stringify({ status:'error', code:'not_found' }));
-      return;
-    }
-    if (!authorized(request, token)) {
-      response.statusCode = 401;
-      response.end(JSON.stringify({ status:'error', code:'unauthorized' }));
       return;
     }
     try {

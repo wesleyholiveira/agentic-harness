@@ -312,6 +312,23 @@ export async function prepareTaskExecution({ repositoryRoot, plan, taskPlan, reg
   // repository after dependencies integrate and writes the baseline before spawn.
   const workspaceMode = options.workspaceMode === "none" ? "none" : "copy";
   const executionWorkspacePath = workspaceMode === "none" ? repositoryRoot : paths.workspacePath;
+  const commandSpecIds = [...new Set((brief.commandSpecIds ?? taskPlan.commandSpecIds ?? []).map((id) => String(id ?? "").trim()).filter(Boolean))];
+  const commandAuthority = brief.commandAuthority ?? taskPlan.commandAuthority ?? null;
+  let behaviorGate = null;
+  if (commandSpecIds.length > 0) {
+    if (!commandAuthority || commandAuthority.schemaVersion !== "command-authority/v1") {
+      throw new Error(`behavior_gate_command_authority_missing:${taskPlan.taskId}`);
+    }
+    if (workspaceMode !== "copy") {
+      throw new Error(`behavior_gate_requires_isolated_workspace:${taskPlan.taskId}`);
+    }
+    behaviorGate = {
+      schemaVersion: "behavior-gate-descriptor/v1",
+      commandAuthority,
+      commandSpecIds,
+      workspacePath: executionWorkspacePath,
+    };
+  }
 
   const executorTemplate = executionMode === "deterministic-reuse"
     ? `${JSON.stringify(process.execPath)} ${JSON.stringify(join(options.harnessRoot ?? process.env.AGENT_HARNESS_ROOT ?? repositoryRoot, "scripts", "internal", "deterministic-reuse-executor.mjs"))} --agent-input-manifest {agentInputManifest} --task-brief {taskBrief} --workspace {workspace} --handoff {handoff} --agent-id {agentId}`
@@ -375,6 +392,7 @@ export async function prepareTaskExecution({ repositoryRoot, plan, taskPlan, reg
       ownedPaths: taskPlan.ownedPaths ?? [],
       dependencies: taskPlan.dependencies ?? [],
     },
+    ...(behaviorGate ? { behaviorGate } : {}),
     process: {
       command,
       timeoutMs: executionLiveness.hardTimeoutMs,
@@ -433,6 +451,21 @@ export async function prepareTaskExecution({ repositoryRoot, plan, taskPlan, reg
   if (reasoning.level !== reasoning.baseLevel) await store.event(plan.runId, taskPlan.taskId, "reasoning.promoted", { from: reasoning.baseLevel, to: reasoning.level, reasons: reasoning.reasons, attempt });
   await store.event(plan.runId, taskPlan.taskId, "model.route.selected", { ...brief.modelRouting, executionMode });
   await store.event(plan.runId, taskPlan.taskId, "execution.mode.selected", { attempt, executionMode, fullAgentInvocation: executionMode !== "deterministic-reuse" });
+  if (behaviorGate) {
+    await store.event(plan.runId, taskPlan.taskId, "behavior.gateway.request.prepared", {
+      attempt,
+      commandSpecIds,
+      commandAuthority: {
+        projectId: commandAuthority.projectId,
+        repositoryId: commandAuthority.repositoryId,
+        sourceCommit: commandAuthority.sourceCommit,
+        sourceSnapshotSha256: commandAuthority.sourceSnapshotSha256,
+        descriptorDigest: commandAuthority.descriptorDigest,
+        policyDigest: commandAuthority.policyDigest,
+      },
+      workspaceMode,
+    });
+  }
   await store.event(plan.runId, taskPlan.taskId, "execution.topology.selected", { ...executionTopology, attempt, executionMode });
   if (!reusedPreparation) {
     await persistContextReady({

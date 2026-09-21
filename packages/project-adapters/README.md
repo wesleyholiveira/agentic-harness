@@ -345,3 +345,44 @@ a source binding, not a capability.
 This wave does not yet add the gateway token to the Rust worker or invoke the
 gateway from the worker. The active Runtime therefore remains unchanged until
 the gateway itself passes target-host/Docker qualification.
+
+
+## Wave 10 active Rust-worker behavior gate
+
+Typed implementation tasks that carry committed `commandSpecIds` now prepare an
+optional `behavior-gate-descriptor/v1` in the event-driven execution descriptor.
+
+The Rust worker:
+1. materializes the isolated copy workspace;
+2. for typed behavior tasks, runs the model-controlled executor as UID/GID 10001;
+3. removes PostgreSQL/RabbitMQ/gateway/HMAC variables from the child environment;
+4. gives the child a task-scoped temporary OpenCode HOME;
+5. places the child in its own Unix process group;
+6. drains output, kills any surviving descendants and deletes the temporary auth HOME;
+7. only then creates a 64-hex capability;
+8. binds that capability to run/task/attempt/dispatch-generation/fencing-token/lease-owner with HMAC-SHA256;
+9. stores only the HMAC proof in `agent_task_checkpoints`;
+10. invokes the restricted Docker gateway while continuing lease heartbeats and one-second fence/cancellation checks;
+11. rechecks the fence after the gateway response;
+12. serializes the redacted behavior receipt into `AgentExecutionResult`.
+
+The gateway independently verifies the HMAC proof against PostgreSQL and the
+currently-running lease/fence before loading committed configuration or touching
+Docker.
+
+There is no permanent bearer token. `AGENT_HARNESS_DOCKER_GATEWAY_HMAC_KEY`
+must be at least 32 bytes when typed behavior execution is enabled and has no
+default value.
+
+The event-driven finalizer records a non-reusable behavior receipt checkpoint.
+`FAILED` maps to `behavior_validation_failed`; authority/infrastructure HOLD
+maps to `behavior_gateway_hold`.
+
+The gateway remains the only service with `/var/run/docker.sock`; the Rust worker
+does not receive the socket.
+
+Residual security boundary: the model-controlled process still shares the worker
+network namespace. Dropping UID and stripping infrastructure environment prevents
+direct secret inheritance and the HMAC prevents gateway forgery from DB writes,
+but full control-plane network isolation / least-privilege database roles remain a
+later hardening task.

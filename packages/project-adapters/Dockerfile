@@ -8,6 +8,9 @@ COPY --chown=node:node packages/source-identity/bin/ packages/source-identity/bi
 COPY --chown=node:node packages/project-adapters/src/ packages/project-adapters/src/
 COPY --chown=node:node packages/project-adapters/bin/ packages/project-adapters/bin/
 COPY --chown=node:node apps/docker-gateway/ apps/docker-gateway/
+COPY --chown=node:node apps/runtime-worker/src/ apps/runtime-worker/src/
+COPY --chown=node:node apps/runtime-worker/Dockerfile apps/runtime-worker/Dockerfile
+COPY --chown=node:node .env.example .env.example
 COPY --chown=node:node compose.yaml compose.yaml
 COPY --chown=node:node .agents/runtime/ .agents/runtime/
 COPY --chown=node:node .agents/schemas/ .agents/schemas/
@@ -22,6 +25,7 @@ COPY --chown=node:node tests/contracts/validation-command-authority-v2.test.mjs 
 COPY --chown=node:node tests/contracts/command-spec-execution-v2.test.mjs tests/contracts/command-spec-execution-v2.test.mjs
 COPY --chown=node:node tests/contracts/behavior-fence-attestation-v2.test.mjs tests/contracts/behavior-fence-attestation-v2.test.mjs
 COPY --chown=node:node tests/contracts/docker-behavior-gateway-v1.test.mjs tests/contracts/docker-behavior-gateway-v1.test.mjs
+COPY --chown=node:node tests/contracts/runtime-regressions.test.mjs tests/contracts/runtime-regressions.test.mjs
 USER node
 FROM toolchain AS test
-CMD ["sh", "-ec", "node --version; git --version; id; node --check apps/docker-gateway/server.mjs; node --test tests/contracts/portable-contracts.test.mjs tests/contracts/source-identity-v2.test.mjs tests/contracts/project-descriptor.test.mjs tests/contracts/command-admission-v2.test.mjs tests/contracts/trusted-project-config-v2.test.mjs tests/contracts/command-readiness-v2.test.mjs tests/contracts/validation-command-authority-v2.test.mjs tests/contracts/command-spec-execution-v2.test.mjs tests/contracts/behavior-fence-attestation-v2.test.mjs tests/contracts/docker-behavior-gateway-v1.test.mjs"]
+CMD ["sh", "-ec", "node --version; git --version; id; node --check apps/docker-gateway/server.mjs; node --check apps/docker-gateway/fence-store.mjs; node --test tests/contracts/portable-contracts.test.mjs tests/contracts/source-identity-v2.test.mjs tests/contracts/project-descriptor.test.mjs tests/contracts/command-admission-v2.test.mjs tests/contracts/trusted-project-config-v2.test.mjs tests/contracts/command-readiness-v2.test.mjs tests/contracts/validation-command-authority-v2.test.mjs tests/contracts/command-spec-execution-v2.test.mjs tests/contracts/behavior-fence-attestation-v2.test.mjs tests/contracts/docker-behavior-gateway-v1.test.mjs tests/contracts/runtime-regressions.test.mjs"]

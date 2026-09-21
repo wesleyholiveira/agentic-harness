@@ -3,6 +3,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates git docker.io \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /workspace/harness
+RUN npm install --omit=dev --no-save pg@8.22.0
 COPY packages ./packages
 COPY apps/docker-gateway ./apps/docker-gateway
 ENV AGENT_HARNESS_PROJECT_ROOT=/workspace/repository \

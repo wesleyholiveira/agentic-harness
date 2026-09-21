@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Config {
     pub database_url: String,
     pub database_schema: String,
@@ -9,6 +9,9 @@ pub struct Config {
     pub outbox_poll_interval_ms: u64,
     pub outbox_batch_size: usize,
     pub outbox_max_publish_attempts: i32,
+    pub behavior_gateway_url: Option<String>,
+    pub behavior_gateway_hmac_key: Option<String>,
+    pub behavior_gateway_http_timeout_ms: u64,
     pub agent_runtime_test_cleanup_fault: Option<String>,
     pub agent_runtime_test_cleanup_fault_task_match: Option<String>,
     pub agent_continuation_test_fault: Option<String>,
@@ -68,6 +71,13 @@ impl Config {
         if max_attempts != 1 {
             bail!("agent_continuation_max_attempts_must_be_one");
         }
+        let behavior_gateway_hmac_key = lookup_opt(
+            &mut lookup,
+            "AGENT_HARNESS_DOCKER_GATEWAY_HMAC_KEY",
+        );
+        if behavior_gateway_hmac_key.as_ref().is_some_and(|value| value.as_bytes().len() < 32) {
+            bail!("behavior_gateway_hmac_key_too_short");
+        }
 
         Ok(Self {
             database_url,
@@ -88,6 +98,16 @@ impl Config {
                 &mut lookup,
                 "OUTBOX_MAX_PUBLISH_ATTEMPTS",
                 5_i32,
+            ),
+            behavior_gateway_url: lookup_opt(
+                &mut lookup,
+                "AGENT_HARNESS_DOCKER_GATEWAY_URL",
+            ),
+            behavior_gateway_hmac_key,
+            behavior_gateway_http_timeout_ms: lookup_num(
+                &mut lookup,
+                "AGENT_HARNESS_DOCKER_GATEWAY_HTTP_TIMEOUT_MS",
+                3_600_000_u64,
             ),
             agent_runtime_test_cleanup_fault: lookup_opt(
                 &mut lookup,

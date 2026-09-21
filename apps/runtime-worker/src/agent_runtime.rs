@@ -45,6 +45,10 @@ use uuid::Uuid;
 
 use crate::{
     amqp::{connect, long_string, publish_raw_confirmed},
+    behavior_gateway::{
+        BehaviorGateDescriptor, BehaviorGatewayResult, TaskExecutionFence,
+        capability_proof, invoke_gateway, new_capability,
+    },
     config::Config,
 };
 
@@ -62,6 +66,8 @@ const CLEANUP_RETRIES_PER_DELIVERY: usize = 8;
 const STDERR_TAIL_LIMIT: usize = 16 * 1024;
 const OUTBOX_IDLE_MAX_POLL_MS: u64 = 1_000;
 const OUTPUT_DRAIN_TIMEOUT_MS: u64 = 5_000;
+const BEHAVIOR_AGENT_UID: u32 = 10_001;
+const BEHAVIOR_AGENT_GID: u32 = 10_001;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -127,6 +133,8 @@ struct ExecutionDescriptor {
     result_path: String,
     change_set_path: String,
     workspace: WorkspaceDescriptor,
+    #[serde(default)]
+    behavior_gate: Option<BehaviorGateDescriptor>,
     process: ProcessDescriptor,
 }
 
@@ -180,6 +188,8 @@ struct ExecutionResult {
     result_path: String,
     change_set_path: String,
     workspace: ExecutionResultWorkspace,
+    #[serde(default)]
+    behavior_gate: Option<BehaviorGatewayResult>,
     telemetry: ExecutionTelemetry,
 }
 
@@ -1230,6 +1240,258 @@ async fn drain_executor_output(
     .await;
 }
 
+
+#[cfg(unix)]
+async fn prepare_restricted_behavior_agent(
+    descriptor: &ExecutionDescriptor,
+    claimed: &ClaimedExecution,
+) -> Result<PathBuf> {
+    if descriptor.workspace.mode != "copy" {
+        bail!("behavior_gate_requires_copy_workspace");
+    }
+    let workspace = PathBuf::from(&descriptor.workspace.path);
+    let mut hasher = Sha256::new();
+    hasher.update(claimed.run_id.as_bytes());
+    hasher.update(b"\0");
+    hasher.update(claimed.task_id.as_bytes());
+    hasher.update(b"\0");
+    hasher.update(claimed.attempt.to_string().as_bytes());
+    hasher.update(b"\0");
+    hasher.update(claimed.dispatch_generation.to_string().as_bytes());
+    hasher.update(b"\0");
+    hasher.update(claimed.fencing_token.to_string().as_bytes());
+    let digest = format!("{:x}", hasher.finalize());
+    let home = PathBuf::from("/tmp/agentic-harness-agent-home").join(&digest[..32]);
+    if home.exists() {
+        tokio::fs::remove_dir_all(&home)
+            .await
+            .context("behavior_agent_home_cleanup_failed")?;
+    }
+    let auth_dir = home.join(".local").join("share").join("opencode");
+    tokio::fs::create_dir_all(&auth_dir)
+        .await
+        .context("behavior_agent_home_create_failed")?;
+    let source_auth = opencode_auth_path();
+    if !source_auth.exists() {
+        bail!("behavior_agent_opencode_auth_missing");
+    }
+    tokio::fs::copy(&source_auth, auth_dir.join("auth.json"))
+        .await
+        .context("behavior_agent_opencode_auth_copy_failed")?;
+
+    for path in [&workspace, &home] {
+        let output = Command::new("chown")
+            .args(["-R", &format!("{BEHAVIOR_AGENT_UID}:{BEHAVIOR_AGENT_GID}")])
+            .arg(path)
+            .output()
+            .await
+            .context("behavior_agent_chown_spawn_failed")?;
+        if !output.status.success() {
+            bail!("behavior_agent_chown_failed");
+        }
+    }
+    Ok(home)
+}
+
+#[cfg(not(unix))]
+async fn prepare_restricted_behavior_agent(
+    _descriptor: &ExecutionDescriptor,
+    _claimed: &ClaimedExecution,
+) -> Result<PathBuf> {
+    bail!("behavior_gate_requires_unix_worker");
+}
+
+async fn active_behavior_fence(
+    client: &Client,
+    claimed: &ClaimedExecution,
+    config: &Config,
+) -> Result<TaskExecutionFence> {
+    let row = client
+        .query_opt(
+            "SELECT t.status,t.attempt,t.dispatch_generation,t.fencing_token,t.lease_owner,t.lease_expires_at,r.status \
+             FROM agent_tasks t JOIN agent_runs r ON r.run_id=t.run_id WHERE t.task_id=$1 AND t.run_id=$2",
+            &[&claimed.task_id, &claimed.run_id],
+        )
+        .await?
+        .context("behavior_gateway_task_missing")?;
+    let status: String = row.get(0);
+    let attempt: i32 = row.get(1);
+    let generation: i64 = row.get(2);
+    let fence: i64 = row.get(3);
+    let owner: Option<String> = row.get(4);
+    let expires: Option<String> = row.get(5);
+    let run_status: String = row.get(6);
+    if run_status != "running"
+        || status != "running"
+        || attempt != claimed.attempt
+        || generation != claimed.dispatch_generation
+        || fence != claimed.fencing_token
+        || owner.as_deref() != Some(config.worker_id.as_str())
+    {
+        bail!("behavior_gateway_execution_fence_mismatch");
+    }
+    let lease_expires_at = expires.context("behavior_gateway_execution_lease_missing")?;
+    let expires_at = chrono::DateTime::parse_from_rfc3339(&lease_expires_at)
+        .context("behavior_gateway_execution_lease_invalid")?;
+    if expires_at <= Utc::now() {
+        bail!("behavior_gateway_execution_lease_expired");
+    }
+    Ok(TaskExecutionFence {
+        schema_version: "task-execution-fence/v1".into(),
+        run_id: claimed.run_id.clone(),
+        task_id: claimed.task_id.clone(),
+        attempt: claimed.attempt,
+        dispatch_generation: claimed.dispatch_generation,
+        fencing_token: claimed.fencing_token,
+        lease_owner: config.worker_id.clone(),
+        lease_expires_at,
+        observed_at: now(),
+    })
+}
+
+async fn persist_behavior_capability(
+    client: &Client,
+    claimed: &ClaimedExecution,
+    config: &Config,
+    fingerprint: &str,
+) -> Result<String> {
+    let fingerprint = fingerprint.to_string();
+    let checkpoint_id = format!("checkpoint-{}", Uuid::new_v4());
+    let payload = serde_json::json!({
+        "source": "rust-agent-runtime-worker",
+        "workerId": config.worker_id.clone(),
+        "purpose": "docker-behavior-gateway",
+    });
+    client
+        .execute(
+            "INSERT INTO agent_task_checkpoints(\
+               checkpoint_id,run_id,task_id,checkpoint_type,attempt,dispatch_generation,fencing_token,fingerprint,reusable,payload_json,created_at\
+             ) VALUES($1,$2,$3,'behavior.gateway.capability',$4,$5,$6,$7,FALSE,$8,$9) \
+             ON CONFLICT(task_id,checkpoint_type,attempt,dispatch_generation,fencing_token) DO UPDATE SET \
+               fingerprint=EXCLUDED.fingerprint,reusable=FALSE,payload_json=EXCLUDED.payload_json,created_at=EXCLUDED.created_at,invalidated_at=NULL",
+            &[
+                &checkpoint_id,
+                &claimed.run_id,
+                &claimed.task_id,
+                &claimed.attempt,
+                &claimed.dispatch_generation,
+                &claimed.fencing_token,
+                &fingerprint,
+                &payload.to_string(),
+                &now(),
+            ],
+        )
+        .await?;
+    Ok(fingerprint)
+}
+
+async fn run_behavior_gateway_under_lease(
+    descriptor: &BehaviorGateDescriptor,
+    claimed: &ClaimedExecution,
+    client: &Client,
+    config: &Config,
+) -> BehaviorGatewayResult {
+    let fence = match active_behavior_fence(client, claimed, config).await {
+        Ok(value) => value,
+        Err(error) => return BehaviorGatewayResult::hold(format!("behavior_gateway_pre_fence_invalid:{error}")),
+    };
+    let capability = new_capability();
+    let hmac_key = match config.behavior_gateway_hmac_key.as_deref() {
+        Some(value) if value.as_bytes().len() >= 32 => value,
+        _ => return BehaviorGatewayResult::hold("behavior_gateway_hmac_key_required"),
+    };
+    let capability_fingerprint = match capability_proof(hmac_key, &capability, &fence) {
+        Ok(value) => value,
+        Err(error) => return BehaviorGatewayResult::hold(format!("behavior_gateway_capability_proof_failed:{error}")),
+    };
+    let capability_fingerprint = match persist_behavior_capability(client, claimed, config, &capability_fingerprint).await {
+        Ok(value) => value,
+        Err(error) => return BehaviorGatewayResult::hold(format!("behavior_gateway_capability_persist_failed:{error}")),
+    };
+    if let Err(error) = insert_event(
+        client,
+        &claimed.run_id,
+        Some(&claimed.task_id),
+        "behavior.gateway.started",
+        serde_json::json!({
+            "attempt": claimed.attempt,
+            "dispatchGeneration": claimed.dispatch_generation,
+            "fencingToken": claimed.fencing_token,
+            "leaseOwner": config.worker_id.clone(),
+            "capabilityFingerprint": capability_fingerprint,
+            "commandCount": descriptor.command_spec_ids.len(),
+            "source": "rust-agent-runtime-worker",
+        }),
+    )
+    .await
+    {
+        warn!(event="agent_runtime.behavior_gateway_event_failed", phase="started", task_id=%claimed.task_id, error=%error);
+    }
+
+    let request = invoke_gateway(config, descriptor, &fence, &capability);
+    tokio::pin!(request);
+    let mut heartbeat = interval(Duration::from_secs(HEARTBEAT_SECONDS));
+    heartbeat.tick().await;
+    let mut cancellation = interval(Duration::from_secs(1));
+    cancellation.tick().await;
+
+    let result = loop {
+        tokio::select! {
+            response = &mut request => {
+                break match response {
+                    Ok(value) => value,
+                    Err(error) => BehaviorGatewayResult::hold(format!("behavior_gateway_request_failed:{error}")),
+                };
+            }
+            _ = heartbeat.tick() => {
+                let expires = (Utc::now() + chrono::Duration::seconds(LEASE_SECONDS)).to_rfc3339();
+                let updated = client.execute(
+                    "UPDATE agent_tasks SET lease_expires_at=$2,state_version=state_version+1 \
+                     WHERE task_id=$1 AND status='running' AND lease_owner=$3 AND dispatch_generation=$4 AND fencing_token=$5",
+                    &[&claimed.task_id, &expires, &config.worker_id, &claimed.dispatch_generation, &claimed.fencing_token],
+                ).await;
+                match updated {
+                    Ok(1) => {
+                        debug!(event="agent_runtime.behavior_gateway_heartbeat", run_id=%claimed.run_id, task_id=%claimed.task_id, worker_id=%config.worker_id, dispatch_generation=claimed.dispatch_generation, fencing_token=claimed.fencing_token);
+                    }
+                    Ok(_) => break BehaviorGatewayResult::hold("behavior_gateway_lease_lost"),
+                    Err(error) => break BehaviorGatewayResult::hold(format!("behavior_gateway_lease_renew_failed:{error}")),
+                }
+            }
+            _ = cancellation.tick() => {
+                if let Err(error) = active_behavior_fence(client, claimed, config).await {
+                    break BehaviorGatewayResult::hold(format!("behavior_gateway_fence_lost:{error}"));
+                }
+            }
+        }
+    };
+
+    let result = match active_behavior_fence(client, claimed, config).await {
+        Ok(_) => result,
+        Err(error) => BehaviorGatewayResult::hold(format!("behavior_gateway_post_fence_invalid:{error}")),
+    };
+    if let Err(error) = insert_event(
+        client,
+        &claimed.run_id,
+        Some(&claimed.task_id),
+        "behavior.gateway.completed",
+        serde_json::json!({
+            "attempt": claimed.attempt,
+            "dispatchGeneration": claimed.dispatch_generation,
+            "fencingToken": claimed.fencing_token,
+            "status": result.status.clone(),
+            "code": result.code.clone(),
+            "receiptCount": result.receipts.len(),
+            "source": "rust-agent-runtime-worker",
+        }),
+    )
+    .await
+    {
+        warn!(event="agent_runtime.behavior_gateway_event_failed", phase="completed", task_id=%claimed.task_id, error=%error);
+    }
+    result
+}
+
 async fn run_shell_command(
     descriptor: &ExecutionDescriptor,
     claimed: &ClaimedExecution,
@@ -1241,6 +1503,11 @@ async fn run_shell_command(
     materialize_workspace(descriptor)
         .await
         .context("agent_runtime_workspace_materialize_failed")?;
+    let restricted_agent_home = if descriptor.behavior_gate.is_some() {
+        Some(prepare_restricted_behavior_agent(descriptor, claimed).await?)
+    } else {
+        None
+    };
     let workspace_duration_ms = workspace_started.elapsed().as_millis() as u64;
     if let Err(error) = insert_event(client, &claimed.run_id, Some(&claimed.task_id), "workspace.ready", serde_json::json!({
         "attempt": claimed.attempt, "dispatchGeneration": claimed.dispatch_generation, "fencingToken": claimed.fencing_token,
@@ -1276,6 +1543,28 @@ async fn run_shell_command(
     };
     command.current_dir(execution_directory);
     command.envs(&descriptor.process.env);
+    for sensitive in [
+        "AGENT_POSTGRES_URL",
+        "DATABASE_URL",
+        "POSTGRES_PASSWORD",
+        "AGENT_HARNESS_RUNTIME_RABBITMQ_URL",
+        "RABBITMQ_DEFAULT_PASS",
+        "AGENT_HARNESS_DOCKER_GATEWAY_URL",
+        "AGENT_HARNESS_DOCKER_GATEWAY_HMAC_KEY",
+    ] {
+        command.env_remove(sensitive);
+    }
+    let isolated_process_group = descriptor.behavior_gate.is_some();
+    if let Some(home) = restricted_agent_home.as_ref() {
+        command.env("HOME", home);
+        command.env_remove("XDG_DATA_HOME");
+        #[cfg(unix)]
+        {
+            command.uid(BEHAVIOR_AGENT_UID);
+            command.gid(BEHAVIOR_AGENT_GID);
+            command.process_group(0);
+        }
+    }
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
     command.kill_on_drop(false);
@@ -1386,7 +1675,11 @@ async fn run_shell_command(
                         "source": "rust-agent-runtime-executor"
                     })).await?;
                     stalled = true;
-                    terminate_process_tree(pid).await;
+                    if isolated_process_group {
+                        terminate_isolated_process_group(pid).await;
+                    } else {
+                        terminate_process_tree(pid).await;
+                    }
                     let _ = child.kill().await;
                 }
             }
@@ -1401,7 +1694,11 @@ async fn run_shell_command(
                 if cancelled {
                     warn!(event="agent_runtime.executor_cancelled", run_id=%claimed.run_id, task_id=%claimed.task_id, worker_id=%config.worker_id, dispatch_generation=claimed.dispatch_generation, fencing_token=claimed.fencing_token);
                     aborted = true;
-                    terminate_process_tree(pid).await;
+                    if isolated_process_group {
+                        terminate_isolated_process_group(pid).await;
+                    } else {
+                        terminate_process_tree(pid).await;
+                    }
                     let _ = child.kill().await;
                 }
             }
@@ -1431,10 +1728,27 @@ async fn run_shell_command(
     };
     drain_executor_output(stdout_task, "stdout", claimed, client).await;
     drain_executor_output(stderr_task, "stderr", claimed, client).await;
+    if isolated_process_group {
+        terminate_isolated_process_group(pid).await;
+    }
+    if let Some(home) = restricted_agent_home.as_ref() {
+        tokio::fs::remove_dir_all(home)
+            .await
+            .context("behavior_agent_home_cleanup_after_execution_failed")?;
+    }
     collect_workspace_change_set(descriptor, claimed)
         .await
         .context("agent_runtime_workspace_changeset_failed")?;
     info!(event="agent_runtime.workspace_changeset_ready", run_id=%claimed.run_id, task_id=%claimed.task_id, change_set_path=%descriptor.change_set_path);
+
+    let behavior_gate = if status.success() && !timed_out && !soft_timed_out && !stalled && !aborted {
+        match descriptor.behavior_gate.as_ref() {
+            Some(gate) => Some(run_behavior_gateway_under_lease(gate, claimed, client, config).await),
+            None => None,
+        }
+    } else {
+        None
+    };
 
     let completed_at = now();
     let executor_duration_ms = started.elapsed().as_millis() as u64;
@@ -1471,6 +1785,7 @@ async fn run_shell_command(
             path: descriptor.workspace.path.clone(),
             baseline_path: descriptor.workspace.baseline_path.clone(),
         },
+        behavior_gate,
         telemetry: ExecutionTelemetry {
             session_id: session_id.lock().await.clone(),
             stdout_bytes: stdout_bytes.load(Ordering::Relaxed),
@@ -1485,12 +1800,37 @@ async fn run_shell_command(
         "executionMode": descriptor.execution_mode.clone(), "exitCode": result.exit_code, "timedOut": result.timed_out,
         "softTimedOut": result.soft_timed_out, "stalled": result.stalled, "aborted": result.aborted,
         "stdoutBytes": result.telemetry.stdout_bytes, "stderrBytes": result.telemetry.stderr_bytes,
+        "behaviorGateStatus": result.behavior_gate.as_ref().map(|gate| gate.status.clone()),
+        "behaviorGateCode": result.behavior_gate.as_ref().map(|gate| gate.code.clone()),
         "source": "rust-agent-runtime-executor"
     })).await {
         warn!(event="agent_runtime.performance_event_failed", event_type="executor.completed", run_id=%claimed.run_id, task_id=%claimed.task_id, error=%error);
     }
     info!(event="agent_runtime.executor_completed", run_id=%claimed.run_id, task_id=%claimed.task_id, agent_id=%descriptor.agent_id, worker_id=%config.worker_id, exit_code=?result.exit_code, timed_out=result.timed_out, soft_timed_out=result.soft_timed_out, stalled=result.stalled, aborted=result.aborted, duration_ms=executor_duration_ms, stdout_bytes=result.telemetry.stdout_bytes, stderr_bytes=result.telemetry.stderr_bytes, opencode_session_id=?result.telemetry.session_id, dispatch_generation=claimed.dispatch_generation, fencing_token=claimed.fencing_token, execution_mode=%descriptor.execution_mode);
     Ok(result)
+}
+
+async fn terminate_isolated_process_group(pid: Option<i64>) {
+    let Some(pid) = pid else {
+        return;
+    };
+    #[cfg(unix)]
+    {
+        let group = format!("-{pid}");
+        let _ = Command::new("kill")
+            .args(["-TERM", "--", &group])
+            .output()
+            .await;
+        sleep(Duration::from_millis(250)).await;
+        let _ = Command::new("kill")
+            .args(["-KILL", "--", &group])
+            .output()
+            .await;
+    }
+    #[cfg(windows)]
+    {
+        terminate_process_tree(Some(pid)).await;
+    }
 }
 
 async fn terminate_process_tree(pid: Option<i64>) {
@@ -1767,6 +2107,7 @@ async fn consume_execute(config: Config, channel: Channel, concurrency: u16) -> 
                         path: descriptor.workspace.path.clone(),
                         baseline_path: descriptor.workspace.baseline_path.clone(),
                     },
+                    behavior_gate: None,
                     telemetry: ExecutionTelemetry::default(),
                 },
             };

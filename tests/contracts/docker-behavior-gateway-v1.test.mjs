@@ -15,6 +15,10 @@ import {
   normalizeTechnicalPlanMechanics,
 } from "../../.agents/runtime/technical-plan-synthesis.mjs";
 import { validationCommandId } from "../../.agents/runtime/validation-command.mjs";
+import {
+  createPostgresCapabilityVerifier,
+  gatewayCapabilityProof,
+} from "../../apps/docker-gateway/fence-store.mjs";
 
 function authority(overrides = {}) {
   return {
@@ -45,6 +49,7 @@ function request(overrides = {}) {
       observedAt: "2026-09-21T00:00:00.000Z",
     },
     workspacePath: "/workspace/agent-workspaces/run-a/task-a--attempt-1",
+    capability: "a".repeat(64),
     ...overrides,
   };
 }
@@ -69,6 +74,7 @@ test("gateway request is strict and rejects duplicate command IDs", () => {
   assert.equal(validateGatewayRequest(request()).commandSpecIds[0], "verify.unit");
   assert.throws(() => validateGatewayRequest({ ...request(), extra: true }), /docker_gateway_request_invalid/);
   assert.throws(() => validateGatewayRequest(request({ commandSpecIds: ["verify.unit","verify.unit"] })), /docker_gateway_command_ids_invalid/);
+  assert.throws(() => validateGatewayRequest(request({ capability: "short" })), /docker_gateway_capability_invalid/);
 });
 
 test("workspace subpath is bounded under the shared Runtime workspace root", () => {
@@ -108,6 +114,21 @@ test("gateway resolves exactly one Docker volume mounted at the workspace root",
   assert.deepEqual(calls[0], ["container","inspect","--format","{{json .Mounts}}","gateway-container"]);
 });
 
+test("capability HOLD stops before committed config or Docker activity", async () => {
+  let loaded = 0, docker = 0;
+  const result = await runBehaviorGateRequest(request(), {
+    projectRoot: "/workspace/repository",
+    workspaceRoot: "/workspace/agent-workspaces",
+    verifyCapability: async () => ({ status: "HOLD", code: "docker_gateway_capability_mismatch" }),
+    loadConfiguration: () => { loaded++; throw new Error("should-not-load"); },
+    executeDocker: () => { docker++; throw new Error("should-not-docker"); },
+  });
+  assert.equal(result.status, "HOLD");
+  assert.equal(result.code, "docker_gateway_capability_mismatch");
+  assert.equal(loaded, 0);
+  assert.equal(docker, 0);
+});
+
 test("command authority mismatch stops before workspace or Docker activity", async () => {
   let bound = 0, docker = 0;
   const result = await runBehaviorGateRequest(request({
@@ -115,6 +136,7 @@ test("command authority mismatch stops before workspace or Docker activity", asy
   }), {
     projectRoot: "/workspace/repository",
     workspaceRoot: "/workspace/agent-workspaces",
+    verifyCapability: async () => ({ status: "VERIFIED", code: "ok" }),
     loadConfiguration: () => configuration(),
     bindWorkspace: () => { bound++; throw new Error("should-not-bind"); },
     executeDocker: () => { docker++; throw new Error("should-not-docker"); },
@@ -130,6 +152,7 @@ test("gateway orchestrates the admitted command with a read-only task-volume sub
   const result = await runBehaviorGateRequest(request(), {
     projectRoot: "/workspace/repository",
     workspaceRoot: "/workspace/agent-workspaces",
+    verifyCapability: async () => ({ status: "VERIFIED", code: "ok" }),
     loadConfiguration: () => configuration(),
     bindWorkspace: () => ({ status: "AUTHORITY_INPUTS_BOUND", workspaceBindingDigest: "sha256:" + "f".repeat(64) }),
     volumeResolver: () => "project_agent-harness-agent-workspaces",
@@ -165,6 +188,7 @@ test("gateway returns FAILED for a behavior failure without continuing", async (
   const result = await runBehaviorGateRequest(request(), {
     projectRoot: "/workspace/repository",
     workspaceRoot: "/workspace/agent-workspaces",
+    verifyCapability: async () => ({ status: "VERIFIED", code: "ok" }),
     loadConfiguration: () => configuration(),
     bindWorkspace: () => ({ status: "AUTHORITY_INPUTS_BOUND", workspaceBindingDigest: "sha256:" + "f".repeat(64) }),
     volumeResolver: () => "workspace-volume",
@@ -178,9 +202,72 @@ test("gateway returns FAILED for a behavior failure without continuing", async (
   assert.equal(result.receipts[0].exitCode, 9);
 });
 
-test("gateway server refuses short/empty shared tokens", () => {
-  assert.throws(() => createDockerGatewayServer({ token: "" }), /docker_gateway_token_required/);
-  assert.throws(() => createDockerGatewayServer({ token: "short" }), /docker_gateway_token_required/);
+test("gateway capability verifier binds the raw capability to the active PostgreSQL fence", async () => {
+  const req = request();
+  const hmacKey = "s".repeat(32);
+  const verifier = await createPostgresCapabilityVerifier({
+    hmacKey,
+    pool: {
+      async query() {
+        return {
+          rows: [{
+            status: "running",
+            attempt: 1,
+            dispatch_generation: 2,
+            fencing_token: 3,
+            lease_owner: "worker-a",
+            lease_expires_at: "2099-01-01T00:00:00.000Z",
+            run_status: "running",
+            fingerprint: gatewayCapabilityProof(hmacKey, req.capability, req.executionFence),
+          }],
+        };
+      },
+    },
+  });
+  const verified = await verifier(req, { now: new Date("2026-09-21T00:00:00.000Z") });
+  assert.equal(verified.status, "VERIFIED");
+
+  const mismatch = await verifier({ ...req, capability: "b".repeat(64) }, { now: new Date("2026-09-21T00:00:00.000Z") });
+  assert.equal(mismatch.status, "HOLD");
+  assert.equal(mismatch.code, "docker_gateway_capability_mismatch");
+
+  const wrongFenceVerifier = await createPostgresCapabilityVerifier({
+    hmacKey,
+    pool: {
+      async query() {
+        return { rows: [{ ...{
+          status: "running", attempt: 1, dispatch_generation: 2, fencing_token: 4,
+          lease_owner: "worker-a", lease_expires_at: "2099-01-01T00:00:00.000Z",
+          run_status: "running", fingerprint: gatewayCapabilityProof(hmacKey, req.capability, req.executionFence),
+        } }] };
+      },
+    },
+  });
+  const wrongFence = await wrongFenceVerifier(req, { now: new Date("2026-09-21T00:00:00.000Z") });
+  assert.equal(wrongFence.status, "HOLD");
+  assert.equal(wrongFence.code, "docker_gateway_fence_identity_mismatch");
+
+  const expiredVerifier = await createPostgresCapabilityVerifier({
+    hmacKey,
+    pool: {
+      async query() {
+        return { rows: [{
+          status: "running", attempt: 1, dispatch_generation: 2, fencing_token: 3,
+          lease_owner: "worker-a", lease_expires_at: "2020-01-01T00:00:00.000Z",
+          run_status: "running", fingerprint: gatewayCapabilityProof(hmacKey, req.capability, req.executionFence),
+        }] };
+      },
+    },
+  });
+  const expired = await expiredVerifier(req, { now: new Date("2026-09-21T00:00:00.000Z") });
+  assert.equal(expired.status, "HOLD");
+  assert.equal(expired.code, "docker_gateway_fence_expired");
+});
+
+test("gateway HTTP server has no long-lived bearer token constructor", () => {
+  const server = createDockerGatewayServer({ runGate: async () => ({ status: "HOLD", code: "unused" }) });
+  assert.ok(server);
+  server.close();
 });
 
 test("Compose exposes Docker socket only to the isolated behavior-gateway profile", () => {
@@ -196,7 +283,13 @@ test("Compose exposes Docker socket only to the isolated behavior-gateway profil
   assert.match(gatewayBlock, /cap_drop: \[ALL\]/u);
   assert.ok(!gatewayBlock.includes("ports:"));
   assert.ok(!workerBlock.includes("/var/run/docker.sock"));
+  assert.ok(!gatewayBlock.includes("AGENT_HARNESS_DOCKER_GATEWAY_TOKEN"));
+  assert.match(gatewayBlock, /AGENT_POSTGRES_URL:/u);
+  assert.match(gatewayBlock, /AGENT_HARNESS_DOCKER_GATEWAY_HMAC_KEY:/u);
+  assert.ok(!workerBlock.includes("/var/run/docker.sock"));
   assert.ok(!workerBlock.includes("AGENT_HARNESS_DOCKER_GATEWAY_TOKEN"));
+  assert.match(workerBlock, /AGENT_HARNESS_DOCKER_GATEWAY_URL:/u);
+  assert.match(workerBlock, /AGENT_HARNESS_DOCKER_GATEWAY_HMAC_KEY:/u);
 });
 
 function registry() {

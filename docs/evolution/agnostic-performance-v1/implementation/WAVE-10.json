@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "implementation-wave-report/v1",
+  "wave": "WAVE-10",
+  "status": "implemented-slice-pending-target-validation",
+  "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
+  "delivered": [
+    "behavior-gate-descriptor/v1 in event-driven execution descriptor",
+    "Rust gateway client with heartbeat and fence supervision",
+    "post-agent 64-hex capability",
+    "HMAC-SHA256 fence-bound capability proof",
+    "PostgreSQL gateway capability verification",
+    "typed child UID/GID 10001 privilege drop",
+    "isolated process-group teardown before capability mint",
+    "temporary OpenCode HOME cleanup",
+    "AgentExecutionResult behaviorGate receipt",
+    "event-driven finalizer behavior gate projection"
+  ],
+  "security": {
+    "dockerSocketOnWorker": false,
+    "dockerSocketOnGateway": true,
+    "longLivedBearerToken": false,
+    "hmacKeyDefault": null,
+    "hmacMinimumBytes": 32,
+    "rawCapabilityPersisted": false,
+    "typedAgentUid": 10001,
+    "processGroupKilledBeforeCapability": true,
+    "childInfrastructureEnvRemoved": true
+  },
+  "expectedFocusedTotalApprox": 257,
+  "rustTests": "NOT_RUN",
+  "dockerContractTarget": "NOT_RUN",
+  "workerImageBuild": "NOT_RUN",
+  "gatewayImageBuild": "NOT_RUN",
+  "endToEndBehaviorTask": "NOT_RUN",
+  "runtimeQualification": "NOT_RUN",
+  "preservation": {
+    "mainChanged": false,
+    "consumerPinChanged": false,
+    "cacheMemoryWorkerRoutingTouched": false,
+    "manifestRegenerated": false
+  }
+}
