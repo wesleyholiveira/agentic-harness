@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 const KNOWN_VALIDATION_EXECUTABLES = new Set([
   "bash", "biome", "bun", "cargo", "cd", "cmake", "cmd", "cmd.exe", "corepack", "ctest",
   "deno", "docker", "docker-compose", "dotnet", "env", "eslint", "export", "git", "go", "gradle",
@@ -143,4 +145,23 @@ export function assertExecutableValidationCommands(commands = [], { label = "val
     .map((entry) => `${label}[${entry.index}]=${JSON.stringify(entry.command)}`)
     .join("; ");
   throw new Error(`validation_command_not_executable:${details}`);
+}
+
+export function validationCommandId(command) {
+  const normalized = String(command ?? "").trim();
+  if (!isExecutableValidationCommand(normalized)) throw new Error(`validation_command_id_invalid:${JSON.stringify(command)}`);
+  return `vcmd:sha256:${createHash("sha256").update(normalized, "utf8").digest("hex")}`;
+}
+
+export function validationCommandProjectionIssues({ commandIds = [], commands = [] } = {}) {
+  if (!Array.isArray(commandIds) || !Array.isArray(commands)) return ["validation_command_projection_not_array"];
+  if (commandIds.length !== commands.length) return ["validation_command_projection_length_mismatch"];
+  const issues = [];
+  for (let index = 0; index < commands.length; index += 1) {
+    const command = String(commands[index] ?? "").trim();
+    let expected;
+    try { expected = validationCommandId(command); } catch { issues.push(`validation_command_projection_command_invalid:${index}`); continue; }
+    if (commandIds[index] !== expected) issues.push(`validation_command_projection_id_mismatch:${index}`);
+  }
+  return issues;
 }
