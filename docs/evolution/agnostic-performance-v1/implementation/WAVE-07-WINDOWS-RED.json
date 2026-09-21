@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "target-host-red-evidence/v1",
+  "wave": "WAVE-07",
+  "status": "RED_FIXED_PENDING_RERUN",
+  "rootCause": "behaviorFixture omitted commandId",
+  "productionBehaviorBug": false,
+  "affectedFailures": 6,
+  "fixCommit": "bca650b4c086e1bd7c546bfa1edd4a6dda3e98a6",
+  "newRegressionTest": "missing commandId fails closed before behavior admission",
+  "expectedFocusedTotalAfterFix": 226,
+  "greenAfterFix": "NOT_RUN"
+}
