@@ -57,6 +57,8 @@ test("runtime-worker Cargo.lock disambiguates the direct hmac 0.12 dependency", 
   const rootPackage = lock.slice(start, end);
   assert.match(rootPackage, /"hmac 0\.12\.1"/);
   assert.doesNotMatch(rootPackage, /\n "hmac",/);
+  const dockerfile = source("apps/runtime-worker/Dockerfile");
+  assert.match(dockerfile, /cargo build --locked --release --manifest-path apps\/runtime-worker\/Cargo\.toml/);
 });
 
 test("retry wall-clock budget cannot be bypassed by a zero-delay retry", () => {
