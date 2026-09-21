@@ -184,6 +184,73 @@ test("gateway orchestrates the admitted command with a read-only task-volume sub
   assert.equal(observed.behaviorInput.executionFence.fencingToken, 3);
 });
 
+test("gateway revokes an in-flight behavior command when the PostgreSQL fence is replaced", async () => {
+  let capabilityChecks = 0;
+  let aborted = false;
+  const result = await runBehaviorGateRequest(request(), {
+    projectRoot: "/workspace/repository",
+    workspaceRoot: "/workspace/agent-workspaces",
+    capabilityPollIntervalMs: 1,
+    verifyCapability: async () => {
+      capabilityChecks++;
+      return capabilityChecks === 1
+        ? { status: "VERIFIED", code: "ok" }
+        : { status: "HOLD", code: "docker_gateway_fence_identity_mismatch" };
+    },
+    loadConfiguration: () => configuration(),
+    bindWorkspace: () => ({ status: "AUTHORITY_INPUTS_BOUND", workspaceBindingDigest: "sha256:" + "f".repeat(64) }),
+    volumeResolver: () => "workspace-volume",
+    materialize: () => ({ status: "MATERIALIZED", materialization: {} }),
+    attestImage: () => ({ status: "ATTESTED", attestation: {} }),
+    probeToolchain: () => ({ status: "TOOLCHAIN_VERIFIED" }),
+    executeBehavior: async (_input, options) => await new Promise(resolve => {
+      options.signal.addEventListener("abort", () => {
+        aborted = true;
+        resolve({ status: "HOLD", code: "behavior_execution_aborted", executed: true });
+      }, { once: true });
+    }),
+  });
+  assert.equal(result.status, "HOLD");
+  assert.equal(result.code, "docker_gateway_fence_identity_mismatch");
+  assert.equal(aborted, true);
+  assert.ok(capabilityChecks >= 2);
+});
+
+test("gateway revokes an in-flight behavior command when the worker HTTP client disconnects", async () => {
+  const disconnect = new AbortController();
+  let aborted = false;
+  const behaviorStarted = new Promise(resolve => {
+    globalThis.__wave10BehaviorStarted = resolve;
+  });
+  const run = runBehaviorGateRequest(request(), {
+    projectRoot: "/workspace/repository",
+    workspaceRoot: "/workspace/agent-workspaces",
+    capabilityPollIntervalMs: 1,
+    signal: disconnect.signal,
+    verifyCapability: async () => ({ status: "VERIFIED", code: "ok" }),
+    loadConfiguration: () => configuration(),
+    bindWorkspace: () => ({ status: "AUTHORITY_INPUTS_BOUND", workspaceBindingDigest: "sha256:" + "f".repeat(64) }),
+    volumeResolver: () => "workspace-volume",
+    materialize: () => ({ status: "MATERIALIZED", materialization: {} }),
+    attestImage: () => ({ status: "ATTESTED", attestation: {} }),
+    probeToolchain: () => ({ status: "TOOLCHAIN_VERIFIED" }),
+    executeBehavior: async (_input, options) => await new Promise(resolve => {
+      globalThis.__wave10BehaviorStarted?.();
+      options.signal.addEventListener("abort", () => {
+        aborted = true;
+        resolve({ status: "HOLD", code: "behavior_execution_aborted", executed: true });
+      }, { once: true });
+    }),
+  });
+  await behaviorStarted;
+  delete globalThis.__wave10BehaviorStarted;
+  disconnect.abort();
+  const result = await run;
+  assert.equal(result.status, "HOLD");
+  assert.equal(result.code, "docker_gateway_client_disconnected");
+  assert.equal(aborted, true);
+});
+
 test("gateway returns FAILED for a behavior failure without continuing", async () => {
   const result = await runBehaviorGateRequest(request(), {
     projectRoot: "/workspace/repository",
