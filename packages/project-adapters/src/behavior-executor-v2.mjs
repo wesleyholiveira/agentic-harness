@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { posix } from 'node:path';
 
 import { contractDigest, validateCommandSpec } from '../../harness-contracts/src/project-descriptor.mjs';
@@ -142,12 +142,15 @@ export function evaluateBehaviorAdmission({
   };
 }
 
-export function executeDockerBehaviorCommandV2(input, {
-  root = process.cwd(),
-  execute = nativeDocker,
-  reobserve = probeDockerRunnerMaterialization,
-  workspaceMount = null,
-} = {}) {
+function validatedContainerName(value) {
+  if (value == null) return null;
+  if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u.test(value)) {
+    throw new Error('behavior_container_name_invalid');
+  }
+  return value;
+}
+
+function prepareDockerBehaviorExecutionV2(input, { workspaceMount = null, containerName = null } = {}) {
   const admission = evaluateBehaviorAdmission(input);
   const configuration = input.configuration;
   const command = configuration?.descriptor?.commands?.find(item => item.id === input.commandId) ?? null;
@@ -175,7 +178,7 @@ export function executeDockerBehaviorCommandV2(input, {
     qualificationVerdict: null,
   };
   if (admission.status !== 'BEHAVIOR_AUTHORIZED' || !command || !spec || !sourceBinding) {
-    return { ...base, code: 'behavior_not_authorized', executed: false };
+    return { ok: false, receipt: { ...base, code: 'behavior_not_authorized', executed: false } };
   }
 
   let checkedBinding, checkedMaterialization;
@@ -185,16 +188,30 @@ export function executeDockerBehaviorCommandV2(input, {
       spec, sourceBinding: checkedBinding,
     });
   } catch {
-    return { ...base, code: 'behavior_materialization_invalid', executed: false };
+    return { ok: false, receipt: { ...base, code: 'behavior_materialization_invalid', executed: false } };
   }
 
-  let mountArg = null;
-  try { mountArg = validatedWorkspaceMount(workspaceMount, spec); }
-  catch { return { ...base, code: 'behavior_workspace_mount_invalid', executed: false }; }
+  let mountArg = null, checkedContainerName = null;
+  try {
+    mountArg = validatedWorkspaceMount(workspaceMount, spec);
+    checkedContainerName = validatedContainerName(containerName);
+  } catch (error) {
+    return {
+      ok: false,
+      receipt: {
+        ...base,
+        code: error?.message === 'behavior_container_name_invalid'
+          ? 'behavior_container_name_invalid'
+          : 'behavior_workspace_mount_invalid',
+        executed: false,
+      },
+    };
+  }
 
   const argv = [
     '--context', spec.dockerContext,
     'run', '--rm', '--pull', 'never',
+    ...(checkedContainerName ? ['--name', checkedContainerName] : []),
     '--network', 'none',
     '--read-only',
     '--tmpfs', '/tmp:rw,noexec,nosuid,size=64m,mode=1777',
@@ -210,16 +227,33 @@ export function executeDockerBehaviorCommandV2(input, {
     ...command.argv,
   ];
 
-  let result;
-  try {
-    result = execute(argv, { cwd: root, timeoutMs: command.timeoutMs });
-  } catch {
-    result = { status: null, stdout: '', stderr: '', error: { code: 'EXEC_ERROR' } };
-  }
+  return {
+    ok: true,
+    base,
+    command,
+    spec,
+    checkedBinding,
+    checkedMaterialization,
+    argv,
+    containerName: checkedContainerName,
+  };
+}
+
+function completeDockerBehaviorExecutionV2(prepared, result, {
+  root,
+  execute,
+  reobserve,
+} = {}) {
+  const { base, command, spec, checkedBinding, checkedMaterialization } = prepared;
   const evidence = resultEvidence(result);
-  if (!evidence.ok) return { ...base, code: evidence.code, executed: true };
+  if (!evidence.ok || result?.error?.code === 'MAX_BUFFER') {
+    return { ...base, code: 'behavior_output_limit', executed: true };
+  }
   if (result?.error?.code === 'ETIMEDOUT') {
     return { ...base, code: 'behavior_timeout', executed: true, ...evidence };
+  }
+  if (result?.error?.code === 'ABORT_ERR') {
+    return { ...base, code: 'behavior_execution_aborted', executed: true, ...evidence };
   }
   if (result?.error?.code === 'ENOENT') {
     return { ...base, code: 'docker_command_unavailable', executed: false, ...evidence };
@@ -257,4 +291,187 @@ export function executeDockerBehaviorCommandV2(input, {
     materializationIdentityDigest: beforeIdentity,
     trustVerified: true,
   };
+}
+
+function removeNamedContainer(dockerContext, containerName, { cwd }) {
+  if (!containerName) return;
+  try {
+    spawnSync('docker', ['--context', dockerContext, 'rm', '-f', containerName], {
+      cwd,
+      encoding: 'utf8',
+      shell: false,
+      windowsHide: true,
+      timeout: 10_000,
+      maxBuffer: 64 * 1024,
+      stdio: ['ignore','ignore','ignore'],
+    });
+  } catch {
+    // Cleanup is best effort here; the caller treats cancellation as fail-closed
+    // and subsequent same-fence launches use the same name, preventing overlap.
+  }
+}
+
+function nativeDockerAsync(argv, {
+  cwd,
+  timeoutMs,
+  signal,
+  containerName,
+  dockerContext,
+}) {
+  if (signal?.aborted) {
+    return Promise.resolve({ status: null, stdout: '', stderr: '', error: { code: 'ABORT_ERR' } });
+  }
+  return new Promise(resolve => {
+    let settled = false;
+    let timedOut = false;
+    let aborted = false;
+    let outputLimit = false;
+    let childError = null;
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    const stdout = [];
+    const stderr = [];
+    let child;
+    const finishCleanup = () => removeNamedContainer(dockerContext, containerName, { cwd });
+    const stop = reason => {
+      if (settled) return;
+      if (reason === 'timeout') timedOut = true;
+      if (reason === 'abort') aborted = true;
+      if (reason === 'output') outputLimit = true;
+      try { child?.kill('SIGKILL'); } catch {}
+      // Race-safe double cleanup: once immediately, then again after the CLI
+      // closes in case the daemon created the named container concurrently.
+      finishCleanup();
+    };
+    const collect = (target, chunk, kind) => {
+      const bytes = Buffer.byteLength(chunk);
+      if (kind === 'stdout') stdoutBytes += bytes;
+      else stderrBytes += bytes;
+      if (stdoutBytes + stderrBytes > MAX_OUTPUT_BYTES) {
+        stop('output');
+        return;
+      }
+      target.push(Buffer.from(chunk));
+    };
+    try {
+      child = spawn('docker', argv, {
+        cwd,
+        shell: false,
+        windowsHide: true,
+        stdio: ['ignore','pipe','pipe'],
+      });
+    } catch (error) {
+      resolve({ status: null, stdout: '', stderr: '', error: { code: error?.code ?? 'EXEC_ERROR' } });
+      return;
+    }
+    child.stdout?.on('data', chunk => collect(stdout, chunk, 'stdout'));
+    child.stderr?.on('data', chunk => collect(stderr, chunk, 'stderr'));
+    child.on('error', error => { childError = error; });
+    const timer = setTimeout(() => stop('timeout'), timeoutMs);
+    timer.unref?.();
+    const onAbort = () => stop('abort');
+    signal?.addEventListener('abort', onAbort, { once: true });
+    child.on('close', (code, childSignal) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+      if (aborted || timedOut || outputLimit) finishCleanup();
+      resolve({
+        status: Number.isInteger(code) ? code : null,
+        signal: childSignal ?? null,
+        stdout: Buffer.concat(stdout).toString('utf8'),
+        stderr: Buffer.concat(stderr).toString('utf8'),
+        error: aborted
+          ? { code: 'ABORT_ERR' }
+          : timedOut
+            ? { code: 'ETIMEDOUT' }
+            : outputLimit
+              ? { code: 'MAX_BUFFER' }
+              : childError
+                ? { code: childError.code ?? 'EXEC_ERROR' }
+                : null,
+      });
+    });
+  });
+}
+
+export function executeDockerBehaviorCommandV2(input, {
+  root = process.cwd(),
+  execute = nativeDocker,
+  reobserve = probeDockerRunnerMaterialization,
+  workspaceMount = null,
+  containerName = null,
+} = {}) {
+  const prepared = prepareDockerBehaviorExecutionV2(input, { workspaceMount, containerName });
+  if (!prepared.ok) return prepared.receipt;
+
+  let result;
+  try {
+    result = execute(prepared.argv, { cwd: root, timeoutMs: prepared.command.timeoutMs });
+  } catch {
+    result = { status: null, stdout: '', stderr: '', error: { code: 'EXEC_ERROR' } };
+  }
+  return completeDockerBehaviorExecutionV2(prepared, result, {
+    root,
+    execute,
+    reobserve,
+  });
+}
+
+export async function executeDockerBehaviorCommandV2Async(input, {
+  root = process.cwd(),
+  execute = nativeDockerAsync,
+  reobserve = probeDockerRunnerMaterialization,
+  reobserveExecute = nativeDocker,
+  workspaceMount = null,
+  containerName,
+  signal,
+} = {}) {
+  if (!containerName) {
+    const admission = evaluateBehaviorAdmission(input);
+    return {
+      schemaVersion: 'behavior-execution-receipt/v1',
+      status: 'HOLD',
+      code: 'behavior_container_name_required',
+      executed: false,
+      admission,
+      projectId: admission.projectId,
+      commandId: admission.commandId,
+      commandDigest: admission.commandDigest,
+      runnerId: admission.runnerId,
+      sourceCommit: admission.sourceCommit,
+      sourceSnapshotSha256: admission.sourceSnapshotSha256,
+      workspaceBindingDigest: admission.workspaceBindingDigest,
+      materializationIdentityDigest: admission.materializationIdentityDigest,
+      imageSourceAttestationIdentityDigest: admission.imageSourceAttestationIdentityDigest,
+      executionFenceIdentityDigest: admission.executionFenceIdentityDigest,
+      qualificationVerdict: null,
+    };
+  }
+  const prepared = prepareDockerBehaviorExecutionV2(input, { workspaceMount, containerName });
+  if (!prepared.ok) return prepared.receipt;
+
+  let result;
+  try {
+    result = await execute(prepared.argv, {
+      cwd: root,
+      timeoutMs: prepared.command.timeoutMs,
+      signal,
+      containerName: prepared.containerName,
+      dockerContext: prepared.spec.dockerContext,
+    });
+  } catch (error) {
+    result = {
+      status: null,
+      stdout: '',
+      stderr: '',
+      error: { code: signal?.aborted ? 'ABORT_ERR' : (error?.code ?? 'EXEC_ERROR') },
+    };
+  }
+  return completeDockerBehaviorExecutionV2(prepared, result, {
+    root,
+    execute: reobserveExecute,
+    reobserve,
+  });
 }
