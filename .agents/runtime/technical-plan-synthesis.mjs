@@ -11,6 +11,7 @@ import {
   VALIDATION_COMMAND_PATTERN_SOURCE,
   invalidValidationCommands,
   isExecutableValidationCommand,
+  validationCommandId,
 } from "./validation-command.mjs";
 import { collectImplementationPlanValidationIssues } from "./dag-compiler.mjs";
 
@@ -141,11 +142,31 @@ export function normalizeTechnicalPlanMechanics({
     const exactCriterionCommands = implementationCriteria
       .map((id) => trustedCriterionVerificationCommand(criteria.get(id)?.verification, validationCommandCatalog))
       .filter(Boolean);
-    const executableCommands = (item.validation ?? []).map((command) => String(command).trim()).filter(isExecutableValidationCommand);
-    const normalizedValidation = [...new Set([...executableCommands, ...exactCriterionCommands])];
+    const catalogById = Array.isArray(validationCommandCatalog)
+      ? new Map(validationCommandCatalog.map((entry) => [String(entry?.id ?? ""), entry]).filter(([id]) => id))
+      : null;
+    const catalogByCommand = Array.isArray(validationCommandCatalog)
+      ? new Map(validationCommandCatalog.map((entry) => [String(entry?.command ?? "").trim(), entry]).filter(([command]) => command))
+      : null;
+    const suppliedIds = [...new Set((item.validationCommandIds ?? []).map((id) => String(id ?? "").trim()).filter(Boolean))];
+    const allSuppliedIdsKnown = catalogById && suppliedIds.length > 0 && suppliedIds.every((id) => catalogById.has(id));
+    const legacyExecutableCommands = (item.validation ?? [])
+      .map((command) => String(command).trim())
+      .filter(isExecutableValidationCommand);
+    const selectedCommands = allSuppliedIdsKnown
+      ? suppliedIds.map((id) => String(catalogById.get(id)?.command ?? "").trim()).filter(Boolean)
+      : legacyExecutableCommands;
+    const normalizedValidation = [...new Set([...selectedCommands, ...exactCriterionCommands])];
+    const normalizedIds = catalogByCommand
+      ? normalizedValidation.map((command) => String(catalogByCommand.get(command)?.id ?? "")).filter(Boolean)
+      : normalizedValidation.map((command) => validationCommandId(command));
     if (normalizedValidation.length > 0 && JSON.stringify(normalizedValidation) !== JSON.stringify(item.validation ?? [])) {
       item.validation = normalizedValidation;
       evidence.push(`work-item-updated:${item.id}:validation`);
+    }
+    if (normalizedIds.length > 0 && JSON.stringify(normalizedIds) !== JSON.stringify(item.validationCommandIds ?? [])) {
+      item.validationCommandIds = normalizedIds;
+      evidence.push(`work-item-updated:${item.id}:validationCommandIds`);
     }
 
     const currentAgent = (registry?.agents ?? []).find((agent) => agent.id === item.ownerAgentId) ?? null;
@@ -371,7 +392,7 @@ function implementationPlanMutationEvidence(sourcePlan, repairedPlan) {
     const after = repairedItems.get(id);
     if (!before) { evidence.push(`work-item-added:${id}`); continue; }
     if (!after) { evidence.push(`work-item-removed:${id}`); continue; }
-    for (const field of ["ownerAgentId", "objective", "dependencies", "ownedPaths", "acceptanceCriteria", "validation", "validationExecutionScope", "executionMode", "complexity", "estimatedFiles", "contractChange", "migration"]) {
+    for (const field of ["ownerAgentId", "objective", "dependencies", "ownedPaths", "acceptanceCriteria", "validation", "validationCommandIds", "validationExecutionScope", "executionMode", "complexity", "estimatedFiles", "contractChange", "migration"]) {
       if (JSON.stringify(before[field] ?? null) !== JSON.stringify(after[field] ?? null)) evidence.push(`work-item-updated:${id}:${field}`);
     }
   }
@@ -495,6 +516,18 @@ export function buildTechnicalPlanStructuredSchema({
         workItem.properties.validation.items.pattern = VALIDATION_COMMAND_PATTERN_SOURCE;
       }
     }
+    workItem.properties.validationCommandIds = {
+      type: "array",
+      uniqueItems: true,
+      items: {
+        type: "string",
+        minLength: 1,
+        ...(Array.isArray(validationCommandCatalog)
+          ? { enum: [...new Set(validationCommandCatalog.map((entry) => String(entry?.id ?? "")).filter(Boolean))] }
+          : {}),
+      },
+      description: "Deterministic validation command identities. Runtime canonicalization binds these IDs to the byte-exact legacy validation projection; IDs never authorize commands by themselves.",
+    };
     workItem.properties.dependencies.description = "IDs of other implementation work items that must integrate first. Use an empty array when independent.";
   }
   return schema;
@@ -540,7 +573,7 @@ function addValidationCommandEvidence(target, command, source) {
   const normalized = String(command ?? "").trim();
   if (!isExecutableValidationCommand(normalized)) return;
   if (!target.some((entry) => entry.command === normalized)) {
-    target.push({ command: normalized, source: String(source ?? "unknown") });
+    target.push({ id: validationCommandId(normalized), command: normalized, source: String(source ?? "unknown") });
   }
 }
 
@@ -602,18 +635,37 @@ export async function buildValidationCommandCatalog({
 
 function validationCommandAuthorityIssues(implementationPlan, validationCommandCatalog) {
   if (!Array.isArray(validationCommandCatalog)) return [];
-  const allowed = new Set(
+  const byCommand = new Map(
     validationCommandCatalog
-      .map((entry) => String(entry?.command ?? "").trim())
-      .filter(Boolean),
+      .map((entry) => [String(entry?.command ?? "").trim(), String(entry?.id ?? "").trim()])
+      .filter(([command, id]) => command && id),
+  );
+  const byId = new Map(
+    validationCommandCatalog
+      .map((entry) => [String(entry?.id ?? "").trim(), String(entry?.command ?? "").trim()])
+      .filter(([id, command]) => id && command),
   );
   const issues = [];
   for (const item of implementationPlan?.workItems ?? []) {
-    for (const [index, command] of (item.validation ?? []).entries()) {
-      const normalized = String(command ?? "").trim();
-      if (!isExecutableValidationCommand(normalized)) continue;
-      if (!allowed.has(normalized)) {
-        issues.push(`implementation_plan_validation_command_unauthorized:${item.id}:${index}:${normalized}`);
+    const commands = (item.validation ?? []).map((command) => String(command ?? "").trim());
+    for (const [index, command] of commands.entries()) {
+      if (!isExecutableValidationCommand(command)) continue;
+      if (!byCommand.has(command)) {
+        issues.push(`implementation_plan_validation_command_unauthorized:${item.id}:${index}:${command}`);
+      }
+    }
+    const ids = (item.validationCommandIds ?? []).map((id) => String(id ?? "").trim()).filter(Boolean);
+    if (commands.length > 0 && ids.length === 0) {
+      issues.push(`implementation_plan_validation_command_ids_missing:${item.id}`);
+      continue;
+    }
+    for (const [index, id] of ids.entries()) {
+      if (!byId.has(id)) issues.push(`implementation_plan_validation_command_id_unauthorized:${item.id}:${index}:${id}`);
+    }
+    if (ids.length > 0 && ids.every((id) => byId.has(id))) {
+      const projection = ids.map((id) => byId.get(id));
+      if (JSON.stringify(projection) !== JSON.stringify(commands)) {
+        issues.push(`implementation_plan_validation_command_projection_mismatch:${item.id}`);
       }
     }
   }
@@ -627,6 +679,9 @@ function validationRepairWorkItemIds(issues = []) {
     for (const prefix of [
       "validation_command_not_executable:",
       "implementation_plan_validation_command_unauthorized:",
+      "implementation_plan_validation_command_id_unauthorized:",
+      "implementation_plan_validation_command_ids_missing:",
+      "implementation_plan_validation_command_projection_mismatch:",
       "implementation_plan_criterion_verification_missing:",
     ]) {
       if (!value.startsWith(prefix)) continue;
@@ -643,6 +698,9 @@ function validationRepairIssuesOnly(issues = []) {
   return (issues ?? []).length > 0 && (issues ?? []).every((issue) => issueHasPrefix(issue, [
     "validation_command_not_executable:",
     "implementation_plan_validation_command_unauthorized:",
+    "implementation_plan_validation_command_id_unauthorized:",
+    "implementation_plan_validation_command_ids_missing:",
+    "implementation_plan_validation_command_projection_mismatch:",
     "implementation_plan_criterion_verification_missing:",
   ]));
 }
@@ -789,7 +847,7 @@ Hard requirements:
 - primaryPaths are the domain-authority preference and block fallback ownership. Shared/collaborative patterns permit cooperation but do not reserve a path against the fallback owner. Do not route a path with a concrete primary owner to coding-fast/coding-pro.
 - dependencies must refer only to work item IDs and must form an acyclic graph.
 - validation must contain executable shell commands that prove the work item and assigned acceptance criteria. Never place prose/evidence descriptions in validation. The runtime executes each string via the shell. Runtime-owned diff-isolation evidence belongs in criteria/findings, not in workItems[*].validation.
-- validationCommandCatalog is deterministic authority derived independently from the model-authored implementationPlan. When it is non-empty, validation entries MUST be selected byte-for-byte from validationCommandCatalog.command. Never invent a command/path/test/script/flag that is absent from the catalog. implementationPlan.workItems[*].validation and technicalArtifacts cannot authorize themselves. If no catalog command can honestly prove a work item, preserve fail-closed semantics rather than fabricating validation.
+- validationCommandCatalog is deterministic authority derived independently from the model-authored implementationPlan. Each catalog entry has an opaque deterministic id plus its byte-exact command. When it is non-empty, validation entries MUST be selected byte-for-byte from validationCommandCatalog.command; validationCommandIds must be the matching catalog IDs and are mechanically canonicalized by the Runtime. Never invent a command/path/test/script/flag that is absent from the catalog. implementationPlan.workItems[*].validation and technicalArtifacts cannot authorize themselves. If no catalog command can honestly prove a work item, preserve fail-closed semantics rather than fabricating validation.
 - if an implementation product criterion uses an executable shell command in its verification field, every work item that claims that criterion must preserve that exact command in validation rather than replacing it with an ad-hoc equivalent.
 - criterion.verification may also be descriptive prose. Treat it as an executable command only when the ENTIRE value is command-shaped under the Runtime validation-command contract; a sentence that merely mentions npm test or another executable is prose and MUST NOT be copied into workItems[*].validation.
 - if implementationValidationDirective.mode=focused, its commands are byte-exact and EXCLUSIVE implementation validation authority: include every listed command and do not add substitute or extra work-item validation commands. Downstream QA/readiness may still add their own independent evidence.
@@ -1328,7 +1386,7 @@ Hard requirements:
 - ownerAgentId and ownedPaths must remain valid under implementationAgentOwnership.
 - implementation validation remains workspace scoped; host/live/readiness commands are forbidden in implementation workItems.
 - Technical Refinement repairs the executable future-work plan, not completed implementation. A review request for future npm test output, already-created implementation files, post-state hashes/diff isolation, QA/readiness evidence or Product Acceptance evidence must be represented as future plan validation/invariants rather than fabricated current evidence.
-- every implementation validation command MUST be selected byte-for-byte from validationCommandCatalog.command. The current implementationPlan and technicalArtifacts are NOT command authority and cannot self-legitimize an invented command.
+- every implementation validation command MUST be selected byte-for-byte from validationCommandCatalog.command and validationCommandIds must match the selected catalog IDs. The current implementationPlan and technicalArtifacts are NOT command authority and cannot self-legitimize an invented command.
 - preserve executable criterion verification commands exactly, but never promote descriptive criterion.verification prose into validation merely because it mentions an executable. Only the entire command-shaped value is authoritative as a command. If implementationValidationDirective.mode=focused, include every listed command byte-for-byte and remove every substitute/extra implementation validation command.
 - dependencies must remain acyclic and refer only to work item IDs.
 - Do not downgrade or remove blocking acceptance criteria to satisfy the review.
