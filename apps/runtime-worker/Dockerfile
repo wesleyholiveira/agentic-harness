@@ -1,7 +1,7 @@
 FROM rust:1.88-bookworm AS build
 WORKDIR /src
 COPY apps/runtime-worker ./apps/runtime-worker
-RUN cargo build --release --manifest-path apps/runtime-worker/Cargo.toml
+RUN cargo build --locked --release --manifest-path apps/runtime-worker/Cargo.toml
 
 FROM node:22-bookworm-slim
 RUN apt-get update \
