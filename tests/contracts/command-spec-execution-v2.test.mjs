@@ -20,6 +20,7 @@ import { bindWorkspaceAuthorityInputs } from "../../packages/project-adapters/sr
 import {
   evaluateBehaviorAdmission,
   executeDockerBehaviorCommandV2,
+  executeDockerBehaviorCommandV2Async,
 } from "../../packages/project-adapters/src/behavior-executor-v2.mjs";
 import {
   buildTechnicalPlanStructuredSchema,
@@ -400,6 +401,35 @@ test("behavior executor uses immutable image and argv without shell or raw outpu
   assert.ok(argv.includes("--version"));
   assert.ok(!argv.includes("sh"));
   assert.ok(!argv.includes("bash"));
+});
+
+test("async behavior executor requires a named container and projects abort as HOLD", async t => {
+  const f = behaviorFixture(t);
+  const missingName = await executeDockerBehaviorCommandV2Async(f, {
+    root: f.root,
+    execute: async () => ({ status: 0, stdout: "", stderr: "" }),
+    reobserve: () => ({ status: "MATERIALIZED", materialization: { ...f.materialization, observedAt: new Date(1).toISOString() } }),
+  });
+  assert.equal(missingName.status, "HOLD");
+  assert.equal(missingName.code, "behavior_container_name_required");
+  assert.equal(missingName.executed, false);
+
+  const calls = [];
+  const receipt = await executeDockerBehaviorCommandV2Async(f, {
+    root: f.root,
+    containerName: "ah-beh-test-123",
+    execute: async (argv, options) => {
+      calls.push({ argv, options });
+      return { status: null, stdout: "", stderr: "", error: { code: "ABORT_ERR" } };
+    },
+    reobserve: () => { throw new Error("abort_must_not_reobserve"); },
+  });
+  assert.equal(receipt.status, "HOLD");
+  assert.equal(receipt.code, "behavior_execution_aborted");
+  assert.equal(receipt.executed, true);
+  const nameIndex = calls[0].argv.indexOf("--name");
+  assert.equal(calls[0].argv[nameIndex + 1], "ah-beh-test-123");
+  assert.equal(calls[0].options.containerName, "ah-beh-test-123");
 });
 
 test("behavior executor applies CommandSpec cwd below the mounted workspace root", t => {
