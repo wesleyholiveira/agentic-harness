@@ -49,6 +49,16 @@ test("stalled executor output draining is bounded so inherited pipes cannot hold
   assert.match(worker, /drain_executor_output\(stderr_task, "stderr", claimed, client\)\.await/);
 });
 
+test("runtime-worker Cargo.lock disambiguates the direct hmac 0.12 dependency", () => {
+  const lock = source("apps/runtime-worker/Cargo.lock");
+  const start = lock.indexOf('name = "agentic-harness-worker"');
+  const end = lock.indexOf("\n[[package]]", start);
+  assert.ok(start >= 0 && end > start);
+  const rootPackage = lock.slice(start, end);
+  assert.match(rootPackage, /"hmac 0\.12\.1"/);
+  assert.doesNotMatch(rootPackage, /\n "hmac",/);
+});
+
 test("retry wall-clock budget cannot be bypassed by a zero-delay retry", () => {
   const limits = { maxElapsedMs: 900_000, maxCumulativeBackoffMs: 300_000 };
   assert.equal(evaluateRetryBudget({ budgetState: { elapsedMs: 899_999, cumulativeBackoffMs: 0 }, retryAfterMs: 0, limits }).allowed, true);
@@ -77,7 +87,7 @@ test("typed behavior gateway executes only after agent completion under the exis
   assert.match(worker, /behavior_gate:\s*Option<BehaviorGateDescriptor>/);
   assert.match(worker, /run_behavior_gateway_under_lease/);
   assert.match(worker, /behavior\.gateway\.capability/);
-  assert.match(worker, /capability_fingerprint\(capability\)/);
+  assert.match(worker, /capability_proof\(hmac_key, &capability, &fence\)/);
   assert.match(worker, /status\.success\(\)[\s\S]*descriptor\.behavior_gate\.as_ref\(\)/);
   assert.match(worker, /behavior\.gateway\.started/);
   assert.match(worker, /behavior\.gateway\.completed/);
