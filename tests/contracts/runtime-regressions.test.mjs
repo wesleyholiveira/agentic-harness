@@ -104,7 +104,7 @@ test("typed behavior gateway executes only after agent completion under the exis
   assert.match(finalizer, /behavior_gateway_hold/);
 });
 
-test("model-controlled executor child cannot inherit Runtime infrastructure credentials", () => {
+test("every model-controlled executor child is privilege-dropped and cannot inherit Runtime infrastructure credentials", () => {
   const worker = source("apps/runtime-worker/src/agent_runtime.rs");
   assert.match(worker, /command\.env_remove\(sensitive\)/);
   for (const key of [
@@ -113,9 +113,19 @@ test("model-controlled executor child cannot inherit Runtime infrastructure cred
     "AGENT_HARNESS_RUNTIME_RABBITMQ_URL",
     "AGENT_HARNESS_DOCKER_GATEWAY_URL",
     "AGENT_HARNESS_DOCKER_GATEWAY_HMAC_KEY",
+    "AGENT_HARNESS_OPENCODE_CONTINUATION_URL",
+    "AGENT_HARNESS_OPENCODE_CONTINUATION_USERNAME",
+    "AGENT_HARNESS_OPENCODE_CONTINUATION_PASSWORD",
+    "OPENCODE_SERVER_PASSWORD",
+    "CONTEXT_ENGINE_PROJECT_MEMORY_POSTGRES_URL",
+    "CONTEXT_EXACT_REDIS_URL",
+    "CONTEXT_SEMANTIC_REDIS_URL",
   ]) {
     assert.ok(worker.includes(`"${key}"`));
   }
+  assert.match(worker, /descriptor\.execution_mode == "agent"/);
+  assert.match(worker, /model_agent_requires_copy_workspace/);
+  assert.match(worker, /let isolated_process_group = descriptor\.execution_mode == "agent"/);
 });
 
 test("typed model child can reach Context Engine but not private control-plane networks", () => {
@@ -175,7 +185,7 @@ test("Docker gateway capability is fence-bound in PostgreSQL and no permanent be
 });
 
 
-test("typed behavior tasks drop child privileges and kill the isolated process group before minting gateway capability", () => {
+test("model agent tasks drop child privileges and typed tasks kill the isolated process group before minting gateway capability", () => {
   const worker = source("apps/runtime-worker/src/agent_runtime.rs");
   const dockerfile = source("apps/runtime-worker/Dockerfile");
 
@@ -184,7 +194,7 @@ test("typed behavior tasks drop child privileges and kill the isolated process g
   assert.match(worker, /command\.uid\(BEHAVIOR_AGENT_UID\)/);
   assert.match(worker, /command\.gid\(BEHAVIOR_AGENT_GID\)/);
   assert.match(worker, /command\.process_group\(0\)/);
-  assert.match(worker, /prepare_restricted_behavior_agent/);
+  assert.match(worker, /prepare_restricted_model_agent/);
   assert.match(worker, /behavior_agent_output_directory_mismatch/);
   assert.match(worker, /behavior_agent_task_output_chown_failed/);
   assert.match(worker, /descriptor\.handoff_path/);
