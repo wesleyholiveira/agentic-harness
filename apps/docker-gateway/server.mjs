@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createServer } from 'node:http';
+import { createHash } from 'node:crypto';
 import { relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -8,7 +9,7 @@ import { bindWorkspaceAuthorityInputs } from '../../packages/project-adapters/sr
 import { probeDockerRunnerMaterialization } from '../../packages/project-adapters/src/docker-materialization-v2.mjs';
 import { probeDockerToolchainV2 } from '../../packages/project-adapters/src/docker-toolchain-v2.mjs';
 import { probeDockerImageSourceAttestation } from '../../packages/project-adapters/src/docker-image-attestation.mjs';
-import { executeDockerBehaviorCommandV2 } from '../../packages/project-adapters/src/behavior-executor-v2.mjs';
+import { executeDockerBehaviorCommandV2Async } from '../../packages/project-adapters/src/behavior-executor-v2.mjs';
 import { createPostgresCapabilityVerifier } from './fence-store.mjs';
 import { spawnSync } from 'node:child_process';
 
@@ -36,6 +37,127 @@ function nativeDocker(argv, { cwd, timeoutMs }) {
 function hold(code, details = {}) {
   return { schemaVersion: 'docker-behavior-gateway-result/v1', status: 'HOLD', code, receipts: [], ...details };
 }
+function behaviorContainerName(fence, commandId) {
+  const hash = createHash('sha256');
+  for (const value of [
+    fence?.runId,
+    fence?.taskId,
+    fence?.attempt,
+    fence?.dispatchGeneration,
+    fence?.fencingToken,
+    commandId,
+  ]) {
+    hash.update(String(value ?? ''), 'utf8');
+    hash.update(Buffer.from([0]));
+  }
+  return `ah-beh-${hash.digest('hex').slice(0, 40)}`;
+}
+
+function delay(ms) {
+  return new Promise(resolve => {
+    const timer = setTimeout(resolve, ms);
+    timer.unref?.();
+  });
+}
+
+async function verifyCapabilityBounded(verifyCapability, request, {
+  timeoutMs = 2_500,
+  now = new Date(),
+} = {}) {
+  let timer;
+  try {
+    return await Promise.race([
+      Promise.resolve().then(() => verifyCapability(request, { now })),
+      new Promise(resolve => {
+        timer = setTimeout(
+          () => resolve({ status: 'HOLD', code: 'docker_gateway_capability_check_timeout' }),
+          timeoutMs,
+        );
+        timer.unref?.();
+      }),
+    ]);
+  } catch {
+    return { status: 'HOLD', code: 'docker_gateway_capability_verifier_unavailable' };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function executeBehaviorUnderCapabilityFence({
+  request,
+  input,
+  options,
+  verifyCapability,
+  executeBehavior,
+  externalSignal = null,
+  pollIntervalMs = 500,
+}) {
+  const controller = new AbortController();
+  const abortFromClient = () => controller.abort();
+  externalSignal?.addEventListener('abort', abortFromClient, { once: true });
+  let executionSettled = false;
+  const execution = Promise.resolve()
+    .then(() => executeBehavior(input, { ...options, signal: controller.signal }))
+    .then(
+      receipt => ({ ok: true, receipt }),
+      error => ({ ok: false, error }),
+    )
+    .finally(() => { executionSettled = true; });
+
+  try {
+    while (!executionSettled) {
+      const observed = await Promise.race([
+        execution,
+        delay(pollIntervalMs).then(() => null),
+      ]);
+      if (observed) {
+        if (!observed.ok) {
+          return {
+            holdCode: controller.signal.aborted
+              ? 'docker_gateway_behavior_revoked'
+              : 'docker_gateway_behavior_execution_failed',
+            receipt: null,
+          };
+        }
+        const finalDecision = await verifyCapabilityBounded(verifyCapability, request, { now: new Date() });
+        if (finalDecision?.status !== 'VERIFIED') {
+          return { holdCode: finalDecision?.code ?? 'docker_gateway_capability_not_verified', receipt: observed.receipt };
+        }
+        return { holdCode: null, receipt: observed.receipt };
+      }
+
+      if (externalSignal?.aborted) {
+        controller.abort();
+        await execution;
+        return { holdCode: 'docker_gateway_client_disconnected', receipt: null };
+      }
+
+      const decision = await verifyCapabilityBounded(verifyCapability, request, { now: new Date() });
+      if (decision?.status !== 'VERIFIED') {
+        controller.abort();
+        await execution;
+        return { holdCode: decision?.code ?? 'docker_gateway_capability_not_verified', receipt: null };
+      }
+    }
+
+    const observed = await execution;
+    if (!observed.ok) {
+      return {
+        holdCode: controller.signal.aborted
+          ? 'docker_gateway_behavior_revoked'
+          : 'docker_gateway_behavior_execution_failed',
+        receipt: null,
+      };
+    }
+    const finalDecision = await verifyCapabilityBounded(verifyCapability, request, { now: new Date() });
+    return finalDecision?.status === 'VERIFIED'
+      ? { holdCode: null, receipt: observed.receipt }
+      : { holdCode: finalDecision?.code ?? 'docker_gateway_capability_not_verified', receipt: observed.receipt };
+  } finally {
+    externalSignal?.removeEventListener('abort', abortFromClient);
+  }
+}
+
 function authority(configuration) {
   return {
     schemaVersion: 'command-authority/v1',
@@ -112,22 +234,19 @@ export async function runBehaviorGateRequest(request, {
   materialize = probeDockerRunnerMaterialization,
   attestImage = probeDockerImageSourceAttestation,
   probeToolchain = probeDockerToolchainV2,
-  executeBehavior = executeDockerBehaviorCommandV2,
+  executeBehavior = executeDockerBehaviorCommandV2Async,
   volumeResolver = discoverWorkspaceVolume,
   executeDocker = nativeDocker,
   verifyCapability = verifyWithDefaultCapabilityStore,
+  signal = null,
+  capabilityPollIntervalMs = 500,
   now = new Date(),
 } = {}) {
   let checked;
   try { checked = validateGatewayRequest(request); }
   catch (error) { return hold(error?.message ?? 'docker_gateway_request_invalid'); }
 
-  let capabilityDecision;
-  try {
-    capabilityDecision = await verifyCapability(checked, { now });
-  } catch {
-    return hold('docker_gateway_capability_verifier_unavailable');
-  }
+  const capabilityDecision = await verifyCapabilityBounded(verifyCapability, checked, { now });
   if (capabilityDecision?.status !== 'VERIFIED') {
     return hold(capabilityDecision?.code ?? 'docker_gateway_capability_not_verified');
   }
@@ -177,20 +296,35 @@ export async function runBehaviorGateRequest(request, {
       return hold(toolchainReceipt.code ?? 'docker_gateway_toolchain_hold', { receipts });
     }
 
-    const receipt = executeBehavior({
-      configuration,
-      commandId,
-      workspaceBinding,
-      materialization: materialized.materialization,
-      toolchainReceipt,
-      imageSourceAttestation: attestation.attestation,
-      executionFence: checked.executionFence,
-      now,
-    }, {
-      root: projectRoot,
-      execute: executeDocker,
-      workspaceMount: { type: 'volume', source: volumeName, subpath },
+    const supervised = await executeBehaviorUnderCapabilityFence({
+      request: checked,
+      input: {
+        configuration,
+        commandId,
+        workspaceBinding,
+        materialization: materialized.materialization,
+        toolchainReceipt,
+        imageSourceAttestation: attestation.attestation,
+        executionFence: checked.executionFence,
+        now: new Date(),
+      },
+      options: {
+        root: projectRoot,
+        reobserveExecute: executeDocker,
+        workspaceMount: { type: 'volume', source: volumeName, subpath },
+        containerName: behaviorContainerName(checked.executionFence, commandId),
+      },
+      verifyCapability,
+      executeBehavior,
+      externalSignal: signal,
+      pollIntervalMs: capabilityPollIntervalMs,
     });
+    if (supervised.holdCode) {
+      return hold(supervised.holdCode, {
+        receipts: supervised.receipt ? [...receipts, supervised.receipt] : receipts,
+      });
+    }
+    const receipt = supervised.receipt;
     receipts.push(receipt);
     if (receipt.status !== 'BEHAVIOR_PASSED') {
       return {
@@ -237,14 +371,23 @@ export function createDockerGatewayServer({
       response.end(JSON.stringify({ status:'error', code:'not_found' }));
       return;
     }
+    const disconnect = new AbortController();
+    const onResponseClose = () => {
+      if (!response.writableEnded) disconnect.abort();
+    };
+    response.once('close', onResponseClose);
     try {
       const body = JSON.parse(await readBody(request));
-      const result = await runGate(body);
+      const result = await runGate(body, { signal: disconnect.signal });
+      if (response.destroyed) return;
       response.statusCode = result.status === 'PASSED' ? 200 : 409;
       response.end(JSON.stringify(result));
     } catch (error) {
+      if (response.destroyed) return;
       response.statusCode = 400;
       response.end(JSON.stringify({ status:'error', code:error?.message ?? 'docker_gateway_request_failed' }));
+    } finally {
+      response.removeListener('close', onResponseClose);
     }
   });
 }
