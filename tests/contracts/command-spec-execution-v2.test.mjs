@@ -304,8 +304,18 @@ function behaviorFixture(t, { runnerOverrides = {}, commandOverrides = {} } = {}
     trustVerified: true,
     qualificationVerdict: null,
   };
-  return { root, runner, command, descriptor, policy, binding, configuration, workspaceBinding, materialization, toolchainReceipt };
+  return { root, runner, command, commandId: command.id, descriptor, policy, binding, configuration, workspaceBinding, materialization, toolchainReceipt };
 }
+
+test("missing commandId fails closed before behavior admission", t => {
+  const f = behaviorFixture(t);
+  const { commandId: _commandId, ...withoutCommandId } = f;
+  const admission = evaluateBehaviorAdmission(withoutCommandId);
+  assert.equal(admission.status, "HOLD");
+  assert.ok(admission.reasons.includes("toolchain-readiness-required"));
+  assert.ok(admission.reasons.includes("command-or-runner-missing"));
+  assert.equal(admission.executableNow, false);
+});
 
 test("fully enforceable one-off read-only CommandSpec becomes behavior-authorized", t => {
   const f = behaviorFixture(t);
