@@ -335,6 +335,7 @@ function implementationTask({ runId, technicalLeadTaskId, item, criteria, implem
     acceptanceCriteria: assignedCriteria,
     validation: item.validation,
     validationCommandIds: item.validationCommandIds ?? [],
+    commandSpecIds: item.commandSpecIds ?? [],
     validationExecutionScope: item.validationExecutionScope ?? "workspace",
     complexity: item.complexity,
     estimatedFiles: item.estimatedFiles,

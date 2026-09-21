@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "docker-target-operator-evidence/v1",
+  "wave": "WAVE-06",
+  "status": "GREEN_OPERATOR_CONFIRMED",
+  "commandProvided": true,
+  "exactTestCount": null,
+  "dockerContext": null,
+  "dockerImageId": null,
+  "buildLogAttached": false,
+  "testLogAttached": false,
+  "runtimeQualification": "NOT_INFERRED",
+  "releasePromotion": "NOT_INFERRED"
+}

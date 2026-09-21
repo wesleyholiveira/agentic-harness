@@ -179,6 +179,15 @@
               "pattern": "^vcmd:sha256:[a-f0-9]{64}$"
             },
             "description": "Deterministic IDs of the byte-exact validation projection. Runtime derives/verifies them; IDs alone are not execution authority."
+          },
+          "commandSpecIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+            },
+            "description": "Committed ProjectDescriptor CommandSpec IDs relevant to this work item. Selection is not execution authority."
           }
         }
       }

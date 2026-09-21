@@ -312,6 +312,7 @@ export async function buildTaskBrief({ repositoryRoot, registry, plan, task, con
     .sort();
   const taskValidation = task.validation ?? agent.validationCommands ?? [];
   const taskValidationCommandIds = task.validationCommandIds ?? [];
+  const taskCommandSpecIds = task.commandSpecIds ?? [];
   assertExecutableValidationCommands(taskValidation, { label: `taskBrief.${task.taskId}.validation` });
   if (taskValidationCommandIds.length > 0) {
     const projectionIssues = validationCommandProjectionIssues({
@@ -333,7 +334,7 @@ export async function buildTaskBrief({ repositoryRoot, registry, plan, task, con
       "A blocking acceptance criterion may not be marked complete without explicit evidence.",
       "Final blocking validation must pass; RED-phase TDD failures are allowed only when phase=red.",
       "Do not hide blocked validation, required deltas, or required follow-ups.",
-      "Task Brief.validation is the byte-exact blocking executable validation projection for this task; when validationCommandIds is non-empty, each ID must match the command at the same index. Catalog/manifests/AGENTS/skills are reusable guidance and do not silently add commands.",
+      "Task Brief.validation is the byte-exact blocking executable validation projection for this task; when validationCommandIds is non-empty, each ID must match the command at the same index. commandSpecIds, when present, are committed semantic command references and still require independent Runtime admission. Catalog/manifests/AGENTS/skills are reusable guidance and do not silently add commands.",
       "Task Brief.validation executes only in Task Brief.validationExecutionScope. Never reinterpret container/workspace localhost as the authoritative host.",
       ...retryFailureInvariants(reasoning),
       ...(task.stage === "implementation" ? [
@@ -376,7 +377,7 @@ export async function buildTaskBrief({ repositoryRoot, registry, plan, task, con
       ...(isSddReviewStage(task.stage) ? ["sddReview"] : []),
       ...(task.stage === "technical-refinement" ? ["implementationPlan"] : []),
     ])],
-    validation: taskValidation, ...(taskValidationCommandIds.length > 0 ? { validationCommandIds: taskValidationCommandIds } : {}), validationExecutionScope: task.validationExecutionScope ?? "workspace", executionMode: task.executionMode ?? "agent", contextPacketId: contextPacket.packetId, attemptBudget: maxAttempts, deadlineOrBudget: null,
+    validation: taskValidation, ...(taskValidationCommandIds.length > 0 ? { validationCommandIds: taskValidationCommandIds } : {}), ...(taskCommandSpecIds.length > 0 ? { commandSpecIds: taskCommandSpecIds } : {}), validationExecutionScope: task.validationExecutionScope ?? "workspace", executionMode: task.executionMode ?? "agent", contextPacketId: contextPacket.packetId, attemptBudget: maxAttempts, deadlineOrBudget: null,
     sdd: { role: task.sddRole ?? "developer", stage: task.stage ?? "implementation", workItemId: task.workItemId ?? plan.runId, workflowSkill: "agent-harness-sdd-workflow", requiredSuperpowers: requiredSuperpowersForTask(agent, task), reviewedRevision: authoritativeReviewRevisionFromContext({ stage: task.stage ?? "implementation", contextPacket }) },
     modelRouting,
     executionTopology: taskExecutionTopologyForAgent(agent),

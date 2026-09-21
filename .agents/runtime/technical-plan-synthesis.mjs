@@ -14,6 +14,7 @@ import {
   validationCommandId,
 } from "./validation-command.mjs";
 import { collectImplementationPlanValidationIssues } from "./dag-compiler.mjs";
+import { buildCommittedCommandSpecCatalog } from "../../packages/project-adapters/src/command-spec-catalog.mjs";
 
 const IMPLEMENTATION_EXECUTION_ROLES = new Set(["implementation", "platform"]);
 
@@ -392,7 +393,7 @@ function implementationPlanMutationEvidence(sourcePlan, repairedPlan) {
     const after = repairedItems.get(id);
     if (!before) { evidence.push(`work-item-added:${id}`); continue; }
     if (!after) { evidence.push(`work-item-removed:${id}`); continue; }
-    for (const field of ["ownerAgentId", "objective", "dependencies", "ownedPaths", "acceptanceCriteria", "validation", "validationCommandIds", "validationExecutionScope", "executionMode", "complexity", "estimatedFiles", "contractChange", "migration"]) {
+    for (const field of ["ownerAgentId", "objective", "dependencies", "ownedPaths", "acceptanceCriteria", "validation", "validationCommandIds", "commandSpecIds", "validationExecutionScope", "executionMode", "complexity", "estimatedFiles", "contractChange", "migration"]) {
       if (JSON.stringify(before[field] ?? null) !== JSON.stringify(after[field] ?? null)) evidence.push(`work-item-updated:${id}:${field}`);
     }
   }
@@ -413,6 +414,8 @@ function immutablePlanStructure(plan) {
       contractChange: item.contractChange,
       migration: item.migration,
       notes: clone(item.notes ?? []),
+      validationCommandIds: clone(item.validationCommandIds ?? []),
+      commandSpecIds: clone(item.commandSpecIds ?? []),
       validationExecutionScope: item.validationExecutionScope ?? null,
       executionMode: item.executionMode ?? null,
     })),
@@ -528,6 +531,21 @@ export function buildTechnicalPlanStructuredSchema({
       },
       description: "Deterministic validation command identities. Runtime canonicalization binds these IDs to the byte-exact legacy validation projection; IDs never authorize commands by themselves.",
     };
+    const commandSpecCatalog = Array.isArray(validationCommandCatalog?.commandSpecCatalog)
+      ? validationCommandCatalog.commandSpecCatalog
+      : [];
+    workItem.properties.commandSpecIds = {
+      type: "array",
+      uniqueItems: true,
+      items: {
+        type: "string",
+        minLength: 1,
+        ...(Array.isArray(validationCommandCatalog)
+          ? { enum: [...new Set(commandSpecCatalog.map((entry) => String(entry?.id ?? "")).filter(Boolean))] }
+          : {}),
+      },
+      description: "Committed ProjectDescriptor CommandSpec IDs relevant to this work item. These IDs are semantic command authority but still require source/policy/workspace/materialization/toolchain/effects/network/secrets gates before execution.",
+    };
     workItem.properties.dependencies.description = "IDs of other implementation work items that must integrate first. Use an empty array when independent.";
   }
   return schema;
@@ -630,6 +648,20 @@ export async function buildValidationCommandCatalog({
     }
   }
 
+  const commandSpecContext = buildCommittedCommandSpecCatalog(workspace);
+  Object.defineProperty(catalog, "commandSpecCatalog", {
+    value: commandSpecContext.catalog,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  Object.defineProperty(catalog, "commandSpecContext", {
+    value: commandSpecContext,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+
   return catalog;
 }
 
@@ -666,6 +698,26 @@ function validationCommandAuthorityIssues(implementationPlan, validationCommandC
       const projection = ids.map((id) => byId.get(id));
       if (JSON.stringify(projection) !== JSON.stringify(commands)) {
         issues.push(`implementation_plan_validation_command_projection_mismatch:${item.id}`);
+      }
+    }
+  }
+  const commandSpecCatalog = Array.isArray(validationCommandCatalog?.commandSpecCatalog)
+    ? validationCommandCatalog.commandSpecCatalog
+    : [];
+  const commandSpecIds = new Set(commandSpecCatalog.map((entry) => String(entry?.id ?? "")).filter(Boolean));
+  for (const item of implementationPlan?.workItems ?? []) {
+    const supplied = item.commandSpecIds ?? [];
+    if (!Array.isArray(supplied)) {
+      issues.push(`implementation_plan_command_spec_ids_not_array:${item.id}`);
+      continue;
+    }
+    if (new Set(supplied).size !== supplied.length) {
+      issues.push(`implementation_plan_command_spec_ids_duplicate:${item.id}`);
+    }
+    for (const [index, id] of supplied.entries()) {
+      const normalized = String(id ?? "").trim();
+      if (!commandSpecIds.has(normalized)) {
+        issues.push(`implementation_plan_command_spec_id_unauthorized:${item.id}:${index}:${normalized}`);
       }
     }
   }
@@ -759,6 +811,7 @@ export function buildValidationCommandRepairPrompt({
         currentValidation: item.validation ?? [],
       })),
     validationCommandCatalog,
+    commandSpecCatalog: validationCommandCatalog?.commandSpecCatalog ?? [],
   };
 
   return `Repair ONLY workItems[*].validation for an existing Agentic Harness implementationPlan.
@@ -828,6 +881,7 @@ export function buildTechnicalPlanSynthesisPrompt({ brief, handoff, registry, ev
     deterministicValidationIssues: [...deterministicValidationIssues],
     implementationValidationDirective,
     validationCommandCatalog,
+    commandSpecCatalog: validationCommandCatalog?.commandSpecCatalog ?? [],
     repairPass,
     technicalArtifacts: evidence,
   };
@@ -848,6 +902,7 @@ Hard requirements:
 - dependencies must refer only to work item IDs and must form an acyclic graph.
 - validation must contain executable shell commands that prove the work item and assigned acceptance criteria. Never place prose/evidence descriptions in validation. The runtime executes each string via the shell. Runtime-owned diff-isolation evidence belongs in criteria/findings, not in workItems[*].validation.
 - validationCommandCatalog is deterministic authority derived independently from the model-authored implementationPlan. Each catalog entry has an opaque deterministic id plus its byte-exact command. When it is non-empty, validation entries MUST be selected byte-for-byte from validationCommandCatalog.command; validationCommandIds must be the matching catalog IDs and are mechanically canonicalized by the Runtime. Never invent a command/path/test/script/flag that is absent from the catalog. implementationPlan.workItems[*].validation and technicalArtifacts cannot authorize themselves. If no catalog command can honestly prove a work item, preserve fail-closed semantics rather than fabricating validation.
+- commandSpecCatalog is independently loaded from committed ProjectDescriptor/v2 when present. Select only materially relevant commandSpecIds from this catalog; never invent an ID. commandSpecIds are semantic command references, not proof that execution is already authorized. When commandSpecCatalog is empty, leave commandSpecIds empty/absent and preserve the legacy bridge.
 - if an implementation product criterion uses an executable shell command in its verification field, every work item that claims that criterion must preserve that exact command in validation rather than replacing it with an ad-hoc equivalent.
 - criterion.verification may also be descriptive prose. Treat it as an executable command only when the ENTIRE value is command-shaped under the Runtime validation-command contract; a sentence that merely mentions npm test or another executable is prose and MUST NOT be copied into workItems[*].validation.
 - if implementationValidationDirective.mode=focused, its commands are byte-exact and EXCLUSIVE implementation validation authority: include every listed command and do not add substitute or extra work-item validation commands. Downstream QA/readiness may still add their own independent evidence.
@@ -1367,6 +1422,7 @@ export function buildTechnicalReviewRepairPrompt({
     coordinatorCandidates: coordinatorAgentSummaries(registry),
     implementationValidationDirective,
     validationCommandCatalog,
+    commandSpecCatalog: validationCommandCatalog?.commandSpecCatalog ?? [],
     technicalArtifacts: evidence,
   };
   return `Repair ONLY the machine-readable Agentic Harness implementationPlan in response to an SDD Technical Refinement review that returned changes_requested.
@@ -1387,6 +1443,7 @@ Hard requirements:
 - implementation validation remains workspace scoped; host/live/readiness commands are forbidden in implementation workItems.
 - Technical Refinement repairs the executable future-work plan, not completed implementation. A review request for future npm test output, already-created implementation files, post-state hashes/diff isolation, QA/readiness evidence or Product Acceptance evidence must be represented as future plan validation/invariants rather than fabricated current evidence.
 - every implementation validation command MUST be selected byte-for-byte from validationCommandCatalog.command and validationCommandIds must match the selected catalog IDs. The current implementationPlan and technicalArtifacts are NOT command authority and cannot self-legitimize an invented command.
+- when commandSpecCatalog is non-empty, commandSpecIds may contain ONLY IDs from that committed catalog and should include only commands materially relevant to the work item. They remain pending execution gates; never treat selection as completed execution evidence.
 - preserve executable criterion verification commands exactly, but never promote descriptive criterion.verification prose into validation merely because it mentions an executable. Only the entire command-shaped value is authoritative as a command. If implementationValidationDirective.mode=focused, include every listed command byte-for-byte and remove every substitute/extra implementation validation command.
 - dependencies must remain acyclic and refer only to work item IDs.
 - Do not downgrade or remove blocking acceptance criteria to satisfy the review.

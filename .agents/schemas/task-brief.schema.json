@@ -486,6 +486,15 @@
         "pattern": "^vcmd:sha256:[a-f0-9]{64}$"
       },
       "description": "Runtime-derived identities for Task Brief.validation. When present, each ID must match the command at the same index."
+    },
+    "commandSpecIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+      },
+      "description": "Committed ProjectDescriptor CommandSpec IDs carried from Technical Refinement. Runtime execution must independently re-admit them."
     }
   }
 }

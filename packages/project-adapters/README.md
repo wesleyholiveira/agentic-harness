@@ -195,3 +195,49 @@ The dedicated Docker test target now includes
 `tests/contracts/command-readiness-v2.test.mjs`. Those tests use controlled
 Docker responses; a real target-host materialization/toolchain run remains a
 separate operational proof.
+
+
+## Wave 07 committed CommandSpec authority and bounded behavior execution
+
+Wave 07 introduces the first real `ProjectDescriptor/v2 CommandSpec.id` path into
+Technical Refinement while retaining the legacy validation-string bridge for
+projects that have not adopted committed v2 configuration.
+
+`buildCommittedCommandSpecCatalog(workspace)` reads only committed
+`.agent-harness/project.json` authority. A non-Git/legacy workspace yields an
+empty catalog. A committed but invalid v2 configuration fails closed rather than
+falling back to model-authored strings.
+
+Technical Refinement may now emit `commandSpecIds`. Dynamic structured-output
+schemas restrict them to committed IDs. Unknown IDs are deterministic plan
+issues. DAG compilation and Task Briefs carry those IDs as semantic references;
+they are not capability tokens and do not replace independent Runtime admission.
+
+`evaluateBehaviorAdmission` joins the WAVE-05 source/policy/workspace/
+materialization/toolchain chain with the exact CommandSpec. The first executable
+subset is intentionally narrow:
+
+- runner operation = `one-off`;
+- phase = `behavior`;
+- networkPolicy = `none`;
+- effects = exactly `["read-only"]`;
+- no secretRefs;
+- no envAllowlist;
+- dependencyPolicy = `none`;
+- validationScope = `workspace` or `container`.
+
+Existing `exec` services stay HOLD because Docker exec inherits the service's
+network, environment and mounts; the Runtime does not claim effects/network/
+secret isolation it cannot prove.
+
+`executeDockerBehaviorCommandV2` uses native argv, immutable image ID,
+`--pull never --network none --read-only --cap-drop ALL
+--security-opt no-new-privileges`, fixed user/workdir and CommandSpec
+executable/argv. No shell is introduced. Raw stdout/stderr are not returned;
+only bounded byte counts and SHA-256 evidence are emitted. The runner is
+re-observed after execution and identity drift invalidates the receipt.
+
+This library is not yet wired automatically into the active Runtime executor.
+Existing runs therefore retain their current semantics until the next integration
+slice. The Docker foundation target includes
+`tests/contracts/command-spec-execution-v2.test.mjs`.

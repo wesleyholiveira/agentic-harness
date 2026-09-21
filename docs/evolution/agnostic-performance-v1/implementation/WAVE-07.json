@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "implementation-wave-report/v1",
+  "wave": "WAVE-07",
+  "status": "implemented-slice-pending-target-validation",
+  "baseline": {
+    "wave05Focused": {
+      "tests": 203,
+      "pass": 203,
+      "fail": 0,
+      "skip": 0
+    },
+    "wave06Docker": "GREEN_OPERATOR_CONFIRMED"
+  },
+  "tasks": {
+    "T04": "committed-command-spec-id-planning-partial",
+    "T08": "bounded-behavior-executor-library-partial"
+  },
+  "delivered": [
+    "committed CommandSpec catalog",
+    "implementationPlan.commandSpecIds",
+    "TaskBrief.commandSpecIds",
+    "behavior-admission/v1",
+    "behavior-execution-receipt/v1"
+  ],
+  "supportedBehaviorSubset": {
+    "runnerOperation": "one-off",
+    "networkPolicy": "none",
+    "effects": [
+      "read-only"
+    ],
+    "secretRefs": 0,
+    "envAllowlist": 0,
+    "dependencyPolicy": "none"
+  },
+  "activeRuntimeExecutorIntegrated": false,
+  "newTests": {
+    "file": "tests/contracts/command-spec-execution-v2.test.mjs",
+    "count": 15,
+    "executed": false
+  },
+  "expectedFocusedTotal": 225,
+  "dockerTarget": "NOT_RUN_FOR_WAVE07",
+  "runtimeQualification": "NOT_RUN",
+  "preservation": {
+    "cacheMemoryWorkerRoutingTouched": false,
+    "mainChanged": false,
+    "consumerPinChanged": false,
+    "manifestRegenerated": false
+  }
+}
