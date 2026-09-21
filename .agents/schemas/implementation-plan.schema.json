@@ -170,6 +170,15 @@
               "deterministic-reuse"
             ],
             "description": "Runtime execution strategy. deterministic-reuse is valid only for byte-identical existing implementation output with executable criterion validation and no contract or migration changes."
+          },
+          "validationCommandIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^vcmd:sha256:[a-f0-9]{64}$"
+            },
+            "description": "Deterministic IDs of the byte-exact validation projection. Runtime derives/verifies them; IDs alone are not execution authority."
           }
         }
       }
