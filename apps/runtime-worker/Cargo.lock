@@ -21,7 +21,7 @@ dependencies = [
  "chrono",
  "clap",
  "futures-util",
- "hmac",
+ "hmac 0.12.1",
  "lapin",
  "reqwest",
  "rustls",
