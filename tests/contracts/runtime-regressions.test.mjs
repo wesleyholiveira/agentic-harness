@@ -185,11 +185,29 @@ test("typed behavior tasks drop child privileges and kill the isolated process g
   assert.match(worker, /command\.gid\(BEHAVIOR_AGENT_GID\)/);
   assert.match(worker, /command\.process_group\(0\)/);
   assert.match(worker, /prepare_restricted_behavior_agent/);
+  assert.match(worker, /behavior_agent_output_directory_mismatch/);
+  assert.match(worker, /behavior_agent_task_output_chown_failed/);
+  assert.match(worker, /descriptor\.handoff_path/);
+  assert.match(worker, /descriptor\.log_path/);
+  assert.match(worker, /descriptor\.result_path/);
+  assert.match(worker, /descriptor\.change_set_path/);
   assert.match(worker, /terminate_isolated_process_group\(pid\)\.await/);
 
+  const recursiveWorkspaceChown = worker.indexOf('args(["-R", &format!("{BEHAVIOR_AGENT_UID}:{BEHAVIOR_AGENT_GID}")])');
+  const scopedTaskDirChown = worker.indexOf("let task_dir_chown = Command::new(\"chown\")", recursiveWorkspaceChown);
   const drain = worker.indexOf('drain_executor_output(stdout_task, "stdout", claimed, client).await');
   const terminate = worker.indexOf("terminate_isolated_process_group(pid).await", drain);
   const homeCleanup = worker.indexOf("behavior_agent_home_cleanup_after_execution_failed", terminate);
   const capability = worker.indexOf("run_behavior_gateway_under_lease", drain);
+  assert.ok(recursiveWorkspaceChown >= 0 && scopedTaskDirChown > recursiveWorkspaceChown);
   assert.ok(drain >= 0 && terminate > drain && homeCleanup > terminate && capability > homeCleanup);
+});
+
+test("revoked behavior execution repeatedly reaps its fence-bound Docker container", () => {
+  const executor = source("packages/project-adapters/src/behavior-executor-v2.mjs");
+  assert.match(executor, /verifyNamedContainerRemovedAfterAbort/);
+  assert.match(executor, /for \(const delayMs of \[0, 100, 400, 1_000\]\)/);
+  assert.match(executor, /'rm', '-f', containerName/);
+  assert.match(executor, /if \(aborted \|\| timedOut \|\| outputLimit\)/);
+  assert.match(executor, /await verifyNamedContainerRemovedAfterAbort/);
 });
