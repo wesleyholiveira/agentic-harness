@@ -54,10 +54,7 @@ function behaviorContainerName(fence, commandId) {
 }
 
 function delay(ms) {
-  return new Promise(resolve => {
-    const timer = setTimeout(resolve, ms);
-    timer.unref?.();
-  });
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function verifyCapabilityBounded(verifyCapability, request, {
