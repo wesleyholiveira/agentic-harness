@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "target-host-focused-suite-evidence/v1",
+  "wave": "WAVE-05",
+  "status": "GREEN",
+  "tests": 203,
+  "pass": 203,
+  "fail": 0,
+  "skipped": 0,
+  "todo": 0,
+  "durationMs": 3739.243082,
+  "evidenceSource": "operator-provided machine log",
+  "dockerContext": null,
+  "dockerImageId": null,
+  "dockerTargetReceipt": "NOT_PROVEN_BY_ATTACHED_LOG",
+  "runtimeQualification": "NOT_INFERRED"
+}
