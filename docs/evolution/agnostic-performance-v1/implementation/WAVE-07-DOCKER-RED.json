@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "docker-target-red-evidence/v1",
+  "wave": "WAVE-07",
+  "status": "RED_FIXED_PENDING_RERUN",
+  "observed": {
+    "tests": 205,
+    "pass": 203,
+    "fail": 2,
+    "skip": 0,
+    "durationMs": 3862.999422
+  },
+  "rootCause": "Docker build context omitted .agents/runtime and .agents/schemas required by integrated tests",
+  "visibleError": "ERR_MODULE_NOT_FOUND:.agents/runtime/validation-command.mjs",
+  "productionBehaviorChanged": false,
+  "correction": [
+    "Dockerfile copies .agents/runtime",
+    ".agents/schemas copied",
+    "git archive documentation includes both paths"
+  ],
+  "greenAfterFix": "NOT_RUN"
+}
