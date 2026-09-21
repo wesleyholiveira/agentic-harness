@@ -1242,12 +1242,12 @@ async fn drain_executor_output(
 
 
 #[cfg(unix)]
-async fn prepare_restricted_behavior_agent(
+async fn prepare_restricted_model_agent(
     descriptor: &ExecutionDescriptor,
     claimed: &ClaimedExecution,
 ) -> Result<PathBuf> {
     if descriptor.workspace.mode != "copy" {
-        bail!("behavior_gate_requires_copy_workspace");
+        bail!("model_agent_requires_copy_workspace");
     }
     let workspace = PathBuf::from(&descriptor.workspace.path);
     let mut hasher = Sha256::new();
@@ -1325,7 +1325,7 @@ async fn prepare_restricted_behavior_agent(
 }
 
 #[cfg(not(unix))]
-async fn prepare_restricted_behavior_agent(
+async fn prepare_restricted_model_agent(
     _descriptor: &ExecutionDescriptor,
     _claimed: &ClaimedExecution,
 ) -> Result<PathBuf> {
@@ -1534,8 +1534,8 @@ async fn run_shell_command(
     materialize_workspace(descriptor)
         .await
         .context("agent_runtime_workspace_materialize_failed")?;
-    let restricted_agent_home = if descriptor.behavior_gate.is_some() {
-        Some(prepare_restricted_behavior_agent(descriptor, claimed).await?)
+    let restricted_agent_home = if descriptor.execution_mode == "agent" {
+        Some(prepare_restricted_model_agent(descriptor, claimed).await?)
     } else {
         None
     };
@@ -1582,10 +1582,17 @@ async fn run_shell_command(
         "RABBITMQ_DEFAULT_PASS",
         "AGENT_HARNESS_DOCKER_GATEWAY_URL",
         "AGENT_HARNESS_DOCKER_GATEWAY_HMAC_KEY",
+        "AGENT_HARNESS_OPENCODE_CONTINUATION_URL",
+        "AGENT_HARNESS_OPENCODE_CONTINUATION_USERNAME",
+        "AGENT_HARNESS_OPENCODE_CONTINUATION_PASSWORD",
+        "OPENCODE_SERVER_PASSWORD",
+        "CONTEXT_ENGINE_PROJECT_MEMORY_POSTGRES_URL",
+        "CONTEXT_EXACT_REDIS_URL",
+        "CONTEXT_SEMANTIC_REDIS_URL",
     ] {
         command.env_remove(sensitive);
     }
-    let isolated_process_group = descriptor.behavior_gate.is_some();
+    let isolated_process_group = descriptor.execution_mode == "agent";
     if let Some(home) = restricted_agent_home.as_ref() {
         command.env("HOME", home);
         command.env_remove("XDG_DATA_HOME");
