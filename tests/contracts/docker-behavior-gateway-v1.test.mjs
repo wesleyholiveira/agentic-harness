@@ -219,9 +219,8 @@ test("gateway revokes an in-flight behavior command when the PostgreSQL fence is
 test("gateway revokes an in-flight behavior command when the worker HTTP client disconnects", async () => {
   const disconnect = new AbortController();
   let aborted = false;
-  const behaviorStarted = new Promise(resolve => {
-    globalThis.__wave10BehaviorStarted = resolve;
-  });
+  let markBehaviorStarted;
+  const behaviorStarted = new Promise(resolve => { markBehaviorStarted = resolve; });
   const run = runBehaviorGateRequest(request(), {
     projectRoot: "/workspace/repository",
     workspaceRoot: "/workspace/agent-workspaces",
@@ -235,7 +234,7 @@ test("gateway revokes an in-flight behavior command when the worker HTTP client 
     attestImage: () => ({ status: "ATTESTED", attestation: {} }),
     probeToolchain: () => ({ status: "TOOLCHAIN_VERIFIED" }),
     executeBehavior: async (_input, options) => await new Promise(resolve => {
-      globalThis.__wave10BehaviorStarted?.();
+      markBehaviorStarted();
       options.signal.addEventListener("abort", () => {
         aborted = true;
         resolve({ status: "HOLD", code: "behavior_execution_aborted", executed: true });
@@ -243,7 +242,6 @@ test("gateway revokes an in-flight behavior command when the worker HTTP client 
     }),
   });
   await behaviorStarted;
-  delete globalThis.__wave10BehaviorStarted;
   disconnect.abort();
   const result = await run;
   assert.equal(result.status, "HOLD");
