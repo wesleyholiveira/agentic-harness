@@ -12,6 +12,7 @@ import {
   implementationValidationDirectiveFromRequest,
   invalidValidationCommands,
   isExecutableValidationCommand,
+  validationCommandProjectionIssues,
   validationScopeCompatibilityIssue,
 } from "./validation-command.mjs";
 import { modelRequirementsForTask } from "./model-capabilities.mjs";
@@ -182,6 +183,14 @@ function inspectImplementationPlan(
     for (const invalid of invalidValidationCommands(item.validation ?? [])) {
       issues.push(`validation_command_not_executable:implementationPlan.workItems.${item.id}.validation[${invalid.index}]=${JSON.stringify(invalid.command)}`);
     }
+    if (Array.isArray(item.validationCommandIds) && item.validationCommandIds.length > 0) {
+      for (const issue of validationCommandProjectionIssues({
+        commandIds: item.validationCommandIds,
+        commands: item.validation ?? [],
+      })) {
+        issues.push(`implementation_plan_${issue}:${item.id}`);
+      }
+    }
     const declaredValidationScope = item.validationExecutionScope ?? "workspace";
     for (const [index, command] of (item.validation ?? []).entries()) {
       const scopeIssue = validationScopeCompatibilityIssue({ taskStage: "implementation", declaredScope: declaredValidationScope, command });
@@ -325,6 +334,7 @@ function implementationTask({ runId, technicalLeadTaskId, item, criteria, implem
     reasoningLevel: levelForComplexity(item.complexity),
     acceptanceCriteria: assignedCriteria,
     validation: item.validation,
+    validationCommandIds: item.validationCommandIds ?? [],
     validationExecutionScope: item.validationExecutionScope ?? "workspace",
     complexity: item.complexity,
     estimatedFiles: item.estimatedFiles,
