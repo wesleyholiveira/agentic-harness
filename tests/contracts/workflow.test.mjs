@@ -749,6 +749,17 @@ test("Technical Refinement preflight deterministically repairs mechanical plan d
   const mechanical = normalizeTechnicalPlanMechanics({ implementationPlan: sourcePlan, requiredAcceptanceCriteria: criteria, registry });
   assert.equal(mechanical.plan.workItems.find((item) => item.id === "W-web-tests").ownerAgentId, "frontend-specialist");
   assert.deepEqual(mechanical.plan.workItems.find((item) => item.id === "W-web-tests").validation, ["npm run test:web"]);
+  const transientDurable = mechanical.plan.workItems.find((item) => item.id === "W-durable");
+  assert.deepEqual(
+    transientDurable.acceptanceCriteria,
+    ["CLV2-QA"],
+    "pre-repair normalization must preserve a schema-valid criterionless shape until bounded criterion assignment runs",
+  );
+  assert.deepEqual(
+    transientDurable.validation,
+    ["Runtime durability rehearsal must pass"],
+    "invalid prose remains visible to deterministic repair issues instead of being replaced by an invalid empty validation array",
+  );
 
   let calls = 0;
   let observedTitle = "";
