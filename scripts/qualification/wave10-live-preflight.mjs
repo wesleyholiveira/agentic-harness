@@ -160,11 +160,11 @@ export async function runWave10LivePreflight({
       run: (command, args, options) => runner.run(command, args, options),
     });
 
+    composeStarted = true;
     compose([
       "up", "-d", "--build",
       "postgres", "database-migrate", "docker-behavior-gateway",
     ], { label: "wave10-gateway-stack-up", timeoutMs: 20 * 60_000 });
-    composeStarted = true;
 
     await waitFor(() => {
       try {
@@ -338,7 +338,8 @@ export async function runWave10LivePreflight({
         leaseOwner,
         capabilityFingerprint,
       },
-      secretsPersisted: false,
+      rawCapabilityPersistedInEvidence: false,
+      hmacKeyPersistedInEvidence: false,
       outputDir,
     };
     return report;
@@ -350,6 +351,7 @@ export async function runWave10LivePreflight({
       failure: safeFailure(error),
       outputDir,
     };
+    error.preflightOutputDir = outputDir;
     throw error;
   } finally {
     if (composeStarted) {
@@ -385,6 +387,14 @@ export async function runWave10LivePreflight({
         errors: cleanupErrors,
         ok: cleanupErrors.length === 0,
       };
+      if (cleanupErrors.length > 0 && report.verdict === "PASS") {
+        report.verdict = "HOLD";
+        report.failure = {
+          message: "wave10_preflight_cleanup_failed",
+          code: "wave10_preflight_cleanup_failed",
+          evidence: { cleanupErrors },
+        };
+      }
       writeJson(resolve(outputDir, "wave10-live-preflight.json"), report);
     }
   }
@@ -405,6 +415,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       verdict: "HOLD",
       error: String(error?.message ?? error),
       code: error?.code ?? null,
+      outputDir: error?.preflightOutputDir ?? null,
     };
     process.stdout.write(`${JSON.stringify(failure, null, 2)}\n`);
     process.exitCode = 1;
