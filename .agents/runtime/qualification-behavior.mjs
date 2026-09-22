@@ -32,3 +32,27 @@ export function qualificationBehaviorCommandSpecIds({ taskPlan, brief, attempt, 
 
   return [commandId];
 }
+
+export function qualificationCommandAuthorityFromConfiguration(configuration) {
+  if (!configuration
+    || configuration.schemaVersion !== "committed-project-configuration/v1"
+    || configuration.sourceTrustVerified !== true
+    || configuration.policyTrustVerified !== true
+    || !configuration.descriptor) {
+    throw new Error("qualification_behavior_committed_configuration_invalid");
+  }
+  const descriptor = configuration.descriptor;
+  const authority = {
+    schemaVersion: "command-authority/v1",
+    projectId: descriptor.projectId,
+    repositoryId: descriptor.repositoryId,
+    sourceCommit: configuration.sourceCommit,
+    sourceSnapshotSha256: configuration.sourceSnapshotSha256,
+    descriptorDigest: configuration.descriptorDigest,
+    policyDigest: configuration.policyDigest,
+  };
+  if (Object.values(authority).some(value => typeof value !== "string" || !value)) {
+    throw new Error("qualification_behavior_command_authority_invalid");
+  }
+  return authority;
+}
