@@ -731,6 +731,59 @@ No provider configuration, model ID, OpenCode version, retry policy or network
 allowlist was changed because this run does not yet identify which of those
 caused the OpenCode session error.
 
+## Scoped R-9 compiled OpenCode runtime correction
+
+Scoped run `standalone-v1-1790117182742-551e1dd708ce` on candidate
+`2031876a6b7451a12b79b3bf3c99d3848de35580` again proved Q-ENTRY,
+PRE-R0 and R-0 through R-6 PASS. Product Discovery then entered the restricted
+OpenCode executor, copied auth into the Runtime-owned ephemeral state root,
+spawned OpenCode, observed a real session and failed all three attempts with:
+
+`UnknownError: Unexpected server error. Check server logs for details.`
+
+Technical Refinement was cancelled, so the physical worker-loss boundary never
+materialized.
+
+This rerun exposed two independent defects.
+
+First, the R-9 pre-boundary fail-fast added by the preceding correction was not
+actually terminal. `scripts/qualification/lib/util.mjs::waitFor()` caught every
+predicate exception indiscriminately. The `QualificationHold` raised for the
+failed semantic run was stored as `lastError` and retried until the full
+20-minute `r9-process-loss-boundary` timeout expired.
+
+Correction:
+- `waitFor()` now accepts `shouldRetryError`;
+- HOLD-capable R-7, R-9 and R-10 polling passes
+  `shouldRetryQualificationPollError`;
+- `QualificationHold` propagates immediately while ordinary transient polling
+  errors retain the previous retry behavior;
+- regression coverage proves a terminal predicate error is observed exactly
+  once rather than converted into a timeout.
+
+Second, the Runtime worker was still pinned to `opencode-ai@1.18.26`.
+Upstream `anomalyco/opencode#50439` identified a compiled-build import cycle in
+the filesystem search layer that can make every prompt fail in
+`SystemPrompt.environment` before provider invocation with the same generic
+`UnknownError / Unexpected server error` wrapper. The upstream fix was merged
+as `f5ce4f881e477c7b75421cea2d20939f0ddd71fb` and is an ancestor of the
+OpenCode `v1.18.32` release commit.
+
+Correction:
+- the Runtime worker now pins `opencode-ai@1.18.32`;
+- no transport, model-routing, MCP, network, auth, retry-budget or fencing
+  semantics are changed;
+- structured `opencode.failure` evidence also retains the bounded
+  `errorRef` when OpenCode exposes one, allowing direct correlation with
+  ephemeral server logs if another internal failure occurs.
+
+The generic error alone does not prove that the exact failed 1.18.26 process
+hit that upstream import cycle, so the dependency root cause remains
+fail-closed until the new exact SHA is rerun. The rerun must prove Product
+Discovery progresses on 1.18.32 and Technical Refinement reaches
+`repair-checkpoint-before-behavior`; otherwise the new structured diagnostic is
+the authority for the next correction.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
