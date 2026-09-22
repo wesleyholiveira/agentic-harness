@@ -176,25 +176,72 @@ export class ProcessRunner {
     const cwd = options.cwd || process.cwd();
     const env = { ...this.baseEnv, ...(options.env || {}) };
     const invocation = resolveSpawnInvocation(command, args, { env });
-    writeFileSync(logPath, `startedAt=${new Date().toISOString()}\ncwd=${cwd}\ncommand=${command}\nargs=${JSON.stringify(args)}\nresolvedCommand=${invocation.resolvedCommand ?? ""}\nspawnCommand=${invocation.command}\nspawnArgs=${JSON.stringify(invocation.args)}\nwrapper=${invocation.wrapper ?? ""}\nwindowsVerbatimArguments=${invocation.windowsVerbatimArguments === true}\n--- output ---\n`, "utf8");
+    const hasInput = options.input !== undefined;
+    const maxCaptureBytes = options.maxCaptureBytes ?? 4 * 1024 * 1024;
+    if (!Number.isSafeInteger(maxCaptureBytes) || maxCaptureBytes < 1 || maxCaptureBytes > 64 * 1024 * 1024) {
+      throw new Error("qualification_start_capture_limit_invalid");
+    }
+    writeFileSync(logPath, `startedAt=${new Date().toISOString()}\ncwd=${cwd}\ncommand=${command}\nargs=${JSON.stringify(args)}\nresolvedCommand=${invocation.resolvedCommand ?? ""}\nspawnCommand=${invocation.command}\nspawnArgs=${JSON.stringify(invocation.args)}\nwrapper=${invocation.wrapper ?? ""}\nwindowsVerbatimArguments=${invocation.windowsVerbatimArguments === true}\nstdinProvided=${hasInput}\n--- output ---\n`, "utf8");
     const child = spawn(invocation.command, invocation.args, {
       cwd,
       env,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: [hasInput ? "pipe" : "ignore", "pipe", "pipe"],
       windowsHide: true,
       shell: false,
       windowsVerbatimArguments: invocation.windowsVerbatimArguments === true,
       detached: false,
     });
     let spawnError = null;
+    let capturedBytes = 0;
+    let captureOverflow = false;
+    const stdoutChunks = [];
+    const stderrChunks = [];
+    const capture = (target, chunk) => {
+      appendFileSync(logPath, chunk);
+      if (captureOverflow) return;
+      const bytes = Buffer.byteLength(chunk);
+      if (capturedBytes + bytes > maxCaptureBytes) {
+        captureOverflow = true;
+        return;
+      }
+      capturedBytes += bytes;
+      target.push(Buffer.from(chunk));
+    };
     child.once("error", (error) => {
       spawnError = error;
       appendFileSync(logPath, `\nspawnError=${error.message}\n`, "utf8");
     });
-    for (const stream of [child.stdout, child.stderr]) {
-      stream?.on("data", (chunk) => appendFileSync(logPath, chunk));
-    }
-    return { child, logPath, command, args, resolvedCommand: invocation.resolvedCommand, spawnCommand: invocation.command, spawnArgs: invocation.args, wrapper: invocation.wrapper, windowsVerbatimArguments: invocation.windowsVerbatimArguments === true, cwd, env, get spawnError() { return spawnError; } };
+    child.stdout?.on("data", (chunk) => capture(stdoutChunks, chunk));
+    child.stderr?.on("data", (chunk) => capture(stderrChunks, chunk));
+    if (hasInput) child.stdin?.end(options.input);
+    const completion = new Promise((resolveCompletion) => {
+      child.once("close", (exitCode, signal) => {
+        resolveCompletion({
+          exitCode: Number.isInteger(exitCode) ? exitCode : null,
+          signal: signal ?? null,
+          stdout: Buffer.concat(stdoutChunks).toString("utf8"),
+          stderr: Buffer.concat(stderrChunks).toString("utf8"),
+          captureOverflow,
+          spawnError: spawnError?.message ?? null,
+          logPath,
+        });
+      });
+    });
+    return {
+      child,
+      completion,
+      logPath,
+      command,
+      args,
+      resolvedCommand: invocation.resolvedCommand,
+      spawnCommand: invocation.command,
+      spawnArgs: invocation.args,
+      wrapper: invocation.wrapper,
+      windowsVerbatimArguments: invocation.windowsVerbatimArguments === true,
+      cwd,
+      env,
+      get spawnError() { return spawnError; },
+    };
   }
 }
 
