@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "source-attested-runtime-fixture-implemented-pending-exact-sha-rerun",
+  "status": "live-preflight-implemented-pending-exact-sha-validation",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -21,7 +21,13 @@
     "source-attested-build one-off runner mode without pre-commit image self-reference",
     "post-commit qualification behavior image build with source/runner/binding labels",
     "standalone R-3 behavior image materialization and source-attestation proof",
-    "standalone R-4 behavior-gateway startup on shared Runtime workspace volume"
+    "standalone R-4 behavior-gateway startup on shared Runtime workspace volume",
+    "deterministic no-LLM WAVE-10 live preflight",
+    "real PostgreSQL fence/capability checkpoint seeded by preflight",
+    "real Docker behavior gateway execution against shared Runtime volume",
+    "raw capability transported over stdin and excluded from ProcessRunner evidence",
+    "exact fence-bound behavior container absence proof",
+    "fail-closed live preflight cleanup"
   ],
   "security": {
     "dockerSocketOnWorker": false,
@@ -43,11 +49,11 @@
     "taskBriefContextDescriptorLogResultWritableByModel": false
   },
   "validation": {
-    "nodeFocused": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
+    "nodeFocused": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_LIVE_PREFLIGHT_IMPLEMENTATION",
     "rustFmt": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
     "rustTestsLocked": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
     "dockerComposeConfig": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
-    "dockerContractTarget": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
+    "dockerContractTarget": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_LIVE_PREFLIGHT_IMPLEMENTATION",
     "workerImageBuild": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
     "gatewayImageBuild": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
     "normalModelTaskRestrictedUidRegression": "NOT_RUN",
@@ -56,20 +62,19 @@
     "gatewayOutageFault": "NOT_RUN",
     "postgresOutageFault": "NOT_RUN",
     "behaviorProcessLossRecovery": "NOT_RUN",
-    "runtimeQualification": "NOT_RUN"
+    "runtimeQualification": "NOT_RUN",
+    "livePreflight": "PENDING_EXACT_SHA_RUN"
   },
   "historicalOperatorEvidence": {
-    "candidate": "e6dd924745c396ec03a05372b87c0d89bd23888e",
-    "nodeFocused": "PASS",
-    "rustFmt": "PASS",
-    "rustTestsLocked": "PASS",
-    "dockerComposeConfig": "PASS",
-    "dockerContractTarget": "PASS_264_264",
-    "workerImageBuild": "PASS",
-    "gatewayImageBuild": "PASS",
+    "candidate": "27480e5004ddf903e2dafaf8487437b7adf66858",
+    "sourceIdentity": "PASS",
+    "syntax": "PASS",
+    "focusedContracts": "PASS",
+    "qualificationControllerSelfTest": "PASS",
+    "dockerContractTarget": "PASS",
     "reportedAt": "2026-09-21",
     "source": "operator-confirmed",
-    "qualificationUse": "historical-only-after-source-attested-runtime-fixture-change"
+    "qualificationUse": "historical-only-after-live-preflight-source-change"
   },
   "preservation": {
     "mainChanged": false,
@@ -101,6 +106,13 @@
       "observed": "one-off pinned image digest participated in source/runner identities that the same image was required to carry as labels",
       "correction": "ADR 0042 source-attested-build commits descriptor first, stamps authority labels post-commit, resolves one immutable image by those labels, and never executes by mutable tag",
       "status": "fixed-pending-exact-sha-rerun"
+    },
+    {
+      "observedOnCandidate": "27480e5004ddf903e2dafaf8487437b7adf66858",
+      "gate": "pre-live-preflight-review",
+      "observed": "no deterministic host proof yet exercised post-commit source-attested image -> PostgreSQL capability/fence -> real gateway -> behavior receipt before the expensive Runtime qualification",
+      "correction": "wave10-live-preflight.mjs now proves the behavior data plane without LLM, transports raw capability via stdin, verifies exact container cleanup, and fails closed on cleanup errors",
+      "status": "implemented-pending-exact-sha-run"
     }
   ]
 }
