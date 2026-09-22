@@ -343,6 +343,32 @@ This gate is deliberately separate from physical Rust worker loss. Worker loss
 must still prove client-disconnect revocation plus semantic replacement
 generation/fence recovery through the actual worker/dispatch plane.
 
+## Fault-preflight findings
+
+Candidate `fc3e5f7423b57a851ff3752526f472ce36ee4451` proved the first
+fault scenario end-to-end:
+
+- delayed behavior container became physically running;
+- PostgreSQL fencing token advanced from 1 to 2 while it was in-flight;
+- gateway returned `409 / HOLD / docker_gateway_fence_identity_mismatch`;
+- receipts array was empty;
+- the fence-derived behavior container was removed.
+
+The same run then exposed a production bug in the PostgreSQL outage path.
+When PostgreSQL was stopped while a delayed behavior container was running,
+the client observed `UND_ERR_SOCKET` instead of the expected fail-closed
+HTTP response. Root cause was an unhandled `pg.Pool` background `error`
+event from an idle connection. Node treats an unhandled EventEmitter
+`error` as fatal, so the gateway process exited before it could return
+`docker_gateway_capability_store_unavailable`.
+
+The verifier now registers a Pool error listener to keep the gateway process
+alive. Query failures remain authoritative and continue to map to
+`docker_gateway_capability_store_unavailable`. The fault preflight also
+captures gateway container id, PID and RestartCount before the outage and
+requires all three to remain unchanged after PostgreSQL recovery. Recovery is
+bounded to five attempts, retrying only the same store-unavailable HOLD.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
