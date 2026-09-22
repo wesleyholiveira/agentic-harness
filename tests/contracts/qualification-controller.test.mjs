@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { createServer } from "node:http";
+import { productNamespaceOperationalPathspecs } from "../../scripts/qualification/lib/product-namespace-scan.mjs";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -111,7 +112,7 @@ test("Windows batch invocation uses cmd /S /C outer quoting without backslash-es
   }
 });
 
-test("qualification product-namespace scanner does not self-match outside historical baseline", () => {
+test("qualification product-namespace scanner does not self-match outside historical evidence", () => {
   const pattern = [
     ["clip", "compass"].join("-"),
     ["Clip", "Compass"].join(" "),
@@ -125,7 +126,7 @@ test("qualification product-namespace scanner does not self-match outside histor
     "-niE",
     pattern,
     "--",
-    ":!qualification/baseline/r17.4.5/**",
+    ...productNamespaceOperationalPathspecs(),
   ], {
     cwd: root,
     encoding: "utf8",
@@ -832,10 +833,12 @@ test("R-9 process-loss fault is default-off, worker-projected, and scoped to Tec
   assert.ok(contextEngineStart >= 0 && workerStart > contextEngineStart && volumesStart > workerStart);
   const contextEngineSection = compose.slice(contextEngineStart, workerStart);
   const workerSection = compose.slice(workerStart, volumesStart);
-  assert.doesNotMatch(contextEngineSection, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY/);
-  assert.match(workerSection, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: \$\{AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY:-\}/);
-  assert.match(workerSection, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_TASK_MATCH: \$\{AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_TASK_MATCH:-\}/);
-  assert.match(workerSection, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT: \$\{AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT:-\}/);
+  for (const section of [contextEngineSection, workerSection]) {
+    assert.match(section, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: \$\{AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY:-\}/);
+    assert.match(section, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_TASK_MATCH: \$\{AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_TASK_MATCH:-\}/);
+    assert.match(section, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT: \$\{AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT:-\}/);
+    assert.match(section, /AGENT_HARNESS_RUNTIME_TEST_BEHAVIOR_COMMAND_ID: \$\{AGENT_HARNESS_RUNTIME_TEST_BEHAVIOR_COMMAND_ID:-\}/);
+  }
   assert.match(workerSection, /AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_WAIT_MS: \$\{AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_WAIT_MS:-120000\}/);
   assert.match(executor, /const attemptMatch = String\(env\.AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT/);
   assert.match(executor, /if \(actualAttempt !== expectedAttempt\) return null/);
@@ -902,6 +905,21 @@ test("qualification process-loss boundary is one-shot across true task retries",
     taskMatch: "technical-refinement",
     attemptMatch: 1,
     waitMs: 180000,
+    blockUntilProcessLoss: true,
+  });
+  const preBehavior = resolveQualificationProcessLossBoundary({
+    brief: { ...task, modelRouting: { attempt: 1 } },
+    env: {
+      ...env,
+      AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: "repair-checkpoint-before-behavior",
+    },
+  });
+  assert.deepEqual(preBehavior, {
+    boundary: "repair-checkpoint-before-behavior",
+    taskMatch: "technical-refinement",
+    attemptMatch: 1,
+    waitMs: 180000,
+    blockUntilProcessLoss: false,
   });
   const retry = resolveQualificationProcessLossBoundary({ brief: { ...task, modelRouting: { attempt: 2 } }, env });
   assert.equal(retry, null);
