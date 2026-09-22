@@ -213,7 +213,6 @@ export class ProcessRunner {
     });
     child.stdout?.on("data", (chunk) => capture(stdoutChunks, chunk));
     child.stderr?.on("data", (chunk) => capture(stderrChunks, chunk));
-    if (hasInput) child.stdin?.end(options.input);
     const completion = new Promise((resolveCompletion) => {
       child.once("close", (exitCode, signal) => {
         resolveCompletion({
@@ -227,6 +226,7 @@ export class ProcessRunner {
         });
       });
     });
+    if (hasInput) child.stdin?.end(options.input);
     return {
       child,
       completion,
