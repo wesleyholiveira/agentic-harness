@@ -75,7 +75,7 @@ impl Config {
             lookup_opt(&mut lookup, "AGENT_HARNESS_DOCKER_GATEWAY_HMAC_KEY");
         if behavior_gateway_hmac_key
             .as_ref()
-            .is_some_and(|value| value.as_bytes().len() < 32)
+            .is_some_and(|value| value.len() < 32)
         {
             bail!("behavior_gateway_hmac_key_too_short");
         }
