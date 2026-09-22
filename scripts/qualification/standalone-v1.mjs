@@ -60,11 +60,22 @@ import { behaviorContainerName } from "../../apps/docker-gateway/server.mjs";
 
 const scriptRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const args = parseArgs(process.argv.slice(2));
+const qualificationScope = args.wave10WorkerLoss ? "wave10-worker-loss" : "full-promotion";
+const promotionEligible = qualificationScope === "full-promotion";
 const harnessRoot = nativeRealpath(process.env.AGENT_HARNESS_ROOT || scriptRoot);
 const runId = args.runId || randomId("standalone-v1");
 const outputDir = ensureDir(resolve(args.output || join(tmpdir(), "agentic-harness-qualification", runId)));
 const runner = new ProcessRunner({ outputDir });
-const report = new QualificationReport({ runId, outputDir, harnessRoot });
+const report = new QualificationReport({
+  runId,
+  outputDir,
+  harnessRoot,
+  qualificationScope,
+  promotionEligible,
+});
+if (!promotionEligible) {
+  report.notes.push("Scoped qualification uses clean git-tracked-worktree source identity and is not eligible for release promotion; MANIFEST.json remains a T17 closure artifact.");
+}
 const state = {
   harnessRoot,
   outputDir,
@@ -93,7 +104,9 @@ const state = {
 const QUALIFICATION_RABBITMQ_USERNAME = "agent";
 const QUALIFICATION_RABBITMQ_PASSWORD = "agent";
 
-const gateOrder = ["Q-ENTRY", "PRE-R0", "R-0", "R-1", "R-2", "R-3", "R-4", "R-5", "R-6", "R-7", "R-8", "R-9", "R-10"];
+const fullGateOrder = ["Q-ENTRY", "PRE-R0", "R-0", "R-1", "R-2", "R-3", "R-4", "R-5", "R-6", "R-7", "R-8", "R-9", "R-10"];
+const wave10WorkerLossGateOrder = ["Q-ENTRY", "PRE-R0", "R-0", "R-1", "R-2", "R-3", "R-4", "R-5", "R-6", "R-9"];
+const gateOrder = args.wave10WorkerLoss ? wave10WorkerLossGateOrder : fullGateOrder;
 let firstHold = null;
 
 const gates = {
@@ -146,6 +159,8 @@ try {
   const paths = report.write();
   console.log(JSON.stringify({
     verdict: report.firstDivergence ? "HOLD" : "PASS",
+    qualificationScope,
+    promotionEligible,
     runId,
     report: paths,
     firstDivergence: report.firstDivergence,
@@ -163,14 +178,16 @@ function legacyProductNamespacePattern() {
 }
 
 function parseArgs(argv) {
-  const out = { output: null, selfTest: false, runId: null };
+  const out = { output: null, selfTest: false, runId: null, wave10WorkerLoss: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--output") out.output = argv[++i];
     else if (arg === "--run-id") out.runId = argv[++i];
     else if (arg === "--self-test") out.selfTest = true;
+    else if (arg === "--wave10-worker-loss") out.wave10WorkerLoss = true;
     else throw new Error(`qualification_unknown_argument:${arg}`);
   }
+  if (out.selfTest && out.wave10WorkerLoss) throw new Error("qualification_scope_conflicts_with_self_test");
   return out;
 }
 
@@ -376,11 +393,26 @@ async function r0() {
   assertCleanSource("R-0");
   const head = gitText(harnessRoot, ["rev-parse", "HEAD"]);
   if (head !== report.identity.PRE_R0_HEAD) hold("R-0", "SOURCE", "r0_head_changed_after_pre_r0", { head, pre: report.identity.PRE_R0_HEAD });
-  const manifestCheck = mustRun("R-0", "SOURCE", process.execPath, [resolve(harnessRoot, "scripts/internal/source-manifest.mjs"), "--check"], { cwd: harnessRoot, label: "r0-manifest-check" });
-  const manifestResult = parseJsonOutput(manifestCheck.stdout);
-  if (manifestResult.ok !== true) hold("R-0", "SOURCE", "r0_manifest_mismatch", { manifestResult });
+
+  let manifestResult = null;
+  if (promotionEligible) {
+    const manifestCheck = mustRun("R-0", "SOURCE", process.execPath, [resolve(harnessRoot, "scripts/internal/source-manifest.mjs"), "--check"], { cwd: harnessRoot, label: "r0-manifest-check" });
+    manifestResult = parseJsonOutput(manifestCheck.stdout);
+    if (manifestResult.ok !== true) hold("R-0", "SOURCE", "r0_manifest_mismatch", { manifestResult });
+  }
+
   const manifestPrint = mustRun("R-0", "SOURCE", process.execPath, [resolve(harnessRoot, "scripts/internal/source-manifest.mjs")], { cwd: harnessRoot, label: "r0-manifest-print" });
   const source = parseJsonOutput(manifestPrint.stdout);
+  if (!promotionEligible) {
+    if (source.sourceAuthority !== "git-tracked-worktree"
+      || source.untrackedNonIgnored?.length > 0
+      || source.manifestTracked !== true
+      || !String(source.treeSha256 ?? "").startsWith("sha256:")) {
+      hold("R-0", "SOURCE", "r0_scoped_source_identity_invalid", { source });
+    }
+    report.identity.R0_MANIFEST_STATUS = "DEFERRED_T17";
+    report.identity.R0_SOURCE_AUTHORITY = source.sourceAuthority;
+  }
 
   const tracked = gitText(harnessRoot, ["ls-files"]).split(/\r?\n/u).filter(Boolean);
   const forbiddenPaths = [".agents/registry.json", ".agents/runtime/registry.mjs"];
@@ -425,7 +457,17 @@ async function r0() {
   report.identity.R0_TRACKED_FILES = source.trackedTotal;
   report.identity.packageLockSha256 = sha256File(resolve(harnessRoot, "package-lock.json"));
   report.identity.superpowersLockSha256 = sha256File(resolve(harnessRoot, "vendor/superpowers/lock.json"));
-  return { head, treeSha256: source.treeSha256, trackedTotal: source.trackedTotal, agentCount, manifest: manifestResult.code, runtimeIngressBoundary: true };
+  return {
+    head,
+    treeSha256: source.treeSha256,
+    trackedTotal: source.trackedTotal,
+    agentCount,
+    manifest: promotionEligible ? manifestResult.code : "DEFERRED_T17",
+    sourceAuthority: source.sourceAuthority,
+    promotionEligible,
+    qualificationScope,
+    runtimeIngressBoundary: true,
+  };
 }
 
 async function r1() {
