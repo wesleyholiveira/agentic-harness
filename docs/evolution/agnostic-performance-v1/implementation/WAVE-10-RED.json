@@ -141,6 +141,24 @@
       "qualificationHarnessBug": false,
       "releaseBoundaryReachedEarly": true,
       "status": "scoped-qualification-implemented-pending-exact-sha-run"
+    },
+    {
+      "gate": "wave10-worker-loss/R-0",
+      "candidate": "2dd72760a4f9ee7ab267239c8ef584604df2814b",
+      "runId": "standalone-v1-1790043848546-9b3be2a47bd9",
+      "observed": {
+        "manifestStatus": "DEFERRED_T17",
+        "sourceAuthority": "git-tracked-worktree",
+        "productReferenceMatches": 3,
+        "allMatchesUnder": "docs/evolution/**",
+        "runtimeReached": false,
+        "cleanupOk": true
+      },
+      "rootCause": "operational product-namespace gate incorrectly treated historical docs/evolution evidence as runtime/operational coupling",
+      "correction": "central product-namespace pathspec excludes docs/evolution/** and legacy baseline only; operational and ADR source remain scanned",
+      "productionLogicBug": false,
+      "qualificationHarnessBug": true,
+      "status": "fixed-pending-exact-sha-scoped-r9-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -200,7 +218,9 @@
     "default full-promotion standalone still requires source-manifest --check",
     "wave10-worker-loss scope records promotionEligible=false and MANIFEST=DEFERRED_T17",
     "scoped R-0 preserves all non-MANIFEST source/ingress checks and live Git tree identity",
-    "scoped worker-loss path excludes R-7/R-8/R-10 because they do not feed R-9 state"
+    "scoped worker-loss path excludes R-7/R-8/R-10 because they do not feed R-9 state",
+    "product namespace scan distinguishes historical evolution evidence from operational source",
+    "docs/adr, runtime, apps, packages, scripts and config remain inside the blocking product-coupling scan"
   ],
   "historicalGreenEvidence": {
     "candidate": "0d8c0b6ec4c034429d496822a6a2cc780f9a31bb",
@@ -222,5 +242,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "DATA_PLANE_GREEN_SCOPED_R9_WORKER_LOSS_PENDING_CURRENT_EXACT_SHA"
+  "greenAfterFix": "SCOPED_R0_HISTORICAL_REFERENCE_FIX_PENDING_CURRENT_EXACT_SHA"
 }
