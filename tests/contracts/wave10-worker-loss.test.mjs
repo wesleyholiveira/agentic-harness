@@ -113,8 +113,9 @@ test("Compose projects qualification controls to descriptor preparation and work
     "AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT",
     "AGENT_HARNESS_RUNTIME_TEST_BEHAVIOR_COMMAND_ID",
   ]) {
-    assert.match(contextBlock, new RegExp(`${key}: \\${${key}:-}`));
-    assert.match(workerBlock, new RegExp(`${key}: \\${${key}:-}`));
+    const projection = key + ": ${" + key + ":-}";
+    assert.ok(contextBlock.includes(projection), `context-engine missing ${projection}`);
+    assert.ok(workerBlock.includes(projection), `worker missing ${projection}`);
   }
 });
 
