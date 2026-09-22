@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "fault-client-stdin-forwarding-fixed-pending-rerun",
+  "status": "postgres-pool-error-fixed-pending-fault-preflight-rerun",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -65,9 +65,9 @@
     "gatewayImageBuild": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
     "normalModelTaskRestrictedUidRegression": "NOT_RUN",
     "endToEndBehaviorTask": "NOT_RUN",
-    "inFlightFenceReplacementFault": "RED_ON_560e857_CLIENT_STDIN_NOT_ATTACHED_FIXED_PENDING_RERUN",
+    "inFlightFenceReplacementFault": "PASS_ON_fc3e5f7",
     "gatewayOutageFault": "PENDING_WAVE10_FAULT_PREFLIGHT",
-    "postgresOutageFault": "PENDING_WAVE10_FAULT_PREFLIGHT",
+    "postgresOutageFault": "RED_ON_fc3e5f7_GATEWAY_POOL_ERROR_CRASH_FIXED_PENDING_RERUN",
     "behaviorProcessLossRecovery": "NOT_RUN",
     "runtimeQualification": "NOT_RUN",
     "livePreflight": "PASS_ON_0d8c0b6"
@@ -150,6 +150,17 @@
       "productionLogicBug": false,
       "qualificationHarnessBug": true,
       "status": "fixed-pending-exact-sha-fault-preflight-rerun"
+    },
+    {
+      "observedOnCandidate": "fc3e5f7423b57a851ff3752526f472ce36ee4451",
+      "gate": "wave10-fault-preflight/postgres-outage",
+      "preflightId": "wave10-fault-preflight-1790039052245-30a45fa76217",
+      "observed": "behavior container was running and PostgreSQL was stopped, but client got UND_ERR_SOCKET instead of 409/HOLD",
+      "rootCause": "node-postgres Pool emitted an idle-client error with no listener, causing gateway process termination",
+      "correction": "install Pool#error listener; keep query failure mapping to docker_gateway_capability_store_unavailable; physically require same gateway PID and RestartCount after DB recovery; bound recovery retries to store-unavailable only",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
+      "status": "fixed-pending-exact-sha-fault-preflight-rerun"
     }
   ],
   "livePreflightEvidence": {
@@ -176,5 +187,15 @@
     "T13 CLI/profile integration",
     "T21 context-economy parity",
     "T15/T16/T17 release closure"
-  ]
+  ],
+  "faultEvidence": {
+    "fenceReplacement": {
+      "candidate": "fc3e5f7423b57a851ff3752526f472ce36ee4451",
+      "preflightId": "wave10-fault-preflight-1790039052245-30a45fa76217",
+      "verdict": "PASS",
+      "holdCode": "docker_gateway_fence_identity_mismatch",
+      "receiptsAccepted": 0,
+      "behaviorContainerRemoved": true
+    }
+  }
 }
