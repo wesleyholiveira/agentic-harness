@@ -277,6 +277,42 @@ function parseJsonDocuments(value) {
   return documents;
 }
 
+function redactOpenCodeDiagnosticText(value) {
+  return String(value ?? "")
+    .replace(/Bearer\s+[^\s"']+/giu, "Bearer [REDACTED]")
+    .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/gu, "[REDACTED]")
+    .replace(/((?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password)\s*[:=]\s*)[^\s,;]+/giu, "$1[REDACTED]")
+    .slice(0, 1_024);
+}
+
+export function summarizeOpenCodeFailure({ stdout = "", stderr = "" } = {}) {
+  const documents = parseJsonDocuments(stdout);
+  const errorEvent = [...documents].reverse().find((document) => document?.type === "error" && document?.error) ?? null;
+  if (errorEvent) {
+    const error = errorEvent.error ?? {};
+    const data = error?.data && typeof error.data === "object" ? error.data : {};
+    return {
+      source: "json-error-event",
+      sessionId: String(errorEvent.sessionID ?? "") || null,
+      errorName: String(error.name ?? "") || null,
+      errorCode: String(data.code ?? data.statusCode ?? "") || null,
+      errorMessage: redactOpenCodeDiagnosticText(data.message ?? error.message ?? error.name ?? "opencode_error"),
+      providerId: String(data.providerID ?? data.providerId ?? "") || null,
+      modelId: String(data.modelID ?? data.modelId ?? "") || null,
+    };
+  }
+  const stderrTail = redactOpenCodeDiagnosticText(String(stderr ?? "").slice(-2_048));
+  return {
+    source: stderrTail ? "stderr-tail" : "unavailable",
+    sessionId: null,
+    errorName: null,
+    errorCode: null,
+    errorMessage: stderrTail || null,
+    providerId: null,
+    modelId: null,
+  };
+}
+
 function sessionIdFromOutput(value) {
   for (const document of parseJsonDocuments(value)) {
     let sessionId = null;
@@ -668,7 +704,16 @@ async function main() {
       emitRuntimeEvent("opencode.agent_fallback_detected", agentFallback);
       throw new Error(`opencode_agent_fallback_detected:${agentFallback.requestedAgentId}`);
     }
-    if (result.status !== 0) process.exit(result.status || 1);
+    if (result.status !== 0) {
+      emitRuntimeEvent("opencode.failure", {
+        status: result.status,
+        signal: result.signal,
+        timedOut: result.timedOut,
+        aborted: result.aborted,
+        ...summarizeOpenCodeFailure({ stdout: result.stdout ?? "", stderr: result.stderr ?? "" }),
+      });
+      process.exit(result.status || 1);
+    }
 
     sessionId = observedSessionId ?? sessionIdFromOutput(result.stdout ?? "");
     if (sessionId) {
