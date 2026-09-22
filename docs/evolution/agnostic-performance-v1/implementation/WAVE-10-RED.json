@@ -49,6 +49,29 @@
       "correction": "ADR 0042 introduces source-attested-build with null pre-commit image reference; build happens after commit, image is labeled from committed authority, materialization requires exactly one matching immutable image ID",
       "productionLogicBug": true,
       "status": "fixed-pending-exact-sha-rerun"
+    },
+    {
+      "gate": "wave10-live-preflight",
+      "candidate": "3e091f1083509758971aaa1c14e5f73a9b972713",
+      "preflightId": "wave10-live-preflight-1790037734636-cb3556075d87",
+      "observed": {
+        "gatewayHttpStatus": 409,
+        "gatewayStatus": "FAILED",
+        "gatewayCode": "behavior_failed",
+        "behaviorStatus": "BEHAVIOR_FAILED",
+        "behaviorExitCode": 125,
+        "stdoutBytes": 0,
+        "stderrBytes": 338,
+        "authority": "BEHAVIOR_AUTHORIZED",
+        "toolchainVerified": true,
+        "effectsEnforced": true,
+        "networkEnforced": true,
+        "secretsResolved": true
+      },
+      "rootCause": "gateway Dockerfile used Debian Bookworm docker.io 20.10.24, which predates volume-subpath support required by the isolated task-volume mount",
+      "correction": "gateway now uses Docker CLI 27.5.1 and live preflight gates client >=26 plus daemon API >=1.45 before behavior execution",
+      "productionLogicBug": true,
+      "status": "fixed-pending-exact-sha-live-preflight-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -97,7 +120,10 @@
     "deterministic no-LLM preflight drives the real PostgreSQL capability/fence and Docker behavior gateway path",
     "raw gateway capability is carried over stdin rather than argv/loggable ProcessRunner arguments",
     "preflight cleanup failure is HOLD rather than advisory",
-    "consumer behavior command is scoped away from the .harness submodule"
+    "consumer behavior command is scoped away from the .harness submodule",
+    "gateway no longer installs Debian Bookworm docker.io 20.10.24",
+    "gateway copies official Docker CLI 27.5.1",
+    "live preflight rejects Docker client <26 or daemon API <1.45 before behavior run"
   ],
   "historicalGreenEvidence": {
     "candidate": "27480e5004ddf903e2dafaf8487437b7adf66858",
@@ -108,5 +134,5 @@
     "dockerContractTarget": "PASS",
     "qualificationUse": "historical-only-after-live-preflight-source-change"
   },
-  "greenAfterFix": "PENDING_EXACT_SHA_WAVE10_LIVE_PREFLIGHT"
+  "greenAfterFix": "PENDING_EXACT_SHA_LIVE_PREFLIGHT_RERUN_AFTER_GATEWAY_CLI_FIX"
 }
