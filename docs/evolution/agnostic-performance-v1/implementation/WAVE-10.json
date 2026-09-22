@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "r4-compose-profile-fixed-pending-exact-sha-rerun",
+  "status": "r9-worker-image-module-closure-fixed-pending-exact-sha-rerun",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -192,6 +192,28 @@
         "command": "docker compose --profile behavior-gateway up -d docker-behavior-gateway",
         "error": "service \"docker-behavior-gateway\" depends on undefined service \"database-migrate\": invalid compose project"
       }
+    },
+    "scopedWorkerLossAttemptOnE200f43": {
+      "verdict": "HOLD",
+      "runId": "standalone-v1-1790047821052-baa404c33079",
+      "qEntry": "PASS",
+      "preR0": "PASS",
+      "r0": "PASS",
+      "r1": "PASS",
+      "r2": "PASS",
+      "r3": "PASS",
+      "r4": "PASS",
+      "r5": "PASS",
+      "r6": "PASS",
+      "r9": {
+        "verdict": "HOLD",
+        "classification": "RUNTIME",
+        "code": "r9_process_loss_boundary_not_materialized",
+        "actualRootCause": "product-discovery executor could not import packages/project-adapters/src/command-spec-catalog.mjs from the runtime-worker image",
+        "productDiscoveryAttemptsFailed": 3,
+        "technicalRefinementStarted": false,
+        "processLossBoundaryReached": false
+      }
     }
   },
   "historicalOperatorEvidence": {
@@ -359,6 +381,17 @@
       "correction": "R-4 activates runtime and behavior-gateway profiles together while still targeting only docker-behavior-gateway; contract pins the topology",
       "productionLogicBug": false,
       "qualificationHarnessBug": true,
+      "status": "fixed-pending-exact-sha-rerun"
+    },
+    {
+      "observedOnCandidate": "e200f432b8aff5b94d676d32ae6fee71b06ca492",
+      "gate": "wave10-worker-loss/R-9",
+      "runId": "standalone-v1-1790047821052-baa404c33079",
+      "observed": "product-discovery failed 3 times with ERR_MODULE_NOT_FOUND for command-spec-catalog.mjs before Technical Refinement could materialize the process-loss boundary",
+      "rootCause": "runtime-worker Docker image copied .agents and scripts but omitted packages/, while technical-plan-synthesis gained a Runtime dependency on project-adapters and its transitive source-identity/harness-contracts modules",
+      "correction": "COPY packages ./packages and build-time import smoke for technical-plan-synthesis; regression contract pins full local module closure",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
       "status": "fixed-pending-exact-sha-rerun"
     }
   ],
