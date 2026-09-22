@@ -271,7 +271,7 @@ export async function runWave10FaultPreflight({
 
   function startGatewayClient(scenario, label) {
     const started = runner.start("docker", [
-      "run", "--rm", "--pull", "never",
+      "run", "--rm", "--pull", "never", "-i",
       "--network", networkName,
       "--read-only",
       "--tmpfs", "/tmp:rw,noexec,nosuid,size=16m,mode=1777",
