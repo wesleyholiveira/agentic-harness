@@ -24,10 +24,12 @@ WORKDIR /workspace/harness
 COPY package.json ./
 COPY config ./config
 COPY .agents ./.agents
+COPY packages ./packages
 COPY .opencode ./.opencode
 COPY scripts/internal ./scripts/internal
 COPY scripts/generate-opencode-config.mjs ./scripts/generate-opencode-config.mjs
 COPY vendor ./vendor
+RUN node --input-type=module -e "await import('./.agents/runtime/technical-plan-synthesis.mjs')"
 COPY apps/runtime-worker/entrypoint.sh /usr/local/bin/agentic-harness-entrypoint
 COPY --from=build /src/apps/runtime-worker/target/release/agentic-harness-worker /usr/local/bin/agentic-harness-worker
 ENV AGENT_HARNESS_ROOT=/workspace/harness \
