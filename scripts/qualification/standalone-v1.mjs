@@ -1906,6 +1906,16 @@ async function r9() {
     workerImage: before.Config?.Image ?? null,
     workerRestartPolicy: before.HostConfig?.RestartPolicy?.Name ?? null,
     workerRestartedAt: after.State?.StartedAt ?? null,
+    behaviorInFlight: {
+      commandId: QUALIFICATION_BEHAVIOR_DELAY_COMMAND_ID,
+      containerName: sourceBehaviorContainerName,
+      containerId: sourceBehaviorContainer?.Id ?? null,
+      startedEvent: sourceBehaviorStarted,
+      removedAt: sourceBehaviorRemovedAt,
+      gatewayContainerId: gatewayIdBeforeWorkerLoss,
+      gatewayPid: Number(gatewayBeforeWorkerLoss?.State?.Pid ?? 0),
+      gatewayRestartCount: Number(gatewayBeforeWorkerLoss?.RestartCount ?? 0),
+    },
   };
   const evaluation = evaluateH9RRecoveryEvidence({
     sourceIdentity,
@@ -1945,8 +1955,36 @@ async function r9() {
   mustRun("R-9", "RUNTIME", "npm", ["--prefix", state.consumers.A, "test"], { label: "r9-consumer-validation" });
 
   // Disarm the qualification-only boundary before R-10 creates another Runtime
-  // run. R-9 is terminal at this point, so recreating the idle worker cannot
-  // interfere with the proven semantic delivery.
+  // run. R-9 is terminal at this point, so recreating Context Engine and the idle
+  // worker cannot interfere with the proven semantic delivery.
+  composeCommand(["up", "-d", "--no-deps", "--force-recreate", "context-engine"], {
+    label: "r9-disarm-context-behavior-boundary",
+    timeoutMs: 5 * 60_000,
+    env: disarmedFaultEnv,
+  });
+  await requireHttpReady("R-9", {
+    service: "context-engine",
+    url: `http://127.0.0.1:${state.ports.contextEngine}/healthz`,
+    request: { timeoutMs: 5_000, allowStatuses: [200] },
+    timeoutMs: 2 * 60_000,
+    intervalMs: 1_000,
+  });
+  const disarmedContextId = composeCommand(["ps", "-q", "context-engine"], {
+    label: "r9-disarmed-context-id",
+  }).stdout.trim();
+  if (!disarmedContextId) hold("R-9", "QUALIFICATION PROCEDURE", "r9_disarmed_context_container_missing");
+  const disarmedContextInspect = JSON.parse(runner.run("docker", ["inspect", disarmedContextId], {
+    label: "r9-disarmed-context-inspect",
+  }).stdout)[0];
+  const disarmedContextEnv = containerEnvironmentMap(disarmedContextInspect);
+  const contextDisarmMismatches = contextFaultKeys.filter((key) => String(disarmedContextEnv[key] ?? "") !== "");
+  if (contextDisarmMismatches.length > 0) {
+    hold("R-9", "QUALIFICATION PROCEDURE", "r9_behavior_boundary_not_disarmed_on_context_engine", {
+      contextEngineId: disarmedContextId,
+      mismatches: contextDisarmMismatches.map((key) => ({ key, actual: disarmedContextEnv[key] ?? null })),
+    });
+  }
+
   composeCommand(["up", "-d", "--no-deps", "--force-recreate", "agent-runtime-worker"], {
     label: "r9-disarm-process-loss-boundary",
     timeoutMs: 5 * 60_000,
@@ -1983,6 +2021,29 @@ async function r9() {
     leaseExpiryForcedAt,
     sourceIdentity,
     replacementIdentity: replacement,
+    behaviorRecovery: {
+      source: {
+        commandId: QUALIFICATION_BEHAVIOR_DELAY_COMMAND_ID,
+        started: sourceBehaviorStarted,
+        containerName: sourceBehaviorContainerName,
+        containerId: sourceBehaviorContainer?.Id ?? null,
+        removedAt: sourceBehaviorRemovedAt,
+      },
+      replacement: {
+        started: replacementBehaviorStarted,
+        containerName: replacementBehaviorContainerName,
+        containerId: replacementBehaviorContainer?.Id ?? null,
+        completed: replacementBehaviorCompleted,
+        removedAt: replacementBehaviorRemovedAt,
+      },
+      gatewayStable: {
+        containerId: gatewayIdBeforeWorkerLoss,
+        pidBefore: Number(gatewayBeforeWorkerLoss?.State?.Pid ?? 0),
+        pidAfter: Number(gatewayAfterRecovery?.State?.Pid ?? 0),
+        restartCountBefore: Number(gatewayBeforeWorkerLoss?.RestartCount ?? 0),
+        restartCountAfter: Number(gatewayAfterRecovery?.RestartCount ?? 0),
+      },
+    },
     evaluation,
   };
   return state.r9;
