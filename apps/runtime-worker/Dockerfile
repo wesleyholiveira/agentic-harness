@@ -19,7 +19,7 @@ RUN apt-get update \
     && printf '%s\n' 'agentexec:x:10001:10001::/home/agentexec:/usr/sbin/nologin' >> /etc/passwd \
     && mkdir -p /home/agentexec \
     && chown 10001:10001 /home/agentexec \
-    && npm install -g opencode-ai@1.18.26
+    && npm install -g opencode-ai@1.18.32
 WORKDIR /workspace/harness
 COPY package.json ./
 COPY config ./config
