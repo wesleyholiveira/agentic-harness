@@ -20,6 +20,7 @@ const BUFFERED_PERFORMANCE_EVENT_TYPES = new Set([
   "opencode.launching",
   "opencode.spawned",
   "opencode.completed",
+  "opencode.failure",
   "opencode.session_export",
   "opencode.handoff_authority_resolved",
 ]);
