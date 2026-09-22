@@ -253,6 +253,10 @@ test("R9 fails fast when the semantic run fails before the process-loss boundary
   assert.match(r9, /status IN \('failed','blocked'\)/u);
   assert.match(r9, /opencode\.failure|task\.failed/u);
   assert.match(r9, /failedTask/u);
+  assert.match(
+    r9,
+    /label: "r9-process-loss-boundary"[\s\S]*shouldRetryError: shouldRetryQualificationPollError/u,
+  );
 });
 
 test("R9 kills worker only inside a physical behavior window and proves replacement behavior", () => {
