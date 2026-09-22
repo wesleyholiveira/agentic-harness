@@ -447,6 +447,33 @@ The scope:
 The default standalone command remains unchanged: full promotion still requires
 the exact committed MANIFEST and therefore continues to fail closed until T17.
 
+## Historical-product reference classification correction
+
+The first scoped worker-loss run on candidate
+`2dd72760a4f9ee7ab267239c8ef584604df2814b` reached scoped R-0 with the
+expected `MANIFEST=DEFERRED_T17` source authority, then stopped on
+`r0_product_specific_operational_reference`.
+
+All observed matches were under `docs/evolution/**`: WAVE-05 history and
+WAVE-10 adoption/release-boundary notes that intentionally document the
+project from which the standalone harness was extracted. Those files are
+historical migration/evolution evidence, not Runtime or operational authority.
+
+The R-0 product namespace scan now excludes only:
+- `docs/evolution/**`;
+- `qualification/baseline/r17.4.5/**`.
+
+References remain blocking everywhere else, including:
+- `docs/adr/**`;
+- `.agents/**`;
+- `apps/**`;
+- `packages/**`;
+- `scripts/**`;
+- Compose/config/root source.
+
+The rule remains fail-closed for any real product coupling while allowing the
+repository to retain its own historical evolution record.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
