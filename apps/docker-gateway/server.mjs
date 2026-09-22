@@ -37,7 +37,7 @@ function nativeDocker(argv, { cwd, timeoutMs }) {
 function hold(code, details = {}) {
   return { schemaVersion: 'docker-behavior-gateway-result/v1', status: 'HOLD', code, receipts: [], ...details };
 }
-function behaviorContainerName(fence, commandId) {
+export function behaviorContainerName(fence, commandId) {
   const hash = createHash('sha256');
   for (const value of [
     fence?.runId,
