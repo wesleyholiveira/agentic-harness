@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "implementation-hardened-pending-exact-sha-qualification",
+  "status": "source-attested-runtime-fixture-implemented-pending-exact-sha-rerun",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -17,7 +17,11 @@
     "attempt-scoped agent-output subdirectory authority for restricted model UID",
     "temporary OpenCode HOME and auth isolation",
     "AgentExecutionResult behaviorGate receipt",
-    "event-driven finalizer behavior gate projection"
+    "event-driven finalizer behavior gate projection",
+    "source-attested-build one-off runner mode without pre-commit image self-reference",
+    "post-commit qualification behavior image build with source/runner/binding labels",
+    "standalone R-3 behavior image materialization and source-attestation proof",
+    "standalone R-4 behavior-gateway startup on shared Runtime workspace volume"
   ],
   "security": {
     "dockerSocketOnWorker": false,
@@ -39,13 +43,13 @@
     "taskBriefContextDescriptorLogResultWritableByModel": false
   },
   "validation": {
-    "nodeFocused": "RED_ON_c32ba008_CLIENT_DISCONNECT_CAUSE_RACE_FIXED_PENDING_EXACT_SHA_RERUN",
-    "rustFmt": "PENDING_EXACT_SHA_RERUN",
-    "rustTestsLocked": "PENDING_EXACT_SHA_RERUN",
-    "dockerComposeConfig": "PENDING_EXACT_SHA_RERUN",
-    "dockerContractTarget": "RED_ON_2f9c7cf_MISSING_RUNTIME_WORKER_TEST_ARTIFACTS_FIXED_PENDING_EXACT_SHA_RERUN",
-    "workerImageBuild": "PENDING_EXACT_SHA_REBUILD",
-    "gatewayImageBuild": "PENDING_EXACT_SHA_REBUILD",
+    "nodeFocused": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
+    "rustFmt": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
+    "rustTestsLocked": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
+    "dockerComposeConfig": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
+    "dockerContractTarget": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
+    "workerImageBuild": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
+    "gatewayImageBuild": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
     "normalModelTaskRestrictedUidRegression": "NOT_RUN",
     "endToEndBehaviorTask": "NOT_RUN",
     "inFlightFenceReplacementFault": "NOT_RUN",
@@ -55,11 +59,17 @@
     "runtimeQualification": "NOT_RUN"
   },
   "historicalOperatorEvidence": {
-    "workerImageBuild": "PASS_PRE_HARDENING",
-    "gatewayImageBuild": "PASS_PRE_HARDENING",
+    "candidate": "e6dd924745c396ec03a05372b87c0d89bd23888e",
+    "nodeFocused": "PASS",
+    "rustFmt": "PASS",
+    "rustTestsLocked": "PASS",
+    "dockerComposeConfig": "PASS",
+    "dockerContractTarget": "PASS_264_264",
+    "workerImageBuild": "PASS",
+    "gatewayImageBuild": "PASS",
     "reportedAt": "2026-09-21",
     "source": "operator-confirmed",
-    "qualificationUse": "historical-only-rebuild-required"
+    "qualificationUse": "historical-only-after-source-attested-runtime-fixture-change"
   },
   "preservation": {
     "mainChanged": false,
@@ -83,6 +93,13 @@
       "gate": "docker-contract-target",
       "observed": "262/264 pass; ENOENT for apps/runtime-worker/Cargo.lock and apps/runtime-worker/entrypoint.sh",
       "correction": "project-adapters Docker test target now copies runtime-worker Cargo.toml, Cargo.lock and entrypoint.sh required by runtime-regressions",
+      "status": "fixed-pending-exact-sha-rerun"
+    },
+    {
+      "observedOnCandidate": "e6dd924745c396ec03a05372b87c0d89bd23888e",
+      "gate": "pre-e2e-architecture-review",
+      "observed": "one-off pinned image digest participated in source/runner identities that the same image was required to carry as labels",
+      "correction": "ADR 0042 source-attested-build commits descriptor first, stamps authority labels post-commit, resolves one immutable image by those labels, and never executes by mutable tag",
       "status": "fixed-pending-exact-sha-rerun"
     }
   ]
