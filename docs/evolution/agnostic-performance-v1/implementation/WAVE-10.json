@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "fault-preflight-implemented-pending-exact-sha-validation",
+  "status": "fault-client-stdin-forwarding-fixed-pending-rerun",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -65,7 +65,7 @@
     "gatewayImageBuild": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
     "normalModelTaskRestrictedUidRegression": "NOT_RUN",
     "endToEndBehaviorTask": "NOT_RUN",
-    "inFlightFenceReplacementFault": "PENDING_WAVE10_FAULT_PREFLIGHT",
+    "inFlightFenceReplacementFault": "RED_ON_560e857_CLIENT_STDIN_NOT_ATTACHED_FIXED_PENDING_RERUN",
     "gatewayOutageFault": "PENDING_WAVE10_FAULT_PREFLIGHT",
     "postgresOutageFault": "PENDING_WAVE10_FAULT_PREFLIGHT",
     "behaviorProcessLossRecovery": "NOT_RUN",
@@ -139,6 +139,17 @@
       "productionLogicBug": false,
       "qualificationHarnessBug": true,
       "status": "fixed-pending-exact-sha-live-preflight-rerun"
+    },
+    {
+      "observedOnCandidate": "560e857ad8034947732c539b8d59e48a24bebc19",
+      "gate": "wave10-fault-preflight",
+      "preflightId": "wave10-fault-preflight-1790038787002-69da2dd89f4f",
+      "observed": "fence-replacement behavior container never appeared; external client exited immediately with Unexpected end of JSON input",
+      "rootCause": "ProcessRunner supplied request JSON to Docker CLI stdin, but docker run lacked -i, so stdin was not attached to the Node client container and JSON.parse received an empty string",
+      "correction": "add docker run -i to the external fault client and pin the requirement in wave10-fault-preflight contracts",
+      "productionLogicBug": false,
+      "qualificationHarnessBug": true,
+      "status": "fixed-pending-exact-sha-fault-preflight-rerun"
     }
   ],
   "livePreflightEvidence": {
