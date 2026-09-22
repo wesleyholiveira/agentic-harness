@@ -196,6 +196,10 @@ function hold(gate, classification, message, evidence = {}) {
   throw new QualificationHold(gate, classification, message, evidence);
 }
 
+function shouldRetryQualificationPollError(error) {
+  return !(error instanceof QualificationHold);
+}
+
 function containerEnvironmentMap(inspect) {
   return Object.fromEntries((inspect?.Config?.Env ?? []).map((entry) => {
     const separator = entry.indexOf("=");
@@ -1138,7 +1142,12 @@ async function waitForRunId(sessionId, {
       const bypass = tools.find((name) => direct.has(name) || name.startsWith("serena_"));
       if (bypass) hold(gate, "RUNTIME", "main_orchestrator_routing_violation", { bypass, tools, sessionId });
       return null;
-    }, { timeoutMs, intervalMs: 750, label: `${gate}-agent-start-run-id` });
+    }, {
+      timeoutMs,
+      intervalMs: 750,
+      label: `${gate}-agent-start-run-id`,
+      shouldRetryError: shouldRetryQualificationPollError,
+    });
   } catch (error) {
     if (!String(error?.message ?? error).startsWith("qualification_wait_timeout:")) throw error;
 
@@ -1732,7 +1741,12 @@ async function r9() {
       checkpointStatus: checkpoint.status,
       repairKind: checkpoint.repairKind,
     };
-  }, { timeoutMs: 20 * 60_000, intervalMs: 2_000, label: "r9-process-loss-boundary" });
+  }, {
+    timeoutMs: 20 * 60_000,
+    intervalMs: 2_000,
+    label: "r9-process-loss-boundary",
+    shouldRetryError: shouldRetryQualificationPollError,
+  });
   } catch (error) {
     if (String(error?.message ?? "").startsWith("qualification_wait_timeout:r9-process-loss-boundary:")) {
       const technicalLead = sqlRows(`SELECT task_id,status,attempt::text,dispatch_generation::text,fencing_token::text,coalesce(handoff_path,''),coalesce(execution_descriptor_path,''),coalesce(lease_expires_at,'') FROM agent_tasks WHERE run_id='${sqlQuote(runId)}' AND agent_id='technical-lead' ORDER BY state_version DESC LIMIT 1;`)[0] ?? null;
@@ -2203,7 +2217,12 @@ async function waitForR10PreOutageBoundary(runId, sessionId) {
       continuationDeliveryCount,
       observedAt: new Date().toISOString(),
     };
-  }, { timeoutMs: 20 * 60_000, intervalMs: 500, label: "r10-pre-outage-semantic-boundary" });
+  }, {
+    timeoutMs: 20 * 60_000,
+    intervalMs: 500,
+    label: "r10-pre-outage-semantic-boundary",
+    shouldRetryError: shouldRetryQualificationPollError,
+  });
 }
 
 async function r10() {
@@ -2305,7 +2324,12 @@ async function r10() {
       );
     }
     return evaluation.terminal ? { ...evaluation.terminal, observation } : null;
-  }, { timeoutMs: 3 * 60_000, intervalMs: 200, label: "r10-continuation-deferred" });
+  }, {
+    timeoutMs: 3 * 60_000,
+    intervalMs: 200,
+    label: "r10-continuation-deferred",
+    shouldRetryError: shouldRetryQualificationPollError,
+  });
   state.opencode = await startQualifiedOpenCode("r10-opencode-restart");
   const recovered = await waitForContinuationObserved(runId, sessionId, { gate: "R-10" });
   const accepted = recovered.observation.delivery;
