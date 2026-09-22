@@ -80,6 +80,7 @@ test("OpenCode nonzero JSON failure is reduced to redacted structured evidence",
     errorMessage: "request rejected Bearer [REDACTED]",
     providerId: "openai",
     modelId: "gpt-5.6-luna",
+    serverLogExcerpt: null,
   });
 });
 
@@ -105,7 +106,34 @@ test("OpenCode UnknownError diagnostics preserve the bounded server reference", 
     errorMessage: "Unexpected server error. Check server logs for details.",
     providerId: null,
     modelId: null,
+    serverLogExcerpt: null,
   });
+});
+
+test("OpenCode server log correlation emits only bounded redacted errorRef evidence", async () => {
+  const { summarizeOpenCodeFailure } = await import("../../scripts/internal/opencode-task-executor.mjs");
+  const stdout = JSON.stringify({
+    type: "error",
+    sessionID: "ses_unknown",
+    error: {
+      name: "UnknownError",
+      data: {
+        message: "Unexpected server error. Check server logs for details.",
+        ref: "err_4a05fee2",
+      },
+    },
+  });
+  const stderr = [
+    'timestamp=2026-09-22T23:43:56Z level=ERROR run=test message=failed ref=err_other error="ignore me"',
+    'timestamp=2026-09-22T23:43:56Z level=ERROR run=test message=failed ref=err_4a05fee2 error="TypeError: provider exploded Bearer sk-super-secret-12345678" prompt="private user prompt"',
+  ].join("\n");
+  const summary = summarizeOpenCodeFailure({ stdout, stderr });
+  assert.equal(summary.errorRef, "err_4a05fee2");
+  assert.match(summary.serverLogExcerpt, /TypeError: provider exploded/u);
+  assert.match(summary.serverLogExcerpt, /Bearer \[REDACTED\]/u);
+  assert.match(summary.serverLogExcerpt, /prompt=\[REDACTED\]/u);
+  assert.doesNotMatch(summary.serverLogExcerpt, /super-secret|private user prompt/u);
+  assert.doesNotMatch(summary.serverLogExcerpt, /ignore me/u);
 });
 
 test("qualification waitFor propagates terminal predicate errors without converting them to timeout", async () => {
@@ -171,6 +199,17 @@ test("restricted model OpenCode state is rooted in Runtime-owned ephemeral HOME,
   assert.match(executor, /runtime-projected-ephemeral-home/u);
   assert.match(executor, /manifest-adjacent-legacy-fallback/u);
   assert.match(executor, /resolveOpenCodeAttemptStateRoot/u);
+  assert.match(executor, /XDG_CONFIG_HOME: configHome/u);
+  assert.match(executor, /XDG_CACHE_HOME: cacheHome/u);
+  assert.match(executor, /OPENCODE_PURE: "1"/u);
+  assert.match(executor, /OPENCODE_DISABLE_PROJECT_CONFIG: "1"/u);
+  assert.match(executor, /delete isolatedEnv\.OPENCODE_CONFIG/u);
+  assert.match(executor, /delete isolatedEnv\.OPENCODE_CONFIG_DIR/u);
+  assert.match(executor, /"--pure"/u);
+  assert.match(executor, /"--print-logs"/u);
+  assert.match(executor, /"--log-level", "ERROR"/u);
+  assert.match(executor, /onStderr: \(\) => \{\}/u);
+  assert.doesNotMatch(executor, /onStderr: \(chunk\) => process\.stderr\.write\(chunk\)/u);
   assert.doesNotMatch(
     executor,
     /const stateRoot = join\(dirname\(resolve\(String\(manifestPath\)\)\), "opencode-attempt-state"/u,
