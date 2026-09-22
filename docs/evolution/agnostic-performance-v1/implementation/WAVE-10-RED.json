@@ -230,6 +230,24 @@
       "correction": "issueTargetsOneOfWorkItems resolves both direct and exact implementationPlan.workItems.<id>.validation[...] forms",
       "productionLogicBug": true,
       "status": "fixed-pending-focused-rerun"
+    },
+    {
+      "gate": "wave10-worker-loss/R-2",
+      "candidate": "54e3a3ed786af59d81ad8e5a3be79d641b14882d",
+      "runId": "standalone-v1-1790045777308-d6d91d52b1da",
+      "observed": {
+        "r1Passed": true,
+        "command": "cargo fmt --manifest-path apps/runtime-worker/Cargo.toml -- --check",
+        "exitCode": 1,
+        "files": 4,
+        "runtimeReached": false
+      },
+      "rootCause": "Rust WAVE-10 worker/gateway changes had not been projected through rustfmt before the exact-source qualification",
+      "correction": "apply formatting-only rustfmt diff to agent_runtime.rs, behavior_gateway.rs, config.rs and main.rs",
+      "productionLogicBug": false,
+      "qualificationHarnessBug": false,
+      "formattingOnly": true,
+      "status": "fixed-pending-exact-sha-check"
     }
   ],
   "staticHardeningFindings": [
@@ -317,5 +335,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "PATH_QUALIFIED_CRITERION_ROUTER_FIX_PENDING_CURRENT_EXACT_SHA"
+  "greenAfterFix": "R1_PASS_R2_RUSTFMT_FIX_PENDING_CURRENT_EXACT_SHA"
 }
