@@ -43,7 +43,7 @@
     "rustFmt": "PENDING_EXACT_SHA_RERUN",
     "rustTestsLocked": "PENDING_EXACT_SHA_RERUN",
     "dockerComposeConfig": "PENDING_EXACT_SHA_RERUN",
-    "dockerContractTarget": "PENDING_EXACT_SHA_RERUN",
+    "dockerContractTarget": "RED_ON_2f9c7cf_MISSING_RUNTIME_WORKER_TEST_ARTIFACTS_FIXED_PENDING_EXACT_SHA_RERUN",
     "workerImageBuild": "PENDING_EXACT_SHA_REBUILD",
     "gatewayImageBuild": "PENDING_EXACT_SHA_REBUILD",
     "normalModelTaskRestrictedUidRegression": "NOT_RUN",
@@ -76,6 +76,13 @@
       "observed": "behavior_execution_aborted",
       "expected": "docker_gateway_client_disconnected",
       "correction": "sticky client-disconnect revocation cause wins races against executor abort receipts; a pre-disconnected client cannot start behavior execution",
+      "status": "fixed-pending-exact-sha-rerun"
+    },
+    {
+      "observedOnCandidate": "2f9c7cf153cab388f6325e8d434e1568aa767716",
+      "gate": "docker-contract-target",
+      "observed": "262/264 pass; ENOENT for apps/runtime-worker/Cargo.lock and apps/runtime-worker/entrypoint.sh",
+      "correction": "project-adapters Docker test target now copies runtime-worker Cargo.toml, Cargo.lock and entrypoint.sh required by runtime-regressions",
       "status": "fixed-pending-exact-sha-rerun"
     }
   ]
