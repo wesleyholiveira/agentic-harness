@@ -90,6 +90,35 @@ and execution policy, builds a Node behavior runner after the exact harness
 gitlink commit, proves materialization + source attestation in R-3, and starts
 the isolated behavior gateway in R-4 on the same Runtime workspace volume.
 
+### Deterministic live preflight before LLM qualification
+
+A dedicated host-side preflight now exercises the complete behavior data plane
+without invoking OpenCode or any model:
+
+`scripts/qualification/wave10-live-preflight.mjs`.
+
+It:
+- requires a clean exact harness HEAD;
+- creates a disposable Git consumer and pins that exact harness as a gitlink;
+- builds the `source-attested-build` runner after the consumer commit;
+- proves image materialization and source attestation;
+- starts only PostgreSQL, migrations and the isolated Docker behavior gateway;
+- copies the committed consumer workspace into the real shared Runtime volume;
+- inserts a real running task fence plus HMAC capability checkpoint into
+  PostgreSQL;
+- sends the raw capability to the gateway through process stdin so ProcessRunner
+  evidence never serializes it in argv or command logs;
+- executes `qualification.behavior.tests` through the real gateway;
+- requires one `BEHAVIOR_PASSED` receipt bound to the expected source snapshot;
+- verifies the exact fence-derived Docker container name no longer exists;
+- performs compose-volume/image/temp-workspace cleanup and converts cleanup
+  failure to HOLD.
+
+The behavior CommandSpec is intentionally scoped to
+`node --test test/format-name.test.mjs`; it cannot accidentally traverse the
+pinned `.harness` submodule and relabel harness-contract execution as consumer
+behavior evidence.
+
 ### Fence-bound ephemeral capability
 
 The worker generates two UUIDv4 values concatenated into a 64-hex capability
