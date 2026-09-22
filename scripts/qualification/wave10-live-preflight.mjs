@@ -79,7 +79,7 @@ function gatewayHealthScript() {
   ].join("");
 }
 
-function parseDockerRuntimeVersion(value) {
+export function parseDockerRuntimeVersion(value) {
   const text = String(value ?? "").trim();
   const [clientVersion, serverApiVersion] = text.split("\t");
   const clientMajor = Number.parseInt(String(clientVersion ?? "").split(".")[0], 10);
