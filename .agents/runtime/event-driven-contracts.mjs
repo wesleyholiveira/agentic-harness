@@ -58,11 +58,13 @@ export function runtimeTaskPaths({ repositoryRoot, runId, taskId, agentId, attem
     repositoryRoot,
     join(selectedWorkspaceRoot, runId, `${runtimeTaskDirectoryName(taskId, agentId)}--attempt-${attempt}`),
   );
+  const agentOutputDirectory = join(taskDirectory, `agent-output-attempt-${attempt}`);
   return {
     runDirectory,
     taskDirectory,
+    agentOutputDirectory,
     workspacePath,
-    handoffPath: join(taskDirectory, `handoff-attempt-${attempt}.json`),
+    handoffPath: join(agentOutputDirectory, `handoff-attempt-${attempt}.json`),
     logPath: join(taskDirectory, `executor-attempt-${attempt}.log`),
     descriptorPath: join(taskDirectory, `execution-descriptor-attempt-${attempt}.json`),
     resultPath: join(taskDirectory, `execution-result-attempt-${attempt}.json`),
