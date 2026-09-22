@@ -17,6 +17,7 @@ import {
   commandAuthorityFromConfiguration,
   sqlLiteral,
 } from "../../scripts/qualification/wave10-live-preflight.mjs";
+import { ProcessRunner } from "../../scripts/qualification/lib/process.mjs";
 
 function git(root, args) {
   return execFileSync("git", ["-C", root, ...args], {
@@ -70,6 +71,23 @@ test("source-attested qualification authority is derived from the committed cons
   assert.equal(commandAuthority.sourceSnapshotSha256, authority.configuration.sourceSnapshotSha256);
   assert.equal(commandAuthority.descriptorDigest, authority.configuration.descriptorDigest);
   assert.equal(commandAuthority.policyDigest, authority.configuration.policyDigest);
+});
+
+test("ProcessRunner does not persist stdin secrets in command logs", t => {
+  const outputDir = mkdtempSync(join(tmpdir(), "wave10-runner-secret-contract-"));
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+  const runner = new ProcessRunner({ outputDir });
+  const secret = "capability-" + "a".repeat(64);
+  const result = runner.run(process.execPath, [
+    "-e",
+    "process.stdin.setEncoding('utf8');let s='';process.stdin.on('data',c=>s+=c);process.stdin.on('end',()=>process.stdout.write(String(s.length)));",
+  ], {
+    label: "stdin-secret",
+    input: secret,
+  });
+  assert.equal(result.stdout.trim(), String(secret.length));
+  const log = readFileSync(result.logPath, "utf8");
+  assert.ok(!log.includes(secret));
 });
 
 test("wave10 preflight keeps raw capability out of argv/loggable command arguments", () => {
