@@ -784,6 +784,66 @@ Discovery progresses on 1.18.32 and Technical Refinement reaches
 `repair-checkpoint-before-behavior`; otherwise the new structured diagnostic is
 the authority for the next correction.
 
+## Scoped R-9 errorRef diagnostic and Runtime config-authority closure
+
+Scoped run `standalone-v1-1790119853659-6d1ea9afa5eb` on exact candidate
+`15cf8ad84996fbf8f6edf5fc552043b71692cc03` proved Q-ENTRY, PRE-R0 and
+R-0 through R-6 PASS again. The source pin had already moved the Runtime worker
+Dockerfile to OpenCode 1.18.32, but Product Discovery still failed all three
+attempts before Technical Refinement with the same generic server wrapper:
+
+`UnknownError: Unexpected server error. Check server logs for details.`
+
+This run materially improved the evidence. `opencode.failure` now carried
+`errorRef=err_4a05fee2`, and the R-9 pre-boundary fail-fast fired as intended.
+The gate completed in roughly 88 seconds rather than waiting the previous
+20-minute process-loss-boundary timeout. Technical Refinement remained
+`cancelled`, so no worker-loss fault was injected.
+
+The prior `anomalyco/opencode#50439` compiled filesystem-cycle hypothesis is
+therefore no longer sufficient to explain the Runtime failure. The exact
+OpenCode 1.18.32 source pin did not move the observed failure class. The report
+still exposed only the host OpenCode version in PRE-R0, so the next R-4 now
+also executes `opencode --version` inside `agent-runtime-worker` and HOLDs
+unless it is exactly 1.18.32.
+
+Inspection of OpenCode 1.18.32 shows that this `UnknownError` is intentionally
+a defect wrapper. The server generates `err_<id>`, writes the underlying
+exception and pretty cause through `Effect.logError`, then exposes only the
+generic 500 plus the reference. The Runtime therefore needs the correlated
+server log rather than another retry or another guess at provider/model cause.
+
+The child execution boundary is now hardened at the same time:
+
+- OpenCode runs with `--pure` / `OPENCODE_PURE=1`; external consumer
+  plugins cannot become Runtime execution authority, while OpenCode's built-in
+  CodexAuthPlugin remains enabled for ChatGPT OAuth;
+- `OPENCODE_DISABLE_PROJECT_CONFIG=1` prevents consumer
+  `opencode.json{,c}` and consumer `.opencode` directories from being
+  discovered, while `OPENCODE_CONFIG_CONTENT` remains the final explicit
+  Runtime-owned inline configuration;
+- XDG data, state, config and cache roots all live below the attempt-scoped
+  Runtime state root;
+- inherited `OPENCODE_CONFIG` and `OPENCODE_CONFIG_DIR` are removed;
+- OpenCode server logging is enabled only at ERROR level;
+- raw OpenCode stderr is not forwarded into durable task logs;
+- on nonzero exit, only the line matching the returned `errorRef` is selected,
+  bounded and redacted for bearer/API credentials and prompt/input/body fields,
+  then projected as `serverLogExcerpt` in `opencode.failure`.
+
+This is both a diagnostic correction and an agnosticism correction: a consumer
+repository may contain its own OpenCode configuration for its developers, but
+that configuration must never silently modify a task already routed and
+authorized by Agentic Harness Runtime V2.
+
+The next exact-SHA scoped rerun has two valid outcomes:
+1. Product Discovery progresses and Technical Refinement reaches
+   `repair-checkpoint-before-behavior`, allowing the physical worker-loss
+   qualification to continue; or
+2. the run fails fast again, but `opencode.failure.serverLogExcerpt` exposes a
+   bounded redacted internal cause correlated to its `errorRef`, which becomes
+   the authority for the next repair.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
