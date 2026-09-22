@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { gatewayCapabilityProof } from "../../apps/docker-gateway/fence-store.mjs";
 import { behaviorContainerName } from "../../apps/docker-gateway/server.mjs";
@@ -390,7 +390,7 @@ export async function runWave10LivePreflight({
   }
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file://${resolve(process.argv[1]).replaceAll("\\", "/")}`).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const args = parseArgs(process.argv.slice(2));
   try {
     const report = await runWave10LivePreflight({
