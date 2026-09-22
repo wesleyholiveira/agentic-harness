@@ -74,17 +74,25 @@ test("source-attested qualification authority is derived from the committed cons
   assert.equal(commandAuthority.policyDigest, authority.configuration.policyDigest);
 });
 
-test("wave10 preflight rejects Docker runtimes without volume-subpath support", () => {
+test("wave10 preflight parses aligned Docker version output and rejects runtimes without volume-subpath support", () => {
   assert.deepEqual(parseDockerRuntimeVersion("27.5.1\t1.47\n"), {
     clientVersion: "27.5.1",
     serverApiVersion: "1.47",
   });
+  assert.deepEqual(parseDockerRuntimeVersion("27.5.1              1.55\n"), {
+    clientVersion: "27.5.1",
+    serverApiVersion: "1.55",
+  });
   assert.throws(
-    () => parseDockerRuntimeVersion("20.10.24\t1.41\n"),
+    () => parseDockerRuntimeVersion("20.10.24              1.41\n"),
     /wave10_preflight_docker_subpath_runtime_unsupported/,
   );
   assert.throws(
-    () => parseDockerRuntimeVersion("27.5.1\t1.44\n"),
+    () => parseDockerRuntimeVersion("27.5.1              1.44\n"),
+    /wave10_preflight_docker_subpath_runtime_unsupported/,
+  );
+  assert.throws(
+    () => parseDockerRuntimeVersion("27.5.1 1.55 extra\n"),
     /wave10_preflight_docker_subpath_runtime_unsupported/,
   );
 });
