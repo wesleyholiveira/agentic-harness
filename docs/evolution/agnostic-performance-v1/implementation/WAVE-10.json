@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "data-plane-faults-green-worker-loss-integrated-pending-qualification",
+  "status": "worker-loss-scoped-qualification-implemented-pending-exact-sha-run",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -40,7 +40,11 @@
     "R-9 source behavior running proof before worker SIGKILL",
     "R-9 client-disconnect behavior container removal proof",
     "R-9 replacement behavior PASSED proof under generation/fence +1",
-    "R-9 Context Engine and worker qualification-control disarm"
+    "R-9 Context Engine and worker qualification-control disarm",
+    "ADR 0044 wave-scoped Git source authority versus T17 MANIFEST promotion",
+    "explicit --wave10-worker-loss qualification scope",
+    "non-promotional qualification report metadata",
+    "wave10 scope excludes unrelated R-7/R-8/R-10 semantic gates"
   ],
   "security": {
     "dockerSocketOnWorker": false,
@@ -74,9 +78,22 @@
     "inFlightFenceReplacementFault": "PASS_ON_51c1b8f",
     "gatewayOutageFault": "PASS_ON_51c1b8f",
     "postgresOutageFault": "PASS_ON_51c1b8f",
-    "behaviorProcessLossRecovery": "IMPLEMENTED_PENDING_EXACT_SHA_R9",
+    "behaviorProcessLossRecovery": "IMPLEMENTED_PENDING_SCOPED_R9_EXACT_SHA",
     "runtimeQualification": "NOT_RUN",
-    "livePreflight": "PASS_ON_0d8c0b6"
+    "livePreflight": "PASS_ON_0d8c0b6",
+    "fullPromotionManifest": "DEFERRED_T17",
+    "fullPromotionAttemptOn3d7cfc5": {
+      "verdict": "HOLD",
+      "gate": "R-0",
+      "classification": "SOURCE",
+      "code": "agent_harness_manifest_source_mismatch",
+      "trackedSourceExcludingManifest": 688,
+      "manifestFileCount": 547,
+      "expectedTreeSha256": "sha256:5a6df7606dfa8fffead1305ef173b1a5162948c4f978136bce2542ea4f5bb741",
+      "manifestTreeSha256": "sha256:60beb9077452a53fbd7ac46450f8c0f7e468ecf838891fd086ed1868bc1d7548",
+      "runtimeReached": false,
+      "interpretation": "expected release-manifest closure gate before T17"
+    }
   },
   "historicalOperatorEvidence": {
     "candidate": "27480e5004ddf903e2dafaf8487437b7adf66858",
@@ -186,13 +203,13 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
-    "exact-SHA R-9 physical Rust worker loss while behavior execution is in-flight",
+    "exact-SHA scoped R-9 physical Rust worker loss while behavior execution is in-flight",
     "normal non-behavior model task restricted-UID runtime regression",
     "full existing Runtime/cache/memory/model-routing/continuation regression qualification",
     "T10 reusable receipt qualification",
     "T13 CLI/profile integration",
     "T21 context-economy parity",
-    "T15/T16/T17 release closure"
+    "T15/T16/T17 release closure including MANIFEST regeneration and full promotion"
   ],
   "faultEvidence": {
     "fenceReplacement": {
