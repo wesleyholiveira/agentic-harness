@@ -121,6 +121,26 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
       "status": "fixed-pending-exact-sha-fault-preflight-rerun"
+    },
+    {
+      "gate": "full-standalone/R-0",
+      "candidate": "3d7cfc5a9f89616fb620e2fa9e2e8916680576a9",
+      "runId": "standalone-v1-1790043243779-7a6c80b0c7d7",
+      "observed": {
+        "preR0Head": "3d7cfc5a9f89616fb620e2fa9e2e8916680576a9",
+        "gitStatusClean": true,
+        "code": "agent_harness_manifest_source_mismatch",
+        "trackedSourceExcludingManifest": 688,
+        "manifestFileCount": 547,
+        "expectedTreeSha256": "sha256:5a6df7606dfa8fffead1305ef173b1a5162948c4f978136bce2542ea4f5bb741",
+        "manifestTreeSha256": "sha256:60beb9077452a53fbd7ac46450f8c0f7e468ecf838891fd086ed1868bc1d7548"
+      },
+      "rootCause": "full-promotion scope correctly requires final MANIFEST, but WAVE-10 is not yet at T17 release closure",
+      "correction": "ADR 0044 adds explicit promotion-ineligible --wave10-worker-loss scope using live clean git-tracked-worktree identity while preserving full-promotion MANIFEST enforcement",
+      "productionLogicBug": false,
+      "qualificationHarnessBug": false,
+      "releaseBoundaryReachedEarly": true,
+      "status": "scoped-qualification-implemented-pending-exact-sha-run"
     }
   ],
   "staticHardeningFindings": [
@@ -176,7 +196,11 @@
     "R-9 qualification now kills worker only after authoritative behavior.gateway.started plus physical behavior container running",
     "qualification behavior command authority derives from trusted committed configuration rather than model selection",
     "R-9 requires source behavior cleanup on worker disconnect and replacement BEHAVIOR_PASSED under generation/fence +1",
-    "qualification-only behavior controls are disarmed on Context Engine and worker before R-10"
+    "qualification-only behavior controls are disarmed on Context Engine and worker before R-10",
+    "default full-promotion standalone still requires source-manifest --check",
+    "wave10-worker-loss scope records promotionEligible=false and MANIFEST=DEFERRED_T17",
+    "scoped R-0 preserves all non-MANIFEST source/ingress checks and live Git tree identity",
+    "scoped worker-loss path excludes R-7/R-8/R-10 because they do not feed R-9 state"
   ],
   "historicalGreenEvidence": {
     "candidate": "0d8c0b6ec4c034429d496822a6a2cc780f9a31bb",
@@ -198,5 +222,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "HAPPY_PATH_AND_DATA_PLANE_FAULTS_PASS_ON_51c1b8f_WORKER_LOSS_R9_PENDING"
+  "greenAfterFix": "DATA_PLANE_GREEN_SCOPED_R9_WORKER_LOSS_PENDING_CURRENT_EXACT_SHA"
 }
