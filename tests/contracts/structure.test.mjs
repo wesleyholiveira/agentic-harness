@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { productNamespaceReferenceClassification } from "../../scripts/qualification/lib/product-namespace-scan.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -34,9 +35,11 @@ test("operational source is project-agnostic", () => {
   for (const path of walk(root)) {
     if (path.includes(`${resolve(root, "tests")}`)) continue;
     if (path === resolve(root, "DISTRIBUTION-REPORT.md")) continue; // extraction provenance, not operational authority
+    const relativePath = relative(root, path).replaceAll("\\", "/");
+    if (productNamespaceReferenceClassification(relativePath) !== "operational") continue;
     if (!/\.(?:mjs|js|ts|tsx|json|jsonc|md|rs|toml|ya?ml|example)$/.test(path)) continue;
     const text = readFileSync(path, "utf8");
-    if (forbidden.test(text)) failures.push(relative(root, path));
+    if (forbidden.test(text)) failures.push(relativePath);
   }
   assert.deepEqual(failures, []);
 
