@@ -689,6 +689,48 @@ Correction:
 No write permission was added to the root-owned task directory and no provider
 credential is persisted into the durable agent-output evidence directory.
 
+## Scoped R-9 OpenCode nonzero diagnostic closure
+
+Scoped run `standalone-v1-1790114835041-d14c2db63d85` on candidate
+`f8020cd110ed15657cae520f855a3cf5e16326cc` again proved Q-ENTRY,
+PRE-R0 and R-0 through R-6 PASS.
+
+The restricted-state-root correction is proven:
+- `opencode.state_isolated` reported
+  `authority=runtime-projected-ephemeral-home`;
+- the provider auth file was copied into the ephemeral XDG data root;
+- OpenCode spawned successfully;
+- a real OpenCode session was observed.
+
+The remaining failure moved to the first OpenCode prompt. The pinned worker
+OpenCode v1.18.26 returned exit status 1 after roughly 11 seconds on each
+Product Discovery attempt. The CLI produced 218 stdout bytes but no useful
+provider/model error in the stderr tail persisted by Runtime.
+
+Inspection of the pinned OpenCode v1.18.26 source proves that `run --format
+json` emits `session.error` as a JSON `type=error` event on stdout and sets
+exit code 1. Therefore the actual failure was available but was not promoted
+into Runtime evidence.
+
+Corrections:
+- the executor now parses the terminal OpenCode JSON error event;
+- only a bounded/redacted diagnostic projection is emitted:
+  source, sessionId, errorName, errorCode, errorMessage, providerId and modelId;
+- bearer/API-key/token/password-like values are redacted;
+- `opencode.failure` is buffered by Rust and persisted by the semantic
+  finalizer into `agent_events`;
+- nonzero OpenCode exits now throw through the normal executor catch instead of
+  calling `process.exit()` immediately, so the structured diagnostic is
+  flushed before process termination;
+- R-9 includes `opencode.failure` in its boundary diagnostics;
+- R-9 now fails immediately when an upstream task becomes failed/blocked or the
+  semantic run becomes terminal before the process-loss boundary, instead of
+  waiting the 20-minute boundary timeout.
+
+No provider configuration, model ID, OpenCode version, retry policy or network
+allowlist was changed because this run does not yet identify which of those
+caused the OpenCode session error.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
