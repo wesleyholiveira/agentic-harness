@@ -359,7 +359,6 @@ export async function runWave10LivePreflight({
         compose(["down", "-v", "--remove-orphans"], {
           label: "wave10-gateway-stack-down",
           timeoutMs: 5 * 60_000,
-          allowExitCodes: [0, 1],
         });
       } catch (error) {
         cleanupErrors.push(safeFailure(error));
