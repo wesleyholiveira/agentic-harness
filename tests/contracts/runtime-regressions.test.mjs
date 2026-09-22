@@ -155,10 +155,18 @@ test("qualification waitFor propagates terminal predicate errors without convert
   assert.equal(attempts, 1);
 });
 
-test("runtime worker pins an OpenCode build containing the compiled filesystem-cycle fix", () => {
+test("runtime worker pins and qualifies the exact OpenCode build", () => {
   const dockerfile = source("apps/runtime-worker/Dockerfile");
+  const qualification = source("scripts/qualification/standalone-v1.mjs");
   assert.match(dockerfile, /opencode-ai@1\.18\.32/u);
   assert.doesNotMatch(dockerfile, /opencode-ai@1\.18\.26/u);
+  assert.match(qualification, /QUALIFICATION_RUNTIME_WORKER_OPENCODE_VERSION = "1\.18\.32"/u);
+  assert.match(
+    qualification,
+    /"exec", "-T", "agent-runtime-worker", "opencode", "--version"[\s\S]*r4-worker-opencode-version/u,
+  );
+  assert.match(qualification, /runtime_worker_opencode_version_mismatch/u);
+  assert.match(qualification, /workerOpenCodeVersion/u);
 });
 
 test("OpenCode attempt-state resolver gives Runtime-projected state root precedence over manifest adjacency", async () => {
