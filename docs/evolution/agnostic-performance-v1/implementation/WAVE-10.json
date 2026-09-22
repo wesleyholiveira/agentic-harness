@@ -14,7 +14,7 @@
     "model-wide UID/GID 10001 privilege drop for executionMode=agent",
     "model-wide isolated process-group execution",
     "model-wide private control-plane egress guard with Context Engine exception",
-    "scoped task-output directory authority for restricted model UID",
+    "attempt-scoped agent-output subdirectory authority for restricted model UID",
     "temporary OpenCode HOME and auth isolation",
     "AgentExecutionResult behaviorGate receipt",
     "event-driven finalizer behavior gate projection"
@@ -34,7 +34,9 @@
     "processGroupKilledBeforeBehaviorCapability": true,
     "childInfrastructureEnvRemoved": true,
     "inFlightBehaviorRevocation": true,
-    "postgresCapabilityCheckBounded": true
+    "postgresCapabilityCheckBounded": true,
+    "modelWritableRuntimeScope": "agent-output-attempt-N only",
+    "taskBriefContextDescriptorLogResultWritableByModel": false
   },
   "validation": {
     "nodeFocused": "PENDING_EXACT_SHA_RERUN",
