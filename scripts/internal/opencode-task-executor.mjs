@@ -705,14 +705,15 @@ async function main() {
       throw new Error(`opencode_agent_fallback_detected:${agentFallback.requestedAgentId}`);
     }
     if (result.status !== 0) {
+      const failureSummary = summarizeOpenCodeFailure({ stdout: result.stdout ?? "", stderr: result.stderr ?? "" });
       emitRuntimeEvent("opencode.failure", {
         status: result.status,
         signal: result.signal,
         timedOut: result.timedOut,
         aborted: result.aborted,
-        ...summarizeOpenCodeFailure({ stdout: result.stdout ?? "", stderr: result.stderr ?? "" }),
+        ...failureSummary,
       });
-      process.exit(result.status || 1);
+      throw new Error(`opencode_exit_nonzero:${result.status || 1}:${failureSummary.errorName ?? "unknown"}`);
     }
 
     sessionId = observedSessionId ?? sessionIdFromOutput(result.stdout ?? "");
