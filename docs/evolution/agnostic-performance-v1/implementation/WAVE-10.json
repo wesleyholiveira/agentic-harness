@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "path-qualified-validation-issue-normalized-pending-focused-rerun",
+  "status": "r2-rustfmt-fixed-pending-exact-sha-check",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -131,7 +131,29 @@
         "Technical Refinement semantic repair lost validationCommandIds"
       ]
     },
-    "technicalPlanCriterionAssignment": "PATH_QUALIFIED_ISSUE_NORMALIZED_PENDING_FOCUSED_RERUN"
+    "technicalPlanCriterionAssignment": "PATH_QUALIFIED_ISSUE_NORMALIZED_PENDING_FOCUSED_RERUN",
+    "scopedWorkerLossAttemptOn54e3a3e": {
+      "verdict": "HOLD",
+      "runId": "standalone-v1-1790045777308-d6d91d52b1da",
+      "qEntry": "PASS",
+      "preR0": "PASS",
+      "r0": "PASS",
+      "r1": "PASS",
+      "r2": {
+        "verdict": "HOLD",
+        "command": "cargo fmt --manifest-path apps/runtime-worker/Cargo.toml -- --check",
+        "classification": "SOURCE",
+        "reason": "formatting-only",
+        "files": [
+          "apps/runtime-worker/src/agent_runtime.rs",
+          "apps/runtime-worker/src/behavior_gateway.rs",
+          "apps/runtime-worker/src/config.rs",
+          "apps/runtime-worker/src/main.rs"
+        ]
+      },
+      "runtimeReached": false
+    },
+    "rustfmt": "FIX_APPLIED_PENDING_EXACT_SHA_CHECK"
   },
   "historicalOperatorEvidence": {
     "candidate": "27480e5004ddf903e2dafaf8487437b7adf66858",
@@ -267,6 +289,17 @@
       "correction": "normalize direct and path-qualified validation issues against the exact criterionless work-item identity before narrow repair classification",
       "productionLogicBug": true,
       "status": "fixed-pending-focused-rerun"
+    },
+    {
+      "observedOnCandidate": "54e3a3ed786af59d81ad8e5a3be79d641b14882d",
+      "gate": "wave10-worker-loss/R-2",
+      "runId": "standalone-v1-1790045777308-d6d91d52b1da",
+      "observed": "R-1 passed; cargo fmt --check reported only canonical formatting differences in four Rust worker files",
+      "correction": "apply the exact rustfmt projection reported by the pinned Rust toolchain",
+      "productionLogicBug": false,
+      "qualificationHarnessBug": false,
+      "formattingOnly": true,
+      "status": "fixed-pending-exact-sha-check"
     }
   ],
   "livePreflightEvidence": {
