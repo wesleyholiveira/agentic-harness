@@ -213,7 +213,7 @@ test("model agent tasks drop child privileges and typed tasks kill the isolated 
   const scopedOutputDirChmod = worker.indexOf("let output_dir_chmod = Command::new(\"chmod\")", scopedOutputDirChown);
   const drain = worker.indexOf('drain_executor_output(stdout_task, "stdout", claimed, client).await');
   const terminate = worker.indexOf("terminate_isolated_process_group(pid).await", drain);
-  const homeCleanup = worker.indexOf("behavior_agent_home_cleanup_after_execution_failed", terminate);
+  const homeCleanup = worker.indexOf("model_agent_home_cleanup_after_execution_failed", terminate);
   const capability = worker.indexOf("run_behavior_gateway_under_lease", drain);
   assert.ok(recursiveWorkspaceChown >= 0 && scopedOutputDirChown > recursiveWorkspaceChown && scopedOutputDirChmod > scopedOutputDirChown);
   assert.ok(drain >= 0 && terminate > drain && homeCleanup > terminate && capability > homeCleanup);
