@@ -104,6 +104,23 @@
       "productionLogicBug": false,
       "qualificationHarnessBug": true,
       "status": "fixed-pending-exact-sha-fault-preflight-rerun"
+    },
+    {
+      "gate": "wave10-fault-preflight/postgres-outage",
+      "candidate": "fc3e5f7423b57a851ff3752526f472ce36ee4451",
+      "preflightId": "wave10-fault-preflight-1790039052245-30a45fa76217",
+      "observed": {
+        "fenceReplacementPassed": true,
+        "postgresBehaviorContainerRunning": true,
+        "clientKind": "transport",
+        "clientCode": "UND_ERR_SOCKET",
+        "cleanupOk": true
+      },
+      "rootCause": "unhandled pg.Pool error event from idle connection terminated the behavior gateway process during PostgreSQL outage",
+      "correction": "Pool error listener keeps process alive; bounded verifier query still returns store-unavailable HOLD; no-restart recovery now requires unchanged gateway PID and RestartCount",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
+      "status": "fixed-pending-exact-sha-fault-preflight-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -167,5 +184,5 @@
     "cleanupOk": true,
     "qualificationUse": "authoritative-for-live-happy-path-only"
   },
-  "greenAfterFix": "PENDING_EXACT_SHA_FAULT_PREFLIGHT_RERUN_AFTER_CLIENT_STDIN_FIX"
+  "greenAfterFix": "FENCE_REPLACEMENT_PASS_POSTGRES_AND_GATEWAY_OUTAGE_PENDING_RERUN"
 }
