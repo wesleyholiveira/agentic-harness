@@ -248,6 +248,30 @@
       "qualificationHarnessBug": false,
       "formattingOnly": true,
       "status": "fixed-pending-exact-sha-check"
+    },
+    {
+      "gate": "wave10-worker-loss/R-2-clippy",
+      "candidate": "227cacb064420bf598e85d63483412734a6609bf",
+      "runId": "standalone-v1-1790046589561-9bb35f7b0c5c",
+      "observed": {
+        "r1Passed": true,
+        "exitCode": 101,
+        "warnings": 5,
+        "runtimeReached": false
+      },
+      "rootCause": [
+        "restricted-agent UID/GID constants were unconditional although all uses are Unix-only",
+        "three Rust byte-length checks used needless as_bytes().len()"
+      ],
+      "correction": [
+        "#[cfg(unix)] on both restricted-agent UID/GID constants",
+        "direct str/String len() for byte-length checks",
+        "no lint suppression"
+      ],
+      "productionLogicBug": false,
+      "qualificationHarnessBug": false,
+      "portabilityLint": true,
+      "status": "fixed-pending-exact-sha-check"
     }
   ],
   "staticHardeningFindings": [
@@ -335,5 +359,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R1_PASS_R2_RUSTFMT_FIX_PENDING_CURRENT_EXACT_SHA"
+  "greenAfterFix": "R1_PASS_R2_CLIPPY_FIX_PENDING_CURRENT_EXACT_SHA"
 }
