@@ -218,6 +218,18 @@
       "correction": "criterionAssignmentRepairIssuesOnly scopes missing-ID compatibility to the same criterionless target work item",
       "productionLogicBug": true,
       "status": "fixed-pending-focused-rerun"
+    },
+    {
+      "gate": "R-1/workflow criterion-assignment issue normalization",
+      "observed": {
+        "directIssue": "validation_command_not_executable:W-durable:...",
+        "pathQualifiedIssue": "validation_command_not_executable:implementationPlan.workItems.W-durable.validation[0]=...",
+        "boundedRepairSelected": false
+      },
+      "rootCause": "repair classifier parsed only colon-delimited work-item identity and did not normalize dag-compiler path-qualified validation issues",
+      "correction": "issueTargetsOneOfWorkItems resolves both direct and exact implementationPlan.workItems.<id>.validation[...] forms",
+      "productionLogicBug": true,
+      "status": "fixed-pending-focused-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -305,5 +317,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "CRITERION_ASSIGNMENT_ROUTER_FIX_PENDING_CURRENT_EXACT_SHA"
+  "greenAfterFix": "PATH_QUALIFIED_CRITERION_ROUTER_FIX_PENDING_CURRENT_EXACT_SHA"
 }
