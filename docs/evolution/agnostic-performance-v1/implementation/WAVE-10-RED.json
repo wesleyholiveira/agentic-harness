@@ -311,6 +311,30 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
       "status": "fixed-pending-exact-sha-rerun"
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-restricted-state-root",
+      "candidate": "848344fe63ca5cb8aeae34159944c9f2cfe91b80",
+      "runId": "standalone-v1-1790112380611-f4129aab0581",
+      "observed": {
+        "r0ThroughR6Passed": true,
+        "productDiscoveryAttemptsFailed": 3,
+        "error": "EACCES mkdir /workspace/repository/.runtime/.../opencode-attempt-state",
+        "executorReached": true,
+        "modelInvocationReached": false,
+        "technicalLeadCancelled": true,
+        "processLossBoundaryReached": false
+      },
+      "rootCause": "restricted model child attempted to create per-attempt OpenCode state inside root-owned task metadata directory",
+      "correction": [
+        "Runtime-owned AGENT_HARNESS_AGENT_EXECUTION_STATE_ROOT under restricted ephemeral HOME",
+        "clear inherited XDG_DATA_HOME/XDG_STATE_HOME before spawning model child",
+        "executor gives Runtime-projected root precedence over manifest-adjacent legacy fallback",
+        "existing HOME cleanup removes ephemeral OpenCode state/auth before behavior"
+      ],
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
+      "status": "fixed-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -398,5 +422,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R0_THROUGH_R6_PASS_R9_WORKER_IMAGE_CLOSURE_FIX_PENDING_CURRENT_EXACT_SHA"
+  "greenAfterFix": "R0_THROUGH_R6_PASS_R9_STATE_ROOT_FIX_PENDING_CURRENT_EXACT_SHA"
 }
