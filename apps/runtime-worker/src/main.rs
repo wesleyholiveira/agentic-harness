@@ -1,7 +1,7 @@
 mod agent_continuation;
 mod agent_runtime;
-mod behavior_gateway;
 mod amqp;
+mod behavior_gateway;
 mod config;
 use anyhow::Result;
 use clap::Parser;
