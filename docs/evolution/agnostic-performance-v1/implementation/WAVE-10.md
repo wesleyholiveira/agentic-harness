@@ -551,6 +551,31 @@ Correction:
 
 No schema relaxation was introduced.
 
+## Scoped R-2 rustfmt closure
+
+Scoped run `standalone-v1-1790045777308-d6d91d52b1da` on candidate
+`54e3a3ed786af59d81ad8e5a3be79d641b14882d` proved:
+
+- Q-ENTRY PASS;
+- PRE-R0 PASS on the exact clean source;
+- scoped R-0 PASS with `MANIFEST=DEFERRED_T17`;
+- R-1 PASS with the complete `harness:test` contract/syntax/inventory gate.
+
+R-2 then stopped before compilation because
+`cargo fmt --manifest-path apps/runtime-worker/Cargo.toml -- --check`
+reported formatting-only diffs in:
+- `apps/runtime-worker/src/agent_runtime.rs`;
+- `apps/runtime-worker/src/behavior_gateway.rs`;
+- `apps/runtime-worker/src/config.rs`;
+- `apps/runtime-worker/src/main.rs`.
+
+The reported rustfmt projection was applied exactly. No runtime semantics,
+authority, timeout, SQL, fence, HMAC, gateway or worker lifecycle behavior was
+changed.
+
+The next exact-source gate is therefore the focused rustfmt check, followed by
+the scoped qualification if formatting is clean.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
