@@ -93,18 +93,20 @@
     "source-attested-build materialization requires exactly one image matching sourceSnapshot/runnerSpec/sourceBinding labels",
     "standalone qualification builds source-attested behavior runner after exact consumer+harness gitlink commit",
     "R-3 proves behavior image materialization and attestation before runtime startup",
-    "R-4 starts Docker behavior gateway with the same Runtime workspace volume"
+    "R-4 starts Docker behavior gateway with the same Runtime workspace volume",
+    "deterministic no-LLM preflight drives the real PostgreSQL capability/fence and Docker behavior gateway path",
+    "raw gateway capability is carried over stdin rather than argv/loggable ProcessRunner arguments",
+    "preflight cleanup failure is HOLD rather than advisory",
+    "consumer behavior command is scoped away from the .harness submodule"
   ],
   "historicalGreenEvidence": {
-    "candidate": "e6dd924745c396ec03a05372b87c0d89bd23888e",
-    "nodeFocused": "PASS",
-    "rustFmt": "PASS",
-    "rustTestsLocked": "PASS",
-    "dockerComposeConfig": "PASS",
-    "dockerContractTarget": "PASS_264_264",
-    "workerImageBuild": "PASS",
-    "gatewayImageBuild": "PASS",
-    "qualificationUse": "historical-only-after-ADR-0042-source-change"
+    "candidate": "27480e5004ddf903e2dafaf8487437b7adf66858",
+    "sourceIdentity": "PASS",
+    "syntax": "PASS",
+    "focusedContracts": "PASS",
+    "qualificationControllerSelfTest": "PASS",
+    "dockerContractTarget": "PASS",
+    "qualificationUse": "historical-only-after-live-preflight-source-change"
   },
-  "greenAfterFix": "PENDING_EXACT_SHA_RERUN_AFTER_SOURCE_ATTESTED_RUNTIME_FIXTURE"
+  "greenAfterFix": "PENDING_EXACT_SHA_WAVE10_LIVE_PREFLIGHT"
 }
