@@ -364,6 +364,41 @@
       "qualificationHarnessBug": true,
       "rootCauseResolved": false,
       "status": "diagnostics-and-failfast-fixed-pending-cause-rerun"
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-opencode-compiled-runtime",
+      "candidate": "2031876a6b7451a12b79b3bf3c99d3848de35580",
+      "runId": "standalone-v1-1790117182742-551e1dd708ce",
+      "observed": {
+        "r0ThroughR6Passed": true,
+        "stateAuthority": "runtime-projected-ephemeral-home",
+        "authCopied": true,
+        "opencodeSpawned": true,
+        "sessionObserved": true,
+        "opencodeExitStatus": 1,
+        "opencodeErrorName": "UnknownError",
+        "opencodeErrorMessage": "Unexpected server error. Check server logs for details.",
+        "productDiscoveryAttemptsFailed": 3,
+        "technicalLeadCancelled": true,
+        "processLossBoundaryReached": false,
+        "intendedFailFastObserved": false,
+        "wastedBoundaryWaitMs": 1200000
+      },
+      "rootCause": [
+        "qualification waitFor retried terminal QualificationHold exceptions, defeating the R-9 pre-boundary fail-fast",
+        "runtime worker was pinned to OpenCode 1.18.26; anomalyco/opencode#50439 fixes a compiled-build import cycle that produces the same generic UnknownError before provider invocation and is included in v1.18.32"
+      ],
+      "correction": [
+        "waitFor accepts shouldRetryError and immediately rethrows terminal poll errors",
+        "R-7/R-9/R-10 HOLD-capable polling uses shouldRetryQualificationPollError",
+        "runtime worker upgrades opencode-ai from 1.18.26 to 1.18.32",
+        "OpenCode structured failure evidence preserves bounded errorRef for server-log correlation"
+      ],
+      "productionLogicBug": true,
+      "qualificationHarnessBug": true,
+      "upstreamDependencyBug": true,
+      "rootCauseResolved": false,
+      "status": "fixed-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -429,7 +464,10 @@
     "Technical Plan model repair output is re-canonicalized before validation",
     "validation and validationCommandIds are exact trusted-catalog projections including empty arrays",
     "downstream-only criteria are removed even when no implementation criterion remains",
-    "semantic repair evidence is computed after Runtime-owned canonicalization"
+    "semantic repair evidence is computed after Runtime-owned canonicalization",
+    "terminal QualificationHold is never retried by HOLD-capable standalone qualification polls",
+    "runtime worker OpenCode pin includes the upstream compiled prompt crash fix from anomalyco/opencode#50439",
+    "opencode.failure carries bounded errorRef when the CLI exposes one"
   ],
   "historicalGreenEvidence": {
     "candidate": "0d8c0b6ec4c034429d496822a6a2cc780f9a31bb",
@@ -451,5 +489,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R0_THROUGH_R6_PASS_R9_OPENCODE_CAUSE_PENDING_STRUCTURED_DIAGNOSTIC_RERUN"
+  "greenAfterFix": "R0_THROUGH_R6_PASS_R9_OPENCODE_1_18_32_AND_TERMINAL_FAILFAST_PENDING_EXACT_SHA_RERUN"
 }
