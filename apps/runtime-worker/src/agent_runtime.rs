@@ -66,7 +66,9 @@ const CLEANUP_RETRIES_PER_DELIVERY: usize = 8;
 const STDERR_TAIL_LIMIT: usize = 16 * 1024;
 const OUTBOX_IDLE_MAX_POLL_MS: u64 = 1_000;
 const OUTPUT_DRAIN_TIMEOUT_MS: u64 = 5_000;
+#[cfg(unix)]
 const BEHAVIOR_AGENT_UID: u32 = 10_001;
+#[cfg(unix)]
 const BEHAVIOR_AGENT_GID: u32 = 10_001;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -1456,7 +1458,7 @@ async fn run_behavior_gateway_under_lease(
     };
     let capability = new_capability();
     let hmac_key = match config.behavior_gateway_hmac_key.as_deref() {
-        Some(value) if value.as_bytes().len() >= 32 => value,
+        Some(value) if value.len() >= 32 => value,
         _ => return BehaviorGatewayResult::hold("behavior_gateway_hmac_key_required"),
     };
     let capability_fingerprint = match capability_proof(hmac_key, &capability, &fence) {
