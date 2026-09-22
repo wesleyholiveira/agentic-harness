@@ -15,6 +15,17 @@
       "rootCause": "agentic-harness-worker Cargo.lock root dependency used ambiguous hmac while 0.12.1 and 0.13.0 coexist",
       "correction": "hmac 0.12.1",
       "status": "fixed"
+    },
+    {
+      "gate": "node-contracts",
+      "candidate": "c32ba0089326bbf940ecd1addebe9de42b0607bf",
+      "test": "gateway revokes an in-flight behavior command when the worker HTTP client disconnects",
+      "observed": "behavior_execution_aborted",
+      "expected": "docker_gateway_client_disconnected",
+      "rootCause": "client disconnect aborted the behavior executor, and its generic abort receipt could settle before the supervisor projected the client-disconnect revocation cause",
+      "correction": "make client disconnect a sticky supervisor cause, check it before interpreting settled behavior receipts, and suppress behavior start when the external signal is already aborted",
+      "productionLogicBug": true,
+      "status": "fixed-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -48,12 +59,13 @@
     "runtime-worker Docker build uses cargo build --locked --release",
     "gateway contracts cover in-flight fence replacement and client disconnect",
     "runtime regressions cover model-wide UID isolation, private-network egress guard and attempt-scoped model output authority",
-    "revoked behavior execution repeatedly reaps the fence-bound Docker container"
+    "revoked behavior execution repeatedly reaps the fence-bound Docker container",
+    "gateway contract covers pre-disconnected client and proves behavior execution is not started"
   ],
   "historicalGreenEvidence": {
     "workerImageBuild": "PASS_PRE_HARDENING",
     "gatewayImageBuild": "PASS_PRE_HARDENING",
     "qualificationUse": "historical-only"
   },
-  "greenAfterFix": "NOT_RUN_ON_FINAL_CANDIDATE"
+  "greenAfterFix": "PENDING_EXACT_SHA_RERUN_AFTER_CLIENT_DISCONNECT_RACE_FIX"
 }
