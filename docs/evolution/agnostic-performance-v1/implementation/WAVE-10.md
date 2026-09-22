@@ -90,6 +90,33 @@ and execution policy, builds a Node behavior runner after the exact harness
 gitlink commit, proves materialization + source attestation in R-3, and starts
 the isolated behavior gateway in R-4 on the same Runtime workspace volume.
 
+### Gateway Docker CLI compatibility
+
+The first deterministic live preflight on candidate
+`3e091f1083509758971aaa1c14e5f73a9b972713` reached the real Docker behavior
+executor and failed only at container creation with Docker exit code 125.
+
+Evidence proved that command authority, committed config, workspace binding,
+source-attested image materialization, image attestation, toolchain readiness,
+HMAC capability verification and execution-fence admission had all succeeded
+before the failure.
+
+Root cause: `apps/docker-gateway/Dockerfile` inherited Debian Bookworm's
+`docker.io` package (20.10.24), while the behavior executor requires
+`--mount ... volume-subpath=...`. Docker added `volume-subpath` support in
+CLI/Engine 26.0 / API 1.45.
+
+Correction:
+- gateway now copies the official Docker CLI 27.5.1 from
+  `docker:27.5.1-cli`;
+- the Debian `docker.io` package is no longer installed in the gateway;
+- the live preflight probes the gateway's actual Docker client version and
+  daemon API before behavior execution;
+- client major <26 or server API <1.45 fails with
+  `wave10_preflight_docker_subpath_runtime_unsupported`;
+- contracts pin this compatibility boundary so a base-image/package regression
+  cannot silently reintroduce exit 125.
+
 ### Deterministic live preflight before LLM qualification
 
 A dedicated host-side preflight now exercises the complete behavior data plane
