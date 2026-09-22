@@ -1,9 +1,128 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { sha256File } from "./util.mjs";
+import { contractDigest, validateCommandSpec } from "../../../packages/harness-contracts/src/project-descriptor.mjs";
+import { projectDescriptorV2Digest } from "../../../packages/harness-contracts/src/project-descriptor-v2.mjs";
+import { dockerRunnerSpecDigest } from "../../../packages/harness-contracts/src/docker-runner-v2.mjs";
+
+export const QUALIFICATION_BEHAVIOR_COMMAND_ID = "qualification.behavior.tests";
+export const QUALIFICATION_BEHAVIOR_DELAY_COMMAND_ID = "qualification.behavior.delay";
+
+function qualificationBehaviorRunner() {
+  return {
+    schemaVersion: "docker-runner-spec/v2",
+    id: "qualification-behavior",
+    kind: "docker-compose",
+    dockerContext: "default",
+    composeProject: "agentic-harness-qualification-behavior",
+    composeFiles: ["compose.behavior.yaml"],
+    profiles: ["behavior"],
+    service: "behavior-tests",
+    purpose: "test",
+    operation: "one-off",
+    replica: null,
+    containerCwd: "/workspace",
+    user: "node",
+    platform: "linux/amd64",
+    buildTarget: "behavior",
+    image: { mode: "source-attested-build", reference: null },
+    dependencyFiles: ["docker/behavior-runner.Dockerfile", "package.json"],
+  };
+}
+
+function qualificationBehaviorCommand(id, argv, timeoutMs) {
+  return {
+    schemaVersion: "command-spec/v1",
+    id,
+    moduleId: "root",
+    runnerId: "qualification-behavior",
+    phase: "behavior",
+    executable: "node",
+    argv,
+    cwd: ".",
+    envAllowlist: [],
+    secretRefs: [],
+    requiredCapabilities: ["language.node"],
+    networkPolicy: "none",
+    effects: ["read-only"],
+    timeoutMs,
+    dependencyPolicy: "none",
+    validationScope: "workspace",
+  };
+}
+
+export function qualificationProjectDescriptor() {
+  const runner = qualificationBehaviorRunner();
+  return {
+    schemaVersion: "project-descriptor/v2",
+    projectId: "agentic-harness-qualification-consumer",
+    repositoryId: "agentic-harness-qualification-consumer",
+    policyRef: ".agent-harness/policy.json",
+    modules: [{ id: "root", root: ".", languages: ["node"], requiredCapabilities: ["language.node"] }],
+    evidenceRoots: ["docs"],
+    protectedPaths: [".harness", ".env"],
+    runners: [runner],
+    commands: [
+      qualificationBehaviorCommand(QUALIFICATION_BEHAVIOR_COMMAND_ID, ["--test"], 120_000),
+      qualificationBehaviorCommand(
+        QUALIFICATION_BEHAVIOR_DELAY_COMMAND_ID,
+        ["-e", "setTimeout(() => process.exit(0), 15000)"],
+        60_000,
+      ),
+    ],
+  };
+}
+
+export function qualificationExecutionPolicy(descriptor = qualificationProjectDescriptor()) {
+  const runner = descriptor.runners[0];
+  return {
+    schemaVersion: "execution-policy/v2",
+    id: "qualification-v2",
+    projectId: descriptor.projectId,
+    descriptorDigest: projectDescriptorV2Digest(descriptor),
+    grants: descriptor.commands.map(command => ({
+      commandId: command.id,
+      commandDigest: contractDigest(validateCommandSpec(command)),
+      runnerSpecDigest: dockerRunnerSpecDigest(runner),
+      allowedScopes: [command.validationScope],
+      allowedNetworkPolicies: [command.networkPolicy],
+      allowedEffects: [...command.effects],
+      maxTimeoutMs: command.timeoutMs,
+      allowSecrets: false,
+    })),
+  };
+}
+
+const QUALIFICATION_DESCRIPTOR = qualificationProjectDescriptor();
+const QUALIFICATION_POLICY = qualificationExecutionPolicy(QUALIFICATION_DESCRIPTOR);
 
 export const FIXTURE_FILES = Object.freeze({
-  ".gitignore": `.runtime/\n.agent-harness/\n`,
+  ".gitignore": `.runtime/\n.agent-harness/config.json\n`,
+  ".agent-harness/project.json": `${JSON.stringify(QUALIFICATION_DESCRIPTOR, null, 2)}\n`,
+  ".agent-harness/policy.json": `${JSON.stringify(QUALIFICATION_POLICY, null, 2)}\n`,
+  "compose.behavior.yaml": `services:
+  behavior-tests:
+    profiles: [behavior]
+    image: agentic-harness-qualification-behavior:\${AGENT_HARNESS_QUALIFICATION_BEHAVIOR_TAG:-local}
+    build:
+      context: .
+      dockerfile: docker/behavior-runner.Dockerfile
+      target: behavior
+      args:
+        AGENT_HARNESS_SOURCE_SNAPSHOT_SHA256: \${AGENT_HARNESS_SOURCE_SNAPSHOT_SHA256:?required}
+        AGENT_HARNESS_RUNNER_SPEC_DIGEST: \${AGENT_HARNESS_RUNNER_SPEC_DIGEST:?required}
+        AGENT_HARNESS_SOURCE_BINDING_DIGEST: \${AGENT_HARNESS_SOURCE_BINDING_DIGEST:?required}
+`,
+  "docker/behavior-runner.Dockerfile": `FROM node:22-alpine AS behavior
+ARG AGENT_HARNESS_SOURCE_SNAPSHOT_SHA256
+ARG AGENT_HARNESS_RUNNER_SPEC_DIGEST
+ARG AGENT_HARNESS_SOURCE_BINDING_DIGEST
+LABEL org.agentic-harness.source-snapshot-sha256=\${AGENT_HARNESS_SOURCE_SNAPSHOT_SHA256}
+LABEL org.agentic-harness.runner-spec-digest=\${AGENT_HARNESS_RUNNER_SPEC_DIGEST}
+LABEL org.agentic-harness.source-binding-digest=\${AGENT_HARNESS_SOURCE_BINDING_DIGEST}
+WORKDIR /workspace
+USER node
+`,
   "README.md": `# Agentic Harness qualification consumer\n\nSynthetic consumer used only for standalone Agentic Harness qualification.\n`,
   "package.json": `{
   "name": "agentic-harness-qualification-consumer",
