@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "r2-rustfmt-fixed-pending-exact-sha-check",
+  "status": "r2-clippy-fixed-pending-exact-sha-check",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -153,7 +153,30 @@
       },
       "runtimeReached": false
     },
-    "rustfmt": "FIX_APPLIED_PENDING_EXACT_SHA_CHECK"
+    "rustfmt": "FIX_APPLIED_PENDING_EXACT_SHA_CHECK",
+    "scopedWorkerLossAttemptOn227cacb": {
+      "verdict": "HOLD",
+      "runId": "standalone-v1-1790046589561-9bb35f7b0c5c",
+      "qEntry": "PASS",
+      "preR0": "PASS",
+      "r0": "PASS",
+      "r1": "PASS",
+      "r2": {
+        "verdict": "HOLD",
+        "command": "cargo clippy --manifest-path apps/runtime-worker/Cargo.toml --all-targets --all-features -- -D warnings",
+        "classification": "SOURCE",
+        "reason": "5 warnings-as-errors",
+        "warnings": [
+          "BEHAVIOR_AGENT_UID dead_code on non-Unix build",
+          "BEHAVIOR_AGENT_GID dead_code on non-Unix build",
+          "agent_runtime.rs needless_as_bytes",
+          "behavior_gateway.rs needless_as_bytes",
+          "config.rs needless_as_bytes"
+        ]
+      },
+      "runtimeReached": false
+    },
+    "clippy": "FIX_APPLIED_PENDING_EXACT_SHA_CHECK"
   },
   "historicalOperatorEvidence": {
     "candidate": "27480e5004ddf903e2dafaf8487437b7adf66858",
@@ -299,6 +322,17 @@
       "productionLogicBug": false,
       "qualificationHarnessBug": false,
       "formattingOnly": true,
+      "status": "fixed-pending-exact-sha-check"
+    },
+    {
+      "observedOnCandidate": "227cacb064420bf598e85d63483412734a6609bf",
+      "gate": "wave10-worker-loss/R-2",
+      "runId": "standalone-v1-1790046589561-9bb35f7b0c5c",
+      "observed": "clippy -D warnings failed on two Unix-only constants under Windows and three needless_as_bytes findings",
+      "correction": "compile UID/GID constants only on Unix and replace as_bytes().len() with len(); no lint suppression",
+      "productionLogicBug": false,
+      "qualificationHarnessBug": false,
+      "portabilityLint": true,
       "status": "fixed-pending-exact-sha-check"
     }
   ],
