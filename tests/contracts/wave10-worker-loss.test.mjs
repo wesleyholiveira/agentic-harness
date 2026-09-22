@@ -227,6 +227,21 @@ test("scoped qualification report cannot masquerade as release promotion", () =>
   assert.equal(data.verdict, "PASS");
 });
 
+test("R4 starts behavior gateway with runtime dependency profile enabled", () => {
+  const qualification = source("scripts/qualification/standalone-v1.mjs");
+  const r4Start = qualification.indexOf("async function r4()");
+  const r5Start = qualification.indexOf("\nasync function r5()", r4Start);
+  const r4 = qualification.slice(r4Start, r5Start);
+  assert.match(
+    r4,
+    /"--profile", "runtime"[\s\S]*"--profile", "behavior-gateway"[\s\S]*"up", "-d", "docker-behavior-gateway"/u,
+  );
+  assert.doesNotMatch(
+    r4,
+    /composeCommand\(\["--profile", "behavior-gateway", "up", "-d", "docker-behavior-gateway"\]/u,
+  );
+});
+
 test("R9 kills worker only inside a physical behavior window and proves replacement behavior", () => {
   const qualification = source("scripts/qualification/standalone-v1.mjs");
   assert.match(qualification, /QUALIFICATION_BEHAVIOR_DELAY_COMMAND_ID/u);
