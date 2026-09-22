@@ -104,6 +104,7 @@ const state = {
 
 const QUALIFICATION_RABBITMQ_USERNAME = "agent";
 const QUALIFICATION_RABBITMQ_PASSWORD = "agent";
+const QUALIFICATION_RUNTIME_WORKER_OPENCODE_VERSION = "1.18.32";
 
 const fullGateOrder = ["Q-ENTRY", "PRE-R0", "R-0", "R-1", "R-2", "R-3", "R-4", "R-5", "R-6", "R-7", "R-8", "R-9", "R-10"];
 const wave10WorkerLossGateOrder = ["Q-ENTRY", "PRE-R0", "R-0", "R-1", "R-2", "R-3", "R-4", "R-5", "R-6", "R-9"];
@@ -732,6 +733,17 @@ async function r4() {
     containerEvidence[service] = { id, pid: inspect.State?.Pid, health: inspect.State?.Health?.Status ?? "running", restartCount: inspect.RestartCount ?? 0 };
   }
 
+  const workerOpenCodeVersion = composeCommand(
+    ["exec", "-T", "agent-runtime-worker", "opencode", "--version"],
+    { label: "r4-worker-opencode-version", timeoutMs: 30_000 },
+  ).stdout.trim();
+  if (workerOpenCodeVersion !== QUALIFICATION_RUNTIME_WORKER_OPENCODE_VERSION) {
+    hold("R-4", "SOURCE", "runtime_worker_opencode_version_mismatch", {
+      expected: QUALIFICATION_RUNTIME_WORKER_OPENCODE_VERSION,
+      actual: workerOpenCodeVersion || null,
+    });
+  }
+
   const workspaceDestination = "/workspace/agent-workspaces";
   const contextEngineEnv = containerEnvironmentMap(containerInspects["context-engine"]);
   const workerEnv = containerEnvironmentMap(containerInspects["agent-runtime-worker"]);
@@ -809,7 +821,16 @@ async function r4() {
   if (existsSync(resolve(state.consumers.A, ".harness/node_modules"))) hold("R-4", "SOURCE", "submodule_node_modules_created");
   const volumes = runner.run("docker", ["volume", "ls", "--filter", `label=com.docker.compose.project=${state.composeProject.name}`, "--format", "{{.Name}}"], { label: "r4-compose-volumes" }).stdout.trim().split(/\r?\n/u).filter(Boolean);
   if (volumes.some((name) => state.preexistingDocker.volumes.includes(name))) hold("R-4", "SOURCE", "preexisting_volume_reused", { volumes });
-  return { composeProject: state.composeProject.name, services: containerEvidence, workspaceAuthority, readiness: { contextEngine: contextEngineReadiness, rabbitmq: rabbitmqReadiness, embeddings: embeddingsReadiness }, migrations: migrationCount, workerHeartbeat, volumes };
+  return {
+    composeProject: state.composeProject.name,
+    services: containerEvidence,
+    workerOpenCodeVersion,
+    workspaceAuthority,
+    readiness: { contextEngine: contextEngineReadiness, rabbitmq: rabbitmqReadiness, embeddings: embeddingsReadiness },
+    migrations: migrationCount,
+    workerHeartbeat,
+    volumes,
+  };
 }
 
 function sqlScalar(sql) {
