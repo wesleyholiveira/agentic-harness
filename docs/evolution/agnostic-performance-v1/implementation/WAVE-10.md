@@ -417,6 +417,36 @@ Qualification then requires:
 
 This implementation is pending exact-SHA cheap gates and live R-9 qualification.
 
+## Scoped worker-loss qualification source boundary
+
+The first attempt to run the upgraded standalone qualification on candidate
+`3d7cfc5a9f89616fb620e2fa9e2e8916680576a9` stopped correctly at R-0
+before any Runtime/model gate. PRE-R0 proved the exact clean HEAD, while
+`source-manifest.mjs --check` reported the final-release MANIFEST was stale:
+688 tracked source files excluding MANIFEST versus 547 entries in the existing
+manifest.
+
+This is not a WAVE-10 runtime failure. MANIFEST regeneration remains a T17
+release-closure operation.
+
+ADR 0044 adds the explicit non-promotional scope:
+
+`node scripts/qualification/standalone-v1.mjs --wave10-worker-loss`
+
+The scope:
+- retains clean exact HEAD and live `git-tracked-worktree` source identity;
+- runs the ordinary R-0 source/ingress invariants but records
+  `MANIFEST=DEFERRED_T17`;
+- is permanently `promotionEligible=false`;
+- runs Q-ENTRY, PRE-R0, R-0 through R-6, then R-9 and R-11;
+- excludes R-7, R-8 and R-10 because they do not establish state consumed by
+  the physical worker-loss gate;
+- emits report metadata that labels the result
+  `wave10-worker-loss` and `NOT A RELEASE PROMOTION`.
+
+The default standalone command remains unchanged: full promotion still requires
+the exact committed MANIFEST and therefore continues to fail closed until T17.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
