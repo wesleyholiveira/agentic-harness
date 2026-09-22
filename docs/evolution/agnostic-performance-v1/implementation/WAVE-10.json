@@ -482,6 +482,7 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
+    "exact-SHA scoped R-9 rerun proving Product Discovery proceeds on OpenCode 1.18.32 and Technical Refinement reaches the physical worker-loss boundary",
     "exact-SHA scoped R-9 physical Rust worker loss while behavior execution is in-flight",
     "normal non-behavior model task restricted-UID runtime regression",
     "full existing Runtime/cache/memory/model-routing/continuation regression qualification",
@@ -532,5 +533,26 @@
     "rawCapabilityPersistedInEvidence": false,
     "hmacKeyPersistedInEvidence": false,
     "cleanupOk": true
-  }
+  },
+  "blockingDiscoveries": [
+    {
+      "observedOnCandidate": "2031876a6b7451a12b79b3bf3c99d3848de35580",
+      "gate": "wave10-worker-loss/R-9",
+      "runId": "standalone-v1-1790117182742-551e1dd708ce",
+      "observed": "Q-ENTRY through R-6 passed; Product Discovery then failed all 3 attempts with OpenCode UnknownError before Technical Refinement, and the intended R-9 fail-fast was swallowed by waitFor until the 20-minute process-loss boundary timeout",
+      "rootCause": "the 20-minute delay is a qualification bug because waitFor retried terminal QualificationHold exceptions; independently, the worker remained pinned to OpenCode 1.18.26, predating anomalyco/opencode#50439, the compiled-build SystemPrompt.environment fix included in v1.18.32 for the same generic Unexpected server error failure class",
+      "correction": "waitFor gains shouldRetryError and all HOLD-capable qualification polls reject terminal QualificationHold retries; runtime worker pins OpenCode 1.18.32; structured OpenCode diagnostics retain the bounded error ref",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": true,
+      "upstreamDependencyBug": true,
+      "rootCauseResolved": false,
+      "status": "upstream-fix-adopted-and-terminal-failfast-fixed-pending-exact-sha-rerun"
+    }
+  ],
+  "hardening": [
+    "qualification waitFor supports terminal error propagation instead of converting QualificationHold into a timeout",
+    "R-7/R-9/R-10 HOLD-capable polls use shouldRetryQualificationPollError",
+    "runtime worker pins OpenCode 1.18.32, which contains anomalyco/opencode#50439 compiled filesystem-cycle fix",
+    "structured OpenCode failure evidence preserves bounded errorRef for server-log correlation"
+  ]
 }
