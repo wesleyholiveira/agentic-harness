@@ -369,6 +369,54 @@ captures gateway container id, PID and RestartCount before the outage and
 requires all three to remain unchanged after PostgreSQL recovery. Recovery is
 bounded to five attempts, retrying only the same store-unavailable HOLD.
 
+## Fault preflight PASS and physical worker-loss integration
+
+Candidate `51c1b8ffdff0da1917b90dafaf6a288fd43172b5` passed the complete
+deterministic no-LLM fault preflight
+`wave10-fault-preflight-1790039570229-045992690cb5`.
+
+Observed:
+- in-flight fence replacement returned
+  `docker_gateway_fence_identity_mismatch`, accepted zero receipts and removed
+  the source container;
+- in-flight PostgreSQL outage returned
+  `docker_gateway_capability_store_unavailable`, removed the behavior
+  container and recovered on the first probe without restarting the gateway;
+- gateway container id, PID 96458 and RestartCount 0 were identical before and
+  after PostgreSQL recovery;
+- gateway outage failed closed at transport, materialized no behavior container,
+  and recovered to `PASSED / BEHAVIOR_PASSED`;
+- raw capability and HMAC key remained absent from evidence;
+- cleanup completed with zero errors.
+
+ADR 0043 extends the existing R-9 physical worker-loss qualification instead of
+adding another model run. Under the internal
+`repair-checkpoint-before-behavior` boundary, Context Engine injects
+`qualification.behavior.delay` only for the matching qualification task and
+attempt. Its command authority is derived from the trusted committed project
+configuration and any pre-existing authority must match exactly.
+
+The full-agent executor writes the existing durable process-loss checkpoint but
+does not block. R-9 waits for both the authoritative
+`behavior.gateway.started` event and the exact fence-derived behavior
+container to be physically running before SIGKILLing worker PID 1.
+
+Qualification then requires:
+- source behavior container removal on worker HTTP disconnect;
+- stable gateway container/PID/RestartCount;
+- exact killed lease expiry;
+- exactly one worker restart;
+- same semantic task attempt with dispatch generation and fence each +1;
+- unchanged repair checkpoint effect key;
+- `skippedFullAgentInvocation=true`;
+- replacement behavior container physically running;
+- replacement `behavior.gateway.completed = PASSED` with one receipt;
+- replacement behavior container removal;
+- closed semantic run;
+- Context Engine and worker qualification controls disarmed before R-10.
+
+This implementation is pending exact-SHA cheap gates and live R-9 qualification.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
