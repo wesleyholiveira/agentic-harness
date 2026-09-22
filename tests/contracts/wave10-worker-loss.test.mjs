@@ -8,6 +8,7 @@ import {
   qualificationBehaviorCommandSpecIds,
   qualificationCommandAuthorityFromConfiguration,
 } from "../../.agents/runtime/qualification-behavior.mjs";
+import { QualificationReport } from "../../scripts/qualification/lib/report.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const source = path => readFileSync(resolve(root, path), "utf8");
@@ -157,6 +158,44 @@ test("Compose projects qualification controls to descriptor preparation and work
     assert.ok(contextBlock.includes(projection), `context-engine missing ${projection}`);
     assert.ok(workerBlock.includes(projection), `worker missing ${projection}`);
   }
+});
+
+test("wave10 worker-loss scope is non-promotional and skips unrelated semantic gates", () => {
+  const qualification = source("scripts/qualification/standalone-v1.mjs");
+  assert.match(qualification, /qualificationScope = args\.wave10WorkerLoss \? "wave10-worker-loss" : "full-promotion"/u);
+  assert.match(qualification, /promotionEligible = qualificationScope === "full-promotion"/u);
+  assert.match(qualification, /--wave10-worker-loss/u);
+  assert.match(qualification, /wave10WorkerLossGateOrder = \["Q-ENTRY", "PRE-R0", "R-0", "R-1", "R-2", "R-3", "R-4", "R-5", "R-6", "R-9"\]/u);
+  assert.doesNotMatch(
+    qualification.match(/const wave10WorkerLossGateOrder = [^;]+;/u)?.[0] ?? "",
+    /R-7|R-8|R-10/u,
+  );
+});
+
+test("full promotion still requires MANIFEST check while scoped R0 uses live clean Git source identity", () => {
+  const qualification = source("scripts/qualification/standalone-v1.mjs");
+  const r0Start = qualification.indexOf("function r0()");
+  const r0End = qualification.indexOf("\nasync function r1()", r0Start);
+  const r0 = qualification.slice(r0Start, r0End);
+  assert.match(r0, /if \(promotionEligible\)[\s\S]*source-manifest\.mjs"\), "--check"/u);
+  assert.match(r0, /if \(!promotionEligible\)/u);
+  assert.match(r0, /source\.sourceAuthority !== "git-tracked-worktree"/u);
+  assert.match(r0, /R0_MANIFEST_STATUS = "DEFERRED_T17"/u);
+  assert.match(r0, /manifest: promotionEligible \? manifestResult\.code : "DEFERRED_T17"/u);
+});
+
+test("scoped qualification report cannot masquerade as release promotion", () => {
+  const report = new QualificationReport({
+    runId: "scope-test",
+    outputDir: "/tmp/unused",
+    harnessRoot: "/workspace/harness",
+    qualificationScope: "wave10-worker-loss",
+    promotionEligible: false,
+  });
+  const data = report.toJSON();
+  assert.equal(data.qualificationScope, "wave10-worker-loss");
+  assert.equal(data.promotionEligible, false);
+  assert.equal(data.verdict, "PASS");
 });
 
 test("R9 kills worker only inside a physical behavior window and proves replacement behavior", () => {
