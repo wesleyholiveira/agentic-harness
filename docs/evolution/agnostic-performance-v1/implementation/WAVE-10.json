@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "worker-loss-scoped-qualification-implemented-pending-exact-sha-run",
+  "status": "r0-historical-reference-classification-fixed-pending-scoped-r9-rerun",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -93,6 +93,21 @@
       "manifestTreeSha256": "sha256:60beb9077452a53fbd7ac46450f8c0f7e468ecf838891fd086ed1868bc1d7548",
       "runtimeReached": false,
       "interpretation": "expected release-manifest closure gate before T17"
+    },
+    "scopedWorkerLossAttemptOn2dd7276": {
+      "verdict": "HOLD",
+      "gate": "R-0",
+      "classification": "SOURCE",
+      "code": "r0_product_specific_operational_reference",
+      "matches": [
+        "docs/evolution/agnostic-performance-v1/implementation/WAVE-05.md",
+        "docs/evolution/agnostic-performance-v1/implementation/WAVE-10.json",
+        "docs/evolution/agnostic-performance-v1/implementation/WAVE-10.md"
+      ],
+      "manifestStatus": "DEFERRED_T17",
+      "sourceAuthority": "git-tracked-worktree",
+      "runtimeReached": false,
+      "interpretation": "historical evolution documentation misclassified as operational source"
     }
   },
   "historicalOperatorEvidence": {
@@ -184,6 +199,17 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
       "status": "fixed-pending-exact-sha-fault-preflight-rerun"
+    },
+    {
+      "observedOnCandidate": "2dd72760a4f9ee7ab267239c8ef584604df2814b",
+      "gate": "wave10-worker-loss/R-0",
+      "runId": "standalone-v1-1790043848546-9b3be2a47bd9",
+      "observed": "product namespace grep matched only docs/evolution historical migration/adoption evidence",
+      "rootCause": "R-0 operational-product coupling scan searched all tracked documentation instead of distinguishing historical evolution evidence from operational authority",
+      "correction": "exclude docs/evolution/** and the legacy qualification baseline only; retain blocking scan over ADR/runtime/apps/packages/scripts/config",
+      "productionLogicBug": false,
+      "qualificationHarnessBug": true,
+      "status": "fixed-pending-exact-sha-scoped-r9-rerun"
     }
   ],
   "livePreflightEvidence": {
