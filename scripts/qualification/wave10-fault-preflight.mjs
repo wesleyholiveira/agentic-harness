@@ -328,28 +328,41 @@ export async function runWave10FaultPreflight({
 
   async function quickRecoveryProbe(name) {
     const scenario = seedScenario(name, QUALIFICATION_BEHAVIOR_COMMAND_ID);
-    const started = startGatewayClient(scenario, `${name}-client`);
-    const completion = await waitForStartedCompletion(started, {
-      timeoutMs: 60_000,
-      label: `${name}-client`,
-    });
-    const response = parseClientCompletion(completion);
-    if (response.kind !== "http" || response.httpStatus !== 200
-        || response.body?.status !== "PASSED"
-        || response.body?.code !== "docker_gateway_behavior_passed"
-        || response.body?.receipts?.[0]?.status !== "BEHAVIOR_PASSED") {
-      const error = new Error(`wave10_fault_${name}_recovery_probe_failed`);
-      error.evidence = { response };
-      throw error;
+    let lastResponse = null;
+    for (let attemptIndex = 1; attemptIndex <= 5; attemptIndex += 1) {
+      const started = startGatewayClient(scenario, `${name}-client-${attemptIndex}`);
+      const completion = await waitForStartedCompletion(started, {
+        timeoutMs: 60_000,
+        label: `${name}-client-${attemptIndex}`,
+      });
+      const response = parseClientCompletion(completion);
+      lastResponse = response;
+      if (response.kind === "http" && response.httpStatus === 200
+          && response.body?.status === "PASSED"
+          && response.body?.code === "docker_gateway_behavior_passed"
+          && response.body?.receipts?.[0]?.status === "BEHAVIOR_PASSED") {
+        await requireBehaviorGone(scenario, `${name}-behavior-gone`);
+        return {
+          runId: scenario.runId,
+          taskId: scenario.taskId,
+          attempts: attemptIndex,
+          gatewayStatus: response.body.status,
+          receiptStatus: response.body.receipts[0].status,
+          behaviorContainerRemoved: true,
+        };
+      }
+      const retryableStoreRecovery = response.kind === "http"
+        && response.httpStatus === 409
+        && response.body?.status === "HOLD"
+        && response.body?.code === "docker_gateway_capability_store_unavailable"
+        && Array.isArray(response.body?.receipts)
+        && response.body.receipts.length === 0;
+      if (!retryableStoreRecovery) break;
+      await sleep(500);
     }
-    await requireBehaviorGone(scenario, `${name}-behavior-gone`);
-    return {
-      runId: scenario.runId,
-      taskId: scenario.taskId,
-      gatewayStatus: response.body.status,
-      receiptStatus: response.body.receipts[0].status,
-      behaviorContainerRemoved: true,
-    };
+    const error = new Error(`wave10_fault_${name}_recovery_probe_failed`);
+    error.evidence = { response: lastResponse };
+    throw error;
   }
 
   try {
