@@ -9,6 +9,10 @@ import {
   qualificationCommandAuthorityFromConfiguration,
 } from "../../.agents/runtime/qualification-behavior.mjs";
 import { QualificationReport } from "../../scripts/qualification/lib/report.mjs";
+import {
+  productNamespaceOperationalPathspecs,
+  productNamespaceReferenceClassification,
+} from "../../scripts/qualification/lib/product-namespace-scan.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const source = path => readFileSync(resolve(root, path), "utf8");
@@ -158,6 +162,31 @@ test("Compose projects qualification controls to descriptor preparation and work
     assert.ok(contextBlock.includes(projection), `context-engine missing ${projection}`);
     assert.ok(workerBlock.includes(projection), `worker missing ${projection}`);
   }
+});
+
+test("product namespace gate excludes historical evolution evidence but still covers operational source", () => {
+  const pathspecs = productNamespaceOperationalPathspecs();
+  assert.ok(pathspecs.includes(":!docs/evolution/**"));
+  assert.ok(pathspecs.includes(":!qualification/baseline/r17.4.5/**"));
+  assert.equal(productNamespaceReferenceClassification("docs/evolution/agnostic-performance-v1/implementation/WAVE-10.md"), "historical-evolution");
+  assert.equal(productNamespaceReferenceClassification("qualification/baseline/r17.4.5/report.json"), "historical-baseline");
+  for (const operationalPath of [
+    "docs/adr/0044-wave-scoped-qualification-source-authority.md",
+    "scripts/qualification/standalone-v1.mjs",
+    ".agents/runtime/event-driven-preparation.mjs",
+    "apps/runtime-worker/src/agent_runtime.rs",
+    "packages/project-adapters/src/trusted-config.mjs",
+    "compose.yaml",
+  ]) {
+    assert.equal(productNamespaceReferenceClassification(operationalPath), "operational");
+  }
+});
+
+test("R0 product namespace scan consumes the operational pathspec boundary", () => {
+  const qualification = source("scripts/qualification/standalone-v1.mjs");
+  assert.match(qualification, /productNamespaceOperationalPathspecs/u);
+  assert.match(qualification, /\.\.\.productNamespaceOperationalPathspecs\(\)/u);
+  assert.doesNotMatch(qualification, /"grep", "-niE"[\s\S]{0,240}":!qualification\/baseline\/r17\.4\.5\/\*\*"/u);
 });
 
 test("wave10 worker-loss scope is non-promotional and skips unrelated semantic gates", () => {
