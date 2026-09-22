@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "technical-plan-transient-repair-ordering-fixed-pending-rerun",
+  "status": "criterion-assignment-router-fixed-pending-focused-rerun",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -131,7 +131,7 @@
         "Technical Refinement semantic repair lost validationCommandIds"
       ]
     },
-    "technicalPlanCriterionAssignment": "FIXED_PENDING_EXACT_SHA_RERUN"
+    "technicalPlanCriterionAssignment": "ROUTER_FIXED_PENDING_FOCUSED_RERUN"
   },
   "historicalOperatorEvidence": {
     "candidate": "27480e5004ddf903e2dafaf8487437b7adf66858",
@@ -252,6 +252,14 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
       "status": "fixed-pending-exact-sha-rerun"
+    },
+    {
+      "gate": "R-1/workflow criterion-assignment routing",
+      "observed": "transient plan remained schema-valid but bounded repair was still skipped because implementation_plan_validation_command_ids_missing was not classified as repair-compatible",
+      "rootCause": "criterion-assignment issue classifier recognized invalid validation prose/coverage issues but not the Runtime-owned validation ID absence caused by the same criterionless transient work item",
+      "correction": "route validation ID absence through criterion-assignment only when it belongs to the exact criterionless target work item; unrelated ID authority failures remain outside the narrow repair",
+      "productionLogicBug": true,
+      "status": "fixed-pending-focused-rerun"
     }
   ],
   "livePreflightEvidence": {
