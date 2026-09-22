@@ -1280,10 +1280,22 @@ async fn prepare_restricted_model_agent(
         .context("behavior_agent_opencode_auth_copy_failed")?;
 
     let handoff = PathBuf::from(&descriptor.handoff_path);
-    let task_output_dir = handoff
+    let agent_output_dir = handoff
         .parent()
-        .context("behavior_agent_handoff_parent_missing")?
+        .context("model_agent_handoff_parent_missing")?
         .to_path_buf();
+    let task_output_dir = agent_output_dir
+        .parent()
+        .context("model_agent_task_output_parent_missing")?
+        .to_path_buf();
+    let expected_output_dir_prefix = format!("agent-output-attempt-{}", descriptor.attempt);
+    if agent_output_dir
+        .file_name()
+        .and_then(|value| value.to_str())
+        != Some(expected_output_dir_prefix.as_str())
+    {
+        bail!("model_agent_output_directory_invalid");
+    }
     for output_path in [
         &descriptor.log_path,
         &descriptor.result_path,
@@ -1291,35 +1303,48 @@ async fn prepare_restricted_model_agent(
     ] {
         let parent = Path::new(output_path)
             .parent()
-            .context("behavior_agent_output_parent_missing")?;
+            .context("model_agent_runtime_output_parent_missing")?;
         if parent != task_output_dir.as_path() {
-            bail!("behavior_agent_output_directory_mismatch");
+            bail!("model_agent_runtime_output_directory_mismatch");
         }
     }
+    tokio::fs::create_dir_all(&agent_output_dir)
+        .await
+        .context("model_agent_output_directory_create_failed")?;
 
     // Workspace and HOME are disposable attempt-scoped trees and may be owned
-    // recursively by the restricted model UID. The task output directory is
-    // chowned only at its root so already-materialized Task Brief/context
-    // evidence remains control-plane owned while the child can create handoff.
+    // recursively by the restricted model UID. Model-writable handoff/repair
+    // artifacts live in a dedicated per-attempt subdirectory so Task Brief,
+    // context, descriptor, result and log authority remain root/control-plane
+    // owned in the parent task directory.
     for path in [&workspace, &home] {
         let output = Command::new("chown")
             .args(["-R", &format!("{BEHAVIOR_AGENT_UID}:{BEHAVIOR_AGENT_GID}")])
             .arg(path)
             .output()
             .await
-            .context("behavior_agent_chown_spawn_failed")?;
+            .context("model_agent_chown_spawn_failed")?;
         if !output.status.success() {
-            bail!("behavior_agent_chown_failed");
+            bail!("model_agent_chown_failed");
         }
     }
-    let task_dir_chown = Command::new("chown")
+    let output_dir_chown = Command::new("chown")
         .arg(format!("{BEHAVIOR_AGENT_UID}:{BEHAVIOR_AGENT_GID}"))
-        .arg(&task_output_dir)
+        .arg(&agent_output_dir)
         .output()
         .await
-        .context("behavior_agent_task_output_chown_spawn_failed")?;
-    if !task_dir_chown.status.success() {
-        bail!("behavior_agent_task_output_chown_failed");
+        .context("model_agent_output_chown_spawn_failed")?;
+    if !output_dir_chown.status.success() {
+        bail!("model_agent_output_chown_failed");
+    }
+    let output_dir_chmod = Command::new("chmod")
+        .args(["0700"])
+        .arg(&agent_output_dir)
+        .output()
+        .await
+        .context("model_agent_output_chmod_spawn_failed")?;
+    if !output_dir_chmod.status.success() {
+        bail!("model_agent_output_chmod_failed");
     }
     Ok(home)
 }
