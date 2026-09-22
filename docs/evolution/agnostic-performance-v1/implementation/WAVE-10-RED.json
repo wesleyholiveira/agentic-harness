@@ -188,6 +188,20 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": true,
       "status": "fixed-pending-exact-sha-r1-rerun"
+    },
+    {
+      "gate": "R-1/workflow Technical Refinement bounded criterion repair",
+      "observed": {
+        "error": "technical_plan_synthesis_failed",
+        "remaining": [
+          "schema:implementationPlan.workItems[2].acceptanceCriteria: expected at least 1 items",
+          "schema:implementationPlan.workItems[2].validation: expected at least 1 items"
+        ]
+      },
+      "rootCause": "pre-repair canonicalization created schema-invalid empty arrays before criterion-assignment routing",
+      "correction": "preserve schema-valid transient values; final canonicalization still removes downstream criteria/prose after assignment",
+      "productionLogicBug": true,
+      "status": "fixed-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -275,5 +289,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "SCOPED_R1_SEVEN_FAILURES_FIXED_PENDING_CURRENT_EXACT_SHA"
+  "greenAfterFix": "R1_TRANSIENT_REPAIR_ORDERING_FIX_PENDING_CURRENT_EXACT_SHA"
 }
