@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "r9-worker-image-module-closure-fixed-pending-exact-sha-rerun",
+  "status": "r9-restricted-opencode-state-root-fixed-pending-exact-sha-rerun",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -214,6 +214,28 @@
         "technicalRefinementStarted": false,
         "processLossBoundaryReached": false
       }
+    },
+    "scopedWorkerLossAttemptOn848344f": {
+      "verdict": "HOLD",
+      "runId": "standalone-v1-1790112380611-f4129aab0581",
+      "qEntry": "PASS",
+      "preR0": "PASS",
+      "r0": "PASS",
+      "r1": "PASS",
+      "r2": "PASS",
+      "r3": "PASS",
+      "r4": "PASS",
+      "r5": "PASS",
+      "r6": "PASS",
+      "r9": {
+        "verdict": "HOLD",
+        "classification": "RUNTIME",
+        "code": "r9_process_loss_boundary_not_materialized",
+        "actualRootCause": "restricted UID 10001 could not mkdir manifest-adjacent opencode-attempt-state under root-owned task directory",
+        "productDiscoveryAttemptsFailed": 3,
+        "technicalRefinementStarted": false,
+        "processLossBoundaryReached": false
+      }
     }
   },
   "historicalOperatorEvidence": {
@@ -390,6 +412,17 @@
       "observed": "product-discovery failed 3 times with ERR_MODULE_NOT_FOUND for command-spec-catalog.mjs before Technical Refinement could materialize the process-loss boundary",
       "rootCause": "runtime-worker Docker image copied .agents and scripts but omitted packages/, while technical-plan-synthesis gained a Runtime dependency on project-adapters and its transitive source-identity/harness-contracts modules",
       "correction": "COPY packages ./packages and build-time import smoke for technical-plan-synthesis; regression contract pins full local module closure",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
+      "status": "fixed-pending-exact-sha-rerun"
+    },
+    {
+      "observedOnCandidate": "848344fe63ca5cb8aeae34159944c9f2cfe91b80",
+      "gate": "wave10-worker-loss/R-9",
+      "runId": "standalone-v1-1790112380611-f4129aab0581",
+      "observed": "Product Discovery entered the executor but all 3 attempts failed EACCES creating opencode-attempt-state beside the root-owned Agent Input Manifest",
+      "rootCause": "OpenCode attempt state path was inferred from manifest adjacency instead of the Runtime-owned writable sandbox authority",
+      "correction": "Rust projects an execution-state root below the restricted ephemeral HOME; executor prefers that root; inherited XDG roots are cleared; HOME cleanup removes copied auth/state before behavior",
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
       "status": "fixed-pending-exact-sha-rerun"
