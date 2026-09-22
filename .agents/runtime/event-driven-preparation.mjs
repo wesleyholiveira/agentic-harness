@@ -11,7 +11,11 @@ import { persistContextReady } from "./context-ready.mjs";
 import { isResumableRepairCheckpoint, readRepairCheckpoint, repairCheckpointPathForHandoff } from "./repair-checkpoint.mjs";
 import { prepareAgentInputManifest } from "./agent-input-preparation.mjs";
 import { loadAndVerifyAgentInputManifest } from "./agent-input-manifest.mjs";
-import { qualificationBehaviorCommandSpecIds } from "./qualification-behavior.mjs";
+import {
+  qualificationBehaviorCommandSpecIds,
+  qualificationCommandAuthorityFromConfiguration,
+} from "./qualification-behavior.mjs";
+import { loadCommittedProjectConfiguration } from "../../packages/project-adapters/src/trusted-config.mjs";
 
 function commandFromTemplate(template, values) {
   return template.replace(/\{([A-Za-z][A-Za-z0-9]*)\}/g, (match, key) => {
@@ -322,7 +326,15 @@ export async function prepareTaskExecution({ repositoryRoot, plan, taskPlan, reg
     ...(brief.commandSpecIds ?? taskPlan.commandSpecIds ?? []),
     ...qualificationCommandSpecIds,
   ].map((id) => String(id ?? "").trim()).filter(Boolean))];
-  const commandAuthority = brief.commandAuthority ?? taskPlan.commandAuthority ?? null;
+  let commandAuthority = brief.commandAuthority ?? taskPlan.commandAuthority ?? null;
+  if (qualificationCommandSpecIds.length > 0) {
+    const committedConfiguration = loadCommittedProjectConfiguration(repositoryRoot);
+    const qualificationAuthority = qualificationCommandAuthorityFromConfiguration(committedConfiguration);
+    if (commandAuthority && JSON.stringify(commandAuthority) !== JSON.stringify(qualificationAuthority)) {
+      throw new Error(`qualification_behavior_command_authority_mismatch:${taskPlan.taskId}`);
+    }
+    commandAuthority = qualificationAuthority;
+  }
   let behaviorGate = null;
   if (commandSpecIds.length > 0) {
     if (!commandAuthority || commandAuthority.schemaVersion !== "command-authority/v1") {
