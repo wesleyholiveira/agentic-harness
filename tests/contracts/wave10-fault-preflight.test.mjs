@@ -29,6 +29,10 @@ test("fault preflight owns fence replacement, PostgreSQL outage, gateway outage 
   assert.match(source, /docker_gateway_capability_store_unavailable/u);
   assert.match(source, /\["start", "postgres"\]/u);
   assert.match(source, /recoveredWithoutGatewayRestart/u);
+  assert.match(source, /gatewayProcessBaseline/u);
+  assert.match(source, /gatewayProcessAfterPostgres/u);
+  assert.match(source, /wave10_fault_postgres_outage_restarted_gateway/u);
+  assert.match(source, /restartCount/u);
   assert.match(source, /\["stop", "docker-behavior-gateway"\]/u);
   assert.match(source, /transportFailedClosed/u);
   assert.match(source, /behaviorContainerStartedWhileGatewayDown: false/u);
