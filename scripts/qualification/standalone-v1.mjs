@@ -1634,6 +1634,7 @@ async function r9() {
       || checkpoint.runId !== runId
       || checkpoint.taskId !== taskId
       || Number(checkpoint.taskAttempt) !== attempt
+      || checkpoint.qualificationBoundary !== "repair-checkpoint-before-behavior"
       || !checkpoint.effectKey) return null;
     return {
       taskId,
@@ -1666,6 +1667,63 @@ async function r9() {
     throw error;
   }
 
+  const descriptorRead = composeCommand([
+    "exec", "-T", "agent-runtime-worker", "node", "-e",
+    "const fs=require('node:fs');const p=process.argv[1];if(!fs.existsSync(p))process.exit(2);process.stdout.write(fs.readFileSync(p,'utf8'));",
+    target.descriptorPath,
+  ], { allowExitCodes: [0, 2], label: "r9-read-behavior-descriptor", timeoutMs: 30_000 });
+  if (descriptorRead.exitCode !== 0 || !descriptorRead.stdout.trim()) {
+    hold("R-9", "RUNTIME", "r9_behavior_descriptor_unreadable", { target, exitCode: descriptorRead.exitCode });
+  }
+  const sourceDescriptor = safeJson(descriptorRead.stdout);
+  const sourceBehaviorCommandIds = sourceDescriptor?.behaviorGate?.commandSpecIds ?? [];
+  if (sourceDescriptor?.behaviorGate?.schemaVersion !== "behavior-gate-descriptor/v1"
+    || JSON.stringify(sourceBehaviorCommandIds) !== JSON.stringify([QUALIFICATION_BEHAVIOR_DELAY_COMMAND_ID])) {
+    hold("R-9", "RUNTIME", "r9_behavior_delay_command_not_injected", {
+      target,
+      behaviorGate: sourceDescriptor?.behaviorGate ?? null,
+      expectedCommandSpecIds: [QUALIFICATION_BEHAVIOR_DELAY_COMMAND_ID],
+    });
+  }
+
+  const sourceBehaviorStarted = await waitFor(() => {
+    const rows = sqlRows(`SELECT payload_json FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND task_id='${sqlQuote(target.taskId)}' AND event_type='behavior.gateway.started' ORDER BY created_at DESC LIMIT 8;`);
+    for (const [payloadJson] of rows) {
+      const payload = safeJson(payloadJson);
+      if (Number(payload.attempt) === target.attempt
+        && Number(payload.dispatchGeneration) === target.dispatchGeneration
+        && Number(payload.fencingToken) === target.fencingToken
+        && Number(payload.commandCount) === 1) return payload;
+    }
+    return null;
+  }, { timeoutMs: 20 * 60_000, intervalMs: 500, label: "r9-source-behavior-started" });
+
+  const sourceBehaviorContainerName = behaviorContainerName({
+    runId,
+    taskId: target.taskId,
+    attempt: target.attempt,
+    dispatchGeneration: target.dispatchGeneration,
+    fencingToken: target.fencingToken,
+  }, QUALIFICATION_BEHAVIOR_DELAY_COMMAND_ID);
+  const sourceBehaviorContainer = await waitFor(() => {
+    const inspect = runner.run("docker", [
+      "container", "inspect", sourceBehaviorContainerName,
+    ], { label: "r9-source-behavior-running", allowExitCodes: [0, 1], timeoutMs: 10_000 });
+    if (inspect.exitCode !== 0) return null;
+    const value = JSON.parse(inspect.stdout)[0];
+    return value?.State?.Running === true ? value : null;
+  }, { timeoutMs: 30_000, intervalMs: 100, label: "r9-source-behavior-container-running" });
+
+  const gatewayIdBeforeWorkerLoss = composeCommand(["ps", "-q", "docker-behavior-gateway"], {
+    label: "r9-gateway-before-worker-loss-id",
+  }).stdout.trim();
+  if (!gatewayIdBeforeWorkerLoss) {
+    hold("R-9", "RUNTIME", "r9_gateway_missing_before_worker_loss", { target });
+  }
+  const gatewayBeforeWorkerLoss = JSON.parse(runner.run("docker", ["inspect", gatewayIdBeforeWorkerLoss], {
+    label: "r9-gateway-before-worker-loss-inspect",
+  }).stdout)[0];
+
   const workerId = composeCommand(["ps", "-q", "agent-runtime-worker"], { label: "r9-worker-id" }).stdout.trim();
   if (!workerId || workerId !== armedWorkerId) {
     hold("R-9", "RUNTIME", "r9_worker_identity_changed_before_process_loss", { armedWorkerId, workerId, target });
@@ -1684,6 +1742,36 @@ async function r9() {
   // `unless-stopped` restart, which is precisely the qualification defect that
   // produced the preceding R-9 timeout.
   const processLoss = runner.run("docker", processLossArgs, { label: "r9-worker-process-loss", timeoutMs: 60_000 });
+
+  const sourceBehaviorRemovedAt = await waitFor(() => {
+    const inspect = runner.run("docker", ["container", "inspect", sourceBehaviorContainerName], {
+      label: "r9-source-behavior-removed-after-worker-loss",
+      allowExitCodes: [0, 1],
+      timeoutMs: 10_000,
+    });
+    return inspect.exitCode !== 0 ? new Date().toISOString() : null;
+  }, { timeoutMs: 30_000, intervalMs: 100, label: "r9-source-behavior-container-removed" });
+
+  const gatewayAfterWorkerLoss = JSON.parse(runner.run("docker", ["inspect", gatewayIdBeforeWorkerLoss], {
+    label: "r9-gateway-after-worker-loss-inspect",
+  }).stdout)[0];
+  if (gatewayAfterWorkerLoss?.State?.Running !== true
+    || Number(gatewayAfterWorkerLoss?.State?.Pid ?? 0) !== Number(gatewayBeforeWorkerLoss?.State?.Pid ?? 0)
+    || Number(gatewayAfterWorkerLoss?.RestartCount ?? -1) !== Number(gatewayBeforeWorkerLoss?.RestartCount ?? -1)) {
+    hold("R-9", "RUNTIME", "r9_gateway_restarted_during_worker_disconnect", {
+      before: {
+        id: gatewayIdBeforeWorkerLoss,
+        pid: gatewayBeforeWorkerLoss?.State?.Pid ?? null,
+        restartCount: gatewayBeforeWorkerLoss?.RestartCount ?? null,
+      },
+      after: {
+        id: gatewayAfterWorkerLoss?.Id ?? null,
+        pid: gatewayAfterWorkerLoss?.State?.Pid ?? null,
+        restartCount: gatewayAfterWorkerLoss?.RestartCount ?? null,
+        running: gatewayAfterWorkerLoss?.State?.Running === true,
+      },
+    });
+  }
 
   // Expire only the exact physical execution identity that was killed and wake
   // the semantic controller. The semantic attempt is deliberately unchanged;
@@ -1726,6 +1814,80 @@ async function r9() {
       statusObserved: status,
     };
   }, { timeoutMs: 20 * 60_000, intervalMs: 1_000, label: "r9-repair-resume-receipt" });
+
+  const replacementBehaviorStarted = await waitFor(() => {
+    const rows = sqlRows(`SELECT payload_json FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND task_id='${sqlQuote(target.taskId)}' AND event_type='behavior.gateway.started' ORDER BY created_at DESC LIMIT 8;`);
+    for (const [payloadJson] of rows) {
+      const payload = safeJson(payloadJson);
+      if (Number(payload.attempt) === replacement.attempt
+        && Number(payload.dispatchGeneration) === replacement.dispatchGeneration
+        && Number(payload.fencingToken) === replacement.fencingToken
+        && Number(payload.commandCount) === 1) return payload;
+    }
+    return null;
+  }, { timeoutMs: 20 * 60_000, intervalMs: 250, label: "r9-replacement-behavior-started" });
+
+  const replacementBehaviorContainerName = behaviorContainerName({
+    runId,
+    taskId: target.taskId,
+    attempt: replacement.attempt,
+    dispatchGeneration: replacement.dispatchGeneration,
+    fencingToken: replacement.fencingToken,
+  }, QUALIFICATION_BEHAVIOR_DELAY_COMMAND_ID);
+  const replacementBehaviorContainer = await waitFor(() => {
+    const inspect = runner.run("docker", ["container", "inspect", replacementBehaviorContainerName], {
+      label: "r9-replacement-behavior-running",
+      allowExitCodes: [0, 1],
+      timeoutMs: 10_000,
+    });
+    if (inspect.exitCode !== 0) return null;
+    const value = JSON.parse(inspect.stdout)[0];
+    return value?.State?.Running === true ? value : null;
+  }, { timeoutMs: 30_000, intervalMs: 100, label: "r9-replacement-behavior-container-running" });
+
+  const replacementBehaviorCompleted = await waitFor(() => {
+    const rows = sqlRows(`SELECT payload_json FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND task_id='${sqlQuote(target.taskId)}' AND event_type='behavior.gateway.completed' ORDER BY created_at DESC LIMIT 8;`);
+    for (const [payloadJson] of rows) {
+      const payload = safeJson(payloadJson);
+      if (Number(payload.attempt) === replacement.attempt
+        && Number(payload.dispatchGeneration) === replacement.dispatchGeneration
+        && Number(payload.fencingToken) === replacement.fencingToken
+        && payload.status === "PASSED"
+        && payload.code === "docker_gateway_behavior_passed"
+        && Number(payload.receiptCount) === 1) return payload;
+    }
+    return null;
+  }, { timeoutMs: 2 * 60_000, intervalMs: 250, label: "r9-replacement-behavior-completed" });
+
+  const replacementBehaviorRemovedAt = await waitFor(() => {
+    const inspect = runner.run("docker", ["container", "inspect", replacementBehaviorContainerName], {
+      label: "r9-replacement-behavior-removed",
+      allowExitCodes: [0, 1],
+      timeoutMs: 10_000,
+    });
+    return inspect.exitCode !== 0 ? new Date().toISOString() : null;
+  }, { timeoutMs: 30_000, intervalMs: 100, label: "r9-replacement-behavior-container-removed" });
+
+  const gatewayAfterRecovery = JSON.parse(runner.run("docker", ["inspect", gatewayIdBeforeWorkerLoss], {
+    label: "r9-gateway-after-recovery-inspect",
+  }).stdout)[0];
+  if (gatewayAfterRecovery?.State?.Running !== true
+    || Number(gatewayAfterRecovery?.State?.Pid ?? 0) !== Number(gatewayBeforeWorkerLoss?.State?.Pid ?? 0)
+    || Number(gatewayAfterRecovery?.RestartCount ?? -1) !== Number(gatewayBeforeWorkerLoss?.RestartCount ?? -1)) {
+    hold("R-9", "RUNTIME", "r9_gateway_identity_changed_during_worker_recovery", {
+      before: {
+        id: gatewayIdBeforeWorkerLoss,
+        pid: gatewayBeforeWorkerLoss?.State?.Pid ?? null,
+        restartCount: gatewayBeforeWorkerLoss?.RestartCount ?? null,
+      },
+      after: {
+        id: gatewayAfterRecovery?.Id ?? null,
+        pid: gatewayAfterRecovery?.State?.Pid ?? null,
+        restartCount: gatewayAfterRecovery?.RestartCount ?? null,
+        running: gatewayAfterRecovery?.State?.Running === true,
+      },
+    });
+  }
 
   const events = sqlRows(`SELECT event_type,payload_json,coalesce(task_id,'') FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND task_id='${sqlQuote(target.taskId)}' AND event_type LIKE 'repair.%' ORDER BY created_at;`).map(([eventType, payloadJson, taskId]) => ({ event_type: eventType, task_id: taskId, payload_json: safeJson(payloadJson) }));
   const sourceIdentity = {
