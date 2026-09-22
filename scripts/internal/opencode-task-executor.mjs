@@ -113,6 +113,10 @@ export async function prepareIsolatedOpenCodeAttemptEnv({ manifestPath, attempt,
   };
   delete isolatedEnv.OPENCODE_CONFIG;
   delete isolatedEnv.OPENCODE_CONFIG_DIR;
+  // Pure mode suppresses only external plugins. Keep OpenCode's built-in
+  // CodexAuthPlugin authoritative for ChatGPT OAuth even if a parent process
+  // happened to disable default plugins.
+  delete isolatedEnv.OPENCODE_DISABLE_DEFAULT_PLUGINS;
   return {
     env: isolatedEnv,
     stateRoot,
