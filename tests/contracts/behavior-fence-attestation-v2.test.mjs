@@ -51,7 +51,7 @@ function runner() {
     user: "1000:1000",
     platform: "linux/amd64",
     buildTarget: "test",
-    image: { mode: "pinned-reference", reference: "example.invalid/tool@sha256:" + "e".repeat(64) },
+    image: { mode: "source-attested-build", reference: null },
     dependencyFiles: ["package-lock.json"],
   };
 }
@@ -240,7 +240,7 @@ test("image attestation rejects stale source or different materialization", t =>
   }, { spec: f.spec, sourceBinding: f.sourceBinding, materialization: f.materialization }), /docker_image_attestation_mismatch/);
 });
 
-test("Docker image attestation probe reads only the three authority labels", t => {
+test("source-attested image probe binds the post-commit image to the three authority labels", t => {
   const f = fixture(t);
   const calls = [];
   const execute = argv => {
