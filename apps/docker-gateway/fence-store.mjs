@@ -44,6 +44,15 @@ export async function createPostgresCapabilityVerifier({
       idleTimeoutMillis: 30_000,
     });
   }
+  // node-postgres emits Pool#error for idle clients when the backend disappears.
+  // Without a listener, EventEmitter treats it as an uncaught error and can
+  // terminate the gateway process, turning an authority-store outage into an
+  // abrupt client socket reset. Keep the gateway alive; the bounded query below
+  // remains the authoritative health check and maps failures to fail-closed HOLD.
+  if (typeof ownedPool?.on === 'function') {
+    ownedPool.on('error', () => {});
+  }
+
   const table = name => `"${schema}"."${name}"`;
 
   return async function verifyCapability(request, { now = new Date() } = {}) {
