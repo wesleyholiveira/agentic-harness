@@ -18,6 +18,8 @@ COPY --chown=node:node compose.yaml compose.yaml
 COPY --chown=node:node .agents/runtime/ .agents/runtime/
 COPY --chown=node:node .agents/schemas/ .agents/schemas/
 COPY --chown=node:node scripts/internal/source-manifest.mjs scripts/internal/source-manifest.mjs
+COPY --chown=node:node scripts/internal/opencode-task-executor.mjs scripts/internal/opencode-task-executor.mjs
+COPY --chown=node:node scripts/qualification/standalone-v1.mjs scripts/qualification/standalone-v1.mjs
 COPY --chown=node:node scripts/qualification/wave10-live-preflight.mjs scripts/qualification/wave10-live-preflight.mjs
 COPY --chown=node:node scripts/qualification/wave10-fault-preflight.mjs scripts/qualification/wave10-fault-preflight.mjs
 COPY --chown=node:node scripts/qualification/lib/fixture.mjs scripts/qualification/lib/fixture.mjs
@@ -37,6 +39,7 @@ COPY --chown=node:node tests/contracts/docker-behavior-gateway-v1.test.mjs tests
 COPY --chown=node:node tests/contracts/runtime-regressions.test.mjs tests/contracts/runtime-regressions.test.mjs
 COPY --chown=node:node tests/contracts/wave10-live-preflight.test.mjs tests/contracts/wave10-live-preflight.test.mjs
 COPY --chown=node:node tests/contracts/wave10-fault-preflight.test.mjs tests/contracts/wave10-fault-preflight.test.mjs
+COPY --chown=node:node tests/contracts/wave10-worker-loss.test.mjs tests/contracts/wave10-worker-loss.test.mjs
 USER node
 FROM toolchain AS test
-CMD ["sh", "-ec", "node --version; git --version; id; node --check apps/docker-gateway/server.mjs; node --check apps/docker-gateway/fence-store.mjs; node --test tests/contracts/portable-contracts.test.mjs tests/contracts/source-identity-v2.test.mjs tests/contracts/project-descriptor.test.mjs tests/contracts/command-admission-v2.test.mjs tests/contracts/trusted-project-config-v2.test.mjs tests/contracts/command-readiness-v2.test.mjs tests/contracts/validation-command-authority-v2.test.mjs tests/contracts/command-spec-execution-v2.test.mjs tests/contracts/behavior-fence-attestation-v2.test.mjs tests/contracts/docker-behavior-gateway-v1.test.mjs tests/contracts/runtime-regressions.test.mjs tests/contracts/wave10-live-preflight.test.mjs tests/contracts/wave10-fault-preflight.test.mjs"]
+CMD ["sh", "-ec", "node --version; git --version; id; node --check apps/docker-gateway/server.mjs; node --check apps/docker-gateway/fence-store.mjs; node --test tests/contracts/portable-contracts.test.mjs tests/contracts/source-identity-v2.test.mjs tests/contracts/project-descriptor.test.mjs tests/contracts/command-admission-v2.test.mjs tests/contracts/trusted-project-config-v2.test.mjs tests/contracts/command-readiness-v2.test.mjs tests/contracts/validation-command-authority-v2.test.mjs tests/contracts/command-spec-execution-v2.test.mjs tests/contracts/behavior-fence-attestation-v2.test.mjs tests/contracts/docker-behavior-gateway-v1.test.mjs tests/contracts/runtime-regressions.test.mjs tests/contracts/wave10-live-preflight.test.mjs tests/contracts/wave10-fault-preflight.test.mjs tests/contracts/wave10-worker-loss.test.mjs"]
