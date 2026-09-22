@@ -49,6 +49,29 @@ test("stalled executor output draining is bounded so inherited pipes cannot hold
   assert.match(worker, /drain_executor_output\(stderr_task, "stderr", claimed, client\)\.await/);
 });
 
+test("restricted model OpenCode state is rooted in Runtime-owned ephemeral HOME, never the root-owned task directory", () => {
+  const worker = source("apps/runtime-worker/src/agent_runtime.rs");
+  const executor = source("scripts/internal/opencode-task-executor.mjs");
+
+  assert.match(worker, /command\.env_remove\("AGENT_HARNESS_AGENT_EXECUTION_STATE_ROOT"\)/u);
+  assert.match(worker, /command\.env_remove\("XDG_DATA_HOME"\)/u);
+  assert.match(worker, /command\.env_remove\("XDG_STATE_HOME"\)/u);
+  assert.match(
+    worker,
+    /"AGENT_HARNESS_AGENT_EXECUTION_STATE_ROOT",[\s\S]*home\.join\("runtime-state"\)/u,
+  );
+  assert.match(worker, /model_agent_home_cleanup_after_execution_failed/u);
+
+  assert.match(executor, /AGENT_HARNESS_AGENT_EXECUTION_STATE_ROOT/u);
+  assert.match(executor, /runtime-projected-ephemeral-home/u);
+  assert.match(executor, /manifest-adjacent-legacy-fallback/u);
+  assert.match(executor, /resolveOpenCodeAttemptStateRoot/u);
+  assert.doesNotMatch(
+    executor,
+    /const stateRoot = join\(dirname\(resolve\(String\(manifestPath\)\)\), "opencode-attempt-state"/u,
+  );
+});
+
 test("runtime-worker image packages the full JS dependency closure required by technical plan synthesis", () => {
   const dockerfile = source("apps/runtime-worker/Dockerfile");
   assert.match(dockerfile, /COPY packages \.\/packages/u);
