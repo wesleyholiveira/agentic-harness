@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "gateway-cli-compatibility-fixed-pending-live-preflight-rerun",
+  "status": "docker-version-probe-parser-fixed-pending-live-preflight-rerun",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -65,7 +65,7 @@
     "postgresOutageFault": "NOT_RUN",
     "behaviorProcessLossRecovery": "NOT_RUN",
     "runtimeQualification": "NOT_RUN",
-    "livePreflight": "RED_ON_3e091f1_DOCKER_EXIT_125_OLD_GATEWAY_CLI_FIXED_PENDING_RERUN"
+    "livePreflight": "RED_ON_cd909cf_VERSION_PROBE_WHITESPACE_PARSER_FIXED_PENDING_RERUN"
   },
   "historicalOperatorEvidence": {
     "candidate": "27480e5004ddf903e2dafaf8487437b7adf66858",
@@ -123,6 +123,16 @@
       "observed": "gateway behavior admission fully authorized but Docker execution returned exitCode=125 with 338 stderr bytes",
       "rootCause": "gateway image installed Debian Bookworm docker.io 20.10.24; behavior isolation requires volume-subpath introduced in Docker CLI/Engine 26.0 API 1.45",
       "correction": "copy official docker:27.5.1-cli binary into gateway and reject client<26 or server API<1.45 in live preflight",
+      "status": "fixed-pending-exact-sha-live-preflight-rerun"
+    },
+    {
+      "observedOnCandidate": "cd909cfbb61dea32f52ab70bbe0d5e2556718ace",
+      "gate": "wave10-live-preflight",
+      "preflightId": "wave10-live-preflight-1790038108049-800f65da2173",
+      "observed": "gateway Docker version probe returned '27.5.1              1.55' but parser expected a literal tab and treated serverApiVersion as missing",
+      "correction": "parse exactly two non-empty whitespace-delimited fields; retain client >=26 and daemon API >=1.45 enforcement; add exact Windows/Docker Desktop aligned-output regression",
+      "productionLogicBug": false,
+      "qualificationHarnessBug": true,
       "status": "fixed-pending-exact-sha-live-preflight-rerun"
     }
   ]
