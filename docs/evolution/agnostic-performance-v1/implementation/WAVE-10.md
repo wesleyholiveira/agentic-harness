@@ -598,6 +598,29 @@ Corrections:
 No `allow` or `expect` attribute was introduced and no behavior-gateway,
 fencing, HMAC or restricted-user semantics changed.
 
+## Scoped R-4 Compose profile correction
+
+Scoped run `standalone-v1-1790046982294-cc303fd69be5` on candidate
+`12702c35bc68f569d863b7c3a2dcb267b1a132ab` proved Q-ENTRY, PRE-R0,
+R-0, R-1, R-2 and R-3 PASS.
+
+R-4 then failed before behavior-gateway startup because the qualification
+controller invoked Compose with only `--profile behavior-gateway`.
+The `docker-behavior-gateway` service depends on `database-migrate`, while
+`database-migrate` belongs to the `runtime` profile. Compose therefore
+rejected the project as invalid with
+`depends on undefined service "database-migrate"`.
+
+The R-4 gateway startup now activates both profiles:
+
+`--profile runtime --profile behavior-gateway up -d docker-behavior-gateway`
+
+This matches the already-qualified live/fault preflight topology. Startup
+remains target-scoped to the gateway; the runtime profile is enabled only so
+its declared dependency graph is valid.
+
+A contract now pins this exact profile combination.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
