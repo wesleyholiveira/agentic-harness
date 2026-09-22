@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "live-preflight-green-fault-qualification-next",
+  "status": "fault-preflight-implemented-pending-exact-sha-validation",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -29,7 +29,12 @@
     "exact fence-bound behavior container absence proof",
     "fail-closed live preflight cleanup",
     "behavior gateway Docker CLI 27.5.1 with volume-subpath support",
-    "live preflight Docker client >=26 and daemon API >=1.45 compatibility gate"
+    "live preflight Docker client >=26 and daemon API >=1.45 compatibility gate",
+    "deterministic external-client WAVE-10 fault preflight",
+    "in-flight fence replacement revocation scenario",
+    "in-flight PostgreSQL outage revocation and same-gateway recovery scenario",
+    "gateway-down fail-closed transport and recovery scenario",
+    "concurrent ProcessRunner secret-stdin completion contract"
   ],
   "security": {
     "dockerSocketOnWorker": false,
@@ -60,9 +65,9 @@
     "gatewayImageBuild": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
     "normalModelTaskRestrictedUidRegression": "NOT_RUN",
     "endToEndBehaviorTask": "NOT_RUN",
-    "inFlightFenceReplacementFault": "NOT_RUN",
-    "gatewayOutageFault": "NOT_RUN",
-    "postgresOutageFault": "NOT_RUN",
+    "inFlightFenceReplacementFault": "PENDING_WAVE10_FAULT_PREFLIGHT",
+    "gatewayOutageFault": "PENDING_WAVE10_FAULT_PREFLIGHT",
+    "postgresOutageFault": "PENDING_WAVE10_FAULT_PREFLIGHT",
     "behaviorProcessLossRecovery": "NOT_RUN",
     "runtimeQualification": "NOT_RUN",
     "livePreflight": "PASS_ON_0d8c0b6"
@@ -151,5 +156,14 @@
     "rawCapabilityPersistedInEvidence": false,
     "hmacKeyPersistedInEvidence": false,
     "cleanupOk": true
-  }
+  },
+  "remainingAfterFaultPreflight": [
+    "physical Rust worker process loss while behavior execution is in-flight",
+    "normal non-behavior model task restricted-UID runtime regression",
+    "full existing Runtime/cache/memory/model-routing/continuation regression qualification",
+    "T10 reusable receipt qualification",
+    "T13 CLI/profile integration",
+    "T21 context-economy parity",
+    "T15/T16/T17 release closure"
+  ]
 }
