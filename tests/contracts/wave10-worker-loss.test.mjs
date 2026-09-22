@@ -4,7 +4,10 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { qualificationBehaviorCommandSpecIds } from "../../.agents/runtime/qualification-behavior.mjs";
+import {
+  qualificationBehaviorCommandSpecIds,
+  qualificationCommandAuthorityFromConfiguration,
+} from "../../.agents/runtime/qualification-behavior.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const source = path => readFileSync(resolve(root, path), "utf8");
@@ -90,6 +93,43 @@ test("qualification behavior override fails closed on malformed command or attem
     attempt: 1,
     env: qualificationEnv({ AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT: "not-a-number" }),
   }), /qualification_behavior_attempt_invalid/u);
+});
+
+test("qualification command authority is derived only from trusted committed configuration", () => {
+  const configuration = {
+    schemaVersion: "committed-project-configuration/v1",
+    sourceTrustVerified: true,
+    policyTrustVerified: true,
+    sourceCommit: "a".repeat(40),
+    sourceSnapshotSha256: "sha256:" + "b".repeat(64),
+    descriptorDigest: "sha256:" + "c".repeat(64),
+    policyDigest: "sha256:" + "d".repeat(64),
+    descriptor: {
+      projectId: "qualification-project",
+      repositoryId: "qualification-repository",
+    },
+  };
+  assert.deepEqual(qualificationCommandAuthorityFromConfiguration(configuration), {
+    schemaVersion: "command-authority/v1",
+    projectId: "qualification-project",
+    repositoryId: "qualification-repository",
+    sourceCommit: configuration.sourceCommit,
+    sourceSnapshotSha256: configuration.sourceSnapshotSha256,
+    descriptorDigest: configuration.descriptorDigest,
+    policyDigest: configuration.policyDigest,
+  });
+  assert.throws(
+    () => qualificationCommandAuthorityFromConfiguration({ ...configuration, sourceTrustVerified: false }),
+    /qualification_behavior_committed_configuration_invalid/u,
+  );
+});
+
+test("event preparation may derive qualification authority but fails on any pre-existing mismatch", () => {
+  const preparation = source(".agents/runtime/event-driven-preparation.mjs");
+  assert.match(preparation, /loadCommittedProjectConfiguration\(repositoryRoot\)/u);
+  assert.match(preparation, /qualificationCommandAuthorityFromConfiguration/u);
+  assert.match(preparation, /qualification_behavior_command_authority_mismatch/u);
+  assert.match(preparation, /qualificationCommandSpecIds\.length > 0/u);
 });
 
 test("OpenCode process-loss checkpoint can continue to real behavior but never re-arms on resume", () => {
