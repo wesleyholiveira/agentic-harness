@@ -242,6 +242,19 @@ test("R4 starts behavior gateway with runtime dependency profile enabled", () =>
   );
 });
 
+test("R9 fails fast when the semantic run fails before the process-loss boundary", () => {
+  const qualification = source("scripts/qualification/standalone-v1.mjs");
+  const r9Start = qualification.indexOf("async function r9()");
+  const r9End = qualification.indexOf("\nfunction safeJson", r9Start);
+  const r9 = qualification.slice(r9Start, r9End);
+  const fastFailure = r9.indexOf("r9_pre_boundary_semantic_run_failed");
+  const longWait = r9.indexOf('label: "r9-process-loss-boundary"');
+  assert.ok(fastFailure >= 0 && longWait > fastFailure);
+  assert.match(r9, /status IN \('failed','blocked'\)/u);
+  assert.match(r9, /opencode\.failure|task\.failed/u);
+  assert.match(r9, /failedTask/u);
+});
+
 test("R9 kills worker only inside a physical behavior window and proves replacement behavior", () => {
   const qualification = source("scripts/qualification/standalone-v1.mjs");
   assert.match(qualification, /QUALIFICATION_BEHAVIOR_DELAY_COMMAND_ID/u);
