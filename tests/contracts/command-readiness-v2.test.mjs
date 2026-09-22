@@ -173,6 +173,54 @@ test('one-off materialization resolves only pinned image and never creates a con
   assert.ok(calls.every(argv=>!argv.includes('run')&&!argv.includes('exec')&&!argv.includes('ps')));
 });
 
+test('source-attested one-off materialization resolves exactly one image by committed authority labels',t=>{
+  const d=descriptor({runners:[spec({
+    operation:'one-off',
+    replica:null,
+    image:{mode:'source-attested-build',reference:null},
+  })]});
+  const f=fixture(t,d,policy(d));
+  const calls=[];
+  const expectedRunner=dockerRunnerSpecDigest(f.spec);
+  const expectedBinding=dockerRunnerSourceBindingDigest(f.binding,{spec:f.spec});
+  const execute=argv=>{
+    calls.push(argv);
+    if(argv.includes('info')) return {status:0,stdout:JSON.stringify('daemon:alpha'),stderr:''};
+    if(argv.includes('image')&&argv.includes('ls')) return {status:0,stdout:IMAGE+'\n',stderr:''};
+    if(argv.includes('image')&&argv.includes('inspect')) return {status:0,stdout:JSON.stringify({id:IMAGE,os:'linux',architecture:'amd64'}),stderr:''};
+    return {status:1,stdout:'',stderr:'unexpected'};
+  };
+  const result=probeDockerRunnerMaterialization({spec:f.spec,sourceBinding:f.binding},{root:f.root,execute});
+  assert.equal(result.status,'MATERIALIZED');
+  assert.equal(result.materialization.imageId,IMAGE);
+  assert.equal(result.materialization.containerId,null);
+  const listCall=calls.find(argv=>argv.includes('image')&&argv.includes('ls'));
+  assert.ok(listCall.includes(`label=org.agentic-harness.source-snapshot-sha256=${SOURCE}`));
+  assert.ok(listCall.includes(`label=org.agentic-harness.runner-spec-digest=${expectedRunner}`));
+  assert.ok(listCall.includes(`label=org.agentic-harness.source-binding-digest=${expectedBinding}`));
+  assert.ok(calls.every(argv=>!argv.includes('run')&&!argv.includes('exec')&&!argv.includes('ps')));
+});
+
+test('source-attested one-off materialization fails closed when no unique image matches',t=>{
+  const d=descriptor({runners:[spec({
+    operation:'one-off',
+    replica:null,
+    image:{mode:'source-attested-build',reference:null},
+  })]});
+  const f=fixture(t,d,policy(d));
+  const executeFor=stdout=>argv=>{
+    if(argv.includes('info')) return {status:0,stdout:JSON.stringify('daemon:alpha'),stderr:''};
+    if(argv.includes('image')&&argv.includes('ls')) return {status:0,stdout,stderr:''};
+    return {status:1,stdout:'',stderr:'unexpected'};
+  };
+  const missing=probeDockerRunnerMaterialization({spec:f.spec,sourceBinding:f.binding},{root:f.root,execute:executeFor('')});
+  assert.equal(missing.status,'HOLD');
+  assert.equal(missing.code,'docker_materialization_source_attested_image_missing');
+  const ambiguous=probeDockerRunnerMaterialization({spec:f.spec,sourceBinding:f.binding},{root:f.root,execute:executeFor(IMAGE+'\n'+'sha256:'+'f'.repeat(64)+'\n')});
+  assert.equal(ambiguous.status,'HOLD');
+  assert.equal(ambiguous.code,'docker_materialization_source_attested_image_ambiguous');
+});
+
 test('toolchain v2 executes fixed probe inside exact running container and reobserves it',t=>{
   const f=fixture(t), fake=execDocker();
   const workspace=bindWorkspaceAuthorityInputs(f.root,f.config);
