@@ -49,6 +49,23 @@ test("stalled executor output draining is bounded so inherited pipes cannot hold
   assert.match(worker, /drain_executor_output\(stderr_task, "stderr", claimed, client\)\.await/);
 });
 
+test("runtime-worker image packages the full JS dependency closure required by technical plan synthesis", () => {
+  const dockerfile = source("apps/runtime-worker/Dockerfile");
+  assert.match(dockerfile, /COPY packages \.\/packages/u);
+  assert.match(
+    dockerfile,
+    /RUN node --input-type=module -e "await import\('\.\/\.agents\/runtime\/technical-plan-synthesis\.mjs'\)"/u,
+  );
+
+  const synthesis = source(".agents/runtime/technical-plan-synthesis.mjs");
+  assert.match(synthesis, /packages\/project-adapters\/src\/command-spec-catalog\.mjs/u);
+  const catalog = source("packages/project-adapters/src/command-spec-catalog.mjs");
+  assert.match(catalog, /\.\/trusted-config\.mjs/u);
+  const trustedConfig = source("packages/project-adapters/src/trusted-config.mjs");
+  assert.match(trustedConfig, /packages\/source-identity|\.\.\/\.\.\/source-identity\/src\/git-snapshot\.mjs/u);
+  assert.match(trustedConfig, /\.\.\/\.\.\/harness-contracts\/src\//u);
+});
+
 test("runtime-worker Cargo.lock disambiguates the direct hmac 0.12 dependency", () => {
   const lock = source("apps/runtime-worker/Cargo.lock");
   const start = lock.indexOf('name = "agentic-harness-worker"');
