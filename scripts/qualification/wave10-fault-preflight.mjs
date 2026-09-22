@@ -397,6 +397,17 @@ export async function runWave10FaultPreflight({
     const gatewayId = compose(["ps", "-q", "docker-behavior-gateway"], { label: "fault-gateway-id" }).stdout.trim();
     if (!gatewayId) throw new Error("wave10_fault_gateway_container_missing");
     const gatewayInspect = JSON.parse(runner.run("docker", ["inspect", gatewayId], { label: "fault-gateway-inspect" }).stdout)[0];
+    const gatewayProcessBaseline = {
+      containerId: gatewayId,
+      pid: gatewayInspect?.State?.Pid ?? null,
+      restartCount: gatewayInspect?.RestartCount ?? null,
+    };
+    if (!Number.isInteger(gatewayProcessBaseline.pid) || gatewayProcessBaseline.pid <= 0
+        || !Number.isInteger(gatewayProcessBaseline.restartCount)) {
+      const error = new Error("wave10_fault_gateway_process_baseline_invalid");
+      error.evidence = gatewayProcessBaseline;
+      throw error;
+    }
     const workspaceMount = (gatewayInspect?.Mounts ?? []).find(item =>
       item?.Type === "volume"
       && item?.Destination === "/workspace/agent-workspaces"
@@ -441,6 +452,25 @@ export async function runWave10FaultPreflight({
     compose(["start", "postgres"], { label: "postgres-outage-start", timeoutMs: 60_000 });
     await requirePostgresReady("postgres-outage-recovered");
     const postgresRecovery = await quickRecoveryProbe("postgres-recovery");
+    const gatewayAfterPostgres = JSON.parse(runner.run("docker", ["inspect", gatewayId], {
+      label: "postgres-outage-gateway-process-after-recovery",
+    }).stdout)[0];
+    const gatewayProcessAfterPostgres = {
+      containerId: gatewayId,
+      pid: gatewayAfterPostgres?.State?.Pid ?? null,
+      restartCount: gatewayAfterPostgres?.RestartCount ?? null,
+      running: gatewayAfterPostgres?.State?.Running === true,
+    };
+    if (!gatewayProcessAfterPostgres.running
+        || gatewayProcessAfterPostgres.pid !== gatewayProcessBaseline.pid
+        || gatewayProcessAfterPostgres.restartCount !== gatewayProcessBaseline.restartCount) {
+      const error = new Error("wave10_fault_postgres_outage_restarted_gateway");
+      error.evidence = {
+        before: gatewayProcessBaseline,
+        after: gatewayProcessAfterPostgres,
+      };
+      throw error;
+    }
 
     const gatewayScenario = seedScenario("gateway-outage", QUALIFICATION_BEHAVIOR_COMMAND_ID);
     compose(["stop", "docker-behavior-gateway"], { label: "gateway-outage-stop", timeoutMs: 60_000 });
@@ -507,6 +537,8 @@ export async function runWave10FaultPreflight({
           behaviorContainerRemoved: true,
           receiptsAccepted: 0,
           recoveredWithoutGatewayRestart: true,
+          gatewayProcessBefore: gatewayProcessBaseline,
+          gatewayProcessAfter: gatewayProcessAfterPostgres,
           recoveryProbe: postgresRecovery,
         },
         gatewayOutage: {
