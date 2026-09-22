@@ -63,7 +63,11 @@ export function qualificationProjectDescriptor() {
     protectedPaths: [".harness", ".env"],
     runners: [runner],
     commands: [
-      qualificationBehaviorCommand(QUALIFICATION_BEHAVIOR_COMMAND_ID, ["--test"], 120_000),
+      qualificationBehaviorCommand(
+        QUALIFICATION_BEHAVIOR_COMMAND_ID,
+        ["--test", "test/format-name.test.mjs"],
+        120_000,
+      ),
       qualificationBehaviorCommand(
         QUALIFICATION_BEHAVIOR_DELAY_COMMAND_ID,
         ["-e", "setTimeout(() => process.exit(0), 15000)"],
