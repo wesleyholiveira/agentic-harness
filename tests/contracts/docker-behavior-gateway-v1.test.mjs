@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -353,6 +354,27 @@ test("gateway capability verifier binds the raw capability to the active Postgre
   const expired = await expiredVerifier(req, { now: new Date("2026-09-21T00:00:00.000Z") });
   assert.equal(expired.status, "HOLD");
   assert.equal(expired.code, "docker_gateway_fence_expired");
+});
+
+test("PostgreSQL pool background errors do not crash the gateway and query failures fail closed", async () => {
+  const req = request();
+  const hmacKey = "s".repeat(32);
+  const pool = new EventEmitter();
+  pool.query = async () => {
+    throw new Error("postgres unavailable");
+  };
+
+  const verifier = await createPostgresCapabilityVerifier({
+    hmacKey,
+    pool,
+  });
+
+  assert.equal(pool.listenerCount("error"), 1);
+  assert.doesNotThrow(() => pool.emit("error", new Error("idle backend disconnected")));
+
+  const result = await verifier(req, { now: new Date("2026-09-21T00:00:00.000Z") });
+  assert.equal(result.status, "HOLD");
+  assert.equal(result.code, "docker_gateway_capability_store_unavailable");
 });
 
 test("gateway HTTP server has no long-lived bearer token constructor", () => {
