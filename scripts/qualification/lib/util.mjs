@@ -52,7 +52,12 @@ export async function isPortFree(port) {
   });
 }
 
-export async function waitFor(predicate, { timeoutMs = 60_000, intervalMs = 500, label = "condition" } = {}) {
+export async function waitFor(predicate, {
+  timeoutMs = 60_000,
+  intervalMs = 500,
+  label = "condition",
+  shouldRetryError = () => true,
+} = {}) {
   const started = Date.now();
   let lastError = null;
   while (Date.now() - started < timeoutMs) {
@@ -60,6 +65,7 @@ export async function waitFor(predicate, { timeoutMs = 60_000, intervalMs = 500,
       const value = await predicate();
       if (value) return value;
     } catch (error) {
+      if (!shouldRetryError(error)) throw error;
       lastError = error;
     }
     await sleep(intervalMs);
