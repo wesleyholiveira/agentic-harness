@@ -194,22 +194,28 @@ test("model agent tasks drop child privileges and typed tasks kill the isolated 
   assert.match(worker, /command\.uid\(BEHAVIOR_AGENT_UID\)/);
   assert.match(worker, /command\.gid\(BEHAVIOR_AGENT_GID\)/);
   assert.match(worker, /command\.process_group\(0\)/);
+  const runtimeContracts = source(".agents/runtime/event-driven-contracts.mjs");
   assert.match(worker, /prepare_restricted_model_agent/);
-  assert.match(worker, /behavior_agent_output_directory_mismatch/);
-  assert.match(worker, /behavior_agent_task_output_chown_failed/);
+  assert.match(worker, /model_agent_output_directory_invalid/);
+  assert.match(worker, /model_agent_runtime_output_directory_mismatch/);
+  assert.match(worker, /model_agent_output_chown_failed/);
+  assert.match(worker, /model_agent_output_chmod_failed/);
   assert.match(worker, /descriptor\.handoff_path/);
   assert.match(worker, /descriptor\.log_path/);
   assert.match(worker, /descriptor\.result_path/);
   assert.match(worker, /descriptor\.change_set_path/);
+  assert.match(runtimeContracts, /agent-output-attempt-\$\{attempt\}/);
+  assert.match(runtimeContracts, /handoffPath: join\(agentOutputDirectory,/);
   assert.match(worker, /terminate_isolated_process_group\(pid\)\.await/);
 
   const recursiveWorkspaceChown = worker.indexOf('args(["-R", &format!("{BEHAVIOR_AGENT_UID}:{BEHAVIOR_AGENT_GID}")])');
-  const scopedTaskDirChown = worker.indexOf("let task_dir_chown = Command::new(\"chown\")", recursiveWorkspaceChown);
+  const scopedOutputDirChown = worker.indexOf("let output_dir_chown = Command::new(\"chown\")", recursiveWorkspaceChown);
+  const scopedOutputDirChmod = worker.indexOf("let output_dir_chmod = Command::new(\"chmod\")", scopedOutputDirChown);
   const drain = worker.indexOf('drain_executor_output(stdout_task, "stdout", claimed, client).await');
   const terminate = worker.indexOf("terminate_isolated_process_group(pid).await", drain);
   const homeCleanup = worker.indexOf("behavior_agent_home_cleanup_after_execution_failed", terminate);
   const capability = worker.indexOf("run_behavior_gateway_under_lease", drain);
-  assert.ok(recursiveWorkspaceChown >= 0 && scopedTaskDirChown > recursiveWorkspaceChown);
+  assert.ok(recursiveWorkspaceChown >= 0 && scopedOutputDirChown > recursiveWorkspaceChown && scopedOutputDirChmod > scopedOutputDirChown);
   assert.ok(drain >= 0 && terminate > drain && homeCleanup > terminate && capability > homeCleanup);
 });
 
