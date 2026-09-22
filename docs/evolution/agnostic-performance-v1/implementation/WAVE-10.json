@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "postgres-pool-error-fixed-pending-fault-preflight-rerun",
+  "status": "data-plane-faults-green-worker-loss-integrated-pending-qualification",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -34,7 +34,13 @@
     "in-flight fence replacement revocation scenario",
     "in-flight PostgreSQL outage revocation and same-gateway recovery scenario",
     "gateway-down fail-closed transport and recovery scenario",
-    "concurrent ProcessRunner secret-stdin completion contract"
+    "concurrent ProcessRunner secret-stdin completion contract",
+    "ADR 0043 physical worker loss inside real behavior-gateway window",
+    "qualification-only committed-authority behavior CommandSpec injection",
+    "R-9 source behavior running proof before worker SIGKILL",
+    "R-9 client-disconnect behavior container removal proof",
+    "R-9 replacement behavior PASSED proof under generation/fence +1",
+    "R-9 Context Engine and worker qualification-control disarm"
   ],
   "security": {
     "dockerSocketOnWorker": false,
@@ -65,10 +71,10 @@
     "gatewayImageBuild": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
     "normalModelTaskRestrictedUidRegression": "NOT_RUN",
     "endToEndBehaviorTask": "NOT_RUN",
-    "inFlightFenceReplacementFault": "PASS_ON_fc3e5f7",
-    "gatewayOutageFault": "PENDING_WAVE10_FAULT_PREFLIGHT",
-    "postgresOutageFault": "RED_ON_fc3e5f7_GATEWAY_POOL_ERROR_CRASH_FIXED_PENDING_RERUN",
-    "behaviorProcessLossRecovery": "NOT_RUN",
+    "inFlightFenceReplacementFault": "PASS_ON_51c1b8f",
+    "gatewayOutageFault": "PASS_ON_51c1b8f",
+    "postgresOutageFault": "PASS_ON_51c1b8f",
+    "behaviorProcessLossRecovery": "IMPLEMENTED_PENDING_EXACT_SHA_R9",
     "runtimeQualification": "NOT_RUN",
     "livePreflight": "PASS_ON_0d8c0b6"
   },
@@ -180,7 +186,7 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
-    "physical Rust worker process loss while behavior execution is in-flight",
+    "exact-SHA R-9 physical Rust worker loss while behavior execution is in-flight",
     "normal non-behavior model task restricted-UID runtime regression",
     "full existing Runtime/cache/memory/model-routing/continuation regression qualification",
     "T10 reusable receipt qualification",
@@ -197,5 +203,38 @@
       "receiptsAccepted": 0,
       "behaviorContainerRemoved": true
     }
+  },
+  "faultPreflightEvidence": {
+    "candidate": "51c1b8ffdff0da1917b90dafaf6a288fd43172b5",
+    "preflightId": "wave10-fault-preflight-1790039570229-045992690cb5",
+    "verdict": "PASS",
+    "fenceReplacement": {
+      "holdCode": "docker_gateway_fence_identity_mismatch",
+      "behaviorContainerRemoved": true,
+      "replacementFencingToken": 2,
+      "receiptsAccepted": 0
+    },
+    "postgresOutage": {
+      "holdCode": "docker_gateway_capability_store_unavailable",
+      "behaviorContainerRemoved": true,
+      "receiptsAccepted": 0,
+      "recoveredWithoutGatewayRestart": true,
+      "gatewayPidBefore": 96458,
+      "gatewayPidAfter": 96458,
+      "restartCountBefore": 0,
+      "restartCountAfter": 0,
+      "recoveryAttempts": 1
+    },
+    "gatewayOutage": {
+      "transportFailedClosed": true,
+      "behaviorContainerStartedWhileGatewayDown": false,
+      "recovered": true,
+      "retryGatewayStatus": "PASSED",
+      "retryReceiptStatus": "BEHAVIOR_PASSED",
+      "behaviorContainerRemoved": true
+    },
+    "rawCapabilityPersistedInEvidence": false,
+    "hmacKeyPersistedInEvidence": false,
+    "cleanupOk": true
   }
 }
