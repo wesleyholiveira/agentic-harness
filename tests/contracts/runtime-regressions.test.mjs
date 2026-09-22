@@ -49,6 +49,27 @@ test("stalled executor output draining is bounded so inherited pipes cannot hold
   assert.match(worker, /drain_executor_output\(stderr_task, "stderr", claimed, client\)\.await/);
 });
 
+test("OpenCode attempt-state resolver gives Runtime-projected state root precedence over manifest adjacency", async () => {
+  const { resolveOpenCodeAttemptStateRoot } = await import("../../scripts/internal/opencode-task-executor.mjs");
+  const manifestPath = resolve(root, "synthetic-runtime", "task", "agent-input-manifest.json");
+  const runtimeRoot = resolve(root, "synthetic-runtime-owned-state");
+
+  const projected = resolveOpenCodeAttemptStateRoot({
+    manifestPath,
+    attempt: 2,
+    env: { AGENT_HARNESS_AGENT_EXECUTION_STATE_ROOT: runtimeRoot },
+  });
+  assert.equal(projected.stateRoot, resolve(runtimeRoot, "attempt-2"));
+  assert.equal(projected.authority, "runtime-projected-ephemeral-home");
+
+  const legacy = resolveOpenCodeAttemptStateRoot({ manifestPath, attempt: 2, env: {} });
+  assert.equal(
+    legacy.stateRoot,
+    resolve(root, "synthetic-runtime", "task", "opencode-attempt-state", "attempt-2"),
+  );
+  assert.equal(legacy.authority, "manifest-adjacent-legacy-fallback");
+});
+
 test("restricted model OpenCode state is rooted in Runtime-owned ephemeral HOME, never the root-owned task directory", () => {
   const worker = source("apps/runtime-worker/src/agent_runtime.rs");
   const executor = source("scripts/internal/opencode-task-executor.mjs");
