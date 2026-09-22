@@ -1642,7 +1642,10 @@ export async function repairImplementationPlanFromReview({
     });
     repairedPlan = result.value;
     assertSchema(repairedPlan, schema, "technicalReviewRepair");
-    repairEvidence = implementationPlanMutationEvidence(sourcePlan, repairedPlan);
+    // Mutation evidence is computed after Runtime-owned canonicalization below so
+    // omitted validationCommandIds/commandAuthority cannot masquerade as semantic
+    // model mutations.
+    repairEvidence = [];
     // `none` describes the deterministic issue vector, not the semantic review
     // mutation being attempted. Emitting none here hid real structural repairs in
     // production traces and made repeated ineffective repairs indistinguishable.
@@ -1656,6 +1659,9 @@ export async function repairImplementationPlanFromReview({
     validationCommandCatalog,
   });
   repairedPlan = repairedCanonicalization.plan;
+  if (repairClassification.scope !== "acceptance-coverage-only") {
+    repairEvidence = implementationPlanMutationEvidence(sourcePlan, repairedPlan);
+  }
 
   const validationIssues = technicalPlanRepairIssues({
     implementationPlan: repairedPlan,
