@@ -1,17 +1,21 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "implemented-slice-pending-target-validation",
+  "status": "implementation-hardened-pending-exact-sha-qualification",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
     "Rust gateway client with heartbeat and fence supervision",
-    "post-agent 64-hex capability",
+    "post-agent 64-hex ephemeral capability",
     "HMAC-SHA256 fence-bound capability proof",
-    "PostgreSQL gateway capability verification",
-    "typed child UID/GID 10001 privilege drop",
-    "isolated process-group teardown before capability mint",
-    "temporary OpenCode HOME cleanup",
+    "bounded PostgreSQL gateway capability verification",
+    "asynchronous fence-bound behavior Docker execution",
+    "in-flight fence/client-disconnect revocation with named-container cleanup",
+    "model-wide UID/GID 10001 privilege drop for executionMode=agent",
+    "model-wide isolated process-group execution",
+    "model-wide private control-plane egress guard with Context Engine exception",
+    "scoped task-output directory authority for restricted model UID",
+    "temporary OpenCode HOME and auth isolation",
     "AgentExecutionResult behaviorGate receipt",
     "event-driven finalizer behavior gate projection"
   ],
@@ -22,29 +26,44 @@
     "hmacKeyDefault": null,
     "hmacMinimumBytes": 32,
     "rawCapabilityPersisted": false,
-    "typedAgentUid": 10001,
-    "processGroupKilledBeforeCapability": true,
-    "childInfrastructureEnvRemoved": true
+    "modelAgentUid": 10001,
+    "modelAgentWorkspaceModeRequired": "copy",
+    "modelAgentPrivateControlPlaneReachability": "blocked-by-uid-egress-guard",
+    "contextEngineException": "tcp/8789 exact service address",
+    "workerNetAdminAfterEntrypoint": false,
+    "processGroupKilledBeforeBehaviorCapability": true,
+    "childInfrastructureEnvRemoved": true,
+    "inFlightBehaviorRevocation": true,
+    "postgresCapabilityCheckBounded": true
   },
-  "expectedFocusedTotalApprox": 257,
-  "nodeFocusedValidation": "PENDING_POST_FIX_RERUN",
-  "rustTests": "PENDING_POST_FIX_RERUN",
-  "dockerComposeConfig": "NOT_REPORTED_POST_FIX",
-  "dockerContractTarget": "PENDING_POST_FIX_RERUN",
-  "workerImageBuild": "PASS_OPERATOR_CONFIRMED_2026-09-21",
-  "gatewayImageBuild": "PASS_OPERATOR_CONFIRMED_2026-09-21",
-  "endToEndBehaviorTask": "NOT_RUN",
-  "runtimeQualification": "NOT_RUN",
-  "operatorEvidence": {
-    "workerImageBuild": "PASS",
-    "gatewayImageBuild": "PASS",
+  "validation": {
+    "nodeFocused": "PENDING_EXACT_SHA_RERUN",
+    "rustFmt": "PENDING_EXACT_SHA_RERUN",
+    "rustTestsLocked": "PENDING_EXACT_SHA_RERUN",
+    "dockerComposeConfig": "PENDING_EXACT_SHA_RERUN",
+    "dockerContractTarget": "PENDING_EXACT_SHA_RERUN",
+    "workerImageBuild": "PENDING_EXACT_SHA_REBUILD",
+    "gatewayImageBuild": "PENDING_EXACT_SHA_REBUILD",
+    "normalModelTaskRestrictedUidRegression": "NOT_RUN",
+    "endToEndBehaviorTask": "NOT_RUN",
+    "inFlightFenceReplacementFault": "NOT_RUN",
+    "gatewayOutageFault": "NOT_RUN",
+    "postgresOutageFault": "NOT_RUN",
+    "behaviorProcessLossRecovery": "NOT_RUN",
+    "runtimeQualification": "NOT_RUN"
+  },
+  "historicalOperatorEvidence": {
+    "workerImageBuild": "PASS_PRE_HARDENING",
+    "gatewayImageBuild": "PASS_PRE_HARDENING",
     "reportedAt": "2026-09-21",
-    "source": "operator-confirmed"
+    "source": "operator-confirmed",
+    "qualificationUse": "historical-only-rebuild-required"
   },
   "preservation": {
     "mainChanged": false,
-    "consumerPinChanged": false,
+    "consumerQualifiedPinChanged": false,
     "cacheMemoryWorkerRoutingTouched": false,
     "manifestRegenerated": false
-  }
+  },
+  "releaseBoundary": "Clip Compass remains adoption-pending. Qualified pin/lock/certificate must not move until T17 qualifies the exact next harness release."
 }
