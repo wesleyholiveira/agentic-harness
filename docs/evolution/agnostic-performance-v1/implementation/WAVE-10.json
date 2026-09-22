@@ -482,7 +482,7 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
-    "exact-SHA scoped R-9 rerun proving Product Discovery proceeds on OpenCode 1.18.32 and Technical Refinement reaches the physical worker-loss boundary",
+    "exact-SHA scoped R-9 rerun proving live worker OpenCode version and either Product Discovery progress or a redacted errorRef-correlated internal cause",
     "exact-SHA scoped R-9 physical Rust worker loss while behavior execution is in-flight",
     "normal non-behavior model task restricted-UID runtime regression",
     "full existing Runtime/cache/memory/model-routing/continuation regression qualification",
@@ -546,13 +546,30 @@
       "qualificationHarnessBug": true,
       "upstreamDependencyBug": true,
       "rootCauseResolved": false,
-      "status": "upstream-fix-adopted-and-terminal-failfast-fixed-pending-exact-sha-rerun"
+      "status": "failfast-fixed-upstream-hypothesis-not-sufficient",
+      "hypothesisStatus": "OpenCode 1.18.32 source adoption did not eliminate the generic UnknownError on candidate 15cf8ad84996fbf8f6edf5fc552043b71692cc03; #50439 is no longer treated as sufficient root cause"
+    },
+    {
+      "observedOnCandidate": "15cf8ad84996fbf8f6edf5fc552043b71692cc03",
+      "gate": "wave10-worker-loss/R-9",
+      "runId": "standalone-v1-1790119853659-6d1ea9afa5eb",
+      "observed": "Q-ENTRY through R-6 passed; Product Discovery failed 3/3 attempts with OpenCode UnknownError and errorRef err_4a05fee2; Technical Refinement was cancelled before repair-checkpoint-before-behavior. The R-9 terminal fail-fast now worked instead of consuming the previous 20-minute boundary timeout.",
+      "rootCause": "the exact OpenCode internal defect is still unknown because the CLI JSON event intentionally exposes only an errorRef while the detailed Effect.logError record remains in OpenCode server logs",
+      "correction": "make Runtime child OpenCode config authoritative with --pure + OPENCODE_DISABLE_PROJECT_CONFIG, isolate XDG config/cache, capture ERROR logs internally without forwarding raw stderr, project only a redacted errorRef-matching serverLogExcerpt, and qualify the live worker OpenCode version in R-4",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": true,
+      "rootCauseResolved": false,
+      "status": "server-log-diagnostic-closure-pending-exact-sha-rerun"
     }
   ],
   "hardening": [
     "qualification waitFor supports terminal error propagation instead of converting QualificationHold into a timeout",
     "R-7/R-9/R-10 HOLD-capable polls use shouldRetryQualificationPollError",
     "runtime worker pins OpenCode 1.18.32, which contains anomalyco/opencode#50439 compiled filesystem-cycle fix",
-    "structured OpenCode failure evidence preserves bounded errorRef for server-log correlation"
+    "structured OpenCode failure evidence preserves bounded errorRef for server-log correlation",
+    "restricted model OpenCode execution uses pure mode and disables consumer project config while retaining Runtime-owned OPENCODE_CONFIG_CONTENT",
+    "restricted model XDG config/cache/data/state are isolated below the attempt Runtime state root",
+    "OpenCode ERROR logs remain internal; only redacted errorRef-correlated evidence is persisted",
+    "R-4 proves the live OpenCode version inside agent-runtime-worker"
   ]
 }
