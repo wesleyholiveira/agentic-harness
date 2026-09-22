@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "live-preflight-implemented-pending-exact-sha-validation",
+  "status": "gateway-cli-compatibility-fixed-pending-live-preflight-rerun",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -27,7 +27,9 @@
     "real Docker behavior gateway execution against shared Runtime volume",
     "raw capability transported over stdin and excluded from ProcessRunner evidence",
     "exact fence-bound behavior container absence proof",
-    "fail-closed live preflight cleanup"
+    "fail-closed live preflight cleanup",
+    "behavior gateway Docker CLI 27.5.1 with volume-subpath support",
+    "live preflight Docker client >=26 and daemon API >=1.45 compatibility gate"
   ],
   "security": {
     "dockerSocketOnWorker": false,
@@ -63,7 +65,7 @@
     "postgresOutageFault": "NOT_RUN",
     "behaviorProcessLossRecovery": "NOT_RUN",
     "runtimeQualification": "NOT_RUN",
-    "livePreflight": "PENDING_EXACT_SHA_RUN"
+    "livePreflight": "RED_ON_3e091f1_DOCKER_EXIT_125_OLD_GATEWAY_CLI_FIXED_PENDING_RERUN"
   },
   "historicalOperatorEvidence": {
     "candidate": "27480e5004ddf903e2dafaf8487437b7adf66858",
@@ -113,6 +115,15 @@
       "observed": "no deterministic host proof yet exercised post-commit source-attested image -> PostgreSQL capability/fence -> real gateway -> behavior receipt before the expensive Runtime qualification",
       "correction": "wave10-live-preflight.mjs now proves the behavior data plane without LLM, transports raw capability via stdin, verifies exact container cleanup, and fails closed on cleanup errors",
       "status": "implemented-pending-exact-sha-run"
+    },
+    {
+      "observedOnCandidate": "3e091f1083509758971aaa1c14e5f73a9b972713",
+      "gate": "wave10-live-preflight",
+      "preflightId": "wave10-live-preflight-1790037734636-cb3556075d87",
+      "observed": "gateway behavior admission fully authorized but Docker execution returned exitCode=125 with 338 stderr bytes",
+      "rootCause": "gateway image installed Debian Bookworm docker.io 20.10.24; behavior isolation requires volume-subpath introduced in Docker CLI/Engine 26.0 API 1.45",
+      "correction": "copy official docker:27.5.1-cli binary into gateway and reject client<26 or server API<1.45 in live preflight",
+      "status": "fixed-pending-exact-sha-live-preflight-rerun"
     }
   ]
 }
