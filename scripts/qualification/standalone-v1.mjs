@@ -36,10 +36,7 @@ import {
   writeJson,
 } from "./lib/util.mjs";
 import { assertFixtureComplete, assertR9FixtureComplete, assertR10FixtureComplete, fixtureIdentity, materializeFixture } from "./lib/fixture.mjs";
-import { loadCommittedProjectConfiguration } from "../../packages/project-adapters/src/trusted-config.mjs";
-import { probeDockerRunnerMaterialization } from "../../packages/project-adapters/src/docker-materialization-v2.mjs";
-import { probeDockerImageSourceAttestation } from "../../packages/project-adapters/src/docker-image-attestation.mjs";
-import { dockerRunnerSourceBindingDigest, dockerRunnerSpecDigest } from "../../packages/harness-contracts/src/docker-runner-v2.mjs";
+import { buildSourceAttestedQualificationImage } from "./lib/source-attested-behavior.mjs";
 import { basicAuthHeaders, requestJson, waitForJsonReady } from "./lib/http.mjs";
 import { evaluateRuntimeObservation, formatRuntimeProgress } from "./lib/runtime-watchdog.mjs";
 import {
@@ -533,70 +530,15 @@ async function r3() {
 }
 
 function buildQualificationBehaviorImage(consumerRoot) {
-  const configuration = loadCommittedProjectConfiguration(consumerRoot);
-  const spec = configuration.descriptor.runners.find(item => item.id === "qualification-behavior") ?? null;
-  const sourceBinding = spec
-    ? configuration.runnerSourceBindings.find(item => item.runnerId === spec.id) ?? null
-    : null;
-  if (!spec || !sourceBinding || spec.image.mode !== "source-attested-build") {
-    hold("R-3", "SOURCE", "qualification_behavior_runner_configuration_missing");
-  }
-  const runnerSpecDigest = dockerRunnerSpecDigest(spec);
-  const sourceBindingDigest = dockerRunnerSourceBindingDigest(sourceBinding, { spec });
-  const buildEnv = {
-    ...process.env,
-    AGENT_HARNESS_SOURCE_SNAPSHOT_SHA256: configuration.sourceSnapshotSha256,
-    AGENT_HARNESS_RUNNER_SPEC_DIGEST: runnerSpecDigest,
-    AGENT_HARNESS_SOURCE_BINDING_DIGEST: sourceBindingDigest,
-    AGENT_HARNESS_QUALIFICATION_BEHAVIOR_TAG: sourceBindingDigest.slice("sha256:".length, "sha256:".length + 20),
-  };
-  const args = [
-    "--context", spec.dockerContext,
-    "compose",
-    "--project-directory", consumerRoot,
-    "-p", spec.composeProject,
-    ...spec.composeFiles.flatMap(file => ["-f", resolve(consumerRoot, file)]),
-    ...spec.profiles.flatMap(profile => ["--profile", profile]),
-    "build",
-    spec.service,
-  ];
-  mustRun("R-3", "SOURCE", "docker", args, {
-    cwd: consumerRoot,
-    env: buildEnv,
-    label: "r3-behavior-runner-build",
-    timeoutMs: 15 * 60_000,
-  });
-
-  const materialized = probeDockerRunnerMaterialization(
-    { spec, sourceBinding },
-    { root: consumerRoot, timeoutMs: 60_000 },
-  );
-  if (materialized.status !== "MATERIALIZED") {
-    hold("R-3", "SOURCE", "qualification_behavior_runner_materialization_failed", {
-      code: materialized.code,
-      runnerId: spec.id,
+  try {
+    return buildSourceAttestedQualificationImage({
+      consumerRoot,
+      labelPrefix: "r3-behavior-runner",
+      run: (command, args, options) => runner.run(command, args, options),
     });
+  } catch (error) {
+    hold("R-3", "SOURCE", error?.message ?? "qualification_behavior_runner_failed", error?.evidence ?? {});
   }
-  const attested = probeDockerImageSourceAttestation(
-    { spec, sourceBinding, materialization: materialized.materialization },
-    { root: consumerRoot, timeoutMs: 30_000 },
-  );
-  if (attested.status !== "ATTESTED") {
-    hold("R-3", "SOURCE", "qualification_behavior_runner_attestation_failed", {
-      code: attested.code,
-      runnerId: spec.id,
-      imageId: materialized.materialization.imageId,
-    });
-  }
-  return {
-    runnerId: spec.id,
-    sourceCommit: configuration.sourceCommit,
-    sourceSnapshotSha256: configuration.sourceSnapshotSha256,
-    runnerSpecDigest,
-    sourceBindingDigest,
-    imageId: materialized.materialization.imageId,
-    attestationIdentityDigest: attested.attestationIdentityDigest,
-  };
 }
 
 function isInside(parent, child) {
