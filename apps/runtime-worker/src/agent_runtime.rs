@@ -1633,10 +1633,16 @@ async fn run_shell_command(
     ] {
         command.env_remove(sensitive);
     }
+    command.env_remove("AGENT_HARNESS_AGENT_EXECUTION_STATE_ROOT");
     let isolated_process_group = descriptor.execution_mode == "agent";
     if let Some(home) = restricted_agent_home.as_ref() {
         command.env("HOME", home);
         command.env_remove("XDG_DATA_HOME");
+        command.env_remove("XDG_STATE_HOME");
+        command.env(
+            "AGENT_HARNESS_AGENT_EXECUTION_STATE_ROOT",
+            home.join("runtime-state"),
+        );
         #[cfg(unix)]
         {
             command.uid(BEHAVIOR_AGENT_UID);
