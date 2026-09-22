@@ -335,6 +335,35 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
       "status": "fixed-pending-exact-sha-rerun"
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-opencode-nonzero",
+      "candidate": "f8020cd110ed15657cae520f855a3cf5e16326cc",
+      "runId": "standalone-v1-1790114835041-d14c2db63d85",
+      "observed": {
+        "r0ThroughR6Passed": true,
+        "stateAuthority": "runtime-projected-ephemeral-home",
+        "authCopied": true,
+        "opencodeSpawned": true,
+        "sessionObserved": true,
+        "opencodeExitStatus": 1,
+        "stdoutBytes": 218,
+        "productDiscoveryAttemptsFailed": 3,
+        "processLossBoundaryReached": false,
+        "wastedBoundaryWaitMs": 1200000
+      },
+      "rootCause": "specific OpenCode/provider error unknown because v1.18.26 JSON error event was emitted on stdout but Runtime persisted only stderr as failure detail",
+      "correction": [
+        "summarizeOpenCodeFailure parses the type=error JSON event and redacts secrets",
+        "opencode.failure is emitted before executor nonzero termination",
+        "opencode.failure is persisted by event-driven-finalizer",
+        "R-9 boundary diagnostics include opencode.failure",
+        "R-9 fails immediately on pre-boundary failed/blocked semantic task instead of waiting 20 minutes"
+      ],
+      "productionLogicBug": true,
+      "qualificationHarnessBug": true,
+      "rootCauseResolved": false,
+      "status": "diagnostics-and-failfast-fixed-pending-cause-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -422,5 +451,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R0_THROUGH_R6_PASS_R9_STATE_ROOT_FIX_PENDING_CURRENT_EXACT_SHA"
+  "greenAfterFix": "R0_THROUGH_R6_PASS_R9_OPENCODE_CAUSE_PENDING_STRUCTURED_DIAGNOSTIC_RERUN"
 }
