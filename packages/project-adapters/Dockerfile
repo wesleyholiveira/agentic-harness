@@ -24,6 +24,7 @@ COPY --chown=node:node scripts/qualification/wave10-live-preflight.mjs scripts/q
 COPY --chown=node:node scripts/qualification/wave10-fault-preflight.mjs scripts/qualification/wave10-fault-preflight.mjs
 COPY --chown=node:node scripts/qualification/lib/fixture.mjs scripts/qualification/lib/fixture.mjs
 COPY --chown=node:node scripts/qualification/lib/process.mjs scripts/qualification/lib/process.mjs
+COPY --chown=node:node scripts/qualification/lib/report.mjs scripts/qualification/lib/report.mjs
 COPY --chown=node:node scripts/qualification/lib/source-attested-behavior.mjs scripts/qualification/lib/source-attested-behavior.mjs
 COPY --chown=node:node scripts/qualification/lib/util.mjs scripts/qualification/lib/util.mjs
 COPY --chown=node:node tests/contracts/portable-contracts.test.mjs tests/contracts/portable-contracts.test.mjs
