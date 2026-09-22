@@ -159,6 +159,13 @@ test("typed model child can reach Context Engine but not private control-plane n
   assert.ok(contextAllow >= 0 && privateReject > contextAllow && workerExec > privateReject);
 });
 
+test("Docker behavior gateway ships a CLI new enough for volume-subpath isolation", () => {
+  const dockerfile = source("apps/docker-gateway/Dockerfile");
+  assert.match(dockerfile, /FROM docker:27\.5\.1-cli AS docker-cli/);
+  assert.match(dockerfile, /COPY --from=docker-cli \/usr\/local\/bin\/docker \/usr\/local\/bin\/docker/);
+  assert.doesNotMatch(dockerfile, /apt-get install[^\n]*docker\.io/);
+});
+
 test("Docker gateway capability is fence-bound in PostgreSQL and no permanent bearer token remains", () => {
   const gateway = source("apps/docker-gateway/server.mjs");
   const fenceStore = source("apps/docker-gateway/fence-store.mjs");
