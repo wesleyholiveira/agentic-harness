@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "docker-version-probe-parser-fixed-pending-live-preflight-rerun",
+  "status": "live-preflight-green-fault-qualification-next",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -65,7 +65,7 @@
     "postgresOutageFault": "NOT_RUN",
     "behaviorProcessLossRecovery": "NOT_RUN",
     "runtimeQualification": "NOT_RUN",
-    "livePreflight": "RED_ON_cd909cf_VERSION_PROBE_WHITESPACE_PARSER_FIXED_PENDING_RERUN"
+    "livePreflight": "PASS_ON_0d8c0b6"
   },
   "historicalOperatorEvidence": {
     "candidate": "27480e5004ddf903e2dafaf8487437b7adf66858",
@@ -135,5 +135,21 @@
       "qualificationHarnessBug": true,
       "status": "fixed-pending-exact-sha-live-preflight-rerun"
     }
-  ]
+  ],
+  "livePreflightEvidence": {
+    "candidate": "0d8c0b6ec4c034429d496822a6a2cc780f9a31bb",
+    "preflightId": "wave10-live-preflight-1790038326669-0dcd727e6307",
+    "verdict": "PASS",
+    "harnessClean": true,
+    "exactGitlink": true,
+    "dockerClientVersion": "27.5.1",
+    "dockerServerApiVersion": "1.55",
+    "volumeSubpathSupported": true,
+    "gatewayStatus": "PASSED",
+    "receiptStatus": "BEHAVIOR_PASSED",
+    "behaviorContainerRemoved": true,
+    "rawCapabilityPersistedInEvidence": false,
+    "hmacKeyPersistedInEvidence": false,
+    "cleanupOk": true
+  }
 }
