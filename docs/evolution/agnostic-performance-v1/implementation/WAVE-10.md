@@ -280,6 +280,25 @@ REDs, but it became historical-only when ADR 0042 and the source-attested
 runtime fixture changed tracked source. The next candidate must rerun the cheap
 source/build gates before live WAVE-10 faults are armed.
 
+## Live preflight result
+
+Candidate `0d8c0b6ec4c034429d496822a6a2cc780f9a31bb` passed the deterministic
+no-LLM live preflight on the target Windows/Docker Desktop host.
+
+Observed evidence:
+- exact clean harness HEAD and exact consumer gitlink;
+- source-attested behavior image materialized and attested;
+- Docker client 27.5.1 and daemon API 1.55;
+- real PostgreSQL fence/capability verification;
+- real gateway execution returned `PASSED / docker_gateway_behavior_passed`;
+- behavior receipt returned `BEHAVIOR_PASSED / behavior_passed`;
+- exact fence-bound behavior container was absent after execution;
+- raw capability and HMAC key were not persisted in preflight evidence;
+- cleanup completed with zero errors.
+
+This proves only the happy path. In-flight revocation/outage and physical worker
+loss remain separate blocking gates.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
