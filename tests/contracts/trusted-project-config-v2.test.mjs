@@ -136,15 +136,29 @@ test('v2 runner spec excludes materialized source/daemon/image identities', () =
   assert.throws(() => validateDockerRunnerSpec({ ...spec, sourceSnapshotSha256: sha('source') }));
 });
 
-test('one-off runner requires a pinned digest reference while exec derives image from running service', () => {
+test('one-off runner accepts immutable registry pins or a post-commit source-attested build', () => {
   assert.equal(validateDockerRunnerSpec(runnerSpec()).image.mode, 'running-service');
   assert.throws(() => validateDockerRunnerSpec(runnerSpec({ operation: 'one-off', replica: null })), /docker_runner_spec_image_invalid/);
-  const oneOff = validateDockerRunnerSpec(runnerSpec({
+  const pinned = validateDockerRunnerSpec(runnerSpec({
     operation: 'one-off',
     replica: null,
     image: { mode: 'pinned-reference', reference: 'example.invalid/tool@sha256:' + 'b'.repeat(64) },
   }));
-  assert.equal(oneOff.image.mode, 'pinned-reference');
+  assert.equal(pinned.image.mode, 'pinned-reference');
+
+  const attested = validateDockerRunnerSpec(runnerSpec({
+    operation: 'one-off',
+    replica: null,
+    image: { mode: 'source-attested-build', reference: null },
+  }));
+  assert.equal(attested.image.mode, 'source-attested-build');
+  assert.equal(attested.image.reference, null);
+  assert.throws(() => validateDockerRunnerSpec(runnerSpec({
+    operation: 'one-off',
+    replica: null,
+    buildTarget: null,
+    image: { mode: 'source-attested-build', reference: null },
+  })), /docker_runner_spec_image_invalid/);
 });
 
 test('committed loader binds descriptor and policy to Git blobs and source identity', t => {
