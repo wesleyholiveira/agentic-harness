@@ -90,8 +90,13 @@ async function executeBehaviorUnderCapabilityFence({
   pollIntervalMs = 500,
 }) {
   const controller = new AbortController();
-  const abortFromClient = () => controller.abort();
+  let clientDisconnected = externalSignal?.aborted === true;
+  const abortFromClient = () => {
+    clientDisconnected = true;
+    controller.abort();
+  };
   externalSignal?.addEventListener('abort', abortFromClient, { once: true });
+  if (clientDisconnected) controller.abort();
   let executionSettled = false;
   const execution = Promise.resolve()
     .then(() => executeBehavior(input, { ...options, signal: controller.signal }))
@@ -108,6 +113,10 @@ async function executeBehaviorUnderCapabilityFence({
         delay(pollIntervalMs).then(() => null),
       ]);
       if (observed) {
+        if (clientDisconnected) {
+          controller.abort();
+          return { holdCode: 'docker_gateway_client_disconnected', receipt: null };
+        }
         if (!observed.ok) {
           return {
             holdCode: controller.signal.aborted
@@ -123,7 +132,8 @@ async function executeBehaviorUnderCapabilityFence({
         return { holdCode: null, receipt: observed.receipt };
       }
 
-      if (externalSignal?.aborted) {
+      if (clientDisconnected || externalSignal?.aborted) {
+        clientDisconnected = true;
         controller.abort();
         await execution;
         return { holdCode: 'docker_gateway_client_disconnected', receipt: null };
@@ -138,6 +148,9 @@ async function executeBehaviorUnderCapabilityFence({
     }
 
     const observed = await execution;
+    if (clientDisconnected) {
+      return { holdCode: 'docker_gateway_client_disconnected', receipt: null };
+    }
     if (!observed.ok) {
       return {
         holdCode: controller.signal.aborted
