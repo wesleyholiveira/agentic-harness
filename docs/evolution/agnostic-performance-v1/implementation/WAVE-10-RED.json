@@ -272,6 +272,22 @@
       "qualificationHarnessBug": false,
       "portabilityLint": true,
       "status": "fixed-pending-exact-sha-check"
+    },
+    {
+      "gate": "wave10-worker-loss/R-4",
+      "candidate": "12702c35bc68f569d863b7c3a2dcb267b1a132ab",
+      "runId": "standalone-v1-1790046982294-cc303fd69be5",
+      "observed": {
+        "r0ThroughR3Passed": true,
+        "command": "docker compose --profile behavior-gateway up -d docker-behavior-gateway",
+        "stderr": "service \"docker-behavior-gateway\" depends on undefined service \"database-migrate\": invalid compose project",
+        "runtimeBehaviorReached": false
+      },
+      "rootCause": "qualification controller omitted the runtime profile required to materialize database-migrate in the gateway dependency graph",
+      "correction": "activate both runtime and behavior-gateway profiles for the target-scoped gateway startup",
+      "productionLogicBug": false,
+      "qualificationHarnessBug": true,
+      "status": "fixed-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -359,5 +375,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R1_PASS_R2_CLIPPY_FIX_PENDING_CURRENT_EXACT_SHA"
+  "greenAfterFix": "R0_R1_R2_R3_PASS_R4_PROFILE_FIX_PENDING_CURRENT_EXACT_SHA"
 }
