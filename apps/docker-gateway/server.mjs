@@ -99,7 +99,9 @@ async function executeBehaviorUnderCapabilityFence({
   if (clientDisconnected) controller.abort();
   let executionSettled = false;
   const execution = Promise.resolve()
-    .then(() => executeBehavior(input, { ...options, signal: controller.signal }))
+    .then(() => clientDisconnected
+      ? null
+      : executeBehavior(input, { ...options, signal: controller.signal }))
     .then(
       receipt => ({ ok: true, receipt }),
       error => ({ ok: false, error }),
