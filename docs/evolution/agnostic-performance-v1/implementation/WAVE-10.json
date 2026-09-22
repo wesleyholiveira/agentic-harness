@@ -39,7 +39,7 @@
     "taskBriefContextDescriptorLogResultWritableByModel": false
   },
   "validation": {
-    "nodeFocused": "PENDING_EXACT_SHA_RERUN",
+    "nodeFocused": "RED_ON_c32ba008_CLIENT_DISCONNECT_CAUSE_RACE_FIXED_PENDING_EXACT_SHA_RERUN",
     "rustFmt": "PENDING_EXACT_SHA_RERUN",
     "rustTestsLocked": "PENDING_EXACT_SHA_RERUN",
     "dockerComposeConfig": "PENDING_EXACT_SHA_RERUN",
@@ -67,5 +67,16 @@
     "cacheMemoryWorkerRoutingTouched": false,
     "manifestRegenerated": false
   },
-  "releaseBoundary": "Clip Compass remains adoption-pending. Qualified pin/lock/certificate must not move until T17 qualifies the exact next harness release."
+  "releaseBoundary": "Clip Compass remains adoption-pending. Qualified pin/lock/certificate must not move until T17 qualifies the exact next harness release.",
+  "hardeningCorrections": [
+    {
+      "observedOnCandidate": "c32ba0089326bbf940ecd1addebe9de42b0607bf",
+      "gate": "node-contracts",
+      "test": "gateway revokes an in-flight behavior command when the worker HTTP client disconnects",
+      "observed": "behavior_execution_aborted",
+      "expected": "docker_gateway_client_disconnected",
+      "correction": "sticky client-disconnect revocation cause wins races against executor abort receipts; a pre-disconnected client cannot start behavior execution",
+      "status": "fixed-pending-exact-sha-rerun"
+    }
+  ]
 }
