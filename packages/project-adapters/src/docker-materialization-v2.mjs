@@ -4,6 +4,7 @@ import {
   dockerRunnerSourceBindingDigest, dockerRunnerSpecDigest,
   validateDockerRunnerMaterialization, validateDockerRunnerSourceBinding, validateDockerRunnerSpec,
 } from '../../harness-contracts/src/docker-runner-v2.mjs';
+import { DOCKER_IMAGE_SOURCE_LABELS } from '../../harness-contracts/src/docker-source-labels.mjs';
 import { projectRoot } from './safe-files.mjs';
 
 const IMAGE_TEMPLATE = '{"id":{{json .Id}},"os":{{json .Os}},"architecture":{{json .Architecture}},"variant":{{json (index . "Variant")}}}';
@@ -49,6 +50,14 @@ function parseIds(result) {
   if (result?.error || result?.status !== 0 || typeof result.stdout !== 'string' || Buffer.byteLength(result.stdout) > 131072) reject('docker_materialization_command_failed');
   const ids = result.stdout.trim().split(/\r?\n/u).filter(Boolean);
   if (ids.length > 32 || ids.some(id => !ID.test(id)) || new Set(ids).size !== ids.length) reject('docker_materialization_output_invalid');
+  return ids;
+}
+function parseImageIds(result) {
+  if (result?.error?.code === 'ENOENT') reject('docker_command_unavailable');
+  if (result?.error?.code === 'ETIMEDOUT') reject('docker_materialization_timeout');
+  if (result?.error || result?.status !== 0 || typeof result.stdout !== 'string' || Buffer.byteLength(result.stdout) > 131072) reject('docker_materialization_command_failed');
+  const ids = [...new Set(result.stdout.trim().split(/\r?\n/u).filter(Boolean))];
+  if (ids.length > 32 || ids.some(id => !/^sha256:[a-f0-9]{64}$/u.test(id))) reject('docker_materialization_output_invalid');
   return ids;
 }
 function platformMatches(expected, image) {
@@ -136,7 +145,21 @@ export function probeDockerRunnerMaterialization({ spec, sourceBinding }, {
       ]));
       if (JSON.stringify([...ids].sort()) !== JSON.stringify([...currentIds].sort())) reject('docker_materialization_container_changed');
     } else {
-      const imageRef = checkedSpec.image.reference;
+      let imageRef = checkedSpec.image.reference;
+      if (checkedSpec.image.mode === 'source-attested-build') {
+        const expectedRunner = dockerRunnerSpecDigest(checkedSpec);
+        const expectedBinding = dockerRunnerSourceBindingDigest(checkedBinding, { spec: checkedSpec });
+        const ids = parseImageIds(run([
+          '--context', checkedSpec.dockerContext,
+          'image', 'ls', '--no-trunc', '--quiet',
+          '--filter', `label=${DOCKER_IMAGE_SOURCE_LABELS.sourceSnapshotSha256}=${checkedBinding.sourceSnapshotSha256}`,
+          '--filter', `label=${DOCKER_IMAGE_SOURCE_LABELS.runnerSpecDigest}=${expectedRunner}`,
+          '--filter', `label=${DOCKER_IMAGE_SOURCE_LABELS.sourceBindingDigest}=${expectedBinding}`,
+        ]));
+        if (!ids.length) reject('docker_materialization_source_attested_image_missing');
+        if (ids.length !== 1) reject('docker_materialization_source_attested_image_ambiguous');
+        imageRef = ids[0];
+      }
       const image = parseJson(run(['--context', checkedSpec.dockerContext, 'image', 'inspect', '--format', IMAGE_TEMPLATE, imageRef]));
       imageId = image?.id;
       if (typeof imageId !== 'string' || !/^sha256:[a-f0-9]{64}$/u.test(imageId) || !platformMatches(checkedSpec.platform, image)) reject('docker_materialization_image_invalid');
