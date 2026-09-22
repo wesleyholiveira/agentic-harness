@@ -202,6 +202,22 @@
       "correction": "preserve schema-valid transient values; final canonicalization still removes downstream criteria/prose after assignment",
       "productionLogicBug": true,
       "status": "fixed-pending-exact-sha-rerun"
+    },
+    {
+      "gate": "R-1/workflow criterion-assignment router",
+      "observed": {
+        "remaining": [
+          "validation_command_not_executable:W-durable",
+          "implementation_plan_validation_command_ids_missing:W-durable",
+          "implementation_plan_work_item_without_implementation_criterion:W-durable",
+          "implementation_plan_uncovered_criterion:CLV2-02"
+        ],
+        "structuredRunnerReceivedWholePlanSchema": true
+      },
+      "rootCause": "narrow repair classifier omitted validation_command_ids_missing even though post-assignment canonicalization is the authority that creates those IDs",
+      "correction": "criterionAssignmentRepairIssuesOnly scopes missing-ID compatibility to the same criterionless target work item",
+      "productionLogicBug": true,
+      "status": "fixed-pending-focused-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -289,5 +305,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R1_TRANSIENT_REPAIR_ORDERING_FIX_PENDING_CURRENT_EXACT_SHA"
+  "greenAfterFix": "CRITERION_ASSIGNMENT_ROUTER_FIX_PENDING_CURRENT_EXACT_SHA"
 }
