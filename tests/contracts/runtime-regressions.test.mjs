@@ -213,6 +213,7 @@ test("restricted model OpenCode state is rooted in Runtime-owned ephemeral HOME,
   assert.match(executor, /OPENCODE_DISABLE_PROJECT_CONFIG: "1"/u);
   assert.match(executor, /delete isolatedEnv\.OPENCODE_CONFIG/u);
   assert.match(executor, /delete isolatedEnv\.OPENCODE_CONFIG_DIR/u);
+  assert.match(executor, /delete isolatedEnv\.OPENCODE_DISABLE_DEFAULT_PLUGINS/u);
   assert.match(executor, /"--pure"/u);
   assert.match(executor, /"--print-logs"/u);
   assert.match(executor, /"--log-level", "ERROR"/u);
