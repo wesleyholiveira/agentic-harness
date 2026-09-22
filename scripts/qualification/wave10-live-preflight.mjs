@@ -79,6 +79,22 @@ function gatewayHealthScript() {
   ].join("");
 }
 
+function parseDockerRuntimeVersion(value) {
+  const text = String(value ?? "").trim();
+  const [clientVersion, serverApiVersion] = text.split("\t");
+  const clientMajor = Number.parseInt(String(clientVersion ?? "").split(".")[0], 10);
+  const apiParts = String(serverApiVersion ?? "").split(".").map(part => Number.parseInt(part, 10));
+  const apiOk = apiParts.length >= 2
+    && Number.isInteger(apiParts[0]) && Number.isInteger(apiParts[1])
+    && (apiParts[0] > 1 || (apiParts[0] === 1 && apiParts[1] >= 45));
+  if (!Number.isInteger(clientMajor) || clientMajor < 26 || !apiOk) {
+    const error = new Error("wave10_preflight_docker_subpath_runtime_unsupported");
+    error.evidence = { clientVersion: clientVersion ?? null, serverApiVersion: serverApiVersion ?? null };
+    throw error;
+  }
+  return { clientVersion, serverApiVersion };
+}
+
 function safeFailure(error) {
   return {
     message: String(error?.message ?? error),
@@ -181,6 +197,15 @@ export async function runWave10LivePreflight({
         return null;
       }
     }, { timeoutMs: 120_000, intervalMs: 1_000, label: "wave10-gateway-ready" });
+
+    const dockerRuntimeProbe = compose([
+      "exec", "-T", "docker-behavior-gateway",
+      "docker", "version", "--format", "{{.Client.Version}}\t{{.Server.APIVersion}}",
+    ], {
+      label: "wave10-gateway-docker-version",
+      timeoutMs: 30_000,
+    });
+    const dockerRuntime = parseDockerRuntimeVersion(dockerRuntimeProbe.stdout);
 
     const gatewayId = compose(["ps", "-q", "docker-behavior-gateway"], {
       label: "wave10-gateway-id",
@@ -330,6 +355,9 @@ export async function runWave10LivePreflight({
         receiptStatus: receipt.status,
         receiptCode: receipt.code,
         behaviorContainerRemoved: true,
+        dockerClientVersion: dockerRuntime.clientVersion,
+        dockerServerApiVersion: dockerRuntime.serverApiVersion,
+        volumeSubpathSupported: true,
       },
       fence: {
         runId: fenceRunId,
