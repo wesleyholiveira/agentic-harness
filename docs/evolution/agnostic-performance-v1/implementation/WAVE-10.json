@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "r2-clippy-fixed-pending-exact-sha-check",
+  "status": "r4-compose-profile-fixed-pending-exact-sha-rerun",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -176,7 +176,23 @@
       },
       "runtimeReached": false
     },
-    "clippy": "FIX_APPLIED_PENDING_EXACT_SHA_CHECK"
+    "clippy": "FIX_APPLIED_PENDING_EXACT_SHA_CHECK",
+    "scopedWorkerLossAttemptOn12702c3": {
+      "verdict": "HOLD",
+      "runId": "standalone-v1-1790046982294-cc303fd69be5",
+      "qEntry": "PASS",
+      "preR0": "PASS",
+      "r0": "PASS",
+      "r1": "PASS",
+      "r2": "PASS",
+      "r3": "PASS",
+      "r4": {
+        "verdict": "HOLD",
+        "classification": "QUALIFICATION PROCEDURE",
+        "command": "docker compose --profile behavior-gateway up -d docker-behavior-gateway",
+        "error": "service \"docker-behavior-gateway\" depends on undefined service \"database-migrate\": invalid compose project"
+      }
+    }
   },
   "historicalOperatorEvidence": {
     "candidate": "27480e5004ddf903e2dafaf8487437b7adf66858",
@@ -334,6 +350,16 @@
       "qualificationHarnessBug": false,
       "portabilityLint": true,
       "status": "fixed-pending-exact-sha-check"
+    },
+    {
+      "observedOnCandidate": "12702c35bc68f569d863b7c3a2dcb267b1a132ab",
+      "gate": "wave10-worker-loss/R-4",
+      "runId": "standalone-v1-1790046982294-cc303fd69be5",
+      "observed": "gateway startup activated behavior-gateway profile without runtime profile, hiding database-migrate dependency from Compose",
+      "correction": "R-4 activates runtime and behavior-gateway profiles together while still targeting only docker-behavior-gateway; contract pins the topology",
+      "productionLogicBug": false,
+      "qualificationHarnessBug": true,
+      "status": "fixed-pending-exact-sha-rerun"
     }
   ],
   "livePreflightEvidence": {
