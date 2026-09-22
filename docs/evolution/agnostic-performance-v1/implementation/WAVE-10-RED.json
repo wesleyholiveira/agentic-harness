@@ -288,6 +288,29 @@
       "productionLogicBug": false,
       "qualificationHarnessBug": true,
       "status": "fixed-pending-exact-sha-rerun"
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-worker-image",
+      "candidate": "e200f432b8aff5b94d676d32ae6fee71b06ca492",
+      "runId": "standalone-v1-1790047821052-baa404c33079",
+      "observed": {
+        "r0ThroughR6Passed": true,
+        "armedBoundary": "repair-checkpoint-before-behavior",
+        "commandId": "qualification.behavior.delay",
+        "productDiscoveryAttemptsFailed": 3,
+        "error": "ERR_MODULE_NOT_FOUND: /workspace/harness/packages/project-adapters/src/command-spec-catalog.mjs",
+        "technicalLeadCancelled": true,
+        "processLossBoundaryReached": false
+      },
+      "rootCause": "runtime-worker image omitted packages/** required by the JS executor dependency graph",
+      "correction": [
+        "COPY packages ./packages in runtime-worker image",
+        "build-time import smoke of .agents/runtime/technical-plan-synthesis.mjs",
+        "contract asserts transitive project-adapters -> source-identity/harness-contracts closure"
+      ],
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
+      "status": "fixed-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -375,5 +398,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R0_R1_R2_R3_PASS_R4_PROFILE_FIX_PENDING_CURRENT_EXACT_SHA"
+  "greenAfterFix": "R0_THROUGH_R6_PASS_R9_WORKER_IMAGE_CLOSURE_FIX_PENDING_CURRENT_EXACT_SHA"
 }
