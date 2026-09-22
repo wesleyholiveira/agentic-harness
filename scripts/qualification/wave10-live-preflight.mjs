@@ -81,15 +81,21 @@ function gatewayHealthScript() {
 
 export function parseDockerRuntimeVersion(value) {
   const text = String(value ?? "").trim();
-  const [clientVersion, serverApiVersion] = text.split("\t");
+  const parts = text.split(/\s+/u).filter(Boolean);
+  const [clientVersion = null, serverApiVersion = null] = parts;
   const clientMajor = Number.parseInt(String(clientVersion ?? "").split(".")[0], 10);
   const apiParts = String(serverApiVersion ?? "").split(".").map(part => Number.parseInt(part, 10));
   const apiOk = apiParts.length >= 2
     && Number.isInteger(apiParts[0]) && Number.isInteger(apiParts[1])
     && (apiParts[0] > 1 || (apiParts[0] === 1 && apiParts[1] >= 45));
-  if (!Number.isInteger(clientMajor) || clientMajor < 26 || !apiOk) {
+  if (parts.length !== 2 || !Number.isInteger(clientMajor) || clientMajor < 26 || !apiOk) {
     const error = new Error("wave10_preflight_docker_subpath_runtime_unsupported");
-    error.evidence = { clientVersion: clientVersion ?? null, serverApiVersion: serverApiVersion ?? null };
+    error.evidence = {
+      raw: text.slice(0, 128),
+      clientVersion,
+      serverApiVersion,
+      parsedFields: parts.length,
+    };
     throw error;
   }
   return { clientVersion, serverApiVersion };
