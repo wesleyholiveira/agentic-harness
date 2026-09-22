@@ -398,7 +398,46 @@
       "qualificationHarnessBug": true,
       "upstreamDependencyBug": true,
       "rootCauseResolved": false,
-      "status": "fixed-pending-exact-sha-rerun"
+      "status": "terminal-failfast-fixed-upstream-hypothesis-not-sufficient",
+      "upstreamDependencyHypothesis": "anomalyco/opencode#50439",
+      "hypothesisStatus": "not-sufficient-after-candidate-15cf8ad84996fbf8f6edf5fc552043b71692cc03-reproduced-UnknownError"
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-opencode-server-defect",
+      "candidate": "15cf8ad84996fbf8f6edf5fc552043b71692cc03",
+      "runId": "standalone-v1-1790119853659-6d1ea9afa5eb",
+      "observed": {
+        "r0ThroughR6Passed": true,
+        "processLossBoundaryReached": false,
+        "failFastMessage": "r9_pre_boundary_semantic_run_failed",
+        "productDiscoveryAttemptsFailed": 3,
+        "technicalLeadCancelled": true,
+        "stateAuthority": "runtime-projected-ephemeral-home",
+        "authCopied": true,
+        "opencodeSpawned": true,
+        "sessionObserved": true,
+        "opencodeExitStatus": 1,
+        "opencodeErrorName": "UnknownError",
+        "opencodeErrorRef": "err_4a05fee2",
+        "opencodeErrorMessage": "Unexpected server error. Check server logs for details.",
+        "rawStdoutBytes": 218,
+        "priorTwentyMinuteTimeoutEliminated": true
+      },
+      "rootCause": "OpenCode caught an untyped internal server defect and returned only errorRef=err_4a05fee2; the exact internal cause was written to OpenCode server logs but the Runtime did not yet capture a safe correlated projection. The prior compiled filesystem-cycle hypothesis is not sufficient because the same failure class persisted after the source pin moved to 1.18.32.",
+      "correction": [
+        "run restricted OpenCode child in --pure mode so consumer external plugins cannot become Runtime authority",
+        "set OPENCODE_DISABLE_PROJECT_CONFIG=1 while preserving OPENCODE_CONFIG_CONTENT as the final Runtime-owned inline config",
+        "isolate XDG config and cache below the attempt-scoped Runtime state root and clear inherited OPENCODE_CONFIG/OPENCODE_CONFIG_DIR",
+        "enable OpenCode ERROR server logging only for internal correlation",
+        "do not forward raw OpenCode stderr into durable Runtime logs",
+        "extract only the errorRef-matching server log line, redact credentials and prompt/input/body fields, and persist it as bounded serverLogExcerpt",
+        "R-4 now proves the exact OpenCode version inside agent-runtime-worker rather than relying on host toolchain evidence"
+      ],
+      "productionLogicBug": true,
+      "qualificationHarnessBug": true,
+      "upstreamDependencyBug": null,
+      "rootCauseResolved": false,
+      "status": "diagnostic-authority-hardened-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -467,7 +506,12 @@
     "semantic repair evidence is computed after Runtime-owned canonicalization",
     "terminal QualificationHold is never retried by HOLD-capable standalone qualification polls",
     "runtime worker OpenCode pin includes the upstream compiled prompt crash fix from anomalyco/opencode#50439",
-    "opencode.failure carries bounded errorRef when the CLI exposes one"
+    "opencode.failure carries bounded errorRef when the CLI exposes one",
+    "restricted OpenCode agents run with OPENCODE_PURE=1 and OPENCODE_DISABLE_PROJECT_CONFIG=1",
+    "restricted OpenCode XDG data/state/config/cache are all attempt-scoped Runtime-owned paths",
+    "raw OpenCode server stderr is never forwarded to durable Runtime task logs",
+    "opencode.failure carries a bounded redacted serverLogExcerpt correlated by errorRef",
+    "R-4 records and gates the live OpenCode version inside agent-runtime-worker"
   ],
   "historicalGreenEvidence": {
     "candidate": "0d8c0b6ec4c034429d496822a6a2cc780f9a31bb",
@@ -489,5 +533,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R0_THROUGH_R6_PASS_R9_OPENCODE_1_18_32_AND_TERMINAL_FAILFAST_PENDING_EXACT_SHA_RERUN"
+  "greenAfterFix": "R0_THROUGH_R6_PASS_R9_FAILFAST_PROVEN_SERVER_LOG_CAUSE_PENDING_EXACT_SHA_RERUN"
 }
