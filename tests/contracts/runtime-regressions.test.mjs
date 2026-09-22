@@ -166,6 +166,12 @@ test("Docker behavior gateway ships a CLI new enough for volume-subpath isolatio
   assert.doesNotMatch(dockerfile, /apt-get install[^\n]*docker\.io/);
 });
 
+test("Docker gateway handles PostgreSQL idle-pool errors without process termination", () => {
+  const fenceStore = source("apps/docker-gateway/fence-store.mjs");
+  assert.match(fenceStore, /ownedPool\.on\('error', \(\) => \{\}\)/u);
+  assert.match(fenceStore, /docker_gateway_capability_store_unavailable/u);
+});
+
 test("Docker gateway capability is fence-bound in PostgreSQL and no permanent bearer token remains", () => {
   const gateway = source("apps/docker-gateway/server.mjs");
   const fenceStore = source("apps/docker-gateway/fence-store.mjs");
