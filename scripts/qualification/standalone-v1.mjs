@@ -36,6 +36,10 @@ import {
   writeJson,
 } from "./lib/util.mjs";
 import { assertFixtureComplete, assertR9FixtureComplete, assertR10FixtureComplete, fixtureIdentity, materializeFixture } from "./lib/fixture.mjs";
+import { loadCommittedProjectConfiguration } from "../../packages/project-adapters/src/trusted-config.mjs";
+import { probeDockerRunnerMaterialization } from "../../packages/project-adapters/src/docker-materialization-v2.mjs";
+import { probeDockerImageSourceAttestation } from "../../packages/project-adapters/src/docker-image-attestation.mjs";
+import { dockerRunnerSourceBindingDigest, dockerRunnerSpecDigest } from "../../packages/harness-contracts/src/docker-runner-v2.mjs";
 import { basicAuthHeaders, requestJson, waitForJsonReady } from "./lib/http.mjs";
 import { evaluateRuntimeObservation, formatRuntimeProgress } from "./lib/runtime-watchdog.mjs";
 import {
@@ -77,6 +81,8 @@ const state = {
   r7: null,
   r9: null,
   r10: null,
+  behaviorRunner: null,
+  behaviorGatewayHmacKey: null,
 };
 
 const QUALIFICATION_RABBITMQ_USERNAME = "agent";
@@ -492,6 +498,8 @@ async function r3() {
     state[`fixture${label}`] = identity;
   }
 
+  state.behaviorRunner = buildQualificationBehaviorImage(consumerA);
+
   const harnessA = resolve(consumerA, ".harness");
   const envA = { AGENT_HARNESS_ROOT: harnessA, AGENT_HARNESS_PROJECT_ROOT: consumerA };
   mustRun("R-3", "SOURCE", process.execPath, [resolve(harnessA, "bin/harness.mjs"), "bootstrap"], { cwd: consumerA, env: envA, label: "r3-bootstrap-a" });
@@ -514,7 +522,81 @@ async function r3() {
   report.identity.SUBMODULE_HEAD = report.identity.R0_HEAD;
   report.identity.SUBMODULE_TREE_SHA256 = report.identity.R0_TREE_SHA256;
   assertCleanSource("R-3");
-  return { consumerA, consumerB, composeA, composeB, staleRootRecovery: true };
+  return {
+    consumerA,
+    consumerB,
+    composeA,
+    composeB,
+    staleRootRecovery: true,
+    behaviorRunner: state.behaviorRunner,
+  };
+}
+
+function buildQualificationBehaviorImage(consumerRoot) {
+  const configuration = loadCommittedProjectConfiguration(consumerRoot);
+  const spec = configuration.descriptor.runners.find(item => item.id === "qualification-behavior") ?? null;
+  const sourceBinding = spec
+    ? configuration.runnerSourceBindings.find(item => item.runnerId === spec.id) ?? null
+    : null;
+  if (!spec || !sourceBinding || spec.image.mode !== "source-attested-build") {
+    hold("R-3", "SOURCE", "qualification_behavior_runner_configuration_missing");
+  }
+  const runnerSpecDigest = dockerRunnerSpecDigest(spec);
+  const sourceBindingDigest = dockerRunnerSourceBindingDigest(sourceBinding, { spec });
+  const buildEnv = {
+    ...process.env,
+    AGENT_HARNESS_SOURCE_SNAPSHOT_SHA256: configuration.sourceSnapshotSha256,
+    AGENT_HARNESS_RUNNER_SPEC_DIGEST: runnerSpecDigest,
+    AGENT_HARNESS_SOURCE_BINDING_DIGEST: sourceBindingDigest,
+    AGENT_HARNESS_QUALIFICATION_BEHAVIOR_TAG: sourceBindingDigest.slice("sha256:".length, "sha256:".length + 20),
+  };
+  const args = [
+    "--context", spec.dockerContext,
+    "compose",
+    "--project-directory", consumerRoot,
+    "-p", spec.composeProject,
+    ...spec.composeFiles.flatMap(file => ["-f", resolve(consumerRoot, file)]),
+    ...spec.profiles.flatMap(profile => ["--profile", profile]),
+    "build",
+    spec.service,
+  ];
+  mustRun("R-3", "SOURCE", "docker", args, {
+    cwd: consumerRoot,
+    env: buildEnv,
+    label: "r3-behavior-runner-build",
+    timeoutMs: 15 * 60_000,
+  });
+
+  const materialized = probeDockerRunnerMaterialization(
+    { spec, sourceBinding },
+    { root: consumerRoot, timeoutMs: 60_000 },
+  );
+  if (materialized.status !== "MATERIALIZED") {
+    hold("R-3", "SOURCE", "qualification_behavior_runner_materialization_failed", {
+      code: materialized.code,
+      runnerId: spec.id,
+    });
+  }
+  const attested = probeDockerImageSourceAttestation(
+    { spec, sourceBinding, materialization: materialized.materialization },
+    { root: consumerRoot, timeoutMs: 30_000 },
+  );
+  if (attested.status !== "ATTESTED") {
+    hold("R-3", "SOURCE", "qualification_behavior_runner_attestation_failed", {
+      code: attested.code,
+      runnerId: spec.id,
+      imageId: materialized.materialization.imageId,
+    });
+  }
+  return {
+    runnerId: spec.id,
+    sourceCommit: configuration.sourceCommit,
+    sourceSnapshotSha256: configuration.sourceSnapshotSha256,
+    runnerSpecDigest,
+    sourceBindingDigest,
+    imageId: materialized.materialization.imageId,
+    attestationIdentityDigest: attested.attestationIdentityDigest,
+  };
 }
 
 function isInside(parent, child) {
@@ -529,6 +611,7 @@ function buildConsumerEnv() {
   const username = "opencode";
   const password = process.env.AGENT_HARNESS_QUALIFICATION_OPENCODE_PASSWORD || randomBytes(18).toString("base64url");
   state.opencodeAuth ??= { username, password };
+  state.behaviorGatewayHmacKey ??= randomBytes(32).toString("hex");
   const base = {
     ...process.env,
     AGENT_HARNESS_ROOT: harness,
@@ -554,6 +637,7 @@ function buildConsumerEnv() {
     AGENT_HARNESS_OPENCODE_CONTINUATION_HOST_PROBE_URL: `http://host.docker.internal:${p.opencode}`,
     AGENT_HARNESS_CONTEXT_ENGINE_MCP_URL: `http://127.0.0.1:${p.contextEngine}/mcp`,
     AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL: `http://127.0.0.1:${p.contextEngine}/runtime-invocation-provenance`,
+    AGENT_HARNESS_DOCKER_GATEWAY_HMAC_KEY: state.behaviorGatewayHmacKey,
     // Qualification fault controls are explicitly disarmed outside the gate that owns them.
     // Do not inherit similarly named host variables into R-4/R-7/R-8/R-10.
     AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: "",
@@ -618,6 +702,10 @@ async function r4() {
   state.pluginSha = pluginSha();
   for (const [name, port] of Object.entries(state.ports)) if (!(await isPortFree(port))) hold("R-4", "ENVIRONMENT", "qualification_port_race", { name, port });
   mustRun("R-4", "SOURCE", process.execPath, [resolve(state.consumers.A, ".harness/bin/harness.mjs"), "up"], { cwd: state.consumers.A, env: { ...env, AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256: state.pluginSha }, label: "r4-harness-up", timeoutMs: 30 * 60_000 });
+  composeCommand(["--profile", "behavior-gateway", "up", "-d", "docker-behavior-gateway"], {
+    label: "r4-behavior-gateway-up",
+    timeoutMs: 15 * 60_000,
+  });
 
   const contextEngineReadiness = await requireHttpReady("R-4", {
     service: "context-engine",
@@ -627,7 +715,7 @@ async function r4() {
     intervalMs: 2_000,
   });
 
-  const services = ["postgres", "rabbitmq", "redis", "context-embeddings", "context-engine", "agent-runtime-worker"];
+  const services = ["postgres", "rabbitmq", "redis", "context-embeddings", "context-engine", "docker-behavior-gateway", "agent-runtime-worker"];
   const containerEvidence = {};
   const containerInspects = {};
   for (const service of services) {
@@ -652,19 +740,24 @@ async function r4() {
   }
   const workspaceMountFor = (inspect) => (inspect?.Mounts ?? []).find((mount) => mount.Destination === workspaceDestination);
   const contextEngineWorkspaceMount = workspaceMountFor(containerInspects["context-engine"]);
+  const gatewayWorkspaceMount = workspaceMountFor(containerInspects["docker-behavior-gateway"]);
   const workerWorkspaceMount = workspaceMountFor(containerInspects["agent-runtime-worker"]);
-  if (!contextEngineWorkspaceMount || !workerWorkspaceMount) {
+  if (!contextEngineWorkspaceMount || !gatewayWorkspaceMount || !workerWorkspaceMount) {
     hold("R-4", "SOURCE", "runtime_workspace_shared_volume_missing", {
       destination: workspaceDestination,
       contextEngineMount: contextEngineWorkspaceMount ?? null,
+      gatewayMount: gatewayWorkspaceMount ?? null,
       workerMount: workerWorkspaceMount ?? null,
     });
   }
-  if (contextEngineWorkspaceMount.Type !== "volume" || workerWorkspaceMount.Type !== "volume"
+  if (contextEngineWorkspaceMount.Type !== "volume" || gatewayWorkspaceMount.Type !== "volume"
+      || workerWorkspaceMount.Type !== "volume"
+      || contextEngineWorkspaceMount.Source !== gatewayWorkspaceMount.Source
       || contextEngineWorkspaceMount.Source !== workerWorkspaceMount.Source) {
     hold("R-4", "SOURCE", "runtime_workspace_volume_not_shared", {
       destination: workspaceDestination,
       contextEngineMount: contextEngineWorkspaceMount,
+      gatewayMount: gatewayWorkspaceMount,
       workerMount: workerWorkspaceMount,
     });
   }
@@ -672,6 +765,7 @@ async function r4() {
     root: workspaceDestination,
     volume: contextEngineWorkspaceMount.Source,
     contextEngineMountType: contextEngineWorkspaceMount.Type,
+    gatewayMountType: gatewayWorkspaceMount.Type,
     workerMountType: workerWorkspaceMount.Type,
   };
   composeCommand(["exec", "-T", "redis", "redis-cli", "ping"], { label: "r4-redis-ping" });
