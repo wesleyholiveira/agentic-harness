@@ -107,7 +107,7 @@ function emitRuntimeEvent(type, payload = {}) {
 
 export function resolveQualificationProcessLossBoundary({ brief, resumeCheckpoint = null, env = process.env } = {}) {
   const boundary = String(env.AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY ?? "").trim();
-  if (boundary !== "repair-checkpoint-after-full-agent") return null;
+  if (!["repair-checkpoint-after-full-agent", "repair-checkpoint-before-behavior"].includes(boundary)) return null;
   // Qualification fault injection is only legal on the original full-agent
   // execution. Replacement execution must never re-arm the same fault.
   if (resumeCheckpoint) return null;
@@ -125,7 +125,13 @@ export function resolveQualificationProcessLossBoundary({ brief, resumeCheckpoin
   }
   const rawWaitMs = Number(env.AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_WAIT_MS ?? 120_000);
   const waitMs = Math.max(5_000, Math.min(300_000, Number.isFinite(rawWaitMs) ? Math.trunc(rawWaitMs) : 120_000));
-  return { boundary, taskMatch: taskMatch || null, attemptMatch: attemptMatch ? Number(attemptMatch) : null, waitMs };
+  return {
+    boundary,
+    taskMatch: taskMatch || null,
+    attemptMatch: attemptMatch ? Number(attemptMatch) : null,
+    waitMs,
+    blockUntilProcessLoss: boundary === "repair-checkpoint-after-full-agent",
+  };
 }
 
 async function armQualificationProcessLossBoundary({ brief, handoff, sessionId, usage, repairCheckpointPath, resumeCheckpoint }) {
@@ -153,11 +159,19 @@ async function armQualificationProcessLossBoundary({ brief, handoff, sessionId, 
     checkpointEffectKey: checkpoint.effectKey,
     checkpointStatus: checkpoint.status,
     repairKind: checkpoint.repairKind,
+    qualificationBoundary: qualification.boundary,
+    blockUntilProcessLoss: qualification.blockUntilProcessLoss,
     waitMs: qualification.waitMs,
   });
-  // A real qualification harness is expected to terminate the worker process at
-  // this point. If it fails to do so, do not silently continue and accidentally
-  // classify an unexercised crash boundary as PASS.
+  if (!qualification.blockUntilProcessLoss) {
+    // WAVE-10 worker-loss qualification observes the real behavior container
+    // externally and kills worker PID 1 only after the gateway request is in-flight.
+    // The durable checkpoint already exists, so replacement execution can skip
+    // the completed full-agent invocation after the physical process loss.
+    return true;
+  }
+  // Legacy R-9 boundary: a real qualification harness is expected to terminate
+  // the worker at this point. If it fails to do so, fail closed.
   await sleep(qualification.waitMs);
   throw new Error("qualification_process_loss_not_triggered_before_deadline");
 }
