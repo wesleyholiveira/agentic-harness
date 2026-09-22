@@ -33,7 +33,7 @@
     {
       "finding": "restricted model UID did not own the external Runtime task output directory used for handoff creation",
       "severity": "blocking",
-      "correction": "validate one task output parent and chown only that directory root to UID/GID 10001",
+      "correction": "move handoff/repair artifacts into dedicated agent-output-attempt-N subdirectory owned by UID/GID 10001 while Task Brief/context/descriptor/log/result remain parent control-plane authority",
       "status": "fixed-pending-runtime-regression"
     },
     {
@@ -47,7 +47,7 @@
     "runtime-regressions asserts version-qualified hmac direct lock dependency",
     "runtime-worker Docker build uses cargo build --locked --release",
     "gateway contracts cover in-flight fence replacement and client disconnect",
-    "runtime regressions cover model-wide UID isolation, private-network egress guard and scoped task-output write authority",
+    "runtime regressions cover model-wide UID isolation, private-network egress guard and attempt-scoped model output authority",
     "revoked behavior execution repeatedly reaps the fence-bound Docker container"
   ],
   "historicalGreenEvidence": {
