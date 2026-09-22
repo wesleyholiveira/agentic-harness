@@ -71,11 +71,12 @@ impl Config {
         if max_attempts != 1 {
             bail!("agent_continuation_max_attempts_must_be_one");
         }
-        let behavior_gateway_hmac_key = lookup_opt(
-            &mut lookup,
-            "AGENT_HARNESS_DOCKER_GATEWAY_HMAC_KEY",
-        );
-        if behavior_gateway_hmac_key.as_ref().is_some_and(|value| value.as_bytes().len() < 32) {
+        let behavior_gateway_hmac_key =
+            lookup_opt(&mut lookup, "AGENT_HARNESS_DOCKER_GATEWAY_HMAC_KEY");
+        if behavior_gateway_hmac_key
+            .as_ref()
+            .is_some_and(|value| value.as_bytes().len() < 32)
+        {
             bail!("behavior_gateway_hmac_key_too_short");
         }
 
@@ -99,10 +100,7 @@ impl Config {
                 "OUTBOX_MAX_PUBLISH_ATTEMPTS",
                 5_i32,
             ),
-            behavior_gateway_url: lookup_opt(
-                &mut lookup,
-                "AGENT_HARNESS_DOCKER_GATEWAY_URL",
-            ),
+            behavior_gateway_url: lookup_opt(&mut lookup, "AGENT_HARNESS_DOCKER_GATEWAY_URL"),
             behavior_gateway_hmac_key,
             behavior_gateway_http_timeout_ms: lookup_num(
                 &mut lookup,
