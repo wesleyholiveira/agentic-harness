@@ -512,10 +512,13 @@ Three failures exposed a runtime-owned validation-authority gap:
   bounded criterion-assignment repair.
 
 Corrections:
-- implementation criteria are now an exact projection and may become `[]`;
-- when a validation command catalog exists, validation and
-  `validationCommandIds` are exact Runtime projections, including empty
-  arrays;
+- implementation criteria are projected exactly once a valid implementation
+  criterion is known; criterionless pre-repair items retain a schema-valid
+  transient shape so bounded criterion assignment can run;
+- validation/validationCommandIds are exact Runtime projections whenever a
+  positive trusted command projection exists; invalid prose remains visible
+  only during pre-repair so deterministic issue classification can route the
+  bounded repair instead of manufacturing schema-invalid empty arrays;
 - legacy executable commands survive only when present in the trusted catalog;
 - full-plan synthesis output and semantic-review repair output are
   re-canonicalized before deterministic validation;
@@ -525,6 +528,28 @@ Corrections:
 
 R-1 remains a full-suite gate; no failing test is skipped by the scoped
 qualification.
+
+## Criterion-assignment transient schema correction
+
+The focused rerun of the previously failing Technical Refinement test exposed a
+follow-up ordering bug. Pre-repair canonicalization removed the downstream-only
+criterion and invalid validation prose from a criterionless work item, producing
+empty `acceptanceCriteria` and `validation` arrays. The final implementation
+plan schema correctly requires at least one item in both fields, so the flow
+failed at schema validation before the bounded criterion-assignment repair could
+attach the missing implementation criterion.
+
+Correction:
+- pre-repair normalization preserves the schema-valid transient criterion/prose
+  on criterionless work items;
+- those values remain explicit deterministic issues and therefore cannot pass
+  final validation;
+- after criterion assignment, canonicalization removes downstream-only criteria,
+  projects the exact trusted validation command and Runtime-owned IDs, and the
+  final schema is validated normally;
+- the workflow contract now pins both the transient and final shapes.
+
+No schema relaxation was introduced.
 
 ## Remaining promotion gates
 
