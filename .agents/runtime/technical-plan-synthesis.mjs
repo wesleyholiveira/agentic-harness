@@ -161,7 +161,11 @@ export function normalizeTechnicalPlanMechanics({
   for (const item of next.workItems ?? []) {
     const originalCriteria = [...(item.acceptanceCriteria ?? [])];
     const implementationCriteria = [...new Set(originalCriteria.filter((id) => implementationIds.has(id)))];
-    if (implementationCriteria.length !== originalCriteria.length) {
+    // Preserve a schema-valid transient shape while bounded repair is still
+    // deciding which implementation criterion belongs to a criterionless item.
+    // Once at least one implementation criterion exists, downstream-only
+    // criteria are projected away deterministically.
+    if (implementationCriteria.length > 0 && implementationCriteria.length !== originalCriteria.length) {
       item.acceptanceCriteria = implementationCriteria;
       evidence.push(`work-item-updated:${item.id}:acceptanceCriteria`);
     }
@@ -189,12 +193,16 @@ export function normalizeTechnicalPlanMechanics({
     const normalizedIds = catalogByCommand
       ? normalizedValidation.map((command) => String(catalogByCommand.get(command)?.id ?? "")).filter(Boolean)
       : normalizedValidation.map((command) => validationCommandId(command));
-    if ((catalogByCommand || normalizedValidation.length > 0)
+    // Empty trusted projection is not written during pre-repair because the
+    // schema requires validation.minItems=1. The invalid/prose value remains
+    // visible to deterministic repair issues. Any positive trusted projection
+    // replaces it exactly and receives Runtime-owned IDs.
+    if (normalizedValidation.length > 0
       && JSON.stringify(normalizedValidation) !== JSON.stringify(item.validation ?? [])) {
       item.validation = normalizedValidation;
       evidence.push(`work-item-updated:${item.id}:validation`);
     }
-    if ((catalogByCommand || normalizedIds.length > 0)
+    if (normalizedIds.length > 0
       && JSON.stringify(normalizedIds) !== JSON.stringify(item.validationCommandIds ?? [])) {
       item.validationCommandIds = normalizedIds;
       evidence.push(`work-item-updated:${item.id}:validationCommandIds`);
