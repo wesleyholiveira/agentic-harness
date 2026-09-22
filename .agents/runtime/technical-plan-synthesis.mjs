@@ -161,7 +161,7 @@ export function normalizeTechnicalPlanMechanics({
   for (const item of next.workItems ?? []) {
     const originalCriteria = [...(item.acceptanceCriteria ?? [])];
     const implementationCriteria = [...new Set(originalCriteria.filter((id) => implementationIds.has(id)))];
-    if (implementationCriteria.length > 0 && implementationCriteria.length !== originalCriteria.length) {
+    if (implementationCriteria.length !== originalCriteria.length) {
       item.acceptanceCriteria = implementationCriteria;
       evidence.push(`work-item-updated:${item.id}:acceptanceCriteria`);
     }
@@ -182,16 +182,20 @@ export function normalizeTechnicalPlanMechanics({
       .filter(isExecutableValidationCommand);
     const selectedCommands = allSuppliedIdsKnown
       ? suppliedIds.map((id) => String(catalogById.get(id)?.command ?? "").trim()).filter(Boolean)
-      : legacyExecutableCommands;
+      : (catalogByCommand
+        ? legacyExecutableCommands.filter((command) => catalogByCommand.has(command))
+        : legacyExecutableCommands);
     const normalizedValidation = [...new Set([...selectedCommands, ...exactCriterionCommands])];
     const normalizedIds = catalogByCommand
       ? normalizedValidation.map((command) => String(catalogByCommand.get(command)?.id ?? "")).filter(Boolean)
       : normalizedValidation.map((command) => validationCommandId(command));
-    if (normalizedValidation.length > 0 && JSON.stringify(normalizedValidation) !== JSON.stringify(item.validation ?? [])) {
+    if ((catalogByCommand || normalizedValidation.length > 0)
+      && JSON.stringify(normalizedValidation) !== JSON.stringify(item.validation ?? [])) {
       item.validation = normalizedValidation;
       evidence.push(`work-item-updated:${item.id}:validation`);
     }
-    if (normalizedIds.length > 0 && JSON.stringify(normalizedIds) !== JSON.stringify(item.validationCommandIds ?? [])) {
+    if ((catalogByCommand || normalizedIds.length > 0)
+      && JSON.stringify(normalizedIds) !== JSON.stringify(item.validationCommandIds ?? [])) {
       item.validationCommandIds = normalizedIds;
       evidence.push(`work-item-updated:${item.id}:validationCommandIds`);
     }
@@ -1363,8 +1367,15 @@ export async function synthesizeMissingImplementationPlan({
           prompt,
           title: `${brief.taskId} implementation plan repair ${repairPass}/${repairPassLimit}`,
         });
-        const plan = result.value;
-        assertSchema(plan, implementationPlanSchema, "implementationPlanSynthesis");
+        const modelPlan = result.value;
+        assertSchema(modelPlan, implementationPlanSchema, "implementationPlanSynthesis");
+        const candidateCanonicalization = normalizeTechnicalPlanMechanics({
+          implementationPlan: modelPlan,
+          requiredAcceptanceCriteria,
+          registry: resolvedRegistry,
+          validationCommandCatalog,
+        });
+        const plan = candidateCanonicalization.plan;
         const usage = synthesisUsage(result.info);
         aggregateUsage = {
           inputTokens: aggregateUsage.inputTokens + usage.inputTokens,
@@ -1637,6 +1648,14 @@ export async function repairImplementationPlanFromReview({
     // production traces and made repeated ineffective repairs indistinguishable.
     if (repairMutationScope === "none") repairMutationScope = "semantic-review";
   }
+
+  const repairedCanonicalization = normalizeTechnicalPlanMechanics({
+    implementationPlan: repairedPlan,
+    requiredAcceptanceCriteria,
+    registry: resolvedRegistry,
+    validationCommandCatalog,
+  });
+  repairedPlan = repairedCanonicalization.plan;
 
   const validationIssues = technicalPlanRepairIssues({
     implementationPlan: repairedPlan,
