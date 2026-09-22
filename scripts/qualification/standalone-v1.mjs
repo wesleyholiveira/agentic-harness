@@ -35,7 +35,14 @@ import {
   waitFor,
   writeJson,
 } from "./lib/util.mjs";
-import { assertFixtureComplete, assertR9FixtureComplete, assertR10FixtureComplete, fixtureIdentity, materializeFixture } from "./lib/fixture.mjs";
+import {
+  QUALIFICATION_BEHAVIOR_DELAY_COMMAND_ID,
+  assertFixtureComplete,
+  assertR9FixtureComplete,
+  assertR10FixtureComplete,
+  fixtureIdentity,
+  materializeFixture,
+} from "./lib/fixture.mjs";
 import { buildSourceAttestedQualificationImage } from "./lib/source-attested-behavior.mjs";
 import { basicAuthHeaders, requestJson, waitForJsonReady } from "./lib/http.mjs";
 import { evaluateRuntimeObservation, formatRuntimeProgress } from "./lib/runtime-watchdog.mjs";
@@ -49,6 +56,7 @@ import {
 import { resolveExecutionLivenessPolicy } from "../../.agents/runtime/execution-liveness.mjs";
 import { buildWorkerProcessLossCommand } from "../../.agents/runtime/h9r-process-loss.mjs";
 import { evaluateH9RRecoveryEvidence } from "../../.agents/runtime/h9r-evidence.mjs";
+import { behaviorContainerName } from "../../apps/docker-gateway/server.mjs";
 
 const scriptRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const args = parseArgs(process.argv.slice(2));
@@ -1510,21 +1518,35 @@ async function r8() {
 
 async function r9() {
   const armedFaultEnv = {
-    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: "repair-checkpoint-after-full-agent",
+    AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: "repair-checkpoint-before-behavior",
     AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_TASK_MATCH: "technical-refinement",
     AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT: "1",
     AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_WAIT_MS: "180000",
+    AGENT_HARNESS_RUNTIME_TEST_BEHAVIOR_COMMAND_ID: QUALIFICATION_BEHAVIOR_DELAY_COMMAND_ID,
   };
   const disarmedFaultEnv = {
     AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: "",
     AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_TASK_MATCH: "",
     AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT: "",
     AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_WAIT_MS: "120000",
+    AGENT_HARNESS_RUNTIME_TEST_BEHAVIOR_COMMAND_ID: "",
   };
 
-  // Arm the already-implemented executor boundary before creating the semantic run.
-  // The boundary is attempt-scoped so a legitimate later Technical Refinement retry
-  // cannot accidentally receive a second physical fault.
+  // Arm both descriptor preparation and worker-side durable checkpointing before
+  // creating the semantic run. The boundary is attempt-scoped so replacement
+  // execution can never receive a second physical fault.
+  composeCommand(["up", "-d", "--no-deps", "--force-recreate", "context-engine"], {
+    label: "r9-arm-context-behavior-boundary",
+    timeoutMs: 5 * 60_000,
+    env: armedFaultEnv,
+  });
+  await requireHttpReady("R-9", {
+    service: "context-engine",
+    url: `http://127.0.0.1:${state.ports.contextEngine}/healthz`,
+    request: { timeoutMs: 5_000, allowStatuses: [200] },
+    timeoutMs: 2 * 60_000,
+    intervalMs: 1_000,
+  });
   composeCommand(["up", "-d", "--no-deps", "--force-recreate", "agent-runtime-worker"], {
     label: "r9-arm-process-loss-boundary",
     timeoutMs: 5 * 60_000,
@@ -1545,6 +1567,26 @@ async function r9() {
       expected: armedFaultEnv,
       actual: armedProjection,
       mismatches: missingArmedProjection.map(([key, expected]) => ({ key, expected, actual: armedWorkerEnv[key] ?? null })),
+    });
+  }
+  const armedContextId = composeCommand(["ps", "-q", "context-engine"], { label: "r9-armed-context-id" }).stdout.trim();
+  if (!armedContextId) hold("R-9", "QUALIFICATION PROCEDURE", "r9_armed_context_container_missing");
+  const armedContextInspect = JSON.parse(runner.run("docker", ["inspect", armedContextId], { label: "r9-armed-context-inspect" }).stdout)[0];
+  const armedContextEnv = containerEnvironmentMap(armedContextInspect);
+  const contextFaultKeys = [
+    "AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY",
+    "AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_TASK_MATCH",
+    "AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT",
+    "AGENT_HARNESS_RUNTIME_TEST_BEHAVIOR_COMMAND_ID",
+  ];
+  const armedContextProjection = Object.fromEntries(contextFaultKeys.map((key) => [key, armedContextEnv[key] ?? null]));
+  const missingContextProjection = contextFaultKeys.filter((key) => armedContextEnv[key] !== armedFaultEnv[key]);
+  if (missingContextProjection.length > 0) {
+    hold("R-9", "QUALIFICATION PROCEDURE", "r9_behavior_boundary_not_projected_to_context_engine", {
+      contextEngineId: armedContextId,
+      expected: Object.fromEntries(contextFaultKeys.map((key) => [key, armedFaultEnv[key]])),
+      actual: armedContextProjection,
+      mismatches: missingContextProjection,
     });
   }
 
