@@ -76,10 +76,61 @@ test("OpenCode nonzero JSON failure is reduced to redacted structured evidence",
     sessionId: "ses_failure",
     errorName: "ProviderAuthError",
     errorCode: "401",
+    errorRef: null,
     errorMessage: "request rejected Bearer [REDACTED]",
     providerId: "openai",
     modelId: "gpt-5.6-luna",
   });
+});
+
+test("OpenCode UnknownError diagnostics preserve the bounded server reference", async () => {
+  const { summarizeOpenCodeFailure } = await import("../../scripts/internal/opencode-task-executor.mjs");
+  const stdout = JSON.stringify({
+    type: "error",
+    sessionID: "ses_unknown",
+    error: {
+      name: "UnknownError",
+      data: {
+        message: "Unexpected server error. Check server logs for details.",
+        ref: "err_8eb36e0f",
+      },
+    },
+  });
+  assert.deepEqual(summarizeOpenCodeFailure({ stdout }), {
+    source: "json-error-event",
+    sessionId: "ses_unknown",
+    errorName: "UnknownError",
+    errorCode: null,
+    errorRef: "err_8eb36e0f",
+    errorMessage: "Unexpected server error. Check server logs for details.",
+    providerId: null,
+    modelId: null,
+  });
+});
+
+test("qualification waitFor propagates terminal predicate errors without converting them to timeout", async () => {
+  const { waitFor } = await import("../../scripts/qualification/lib/util.mjs");
+  const terminal = new Error("terminal-qualification-hold");
+  let attempts = 0;
+  await assert.rejects(
+    waitFor(() => {
+      attempts += 1;
+      throw terminal;
+    }, {
+      timeoutMs: 5_000,
+      intervalMs: 1,
+      label: "terminal-propagation",
+      shouldRetryError: () => false,
+    }),
+    (error) => error === terminal,
+  );
+  assert.equal(attempts, 1);
+});
+
+test("runtime worker pins an OpenCode build containing the compiled filesystem-cycle fix", () => {
+  const dockerfile = source("apps/runtime-worker/Dockerfile");
+  assert.match(dockerfile, /opencode-ai@1\.18\.32/u);
+  assert.doesNotMatch(dockerfile, /opencode-ai@1\.18\.26/u);
 });
 
 test("OpenCode attempt-state resolver gives Runtime-projected state root precedence over manifest adjacency", async () => {
