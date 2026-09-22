@@ -698,7 +698,11 @@ async function r4() {
   state.pluginSha = pluginSha();
   for (const [name, port] of Object.entries(state.ports)) if (!(await isPortFree(port))) hold("R-4", "ENVIRONMENT", "qualification_port_race", { name, port });
   mustRun("R-4", "SOURCE", process.execPath, [resolve(state.consumers.A, ".harness/bin/harness.mjs"), "up"], { cwd: state.consumers.A, env: { ...env, AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256: state.pluginSha }, label: "r4-harness-up", timeoutMs: 30 * 60_000 });
-  composeCommand(["--profile", "behavior-gateway", "up", "-d", "docker-behavior-gateway"], {
+  composeCommand([
+    "--profile", "runtime",
+    "--profile", "behavior-gateway",
+    "up", "-d", "docker-behavior-gateway",
+  ], {
     label: "r4-behavior-gateway-up",
     timeoutMs: 15 * 60_000,
   });
