@@ -49,6 +49,12 @@ test("stalled executor output draining is bounded so inherited pipes cannot hold
   assert.match(worker, /drain_executor_output\(stderr_task, "stderr", claimed, client\)\.await/);
 });
 
+test("OpenCode failure runtime event is persisted by the semantic finalizer", () => {
+  const finalizer = source(".agents/runtime/event-driven-finalizer.mjs");
+  assert.match(finalizer, /"opencode\.failure"/u);
+  assert.match(finalizer, /BUFFERED_PERFORMANCE_EVENT_TYPES/u);
+});
+
 test("OpenCode nonzero JSON failure is reduced to redacted structured evidence", async () => {
   const { summarizeOpenCodeFailure } = await import("../../scripts/internal/opencode-task-executor.mjs");
   const stdout = JSON.stringify({
