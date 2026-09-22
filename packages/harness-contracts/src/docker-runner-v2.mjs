@@ -69,7 +69,11 @@ export function validateDockerRunnerSpec(spec) {
   assertKeys(spec.image, ['mode','reference'], [], 'docker_runner_spec_image_invalid');
   if (spec.operation === 'exec') {
     if (spec.image.mode !== 'running-service' || spec.image.reference !== null) fail('docker_runner_spec_image_invalid');
-  } else if (spec.image.mode !== 'pinned-reference' || typeof spec.image.reference !== 'string' || !IMAGE_DIGEST_REF.test(spec.image.reference)) {
+  } else if (spec.image.mode === 'pinned-reference') {
+    if (typeof spec.image.reference !== 'string' || !IMAGE_DIGEST_REF.test(spec.image.reference)) fail('docker_runner_spec_image_invalid');
+  } else if (spec.image.mode === 'source-attested-build') {
+    if (spec.image.reference !== null || spec.buildTarget === null) fail('docker_runner_spec_image_invalid');
+  } else {
     fail('docker_runner_spec_image_invalid');
   }
   return structuredClone({ ...spec, composeFiles, dependencyFiles, profiles });
