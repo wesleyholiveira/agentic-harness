@@ -7,7 +7,11 @@ import { join, resolve } from "node:path";
 import { ProcessRunner } from "../../scripts/qualification/lib/process.mjs";
 import { gatewayFaultClientScript } from "../../scripts/qualification/wave10-fault-preflight.mjs";
 
-test("fault preflight client is external to the gateway and distinguishes HTTP from transport failure", () => {
+test("fault preflight client is external to the gateway, keeps stdin attached, and distinguishes HTTP from transport failure", () => {
+  const source = readFileSync(resolve("scripts/qualification/wave10-fault-preflight.mjs"), "utf8");
+  assert.match(source, /"run", "--rm", "--pull", "never", "-i"/u);
+  assert.match(source, /input: JSON\.stringify\(scenario\.request\)/u);
+
   const script = gatewayFaultClientScript();
   assert.match(script, /http:\/\/docker-behavior-gateway:8792\/v1\/behavior/u);
   assert.match(script, /kind:'http'/u);
