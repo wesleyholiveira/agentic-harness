@@ -12,10 +12,12 @@ export class QualificationHold extends Error {
 }
 
 export class QualificationReport {
-  constructor({ runId, outputDir, harnessRoot }) {
+  constructor({ runId, outputDir, harnessRoot, qualificationScope = "full-promotion", promotionEligible = true }) {
     this.runId = runId;
     this.outputDir = outputDir;
     this.harnessRoot = harnessRoot;
+    this.qualificationScope = qualificationScope;
+    this.promotionEligible = promotionEligible === true;
     this.startedAt = new Date().toISOString();
     this.finishedAt = null;
     this.gates = [];
@@ -60,6 +62,8 @@ export class QualificationReport {
   toJSON() {
     return {
       contractVersion: "agentic-harness-standalone-qualification/v1",
+      qualificationScope: this.qualificationScope,
+      promotionEligible: this.promotionEligible,
       runId: this.runId,
       startedAt: this.startedAt,
       finishedAt: this.finishedAt,
@@ -84,7 +88,10 @@ export class QualificationReport {
     const first = data.firstDivergence
       ? `\n## First divergence\n\n- Gate: ${data.firstDivergence.gate}\n- Classification: ${data.firstDivergence.classification}\n- Message: ${data.firstDivergence.message}\n`
       : "\n## First divergence\n\nNone.\n";
-    const markdown = `# Agentic Harness standalone qualification\n\n**Run:** ${data.runId}  \n**Verdict:** AGENTIC HARNESS v1.0.0 PROMOTION ${data.verdict}\n\n| Gate | Result | Evidence |\n|---|---|---|\n${rows}\n${first}\n## Source identity\n\n\`\`\`json\n${JSON.stringify(data.identity, null, 2)}\n\`\`\`\n`;
+    const verdictLabel = data.promotionEligible
+      ? `AGENTIC HARNESS v1.0.0 PROMOTION ${data.verdict}`
+      : `${String(data.qualificationScope).toUpperCase()} ${data.verdict} — NOT A RELEASE PROMOTION`;
+    const markdown = `# Agentic Harness standalone qualification\n\n**Run:** ${data.runId}  \n**Scope:** ${data.qualificationScope}  \n**Promotion eligible:** ${data.promotionEligible}\n**Verdict:** ${verdictLabel}\n\n| Gate | Result | Evidence |\n|---|---|---|\n${rows}\n${first}\n## Source identity\n\n\`\`\`json\n${JSON.stringify(data.identity, null, 2)}\n\`\`\`\n`;
     writeFileSync(markdownPath, markdown, "utf8");
     return { jsonPath, markdownPath };
   }
