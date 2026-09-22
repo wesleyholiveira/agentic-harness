@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "r0-historical-reference-classification-fixed-pending-scoped-r9-rerun",
+  "status": "r1-seven-failure-fix-pending-exact-sha-rerun",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -108,6 +108,28 @@
       "sourceAuthority": "git-tracked-worktree",
       "runtimeReached": false,
       "interpretation": "historical evolution documentation misclassified as operational source"
+    },
+    "scopedWorkerLossAttemptOn11b8d40": {
+      "verdict": "HOLD",
+      "gate": "R-1",
+      "classification": "SOURCE",
+      "runId": "standalone-v1-1790044408411-ad69ca9c6592",
+      "r0": "PASS",
+      "harnessTest": {
+        "total": 471,
+        "pass": 464,
+        "fail": 7
+      },
+      "runtimeReached": false,
+      "failures": [
+        "implementation-plan coordinator semantic repair lost validationCommandIds",
+        "qualification product namespace legacy scan ignored new historical boundary",
+        "R-9 legacy default-off contract expected Context Engine controls absent",
+        "R-9 legacy resolver contract omitted blockUntilProcessLoss",
+        "structure project-agnostic scan treated docs/evolution as operational",
+        "Technical Refinement mechanical repair retained unauthorized prose/downstream criterion",
+        "Technical Refinement semantic repair lost validationCommandIds"
+      ]
     }
   },
   "historicalOperatorEvidence": {
@@ -210,6 +232,16 @@
       "productionLogicBug": false,
       "qualificationHarnessBug": true,
       "status": "fixed-pending-exact-sha-scoped-r9-rerun"
+    },
+    {
+      "observedOnCandidate": "11b8d4004a7acd9eddc6be51f099452a9af713fe",
+      "gate": "wave10-worker-loss/R-1",
+      "runId": "standalone-v1-1790044408411-ad69ca9c6592",
+      "observed": "harness:test 464/471 PASS with 7 failures before any Runtime gate",
+      "correction": "reconcile four stale contracts; make Technical Plan acceptance/validation authority exact Runtime projections; re-canonicalize model repair output before validation; calculate semantic mutation evidence after canonicalization",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": true,
+      "status": "fixed-pending-exact-sha-r1-rerun"
     }
   ],
   "livePreflightEvidence": {
