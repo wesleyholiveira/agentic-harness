@@ -210,10 +210,12 @@ export async function runWave10LivePreflight({
 
     runner.run("docker", [
       "run", "--rm", "--pull", "never",
+      "--user", "0:0",
+      "--entrypoint", "sh",
       "--mount", `type=volume,src=${workspaceMount.Name},dst=/workspace/agent-workspaces`,
       "--mount", `type=bind,src=${consumerRoot},dst=/source,readonly`,
-      "node:22-alpine",
-      "sh", "-ec", 'mkdir -p "$1"; cp -a /source/. "$1"/', "wave10-copy", workspacePath,
+      behavior.imageId,
+      "-ec", 'mkdir -p "$1"; cp -a /source/. "$1"/', "wave10-copy", workspacePath,
     ], { label: "wave10-copy-workspace", timeoutMs: 120_000 });
 
     const capability = randomBytes(32).toString("hex");
