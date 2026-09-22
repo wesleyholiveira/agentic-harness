@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "criterion-assignment-router-fixed-pending-focused-rerun",
+  "status": "path-qualified-validation-issue-normalized-pending-focused-rerun",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -131,7 +131,7 @@
         "Technical Refinement semantic repair lost validationCommandIds"
       ]
     },
-    "technicalPlanCriterionAssignment": "ROUTER_FIXED_PENDING_FOCUSED_RERUN"
+    "technicalPlanCriterionAssignment": "PATH_QUALIFIED_ISSUE_NORMALIZED_PENDING_FOCUSED_RERUN"
   },
   "historicalOperatorEvidence": {
     "candidate": "27480e5004ddf903e2dafaf8487437b7adf66858",
@@ -258,6 +258,13 @@
       "observed": "transient plan remained schema-valid but bounded repair was still skipped because implementation_plan_validation_command_ids_missing was not classified as repair-compatible",
       "rootCause": "criterion-assignment issue classifier recognized invalid validation prose/coverage issues but not the Runtime-owned validation ID absence caused by the same criterionless transient work item",
       "correction": "route validation ID absence through criterion-assignment only when it belongs to the exact criterionless target work item; unrelated ID authority failures remain outside the narrow repair",
+      "productionLogicBug": true,
+      "status": "fixed-pending-focused-rerun"
+    },
+    {
+      "gate": "R-1/workflow criterion-assignment issue normalization",
+      "observed": "same invalid validation was emitted twice, once as W-durable and once as implementationPlan.workItems.W-durable.validation[0], causing the bounded repair classifier to treat the second form as another target",
+      "correction": "normalize direct and path-qualified validation issues against the exact criterionless work-item identity before narrow repair classification",
       "productionLogicBug": true,
       "status": "fixed-pending-focused-rerun"
     }
