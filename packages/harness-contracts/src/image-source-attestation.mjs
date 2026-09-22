@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { assertKeys, assertSha256, fail } from './source-identity.mjs';
+import { DOCKER_IMAGE_SOURCE_LABELS } from './docker-source-labels.mjs';
 import {
   dockerRunnerMaterializationIdentityDigest,
   dockerRunnerSourceBindingDigest,
@@ -10,11 +11,7 @@ import {
 } from './docker-runner-v2.mjs';
 
 export const DOCKER_IMAGE_SOURCE_ATTESTATION_VERSION = 'docker-image-source-attestation/v1';
-export const DOCKER_IMAGE_SOURCE_LABELS = Object.freeze({
-  sourceSnapshotSha256: 'org.agentic-harness.source-snapshot-sha256',
-  runnerSpecDigest: 'org.agentic-harness.runner-spec-digest',
-  sourceBindingDigest: 'org.agentic-harness.source-binding-digest',
-});
+export { DOCKER_IMAGE_SOURCE_LABELS };
 
 function digest(value) {
   const canonical = item => {
