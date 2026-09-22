@@ -651,6 +651,44 @@ Correction:
 No behavior fence, model routing, retry, gateway, command authority or process
 loss semantics changed.
 
+## Scoped R-9 restricted OpenCode state-root correction
+
+Scoped run `standalone-v1-1790112380611-f4129aab0581` on candidate
+`848344fe63ca5cb8aeae34159944c9f2cfe91b80` again proved Q-ENTRY,
+PRE-R0 and R-0 through R-6 PASS.
+
+The previous runtime-worker module-closure defect was resolved: Product Discovery
+loaded its Agent Input Manifest and entered the OpenCode executor. It then failed
+on all three task attempts before any model invocation because the restricted
+UID 10001 tried to create:
+
+`.runtime/.../tasks/<task>/opencode-attempt-state`
+
+The task directory is intentionally root/control-plane-owned. The Rust worker
+only grants the model child write ownership to:
+- its copy workspace;
+- its attempt-scoped HOME;
+- the dedicated `agent-output-attempt-*` directory.
+
+The executor had incorrectly derived OpenCode state from
+`dirname(manifestPath)`, violating that ownership boundary.
+
+Correction:
+- Rust now removes any inherited
+  `AGENT_HARNESS_AGENT_EXECUTION_STATE_ROOT`;
+- for model-agent execution it projects
+  `AGENT_HARNESS_AGENT_EXECUTION_STATE_ROOT=<restricted HOME>/runtime-state`;
+- inherited `XDG_DATA_HOME` and `XDG_STATE_HOME` are removed before the
+  restricted child is spawned;
+- `prepareIsolatedOpenCodeAttemptEnv()` gives that Runtime-projected root
+  precedence and creates per-attempt XDG data/state below it;
+- the existing restricted HOME cleanup removes the entire state/auth copy
+  before behavior execution;
+- manifest-adjacent state remains only as a legacy/non-Runtime fallback.
+
+No write permission was added to the root-owned task directory and no provider
+credential is persisted into the durable agent-output evidence directory.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
