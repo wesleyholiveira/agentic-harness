@@ -66,6 +66,30 @@ This prevents a model child or surviving descendant from reading the root
 worker environment or reaching PostgreSQL/RabbitMQ/Redis/the Docker gateway
 through the worker network.
 
+### Constructible post-commit source-attested images
+
+Target validation exposed a pre-runtime authority defect in the WAVE-08 local
+image model. A one-off descriptor that embeds its future image digest cannot
+also be part of the source snapshot stamped into that same image without
+creating a self-reference.
+
+ADR 0042 adds `image.mode=source-attested-build` for locally built one-off
+runners. In this mode:
+- the committed descriptor carries no future image digest;
+- `buildTarget` is mandatory;
+- the image is built only after the consumer commit exists;
+- the trusted builder stamps the existing sourceSnapshot/runnerSpec/sourceBinding
+  authority labels from that commit;
+- materialization resolves exactly one image matching all three labels;
+- missing or ambiguous matches HOLD;
+- subsequent toolchain and behavior execution use only the immutable materialized
+  image ID.
+
+The standalone qualification fixture now commits a real ProjectDescriptor/v2
+and execution policy, builds a Node behavior runner after the exact harness
+gitlink commit, proves materialization + source attestation in R-3, and starts
+the isolated behavior gateway in R-4 on the same Runtime workspace volume.
+
 ### Fence-bound ephemeral capability
 
 The worker generates two UUIDv4 values concatenated into a 64-hex capability
@@ -191,11 +215,14 @@ Rust:
 must pass. `cargo fmt --manifest-path apps/runtime-worker/Cargo.toml -- --check`
 must also pass after the Rust hardening changes.
 
-Because source identity hashes all committed tracked files, the earlier
-operator-confirmed gateway/worker image builds from 2026-09-21 are historical
-evidence only. They predate the in-flight revocation, model-wide isolation and
-task-output permission fixes. Both images and the Docker contract target must
-be rebuilt on the exact frozen WAVE-10 candidate SHA.
+Because source identity hashes all committed tracked files, qualification is
+always exact-SHA. Candidate `e6dd924745c396ec03a05372b87c0d89bd23888e`
+was operator-confirmed GREEN for focused Node contracts, Rust fmt +
+`cargo test --locked`, Compose config, Docker contract target (264/264), and
+the worker/gateway image builds. That evidence closes the preceding static
+REDs, but it became historical-only when ADR 0042 and the source-attested
+runtime fixture changed tracked source. The next candidate must rerun the cheap
+source/build gates before live WAVE-10 faults are armed.
 
 ## Remaining promotion gates
 
