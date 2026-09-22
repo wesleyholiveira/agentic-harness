@@ -72,6 +72,22 @@
       "correction": "gateway now uses Docker CLI 27.5.1 and live preflight gates client >=26 plus daemon API >=1.45 before behavior execution",
       "productionLogicBug": true,
       "status": "fixed-pending-exact-sha-live-preflight-rerun"
+    },
+    {
+      "gate": "wave10-live-preflight",
+      "candidate": "cd909cfbb61dea32f52ab70bbe0d5e2556718ace",
+      "preflightId": "wave10-live-preflight-1790038108049-800f65da2173",
+      "observed": {
+        "rawDockerVersionOutput": "27.5.1              1.55",
+        "parsedClientVersion": "27.5.1              1.55",
+        "parsedServerApiVersion": null,
+        "cleanupOk": true
+      },
+      "rootCause": "qualification parser split only on literal tab although Docker Compose exec rendered the Go-template separator as aligned whitespace on the target Windows/Docker Desktop path",
+      "correction": "split on generic whitespace, require exactly two fields, and keep the same Docker client/API lower bounds",
+      "productionLogicBug": false,
+      "qualificationHarnessBug": true,
+      "status": "fixed-pending-exact-sha-live-preflight-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -134,5 +150,5 @@
     "dockerContractTarget": "PASS",
     "qualificationUse": "historical-only-after-live-preflight-source-change"
   },
-  "greenAfterFix": "PENDING_EXACT_SHA_LIVE_PREFLIGHT_RERUN_AFTER_GATEWAY_CLI_FIX"
+  "greenAfterFix": "PENDING_EXACT_SHA_LIVE_PREFLIGHT_RERUN_AFTER_VERSION_PARSER_FIX"
 }
