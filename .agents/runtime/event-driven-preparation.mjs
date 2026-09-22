@@ -20,6 +20,37 @@ function commandFromTemplate(template, values) {
 }
 
 
+export function qualificationBehaviorCommandSpecIds({ taskPlan, brief, attempt, env = process.env } = {}) {
+  const boundary = String(env.AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY ?? "").trim();
+  if (boundary !== "repair-checkpoint-before-behavior") return [];
+  const commandId = String(env.AGENT_HARNESS_RUNTIME_TEST_BEHAVIOR_COMMAND_ID ?? "").trim();
+  if (!commandId || !/^qualification\.[A-Za-z0-9._-]+$/u.test(commandId)) {
+    throw new Error("qualification_behavior_command_id_invalid");
+  }
+  const taskMatch = String(env.AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_TASK_MATCH ?? "").trim();
+  if (taskMatch) {
+    const identities = [
+      taskPlan?.taskId,
+      taskPlan?.stage,
+      taskPlan?.agentId,
+      brief?.taskId,
+      brief?.sdd?.stage,
+      brief?.agentId,
+    ].filter(Boolean).map(String);
+    if (!identities.some(value => value === taskMatch || value.includes(taskMatch))) return [];
+  }
+  const attemptMatch = String(env.AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_ATTEMPT ?? "").trim();
+  if (attemptMatch) {
+    const expectedAttempt = Number(attemptMatch);
+    const actualAttempt = Number(attempt ?? brief?.modelRouting?.attempt ?? 1);
+    if (!Number.isInteger(expectedAttempt) || expectedAttempt < 1) {
+      throw new Error("qualification_behavior_attempt_invalid");
+    }
+    if (actualAttempt !== expectedAttempt) return [];
+  }
+  return [commandId];
+}
+
 function parseCheckpointPayload(checkpoint) {
   const value = checkpoint?.payload_json ?? checkpoint?.payload ?? null;
   if (value && typeof value === "object") return value;
@@ -312,7 +343,15 @@ export async function prepareTaskExecution({ repositoryRoot, plan, taskPlan, reg
   // repository after dependencies integrate and writes the baseline before spawn.
   const workspaceMode = options.workspaceMode === "none" ? "none" : "copy";
   const executionWorkspacePath = workspaceMode === "none" ? repositoryRoot : paths.workspacePath;
-  const commandSpecIds = [...new Set((brief.commandSpecIds ?? taskPlan.commandSpecIds ?? []).map((id) => String(id ?? "").trim()).filter(Boolean))];
+  const qualificationCommandSpecIds = qualificationBehaviorCommandSpecIds({
+    taskPlan,
+    brief,
+    attempt,
+  });
+  const commandSpecIds = [...new Set([
+    ...(brief.commandSpecIds ?? taskPlan.commandSpecIds ?? []),
+    ...qualificationCommandSpecIds,
+  ].map((id) => String(id ?? "").trim()).filter(Boolean))];
   const commandAuthority = brief.commandAuthority ?? taskPlan.commandAuthority ?? null;
   let behaviorGate = null;
   if (commandSpecIds.length > 0) {
@@ -464,6 +503,7 @@ export async function prepareTaskExecution({ repositoryRoot, plan, taskPlan, reg
         policyDigest: commandAuthority.policyDigest,
       },
       workspaceMode,
+      qualificationCommandSpecIds,
     });
   }
   await store.event(plan.runId, taskPlan.taskId, "execution.topology.selected", { ...executionTopology, attempt, executionMode });
