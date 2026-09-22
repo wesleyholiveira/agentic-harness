@@ -15,6 +15,7 @@ import {
 } from "../../scripts/qualification/lib/source-attested-behavior.mjs";
 import {
   commandAuthorityFromConfiguration,
+  parseDockerRuntimeVersion,
   sqlLiteral,
 } from "../../scripts/qualification/wave10-live-preflight.mjs";
 import { ProcessRunner } from "../../scripts/qualification/lib/process.mjs";
@@ -71,6 +72,21 @@ test("source-attested qualification authority is derived from the committed cons
   assert.equal(commandAuthority.sourceSnapshotSha256, authority.configuration.sourceSnapshotSha256);
   assert.equal(commandAuthority.descriptorDigest, authority.configuration.descriptorDigest);
   assert.equal(commandAuthority.policyDigest, authority.configuration.policyDigest);
+});
+
+test("wave10 preflight rejects Docker runtimes without volume-subpath support", () => {
+  assert.deepEqual(parseDockerRuntimeVersion("27.5.1\t1.47\n"), {
+    clientVersion: "27.5.1",
+    serverApiVersion: "1.47",
+  });
+  assert.throws(
+    () => parseDockerRuntimeVersion("20.10.24\t1.41\n"),
+    /wave10_preflight_docker_subpath_runtime_unsupported/,
+  );
+  assert.throws(
+    () => parseDockerRuntimeVersion("27.5.1\t1.44\n"),
+    /wave10_preflight_docker_subpath_runtime_unsupported/,
+  );
 });
 
 test("ProcessRunner does not persist stdin secrets in command logs", t => {
