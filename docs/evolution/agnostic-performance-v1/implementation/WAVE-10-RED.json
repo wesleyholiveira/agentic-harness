@@ -40,6 +40,15 @@
       "productionLogicBug": false,
       "testImagePackagingBug": true,
       "status": "fixed-pending-exact-sha-rerun"
+    },
+    {
+      "gate": "pre-e2e-architecture-review",
+      "candidate": "e6dd924745c396ec03a05372b87c0d89bd23888e",
+      "observed": "local one-off image source attestation was not constructible without self-reference",
+      "rootCause": "pinned image digest was committed in the runner spec while sourceSnapshotSha256, runnerSpecDigest and sourceBindingDigest derived from that same committed spec were required as labels on the image whose digest was already committed",
+      "correction": "ADR 0042 introduces source-attested-build with null pre-commit image reference; build happens after commit, image is labeled from committed authority, materialization requires exactly one matching immutable image ID",
+      "productionLogicBug": true,
+      "status": "fixed-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -66,6 +75,12 @@
       "severity": "blocking",
       "correction": "bounded PostgreSQL connect/query/statement timeouts plus gateway-side bounded capability checks",
       "status": "fixed-pending-outage-fault-proof"
+    },
+    {
+      "finding": "standalone-v1 synthetic consumer had no committed ProjectDescriptor/v2, execution policy, source-attested runner image or behavior-gateway service in the live qualification topology",
+      "severity": "blocking",
+      "correction": "qualification fixture now commits descriptor/policy/build recipe, R-3 builds and attests the post-commit behavior image, and R-4 starts behavior-gateway on the shared workspace volume",
+      "status": "fixed-pending-live-e2e-proof"
     }
   ],
   "hardening": [
@@ -74,12 +89,22 @@
     "gateway contracts cover in-flight fence replacement and client disconnect",
     "runtime regressions cover model-wide UID isolation, private-network egress guard and attempt-scoped model output authority",
     "revoked behavior execution repeatedly reaps the fence-bound Docker container",
-    "gateway contract covers pre-disconnected client and proves behavior execution is not started"
+    "gateway contract covers pre-disconnected client and proves behavior execution is not started",
+    "source-attested-build materialization requires exactly one image matching sourceSnapshot/runnerSpec/sourceBinding labels",
+    "standalone qualification builds source-attested behavior runner after exact consumer+harness gitlink commit",
+    "R-3 proves behavior image materialization and attestation before runtime startup",
+    "R-4 starts Docker behavior gateway with the same Runtime workspace volume"
   ],
   "historicalGreenEvidence": {
-    "workerImageBuild": "PASS_PRE_HARDENING",
-    "gatewayImageBuild": "PASS_PRE_HARDENING",
-    "qualificationUse": "historical-only"
+    "candidate": "e6dd924745c396ec03a05372b87c0d89bd23888e",
+    "nodeFocused": "PASS",
+    "rustFmt": "PASS",
+    "rustTestsLocked": "PASS",
+    "dockerComposeConfig": "PASS",
+    "dockerContractTarget": "PASS_264_264",
+    "workerImageBuild": "PASS",
+    "gatewayImageBuild": "PASS",
+    "qualificationUse": "historical-only-after-ADR-0042-source-change"
   },
-  "greenAfterFix": "PENDING_EXACT_SHA_RERUN_AFTER_DOCKER_CONTRACT_TARGET_PACKAGING_FIX"
+  "greenAfterFix": "PENDING_EXACT_SHA_RERUN_AFTER_SOURCE_ATTESTED_RUNTIME_FIXTURE"
 }
