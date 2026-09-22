@@ -172,7 +172,11 @@
     "consumer behavior command is scoped away from the .harness submodule",
     "gateway no longer installs Debian Bookworm docker.io 20.10.24",
     "gateway copies official Docker CLI 27.5.1",
-    "live preflight rejects Docker client <26 or daemon API <1.45 before behavior run"
+    "live preflight rejects Docker client <26 or daemon API <1.45 before behavior run",
+    "R-9 qualification now kills worker only after authoritative behavior.gateway.started plus physical behavior container running",
+    "qualification behavior command authority derives from trusted committed configuration rather than model selection",
+    "R-9 requires source behavior cleanup on worker disconnect and replacement BEHAVIOR_PASSED under generation/fence +1",
+    "qualification-only behavior controls are disarmed on Context Engine and worker before R-10"
   ],
   "historicalGreenEvidence": {
     "candidate": "0d8c0b6ec4c034429d496822a6a2cc780f9a31bb",
@@ -182,7 +186,17 @@
     "behaviorReceipt": "BEHAVIOR_PASSED",
     "behaviorContainerRemoved": true,
     "cleanupOk": true,
-    "qualificationUse": "authoritative-for-live-happy-path-only"
+    "qualificationUse": "authoritative-for-live-happy-path-only",
+    "dataPlaneFaults": {
+      "candidate": "51c1b8ffdff0da1917b90dafaf6a288fd43172b5",
+      "preflightId": "wave10-fault-preflight-1790039570229-045992690cb5",
+      "verdict": "PASS",
+      "fenceReplacement": "PASS",
+      "postgresOutage": "PASS",
+      "gatewayOutage": "PASS",
+      "cleanupOk": true,
+      "qualificationUse": "authoritative-for-data-plane-faults-only"
+    }
   },
-  "greenAfterFix": "FENCE_REPLACEMENT_PASS_POSTGRES_AND_GATEWAY_OUTAGE_PENDING_RERUN"
+  "greenAfterFix": "HAPPY_PATH_AND_DATA_PLANE_FAULTS_PASS_ON_51c1b8f_WORKER_LOSS_R9_PENDING"
 }
