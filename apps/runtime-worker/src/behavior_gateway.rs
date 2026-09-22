@@ -110,7 +110,7 @@ pub fn capability_proof(
     capability: &str,
     fence: &TaskExecutionFence,
 ) -> Result<String> {
-    if secret.as_bytes().len() < 32 {
+    if secret.len() < 32 {
         bail!("behavior_gateway_hmac_key_too_short");
     }
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes())
