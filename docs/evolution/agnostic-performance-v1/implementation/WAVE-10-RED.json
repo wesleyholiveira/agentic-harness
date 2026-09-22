@@ -159,6 +159,35 @@
       "productionLogicBug": false,
       "qualificationHarnessBug": true,
       "status": "fixed-pending-exact-sha-scoped-r9-rerun"
+    },
+    {
+      "gate": "wave10-worker-loss/R-1",
+      "candidate": "11b8d4004a7acd9eddc6be51f099452a9af713fe",
+      "runId": "standalone-v1-1790044408411-ad69ca9c6592",
+      "observed": {
+        "r0Passed": true,
+        "tests": 471,
+        "pass": 464,
+        "fail": 7,
+        "runtimeReached": false,
+        "cleanupOk": true
+      },
+      "rootCause": [
+        "four contracts encoded pre-WAVE-10 historical/control semantics",
+        "technical plan model-repair output was not re-canonicalized to Runtime-owned validationCommandIds",
+        "mechanical validation/criterion projection was not exact when the trusted projection became empty"
+      ],
+      "correction": [
+        "central historical-vs-operational path classification used by legacy contracts",
+        "blank-default WAVE-10 controls asserted on Context Engine and worker",
+        "blockUntilProcessLoss added to legacy resolver expectation",
+        "exact implementation-criterion and validation-command projections",
+        "post-model Runtime canonicalization before Technical Plan validation",
+        "post-canonicalization semantic mutation evidence"
+      ],
+      "productionLogicBug": true,
+      "qualificationHarnessBug": true,
+      "status": "fixed-pending-exact-sha-r1-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -220,7 +249,11 @@
     "scoped R-0 preserves all non-MANIFEST source/ingress checks and live Git tree identity",
     "scoped worker-loss path excludes R-7/R-8/R-10 because they do not feed R-9 state",
     "product namespace scan distinguishes historical evolution evidence from operational source",
-    "docs/adr, runtime, apps, packages, scripts and config remain inside the blocking product-coupling scan"
+    "docs/adr, runtime, apps, packages, scripts and config remain inside the blocking product-coupling scan",
+    "Technical Plan model repair output is re-canonicalized before validation",
+    "validation and validationCommandIds are exact trusted-catalog projections including empty arrays",
+    "downstream-only criteria are removed even when no implementation criterion remains",
+    "semantic repair evidence is computed after Runtime-owned canonicalization"
   ],
   "historicalGreenEvidence": {
     "candidate": "0d8c0b6ec4c034429d496822a6a2cc780f9a31bb",
@@ -242,5 +275,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "SCOPED_R0_HISTORICAL_REFERENCE_FIX_PENDING_CURRENT_EXACT_SHA"
+  "greenAfterFix": "SCOPED_R1_SEVEN_FAILURES_FIXED_PENDING_CURRENT_EXACT_SHA"
 }
