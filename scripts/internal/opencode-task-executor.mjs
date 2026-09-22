@@ -81,11 +81,15 @@ export async function prepareIsolatedOpenCodeAttemptEnv({ manifestPath, attempt,
   const { stateRoot, authority } = resolveOpenCodeAttemptStateRoot({ manifestPath, attempt, env });
   const dataHome = join(stateRoot, "data");
   const stateHome = join(stateRoot, "state");
+  const configHome = join(stateRoot, "config");
+  const cacheHome = join(stateRoot, "cache");
   const targetAuthPath = join(dataHome, "opencode", "auth.json");
   const sourceAuthPath = resolveOpenCodeAuthPath(env);
   await Promise.all([
     mkdir(dirname(targetAuthPath), { recursive: true }),
     mkdir(stateHome, { recursive: true }),
+    mkdir(configHome, { recursive: true }),
+    mkdir(cacheHome, { recursive: true }),
   ]);
   let authCopied = false;
   if (resolve(sourceAuthPath) !== resolve(targetAuthPath)) {
@@ -97,15 +101,25 @@ export async function prepareIsolatedOpenCodeAttemptEnv({ manifestPath, attempt,
       // Do not invent credentials; the OpenCode invocation remains fail-closed.
     }
   }
+  const isolatedEnv = {
+    ...env,
+    XDG_DATA_HOME: dataHome,
+    XDG_STATE_HOME: stateHome,
+    XDG_CONFIG_HOME: configHome,
+    XDG_CACHE_HOME: cacheHome,
+    OPENCODE_PURE: "1",
+    OPENCODE_DISABLE_PROJECT_CONFIG: "1",
+    OPENCODE_DISABLE_AUTOUPDATE: "1",
+  };
+  delete isolatedEnv.OPENCODE_CONFIG;
+  delete isolatedEnv.OPENCODE_CONFIG_DIR;
   return {
-    env: {
-      ...env,
-      XDG_DATA_HOME: dataHome,
-      XDG_STATE_HOME: stateHome,
-    },
+    env: isolatedEnv,
     stateRoot,
     dataHome,
     stateHome,
+    configHome,
+    cacheHome,
     sourceAuthPath,
     targetAuthPath,
     authCopied,
@@ -285,21 +299,49 @@ function redactOpenCodeDiagnosticText(value) {
     .slice(0, 1_024);
 }
 
+function redactOpenCodeServerLogText(value) {
+  return String(value ?? "")
+    .replace(/Bearer\s+[^\s"']+/giu, "Bearer [REDACTED]")
+    .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/gu, "[REDACTED]")
+    .replace(/((?:authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password)\s*[:=]\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,;]+)/giu, "$1[REDACTED]")
+    .replace(/((?:prompt|messages|input|request[_-]?body|response[_-]?body)\s*=\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\S+)/giu, "$1[REDACTED]")
+    .slice(0, 4_096);
+}
+
+export function extractOpenCodeServerLogExcerpt(stderr = "", errorRef = null) {
+  const ref = String(errorRef ?? "").trim();
+  if (!/^err_[A-Za-z0-9-]{4,64}$/u.test(ref)) return null;
+  const lines = stripAnsi(stderr).split(/\r?\n/u).filter(Boolean);
+  const line = [...lines].reverse().find((entry) => (
+    entry.includes(`ref=${ref}`)
+    || entry.includes(`ref="${ref}"`)
+    || entry.includes(ref)
+  ));
+  if (!line) return null;
+  const index = line.indexOf(ref);
+  const excerpt = index >= 0
+    ? line.slice(Math.max(0, index - 256), Math.min(line.length, index + 3_584))
+    : line;
+  return redactOpenCodeServerLogText(excerpt) || null;
+}
+
 export function summarizeOpenCodeFailure({ stdout = "", stderr = "" } = {}) {
   const documents = parseJsonDocuments(stdout);
   const errorEvent = [...documents].reverse().find((document) => document?.type === "error" && document?.error) ?? null;
   if (errorEvent) {
     const error = errorEvent.error ?? {};
     const data = error?.data && typeof error.data === "object" ? error.data : {};
+    const errorRef = redactOpenCodeDiagnosticText(data.ref ?? "") || null;
     return {
       source: "json-error-event",
       sessionId: String(errorEvent.sessionID ?? "") || null,
       errorName: String(error.name ?? "") || null,
       errorCode: String(data.code ?? data.statusCode ?? "") || null,
-      errorRef: redactOpenCodeDiagnosticText(data.ref ?? "") || null,
+      errorRef,
       errorMessage: redactOpenCodeDiagnosticText(data.message ?? error.message ?? error.name ?? "opencode_error"),
       providerId: String(data.providerID ?? data.providerId ?? "") || null,
       modelId: String(data.modelID ?? data.modelId ?? "") || null,
+      serverLogExcerpt: extractOpenCodeServerLogExcerpt(stderr, errorRef),
     };
   }
   const stderrTail = redactOpenCodeDiagnosticText(String(stderr ?? "").slice(-2_048));
@@ -312,6 +354,7 @@ export function summarizeOpenCodeFailure({ stdout = "", stderr = "" } = {}) {
     errorMessage: stderrTail || null,
     providerId: null,
     modelId: null,
+    serverLogExcerpt: null,
   };
 }
 
@@ -532,6 +575,9 @@ function compactLauncherPrompt({ brief, manifest }) {
 function buildOpenCodeRunArgs({ args, brief, manifestPath, manifest, workspace }) {
   if (!manifestPath || !manifest) throw new Error("opencode_agent_input_manifest_required");
   const commandArgs = [
+    "--pure",
+    "--print-logs",
+    "--log-level", "ERROR",
     "run",
     "--format", "json",
     "--model", String(args.model),
@@ -629,8 +675,14 @@ async function main() {
     attempt,
     dataHome: isolatedState.dataHome,
     stateHome: isolatedState.stateHome,
+    configHome: isolatedState.configHome,
+    cacheHome: isolatedState.cacheHome,
     authCopied: isolatedState.authCopied,
     authority: isolatedState.authority,
+    pure: openCodeEnv.OPENCODE_PURE === "1",
+    projectConfigDisabled: openCodeEnv.OPENCODE_DISABLE_PROJECT_CONFIG === "1",
+    rawServerLogsForwarded: false,
+    serverLogLevel: "ERROR",
   });
 
   if (resumeCheckpoint?.handoff && ["repair-started", "repair-completed", "repair-exhausted"].includes(resumeCheckpoint.status)) {
@@ -684,6 +736,8 @@ async function main() {
         ...openCodeEnv,
         OPENCODE_CONFIG_CONTENT: JSON.stringify(runtimeAgentOverride),
         OPENCODE_PERMISSION: JSON.stringify({ question: "deny" }),
+        OPENCODE_PRINT_LOGS: "1",
+        OPENCODE_LOG_LEVEL: "ERROR",
         AGENT_HARNESS_AGENT_REASONING_EFFORT: String(args.reasoningEffort ?? brief.modelRouting?.reasoningEffort ?? "medium"),
       },
       onSpawn: ({ pid }) => emitRuntimeEvent("opencode.spawned", { pid, agentId: String(args.agentId), modelId: String(args.model) }),
@@ -698,7 +752,10 @@ async function main() {
           }
         }
       },
-      onStderr: (chunk) => process.stderr.write(chunk),
+      // OpenCode internal logs may contain request context. runProcess still
+      // captures stderr for bounded errorRef correlation, but raw server logs
+      // are never forwarded into durable Runtime task logs.
+      onStderr: () => {},
     });
     emitRuntimeEvent("opencode.completed", { status: result.status, signal: result.signal, timedOut: result.timedOut, aborted: result.aborted });
     const agentFallback = detectOpenCodeAgentFallback(result.stderr ?? "", args.agentId);
