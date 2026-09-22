@@ -114,6 +114,27 @@ test("ProcessRunner does not persist stdin secrets in command logs", t => {
   assert.ok(!log.includes(secret));
 });
 
+test("ProcessRunner.start supports secret stdin without logging it and captures concurrent output", async t => {
+  const outputDir = mkdtempSync(join(tmpdir(), "wave10-runner-start-secret-contract-"));
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+  const runner = new ProcessRunner({ outputDir });
+  const secret = "capability-" + "b".repeat(64);
+  const started = runner.start(process.execPath, [
+    "-e",
+    "process.stdin.setEncoding('utf8');let s='';process.stdin.on('data',c=>s+=c);process.stdin.on('end',()=>setTimeout(()=>process.stdout.write(JSON.stringify({length:s.length})),20));",
+  ], {
+    label: "async-stdin-secret",
+    input: secret,
+  });
+  const completion = await started.completion;
+  assert.equal(completion.exitCode, 0);
+  assert.deepEqual(JSON.parse(completion.stdout), { length: secret.length });
+  assert.equal(completion.captureOverflow, false);
+  const log = readFileSync(started.logPath, "utf8");
+  assert.match(log, /stdinProvided=true/u);
+  assert.ok(!log.includes(secret));
+});
+
 test("wave10 preflight keeps raw capability out of argv/loggable command arguments", () => {
   const source = readFileSync(resolve("scripts/qualification/wave10-live-preflight.mjs"), "utf8");
   assert.match(source, /input:\s*JSON\.stringify\(request\)/u);
