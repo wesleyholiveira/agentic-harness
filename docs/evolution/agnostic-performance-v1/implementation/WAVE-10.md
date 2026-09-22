@@ -299,6 +299,50 @@ Observed evidence:
 This proves only the happy path. In-flight revocation/outage and physical worker
 loss remain separate blocking gates.
 
+## Deterministic fault preflight
+
+The next host-side gate is implemented in
+`scripts/qualification/wave10-fault-preflight.mjs`.
+
+It reuses the exact source-attested qualification fixture but drives the
+gateway from a separate constrained client container on the Compose network,
+which is closer to the Rust worker topology than executing the HTTP client
+inside the gateway container.
+
+The preflight owns three independent scenarios:
+
+1. **in-flight fence replacement**
+   - starts `qualification.behavior.delay`;
+   - waits for the exact fence-derived behavior container to be running;
+   - advances the authoritative PostgreSQL fencing token;
+   - requires `HOLD / docker_gateway_fence_identity_mismatch`;
+   - requires zero accepted receipts and physical removal of the named
+     behavior container.
+
+2. **in-flight PostgreSQL outage**
+   - starts the same delayed behavior;
+   - stops PostgreSQL while the container is running;
+   - requires `HOLD / docker_gateway_capability_store_unavailable`;
+   - requires physical container removal;
+   - restarts PostgreSQL and proves a new behavior request succeeds using the
+     same gateway process, demonstrating pool recovery without gateway restart.
+
+3. **gateway outage before behavior execution**
+   - seeds valid task/fence/capability authority;
+   - stops the gateway before the client request;
+   - requires transport failure with zero behavior container materialization;
+   - restarts the gateway and retries the same valid authority;
+   - requires `PASSED / BEHAVIOR_PASSED` and normal container cleanup.
+
+The concurrent client request transports raw capability only over stdin.
+`ProcessRunner.start` now arms process completion before writing stdin,
+captures bounded stdout/stderr for deterministic assertions, and never
+serializes stdin into command logs.
+
+This gate is deliberately separate from physical Rust worker loss. Worker loss
+must still prove client-disconnect revocation plus semantic replacement
+generation/fence recovery through the actual worker/dispatch plane.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
