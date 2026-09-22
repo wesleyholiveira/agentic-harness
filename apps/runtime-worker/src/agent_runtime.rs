@@ -1265,19 +1265,19 @@ async fn prepare_restricted_model_agent(
     if home.exists() {
         tokio::fs::remove_dir_all(&home)
             .await
-            .context("behavior_agent_home_cleanup_failed")?;
+            .context("model_agent_home_cleanup_failed")?;
     }
     let auth_dir = home.join(".local").join("share").join("opencode");
     tokio::fs::create_dir_all(&auth_dir)
         .await
-        .context("behavior_agent_home_create_failed")?;
+        .context("model_agent_home_create_failed")?;
     let source_auth = opencode_auth_path();
     if !source_auth.exists() {
-        bail!("behavior_agent_opencode_auth_missing");
+        bail!("model_agent_opencode_auth_missing");
     }
     tokio::fs::copy(&source_auth, auth_dir.join("auth.json"))
         .await
-        .context("behavior_agent_opencode_auth_copy_failed")?;
+        .context("model_agent_opencode_auth_copy_failed")?;
 
     let handoff = PathBuf::from(&descriptor.handoff_path);
     let agent_output_dir = handoff
@@ -1354,7 +1354,7 @@ async fn prepare_restricted_model_agent(
     _descriptor: &ExecutionDescriptor,
     _claimed: &ClaimedExecution,
 ) -> Result<PathBuf> {
-    bail!("behavior_gate_requires_unix_worker");
+    bail!("model_agent_requires_unix_worker");
 }
 
 async fn active_behavior_fence(
@@ -1797,7 +1797,7 @@ async fn run_shell_command(
     if let Some(home) = restricted_agent_home.as_ref() {
         tokio::fs::remove_dir_all(home)
             .await
-            .context("behavior_agent_home_cleanup_after_execution_failed")?;
+            .context("model_agent_home_cleanup_after_execution_failed")?;
     }
     collect_workspace_change_set(descriptor, claimed)
         .await
