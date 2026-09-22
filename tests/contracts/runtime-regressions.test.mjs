@@ -49,6 +49,33 @@ test("stalled executor output draining is bounded so inherited pipes cannot hold
   assert.match(worker, /drain_executor_output\(stderr_task, "stderr", claimed, client\)\.await/);
 });
 
+test("OpenCode nonzero JSON failure is reduced to redacted structured evidence", async () => {
+  const { summarizeOpenCodeFailure } = await import("../../scripts/internal/opencode-task-executor.mjs");
+  const stdout = JSON.stringify({
+    type: "error",
+    timestamp: 1790115000000,
+    sessionID: "ses_failure",
+    error: {
+      name: "ProviderAuthError",
+      data: {
+        message: "request rejected Bearer sk-secret-token-12345678",
+        code: "401",
+        providerID: "openai",
+        modelID: "gpt-5.6-luna",
+      },
+    },
+  });
+  assert.deepEqual(summarizeOpenCodeFailure({ stdout }), {
+    source: "json-error-event",
+    sessionId: "ses_failure",
+    errorName: "ProviderAuthError",
+    errorCode: "401",
+    errorMessage: "request rejected Bearer [REDACTED]",
+    providerId: "openai",
+    modelId: "gpt-5.6-luna",
+  });
+});
+
 test("OpenCode attempt-state resolver gives Runtime-projected state root precedence over manifest adjacency", async () => {
   const { resolveOpenCodeAttemptStateRoot } = await import("../../scripts/internal/opencode-task-executor.mjs");
   const manifestPath = resolve(root, "synthetic-runtime", "task", "agent-input-manifest.json");
