@@ -1663,6 +1663,39 @@ async function r9() {
   let target;
   try {
     target = await waitFor(() => {
+    const preBoundaryFailure = sqlRows(`
+      SELECT task_id,status,coalesce(error_code,''),coalesce(error_message,''),attempt::text,dispatch_generation::text,fencing_token::text
+      FROM agent_tasks
+      WHERE run_id='${sqlQuote(runId)}'
+        AND status IN ('failed','blocked')
+      ORDER BY state_version DESC
+      LIMIT 1;
+    `)[0] ?? null;
+    const runStatus = sqlScalar(`SELECT status FROM agent_runs WHERE run_id='${sqlQuote(runId)}' LIMIT 1;`);
+    if (preBoundaryFailure || ['failed','blocked','cancelled'].includes(String(runStatus ?? ''))) {
+      const technicalLead = sqlRows(`SELECT task_id,status,attempt::text,dispatch_generation::text,fencing_token::text,coalesce(handoff_path,''),coalesce(execution_descriptor_path,''),coalesce(lease_expires_at,'') FROM agent_tasks WHERE run_id='${sqlQuote(runId)}' AND agent_id='technical-lead' ORDER BY state_version DESC LIMIT 1;`)[0] ?? null;
+      const boundaryEvents = sqlRows(`SELECT event_type,payload_json,coalesce(task_id,'') FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND event_type IN ('qualification.process_loss_boundary_ready','executor.completed','task.failed','task.blocked','run.failed','run.blocked','run.cancelled','run.closed') ORDER BY created_at DESC LIMIT 12;`).map(([eventType, payloadJson, taskId]) => ({ eventType, taskId, payload: safeJson(payloadJson) }));
+      hold("R-9", "RUNTIME", "r9_pre_boundary_semantic_run_failed", {
+        runId,
+        sessionId,
+        armedWorkerId,
+        armedProjection,
+        runStatus: runStatus ?? null,
+        failedTask: preBoundaryFailure
+          ? {
+              taskId: preBoundaryFailure[0],
+              status: preBoundaryFailure[1],
+              errorCode: preBoundaryFailure[2],
+              errorMessage: preBoundaryFailure[3],
+              attempt: Number(preBoundaryFailure[4]),
+              dispatchGeneration: Number(preBoundaryFailure[5]),
+              fencingToken: Number(preBoundaryFailure[6]),
+            }
+          : null,
+        technicalLead,
+        boundaryEvents,
+      });
+    }
     const rows = sqlRows(`SELECT task_id,status,attempt::text,dispatch_generation::text,fencing_token::text,coalesce(handoff_path,''),coalesce(execution_descriptor_path,''),coalesce(lease_expires_at,'') FROM agent_tasks WHERE run_id='${sqlQuote(runId)}' AND agent_id='technical-lead' ORDER BY state_version DESC LIMIT 1;`);
     if (!rows.length) return null;
     const [taskId, status, attemptText, generationText, fenceText, handoffPath, descriptorPath, leaseExpiresAt] = rows[0];
