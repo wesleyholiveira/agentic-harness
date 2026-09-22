@@ -36,8 +36,11 @@ The Rust worker:
 - requires an isolated `copy` workspace for model-controlled execution;
 - creates UID/GID 10001 (`agentexec`) at image build time;
 - chowns the isolated task workspace and a task-scoped temporary HOME;
-- validates that handoff/log/result/change-set paths share one task output
-  directory and grants UID 10001 write authority only at that directory root;
+- places model-owned handoff/repair artifacts under a dedicated
+  `agent-output-attempt-N/` subdirectory;
+- validates that log/result/change-set remain in the root-owned parent task
+  directory and grants UID 10001 write authority only to the per-attempt model
+  output subdirectory;
 - copies OpenCode auth into the temporary HOME;
 - removes PostgreSQL, RabbitMQ, Redis/cache, behavior-gateway/HMAC and OpenCode
   continuation credentials from the child environment;
@@ -175,7 +178,8 @@ The focused Node suite includes `runtime-regressions.test.mjs` and now covers:
 - model-wide UID/process-group/temporary-HOME isolation;
 - model child control-plane credential removal;
 - UID-scoped private-network rejection with exact Context Engine exception;
-- scoped task-output write authority;
+- attempt-scoped model-output write authority without write access to Task Brief,
+  context, descriptor, log or result authority files;
 - behavior result/finalizer projection.
 
 The actual TAP count is authoritative; do not gate on the older approximate
