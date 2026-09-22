@@ -142,13 +142,14 @@
     "live preflight rejects Docker client <26 or daemon API <1.45 before behavior run"
   ],
   "historicalGreenEvidence": {
-    "candidate": "27480e5004ddf903e2dafaf8487437b7adf66858",
-    "sourceIdentity": "PASS",
-    "syntax": "PASS",
-    "focusedContracts": "PASS",
-    "qualificationControllerSelfTest": "PASS",
-    "dockerContractTarget": "PASS",
-    "qualificationUse": "historical-only-after-live-preflight-source-change"
+    "candidate": "0d8c0b6ec4c034429d496822a6a2cc780f9a31bb",
+    "livePreflight": "PASS",
+    "preflightId": "wave10-live-preflight-1790038326669-0dcd727e6307",
+    "gateway": "PASSED",
+    "behaviorReceipt": "BEHAVIOR_PASSED",
+    "behaviorContainerRemoved": true,
+    "cleanupOk": true,
+    "qualificationUse": "authoritative-for-live-happy-path-only"
   },
-  "greenAfterFix": "PENDING_EXACT_SHA_LIVE_PREFLIGHT_RERUN_AFTER_VERSION_PARSER_FIX"
+  "greenAfterFix": "LIVE_PREFLIGHT_PASS_ON_0d8c0b6_FAULT_GATES_PENDING"
 }
