@@ -75,6 +75,40 @@ function workItemWithoutImplementationCriterionIds(issues = []) {
     .filter(Boolean))];
 }
 
+function criterionAssignmentRepairIssuesOnly(issues = [], targetWorkItemIds = []) {
+  const targets = new Set(targetWorkItemIds.map((id) => String(id ?? "").trim()).filter(Boolean));
+  if (targets.size === 0) return false;
+
+  for (const rawIssue of issues ?? []) {
+    const issue = String(rawIssue);
+    if (issue.startsWith("implementation_plan_uncovered_criterion:")) continue;
+    if (issue.startsWith("implementation_plan_work_item_without_implementation_criterion:")) {
+      const id = issue.slice("implementation_plan_work_item_without_implementation_criterion:".length);
+      if (!targets.has(id)) return false;
+      continue;
+    }
+    for (const prefix of [
+      "validation_command_not_executable:",
+      "implementation_plan_validation_command_ids_missing:",
+      "implementation_plan_criterion_verification_missing:",
+    ]) {
+      if (!issue.startsWith(prefix)) continue;
+      const rest = issue.slice(prefix.length);
+      const separator = rest.indexOf(":");
+      const id = separator >= 0 ? rest.slice(0, separator) : rest;
+      if (!targets.has(id)) return false;
+      break;
+    }
+    if ([
+      "validation_command_not_executable:",
+      "implementation_plan_validation_command_ids_missing:",
+      "implementation_plan_criterion_verification_missing:",
+    ].some((prefix) => issue.startsWith(prefix))) continue;
+    return false;
+  }
+  return (issues ?? []).length > 0;
+}
+
 function implementationAgents(registry) {
   return (registry?.agents ?? []).filter((agent) => IMPLEMENTATION_EXECUTION_ROLES.has(agent.executionRole));
 }
@@ -1261,14 +1295,8 @@ export async function synthesizeMissingImplementationPlan({
 
   const criterionlessWorkItemIds = workItemWithoutImplementationCriterionIds(validationIssues);
   const uncoveredIds = uncoveredCriterionIds(validationIssues);
-  const narrowRepairPrefixes = [
-    "validation_command_not_executable:",
-    "implementation_plan_criterion_verification_missing:",
-    "implementation_plan_work_item_without_implementation_criterion:",
-    "implementation_plan_uncovered_criterion:",
-  ];
   if ((criterionlessWorkItemIds.length > 0 || uncoveredIds.length > 0)
-    && validationIssues.every((issue) => issueHasPrefix(issue, narrowRepairPrefixes))) {
+    && criterionAssignmentRepairIssuesOnly(validationIssues, criterionlessWorkItemIds)) {
     const implementationCriterionIds = implementationProofCriteria(requiredAcceptanceCriteria).map((criterion) => criterion.id);
     const assignmentSchema = criterionAssignmentRepairSchema({
       workItemIds: (currentHandoff.implementationPlan.workItems ?? []).map((item) => item.id),
