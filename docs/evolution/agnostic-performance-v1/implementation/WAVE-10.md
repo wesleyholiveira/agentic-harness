@@ -474,6 +474,58 @@ References remain blocking everywhere else, including:
 The rule remains fail-closed for any real product coupling while allowing the
 repository to retain its own historical evolution record.
 
+## Scoped R-1 regression closure
+
+Scoped candidate `11b8d4004a7acd9eddc6be51f099452a9af713fe` passed
+Q-ENTRY, PRE-R0 and scoped R-0, including
+`MANIFEST=DEFERRED_T17`, then stopped at R-1 because the complete
+`harness:test` suite reported 464 PASS / 7 FAIL.
+
+The seven failures split into two classes.
+
+### Contracts not reconciled with intentional WAVE-10 behavior
+
+Four pre-existing contracts still encoded the prior runtime shape:
+- qualification product-namespace self-scan excluded only the promoted baseline,
+  not `docs/evolution/**`;
+- project-agnostic structure scan treated historical evolution evidence as
+  operational source;
+- R-9 expected process-loss controls to be absent from Context Engine rather
+  than blank-default qualification controls;
+- legacy process-loss resolver expectation did not include the new explicit
+  `blockUntilProcessLoss` field.
+
+These contracts now consume the same centralized operational/historical
+classification and assert blank-default controls on both Context Engine and
+worker.
+
+### Technical Plan canonicalization regressions
+
+Three failures exposed a runtime-owned validation-authority gap:
+- semantic review repair could accept a model plan that omitted
+  `validationCommandIds` and then fail validation instead of re-projecting
+  deterministic IDs;
+- mechanical normalization preserved downstream-only acceptance criteria when
+  the implementation projection was empty;
+- invalid/unauthorized validation prose could survive canonicalization when the
+  authorized projection was empty, forcing a whole-plan rewrite instead of the
+  bounded criterion-assignment repair.
+
+Corrections:
+- implementation criteria are now an exact projection and may become `[]`;
+- when a validation command catalog exists, validation and
+  `validationCommandIds` are exact Runtime projections, including empty
+  arrays;
+- legacy executable commands survive only when present in the trusted catalog;
+- full-plan synthesis output and semantic-review repair output are
+  re-canonicalized before deterministic validation;
+- semantic mutation evidence is computed only after Runtime-owned
+  canonicalization so omitted IDs/authority cannot masquerade as model
+  mutations.
+
+R-1 remains a full-suite gate; no failing test is skipped by the scoped
+qualification.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
