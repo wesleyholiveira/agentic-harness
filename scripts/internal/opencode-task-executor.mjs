@@ -65,9 +65,20 @@ function resolveOpenCodeAuthPath(env = process.env) {
   return join(home, ".local", "share", "opencode", "auth.json");
 }
 
-export async function prepareIsolatedOpenCodeAttemptEnv({ manifestPath, attempt, env = process.env }) {
+export function resolveOpenCodeAttemptStateRoot({ manifestPath, attempt, env = process.env }) {
   const boundedAttempt = Math.max(1, Number(attempt ?? 1));
-  const stateRoot = join(dirname(resolve(String(manifestPath))), "opencode-attempt-state", `attempt-${boundedAttempt}`);
+  const runtimeStateRoot = String(env.AGENT_HARNESS_AGENT_EXECUTION_STATE_ROOT ?? "").trim();
+  const base = runtimeStateRoot
+    ? resolve(runtimeStateRoot)
+    : join(dirname(resolve(String(manifestPath))), "opencode-attempt-state");
+  return {
+    stateRoot: join(base, `attempt-${boundedAttempt}`),
+    authority: runtimeStateRoot ? "runtime-projected-ephemeral-home" : "manifest-adjacent-legacy-fallback",
+  };
+}
+
+export async function prepareIsolatedOpenCodeAttemptEnv({ manifestPath, attempt, env = process.env }) {
+  const { stateRoot, authority } = resolveOpenCodeAttemptStateRoot({ manifestPath, attempt, env });
   const dataHome = join(stateRoot, "data");
   const stateHome = join(stateRoot, "state");
   const targetAuthPath = join(dataHome, "opencode", "auth.json");
@@ -98,6 +109,7 @@ export async function prepareIsolatedOpenCodeAttemptEnv({ manifestPath, attempt,
     sourceAuthPath,
     targetAuthPath,
     authCopied,
+    authority,
   };
 }
 
@@ -580,7 +592,7 @@ async function main() {
     dataHome: isolatedState.dataHome,
     stateHome: isolatedState.stateHome,
     authCopied: isolatedState.authCopied,
-    authority: "per-semantic-attempt-opencode-state",
+    authority: isolatedState.authority,
   });
 
   if (resumeCheckpoint?.handoff && ["repair-started", "repair-completed", "repair-exhausted"].includes(resumeCheckpoint.status)) {
