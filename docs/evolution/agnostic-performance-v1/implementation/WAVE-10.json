@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "r9-restricted-opencode-state-root-fixed-pending-exact-sha-rerun",
+  "status": "r9-opencode-nonzero-diagnostics-and-failfast-implemented-pending-cause-rerun",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -236,6 +236,32 @@
         "technicalRefinementStarted": false,
         "processLossBoundaryReached": false
       }
+    },
+    "scopedWorkerLossAttemptOnF8020cd": {
+      "verdict": "HOLD",
+      "runId": "standalone-v1-1790114835041-d14c2db63d85",
+      "qEntry": "PASS",
+      "preR0": "PASS",
+      "r0": "PASS",
+      "r1": "PASS",
+      "r2": "PASS",
+      "r3": "PASS",
+      "r4": "PASS",
+      "r5": "PASS",
+      "r6": "PASS",
+      "r9": {
+        "verdict": "HOLD",
+        "classification": "RUNTIME",
+        "code": "r9_process_loss_boundary_not_materialized",
+        "restrictedStateAuthority": "runtime-projected-ephemeral-home",
+        "authCopied": true,
+        "opencodeSpawned": true,
+        "opencodeSessionObserved": true,
+        "opencodeExitStatus": 1,
+        "stdoutBytes": 218,
+        "actualCause": "unknown-until-structured-opencode-error-is-promoted",
+        "processLossBoundaryReached": false
+      }
     }
   },
   "historicalOperatorEvidence": {
@@ -426,6 +452,17 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
       "status": "fixed-pending-exact-sha-rerun"
+    },
+    {
+      "observedOnCandidate": "f8020cd110ed15657cae520f855a3cf5e16326cc",
+      "gate": "wave10-worker-loss/R-9",
+      "runId": "standalone-v1-1790114835041-d14c2db63d85",
+      "observed": "OpenCode state/auth/session bootstrap succeeded, but run --format json exited 1 with the terminal error stranded in 218 stdout bytes while R-9 waited 20 minutes for a boundary that could no longer materialize",
+      "correction": "parse/redact OpenCode JSON error stdout into opencode.failure; persist the runtime event; fail R-9 immediately on pre-boundary semantic failure",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": true,
+      "rootCauseResolved": false,
+      "status": "diagnostics-and-failfast-fixed-pending-cause-rerun"
     }
   ],
   "livePreflightEvidence": {
