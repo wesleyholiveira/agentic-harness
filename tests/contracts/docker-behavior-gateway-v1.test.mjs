@@ -249,6 +249,32 @@ test("gateway revokes an in-flight behavior command when the worker HTTP client 
   assert.equal(aborted, true);
 });
 
+test("gateway does not start behavior when the worker HTTP client is already disconnected", async () => {
+  const disconnect = new AbortController();
+  disconnect.abort();
+  let executeCalls = 0;
+  const result = await runBehaviorGateRequest(request(), {
+    projectRoot: "/workspace/repository",
+    workspaceRoot: "/workspace/agent-workspaces",
+    capabilityPollIntervalMs: 1,
+    signal: disconnect.signal,
+    verifyCapability: async () => ({ status: "VERIFIED", code: "ok" }),
+    loadConfiguration: () => configuration(),
+    bindWorkspace: () => ({ status: "AUTHORITY_INPUTS_BOUND", workspaceBindingDigest: "sha256:" + "f".repeat(64) }),
+    volumeResolver: () => "workspace-volume",
+    materialize: () => ({ status: "MATERIALIZED", materialization: {} }),
+    attestImage: () => ({ status: "ATTESTED", attestation: {} }),
+    probeToolchain: () => ({ status: "TOOLCHAIN_VERIFIED" }),
+    executeBehavior: async () => {
+      executeCalls++;
+      return { status: "BEHAVIOR_PASSED", code: "behavior_passed", executed: true };
+    },
+  });
+  assert.equal(result.status, "HOLD");
+  assert.equal(result.code, "docker_gateway_client_disconnected");
+  assert.equal(executeCalls, 0);
+});
+
 test("gateway returns FAILED for a behavior failure without continuing", async () => {
   const result = await runBehaviorGateRequest(request(), {
     projectRoot: "/workspace/repository",
