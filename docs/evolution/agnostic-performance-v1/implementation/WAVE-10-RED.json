@@ -26,6 +26,20 @@
       "correction": "make client disconnect a sticky supervisor cause, check it before interpreting settled behavior receipts, and suppress behavior start when the external signal is already aborted",
       "productionLogicBug": true,
       "status": "fixed-pending-exact-sha-rerun"
+    },
+    {
+      "gate": "docker-contract-target",
+      "candidate": "2f9c7cf153cab388f6325e8d434e1568aa767716",
+      "observed": "262 pass / 2 fail",
+      "tests": [
+        "runtime-worker Cargo.lock disambiguates the direct hmac 0.12 dependency",
+        "typed model child can reach Context Engine but not private control-plane networks"
+      ],
+      "rootCause": "packages/project-adapters Docker test target omitted apps/runtime-worker/Cargo.lock and apps/runtime-worker/entrypoint.sh while runtime-regressions reads those committed artifacts",
+      "correction": "copy runtime-worker Cargo.toml, Cargo.lock and entrypoint.sh into the contract image",
+      "productionLogicBug": false,
+      "testImagePackagingBug": true,
+      "status": "fixed-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -67,5 +81,5 @@
     "gatewayImageBuild": "PASS_PRE_HARDENING",
     "qualificationUse": "historical-only"
   },
-  "greenAfterFix": "PENDING_EXACT_SHA_RERUN_AFTER_CLIENT_DISCONNECT_RACE_FIX"
+  "greenAfterFix": "PENDING_EXACT_SHA_RERUN_AFTER_DOCKER_CONTRACT_TARGET_PACKAGING_FIX"
 }
