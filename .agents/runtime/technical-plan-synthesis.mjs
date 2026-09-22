@@ -75,6 +75,16 @@ function workItemWithoutImplementationCriterionIds(issues = []) {
     .filter(Boolean))];
 }
 
+function issueTargetsOneOfWorkItems(issue, prefix, targets) {
+  if (!String(issue).startsWith(prefix)) return false;
+  const rest = String(issue).slice(prefix.length);
+  for (const target of targets) {
+    if (rest === target || rest.startsWith(`${target}:`)) return true;
+    if (rest.startsWith(`implementationPlan.workItems.${target}.validation[`)) return true;
+  }
+  return false;
+}
+
 function criterionAssignmentRepairIssuesOnly(issues = [], targetWorkItemIds = []) {
   const targets = new Set(targetWorkItemIds.map((id) => String(id ?? "").trim()).filter(Boolean));
   if (targets.size === 0) return false;
@@ -87,23 +97,17 @@ function criterionAssignmentRepairIssuesOnly(issues = [], targetWorkItemIds = []
       if (!targets.has(id)) return false;
       continue;
     }
-    for (const prefix of [
+
+    const scopedPrefixes = [
       "validation_command_not_executable:",
       "implementation_plan_validation_command_ids_missing:",
       "implementation_plan_criterion_verification_missing:",
-    ]) {
-      if (!issue.startsWith(prefix)) continue;
-      const rest = issue.slice(prefix.length);
-      const separator = rest.indexOf(":");
-      const id = separator >= 0 ? rest.slice(0, separator) : rest;
-      if (!targets.has(id)) return false;
-      break;
+    ];
+    if (scopedPrefixes.some((prefix) => issue.startsWith(prefix))) {
+      if (!scopedPrefixes.some((prefix) => issueTargetsOneOfWorkItems(issue, prefix, targets))) return false;
+      continue;
     }
-    if ([
-      "validation_command_not_executable:",
-      "implementation_plan_validation_command_ids_missing:",
-      "implementation_plan_criterion_verification_missing:",
-    ].some((prefix) => issue.startsWith(prefix))) continue;
+
     return false;
   }
   return (issues ?? []).length > 0;
