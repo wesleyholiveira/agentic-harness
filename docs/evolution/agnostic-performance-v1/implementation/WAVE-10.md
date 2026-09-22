@@ -576,6 +576,28 @@ changed.
 The next exact-source gate is therefore the focused rustfmt check, followed by
 the scoped qualification if formatting is clean.
 
+## Scoped R-2 Clippy closure
+
+Scoped run `standalone-v1-1790046589561-9bb35f7b0c5c` on candidate
+`227cacb064420bf598e85d63483412734a6609bf` preserved Q-ENTRY, PRE-R0,
+R-0 and complete R-1 PASS, then advanced further inside R-2. The first
+divergence became `cargo clippy --all-targets --all-features -- -D warnings`.
+
+Clippy reported five warnings-as-errors:
+- `BEHAVIOR_AGENT_UID` and `BEHAVIOR_AGENT_GID` were dead code on the
+  Windows qualification host because their uses are Unix-only;
+- three `as_bytes().len()` calls were unnecessary for byte-length checks on
+  Rust strings.
+
+Corrections:
+- both restricted-agent UID/GID constants are now compiled only under
+  `#[cfg(unix)]`, matching their actual chown/uid/gid execution surface;
+- the three length checks use `.len()`, preserving Rust string byte-length
+  semantics without lint suppression.
+
+No `allow` or `expect` attribute was introduced and no behavior-gateway,
+fencing, HMAC or restricted-user semantics changed.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
