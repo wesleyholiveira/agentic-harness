@@ -105,7 +105,11 @@ pub fn new_capability() -> String {
     format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple())
 }
 
-pub fn capability_proof(secret: &str, capability: &str, fence: &TaskExecutionFence) -> Result<String> {
+pub fn capability_proof(
+    secret: &str,
+    capability: &str,
+    fence: &TaskExecutionFence,
+) -> Result<String> {
     if secret.as_bytes().len() < 32 {
         bail!("behavior_gateway_hmac_key_too_short");
     }
@@ -144,7 +148,9 @@ pub async fn invoke_gateway(
         bail!("behavior_gateway_capability_invalid");
     }
     let client = Client::builder()
-        .timeout(Duration::from_millis(config.behavior_gateway_http_timeout_ms))
+        .timeout(Duration::from_millis(
+            config.behavior_gateway_http_timeout_ms,
+        ))
         .build()
         .context("behavior_gateway_client_build_failed")?;
     let request = GatewayRequest {
@@ -197,11 +203,20 @@ mod tests {
         let secret = "s".repeat(32);
         let proof = capability_proof(&secret, &capability, &fence).unwrap();
         assert!(proof.starts_with("hmac-sha256:"));
-        assert_eq!(proof, capability_proof(&secret, &capability, &fence).unwrap());
-        assert_ne!(proof, capability_proof(&secret, &new_capability(), &fence).unwrap());
+        assert_eq!(
+            proof,
+            capability_proof(&secret, &capability, &fence).unwrap()
+        );
+        assert_ne!(
+            proof,
+            capability_proof(&secret, &new_capability(), &fence).unwrap()
+        );
         let mut replacement_fence = fence.clone();
         replacement_fence.fencing_token += 1;
-        assert_ne!(proof, capability_proof(&secret, &capability, &replacement_fence).unwrap());
+        assert_ne!(
+            proof,
+            capability_proof(&secret, &capability, &replacement_fence).unwrap()
+        );
         assert!(capability_proof("short", &capability, &fence).is_err());
     }
 
