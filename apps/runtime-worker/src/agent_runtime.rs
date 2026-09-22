@@ -46,8 +46,8 @@ use uuid::Uuid;
 use crate::{
     amqp::{connect, long_string, publish_raw_confirmed},
     behavior_gateway::{
-        BehaviorGateDescriptor, BehaviorGatewayResult, TaskExecutionFence,
-        capability_proof, invoke_gateway, new_capability,
+        BehaviorGateDescriptor, BehaviorGatewayResult, TaskExecutionFence, capability_proof,
+        invoke_gateway, new_capability,
     },
     config::Config,
 };
@@ -1240,7 +1240,6 @@ async fn drain_executor_output(
     .await;
 }
 
-
 #[cfg(unix)]
 async fn prepare_restricted_model_agent(
     descriptor: &ExecutionDescriptor,
@@ -1449,7 +1448,11 @@ async fn run_behavior_gateway_under_lease(
 ) -> BehaviorGatewayResult {
     let fence = match active_behavior_fence(client, claimed, config).await {
         Ok(value) => value,
-        Err(error) => return BehaviorGatewayResult::hold(format!("behavior_gateway_pre_fence_invalid:{error}")),
+        Err(error) => {
+            return BehaviorGatewayResult::hold(format!(
+                "behavior_gateway_pre_fence_invalid:{error}"
+            ));
+        }
     };
     let capability = new_capability();
     let hmac_key = match config.behavior_gateway_hmac_key.as_deref() {
@@ -1458,12 +1461,21 @@ async fn run_behavior_gateway_under_lease(
     };
     let capability_fingerprint = match capability_proof(hmac_key, &capability, &fence) {
         Ok(value) => value,
-        Err(error) => return BehaviorGatewayResult::hold(format!("behavior_gateway_capability_proof_failed:{error}")),
+        Err(error) => {
+            return BehaviorGatewayResult::hold(format!(
+                "behavior_gateway_capability_proof_failed:{error}"
+            ));
+        }
     };
-    let capability_fingerprint = match persist_behavior_capability(client, claimed, config, &capability_fingerprint).await {
-        Ok(value) => value,
-        Err(error) => return BehaviorGatewayResult::hold(format!("behavior_gateway_capability_persist_failed:{error}")),
-    };
+    let capability_fingerprint =
+        match persist_behavior_capability(client, claimed, config, &capability_fingerprint).await {
+            Ok(value) => value,
+            Err(error) => {
+                return BehaviorGatewayResult::hold(format!(
+                    "behavior_gateway_capability_persist_failed:{error}"
+                ));
+            }
+        };
     if let Err(error) = insert_event(
         client,
         &claimed.run_id,
@@ -1524,7 +1536,9 @@ async fn run_behavior_gateway_under_lease(
 
     let result = match active_behavior_fence(client, claimed, config).await {
         Ok(_) => result,
-        Err(error) => BehaviorGatewayResult::hold(format!("behavior_gateway_post_fence_invalid:{error}")),
+        Err(error) => {
+            BehaviorGatewayResult::hold(format!("behavior_gateway_post_fence_invalid:{error}"))
+        }
     };
     if let Err(error) = insert_event(
         client,
@@ -1804,9 +1818,12 @@ async fn run_shell_command(
         .context("agent_runtime_workspace_changeset_failed")?;
     info!(event="agent_runtime.workspace_changeset_ready", run_id=%claimed.run_id, task_id=%claimed.task_id, change_set_path=%descriptor.change_set_path);
 
-    let behavior_gate = if status.success() && !timed_out && !soft_timed_out && !stalled && !aborted {
+    let behavior_gate = if status.success() && !timed_out && !soft_timed_out && !stalled && !aborted
+    {
         match descriptor.behavior_gate.as_ref() {
-            Some(gate) => Some(run_behavior_gateway_under_lease(gate, claimed, client, config).await),
+            Some(gate) => {
+                Some(run_behavior_gateway_under_lease(gate, claimed, client, config).await)
+            }
             None => None,
         }
     } else {
