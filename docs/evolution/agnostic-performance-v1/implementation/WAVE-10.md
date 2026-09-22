@@ -621,6 +621,36 @@ its declared dependency graph is valid.
 
 A contract now pins this exact profile combination.
 
+## Scoped R-9 worker-image dependency-closure correction
+
+Scoped run `standalone-v1-1790047821052-baa404c33079` on candidate
+`e200f432b8aff5b94d676d32ae6fee71b06ca492` proved Q-ENTRY, PRE-R0,
+R-0, R-1, R-2, R-3, R-4, R-5 and R-6 PASS.
+
+R-9 armed the intended worker-loss controls, but the semantic run failed before
+Technical Refinement. Product Discovery exited three times with
+`ERR_MODULE_NOT_FOUND` because
+`.agents/runtime/technical-plan-synthesis.mjs` imports
+`packages/project-adapters/src/command-spec-catalog.mjs`, while the
+`agent-runtime-worker` image did not copy `packages/**` at all.
+
+The missing module was not isolated: `command-spec-catalog.mjs` depends on
+`trusted-config.mjs`, which in turn depends on `packages/source-identity/**`
+and `packages/harness-contracts/**`. Copying only the first missing file would
+therefore have produced a sequence of later module-resolution failures.
+
+Correction:
+- the runtime worker image now copies the complete `packages/` tree;
+- the image build executes
+  `await import('./.agents/runtime/technical-plan-synthesis.mjs')`;
+- this makes the Docker build itself prove the executor's complete local JS
+  module closure before qualification can proceed;
+- a Runtime regression contract pins both the package copy and the build-time
+  import smoke.
+
+No behavior fence, model routing, retry, gateway, command authority or process
+loss semantics changed.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
