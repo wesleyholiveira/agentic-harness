@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "r1-seven-failure-fix-pending-exact-sha-rerun",
+  "status": "technical-plan-transient-repair-ordering-fixed-pending-rerun",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -130,7 +130,8 @@
         "Technical Refinement mechanical repair retained unauthorized prose/downstream criterion",
         "Technical Refinement semantic repair lost validationCommandIds"
       ]
-    }
+    },
+    "technicalPlanCriterionAssignment": "FIXED_PENDING_EXACT_SHA_RERUN"
   },
   "historicalOperatorEvidence": {
     "candidate": "27480e5004ddf903e2dafaf8487437b7adf66858",
@@ -242,6 +243,15 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": true,
       "status": "fixed-pending-exact-sha-r1-rerun"
+    },
+    {
+      "gate": "R-1/workflow Technical Refinement criterion-assignment repair",
+      "observed": "pre-repair canonicalization produced empty acceptanceCriteria/validation arrays and hit schema minItems before bounded repair",
+      "rootCause": "final canonical projection was applied to a transient repair state",
+      "correction": "preserve schema-valid transient criterion/prose until bounded assignment; canonicalize to trusted implementation criterion/validation only after repair",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
+      "status": "fixed-pending-exact-sha-rerun"
     }
   ],
   "livePreflightEvidence": {
