@@ -482,7 +482,7 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
-    "exact-SHA scoped R-9 rerun proving openai/gpt-5.6-luna active-provider preflight either hits cache or refreshes once and Product Discovery proceeds",
+    "exact-SHA scoped R-9 rerun proving isolated OpenAI credential visibility and openai/gpt-5.6-luna availability after either active-provider cache hit or one refresh plus fresh-process revalidation",
     "exact-SHA scoped R-9 physical Rust worker loss while behavior execution is in-flight",
     "normal non-behavior model task restricted-UID runtime regression",
     "full existing Runtime/cache/memory/model-routing/continuation regression qualification",
@@ -583,7 +583,19 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
       "rootCauseResolved": false,
-      "status": "active-provider-refresh-fixed-pending-exact-sha-rerun"
+      "status": "root-cause-confirmed-refresh-same-process-correction-insufficient"
+    },
+    {
+      "observedOnCandidate": "1e301d1d3ef4774245906a6b5eb8a08193481c56",
+      "gate": "wave10-worker-loss/R-9",
+      "runId": "standalone-v1-1790135118676-f9a52b184033",
+      "observed": "Q-ENTRY through R-6 passed and worker OpenCode 1.18.32 was proven. Product Discovery now failed exactly once with non-retryable opencode_provider_model_not_found. opencode.model_catalog persisted available=false, refreshAttempted=true, localStatus=1 and refreshStatus=1; Technical Refinement was cancelled before the physical-loss boundary.",
+      "rootCause": "the selected-model preflight correctly stopped deterministic retries, but it treated the refresh command's own provider projection as final authority. OpenCode refreshes models.dev and then lists provider state in that process; upstream #47490 verifies recovery only after refresh plus a fresh process/restart. The previous event also lacked enough bounded diagnostics to distinguish provider-state staleness from missing isolated OAuth visibility.",
+      "correction": "probe isolated auth visibility; local provider probe; one models.dev refresh on miss; start a fresh provider process for post-refresh revalidation using the same cache; persist bounded redacted diagnostics for auth/local/refresh/revalidation; distinguish auth absence from post-refresh model absence; keep both non-retryable",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
+      "rootCauseResolved": false,
+      "status": "fresh-process-provider-revalidation-fixed-pending-exact-sha-rerun"
     }
   ],
   "hardening": [
@@ -602,6 +614,10 @@
     "models.dev refresh is conditional on selected-model miss and the exact qualified route is revalidated",
     "restricted child removes inherited OPENCODE_DISABLE_MODELS_FETCH/OPENCODE_MODELS_PATH/OPENCODE_MODELS_URL",
     "persistent provider model miss is non-retryable",
-    "R-9 boundary diagnostics include opencode.model_catalog"
+    "R-9 boundary diagnostics include opencode.model_catalog",
+    "OpenCode active-provider revalidation occurs in a fresh process after models.dev refresh",
+    "auth visibility and model availability are diagnosed independently in the restricted child",
+    "bounded redacted preflight diagnostics make provider-not-found causes actionable without raw credentials",
+    "post-refresh provider auth/model misses fail closed on the first task attempt"
   ]
 }
