@@ -519,7 +519,64 @@
       "qualificationHarnessBug": false,
       "upstreamDependencyBehavior": true,
       "rootCauseResolved": false,
-      "status": "model-catalog-refresh-boundary-fixed-pending-exact-sha-rerun"
+      "status": "root-cause-confirmed-refresh-same-process-correction-insufficient",
+      "correctionStatus": "superseded-by-fresh-process-revalidation"
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-model-refresh-process-boundary",
+      "candidate": "1e301d1d3ef4774245906a6b5eb8a08193481c56",
+      "runId": "standalone-v1-1790135118676-f9a52b184033",
+      "observed": {
+        "r0ThroughR6Passed": true,
+        "workerOpenCodeVersion": "1.18.32",
+        "runtimeEventWirePrefixProven": true,
+        "productDiscoveryAttemptsFailed": 1,
+        "deterministicRetryEliminated": true,
+        "technicalLeadCancelled": true,
+        "failFastMessage": "r9_pre_boundary_semantic_run_failed",
+        "taskErrorCode": "opencode_provider_model_not_found",
+        "failureCategory": "provider",
+        "retryable": false,
+        "modelCatalog": {
+          "modelId": "openai/gpt-5.6-luna",
+          "providerId": "openai",
+          "providerModelId": "gpt-5.6-luna",
+          "available": false,
+          "refreshAttempted": true,
+          "source": "unavailable-after-refresh",
+          "localStatus": 1,
+          "localTimedOut": false,
+          "refreshStatus": 1,
+          "refreshTimedOut": false
+        },
+        "opencodeFailure": {
+          "source": "rust-buffered-opencode-runtime-event",
+          "errorName": "ProviderModelNotFoundError",
+          "errorCode": "model_unavailable_after_refresh",
+          "sessionId": null
+        }
+      },
+      "rootCause": [
+        "the non-retryable model-catalog boundary works, but the first correction treated the exit status/model list of the refresh process as final provider authority",
+        "OpenCode 1.18.32 models command refreshes models.dev before materializing/listing provider state in that command; a refreshed cache and an active provider projection therefore have distinct lifecycles",
+        "upstream anomalyco/opencode#47490 explicitly verifies recovery only after models openai --refresh followed by a fresh OpenCode provider process/restart",
+        "status=1 from both local and refresh probes is not sufficient to distinguish stale provider projection from missing/undecodable isolated OAuth credentials because the prior event omitted bounded command diagnostics and auth visibility"
+      ],
+      "correction": [
+        "probe opencode --pure auth list in the exact isolated attempt environment and record only bounded redacted provider-level evidence",
+        "probe active provider locally before refresh",
+        "on selected-model miss run exactly one models.dev refresh",
+        "do not require the refresh process itself to expose the selected model or exit zero as final authority",
+        "start a fresh opencode --pure models openai process after refresh using the same XDG cache and make that revalidation the final model-availability authority",
+        "persist bounded redacted diagnostics and statuses for auth/local/refresh/revalidation without tokens or raw credentials",
+        "distinguish ProviderAuthError/provider_credential_not_observed from ProviderModelNotFoundError/model_unavailable_after_refresh_reload",
+        "keep both deterministic provider failures non-retryable"
+      ],
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
+      "upstreamDependencyBehavior": true,
+      "rootCauseResolved": false,
+      "status": "fresh-process-revalidation-and-auth-diagnostics-fixed-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -601,7 +658,11 @@
     "selected-model miss triggers exactly one models.dev refresh and exact revalidation in the attempt-scoped cache",
     "persistent OpenCode provider model misses are non-retryable and cannot burn the full task retry budget",
     "restricted child clears inherited models-fetch/path/url overrides so consumer environment cannot redirect model catalog authority",
-    "opencode.model_catalog is persisted as Runtime evidence"
+    "opencode.model_catalog is persisted as Runtime evidence",
+    "OpenCode models.dev refresh is followed by a fresh provider process before selected-model availability is accepted or rejected",
+    "restricted model preflight records bounded redacted auth/local/refresh/revalidation diagnostics",
+    "isolated OpenCode auth visibility is probed independently from active model projection",
+    "ProviderAuthError and ProviderModelNotFoundError remain distinct non-retryable Runtime provider failures"
   ],
   "historicalGreenEvidence": {
     "candidate": "0d8c0b6ec4c034429d496822a6a2cc780f9a31bb",
@@ -623,5 +684,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R0_THROUGH_R6_PASS_RUNTIME_EVENT_WIRE_PROVEN_OPENAI_ACTIVE_PROVIDER_REFRESH_PENDING_EXACT_SHA_RERUN"
+  "greenAfterFix": "R0_THROUGH_R6_PASS_NONRETRYABLE_MODEL_MISS_PROVEN_FRESH_PROCESS_PROVIDER_REVALIDATION_PENDING_EXACT_SHA_RERUN"
 }
