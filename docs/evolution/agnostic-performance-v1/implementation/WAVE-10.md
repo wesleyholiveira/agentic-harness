@@ -844,6 +844,73 @@ The next exact-SHA scoped rerun has two valid outcomes:
    bounded redacted internal cause correlated to its `errorRef`, which becomes
    the authority for the next repair.
 
+## Scoped R-9 Runtime event wire-prefix correction
+
+Scoped run `standalone-v1-1790128717557-b9c4c026224d` on exact candidate
+`69ea9f72335cb496c8e03ee3115c2d2cde095ae0` proved Q-ENTRY, PRE-R0 and
+R-0 through R-6 PASS. R-4 additionally proved the live
+`agent-runtime-worker` OpenCode version is exactly `1.18.32`.
+
+The restricted child also proved the intended isolation controls are active:
+`pure=true`, `projectConfigDisabled=true`, attempt-scoped XDG roots,
+`rawServerLogsForwarded=false`, and `serverLogLevel=ERROR`.
+
+Product Discovery nevertheless failed all three attempts before Technical
+Refinement. The new diagnostic path produced `errorRef=err_5b7f2078` and a
+`serverLogExcerpt`, but the qualification report only retained the beginning:
+
+`timestamp=2026-09-23T02:09:47.899Z level=ERROR run=de544389 mess...`
+
+The underlying cause was still cut off.
+
+Source inspection identified the reason. The two JavaScript executors use the
+canonical wire marker:
+
+`@@agentic-harness-runtime-event `
+
+but `apps/runtime-worker/src/agent_runtime.rs::observe_runtime_event()`
+expected:
+
+`@@agent-harness-runtime-event `
+
+The missing `ic` meant every structured event emitted by the restricted child
+failed `strip_prefix` in the Rust execution plane. As a result:
+- `opencode.session.observed` did not update the Rust-side session identity;
+- `opencode.failure` was not added to
+  `ExecutionTelemetry.runtimeEvents`;
+- the semantic finalizer therefore could not persist the structured failure as
+  an independent `agent_events` row;
+- the failure remained only inside the bounded stderr summary / task error
+  string, where the manifest and preceding events consumed the projection
+  budget before the internal OpenCode cause.
+
+Correction:
+- the Rust parser now consumes the same
+  `@@agentic-harness-runtime-event ` literal used by both JS emitters;
+- an async Rust regression proves a canonical
+  `opencode.session.observed` updates session identity and a canonical
+  `opencode.failure` is buffered;
+- the historical truncated marker is explicitly rejected so there is one
+  authoritative wire format rather than two aliases;
+- a cross-language Node contract locks the literal across
+  `scripts/internal/opencode-task-executor.mjs`,
+  `.agents/runtime/executor.mjs` and the Rust worker;
+- R-9 now queries the latest persisted `opencode.failure` directly from
+  `agent_events` and exposes it as the first-class `opencodeFailure`
+  evidence object, independent of the long task `error_message`.
+
+This correction is broader than diagnostics but narrower than task semantics:
+it restores the structured child-to-Rust telemetry contract that was already
+intended by the execution result schema and semantic finalizer. No routing,
+provider, retry, behavior-gateway, fencing, cache, memory or continuation
+policy changes.
+
+The next exact-SHA run must prove that the structured event survives all the
+way into `agent_events`. If Product Discovery still fails,
+`firstDivergence.evidence.opencodeFailure.serverLogExcerpt` must contain the
+bounded redacted internal OpenCode cause. If Product Discovery succeeds, R-9
+continues to the physical worker-loss boundary.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
