@@ -478,6 +478,23 @@ test("event-driven scheduler does not create semantic progress from no-op peak b
   assert.match(reconciler, /scheduler_ready_task_missing_plan/u);
 });
 
+test("runtime model child cannot mutate the bind-mounted source root from bootstrap governance", () => {
+  const executor = source("scripts/internal/opencode-task-executor.mjs");
+
+  assert.match(executor, /AGENT_HARNESS_PROJECT_ROOT: workspace/u);
+  assert.match(executor, /AGENT_HARNESS_AGENT_WORKSPACE: workspace/u);
+  assert.match(executor, /projectRootAuthority: "execution-workspace"/u);
+  assert.match(executor, /external_directory: "deny"/u);
+  assert.match(executor, /normalizedStage === "product-discovery"/u);
+  assert.match(executor, /normalizedStage === "technical-refinement"/u);
+  assert.match(executor, /isBootstrapReviewStage\(normalizedStage\)/u);
+  assert.match(executor, /\.\.\.\(governanceStage \? \{ bash: "deny" \} : \{\}\)/u);
+  assert.doesNotMatch(
+    executor,
+    /permission:\s*\{\s*question:\s*"deny"\s*\}/u,
+  );
+});
+
 test("runtime-worker image packages the full JS dependency closure required by technical plan synthesis", () => {
   const dockerfile = source("apps/runtime-worker/Dockerfile");
   assert.match(dockerfile, /COPY packages \.\/packages/u);
