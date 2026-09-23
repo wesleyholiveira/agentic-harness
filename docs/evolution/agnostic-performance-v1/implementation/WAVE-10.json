@@ -482,6 +482,9 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
+    "exact-SHA R-9 rerun proving Product Discovery integrates without any source-root mutation escape",
+    "if a root conflict recurs, preserve workspace.root_changed_since_fork baseline/current fingerprints and identify the writer before any further authority change",
+    "exact-SHA R-9 rerun through terminal-aware source behavior physical window and worker SIGKILL",
     "exact-SHA R-9 rerun proving the source physical behavior container becomes Running or surfacing exact behavior.gateway.completed status/code before any container",
     "exact-SHA R-9 physical worker SIGKILL only after the named source behavior container is physically Running",
     "exact-SHA replacement behavior window and exactly-once PASS after fence/generation replacement",
@@ -678,6 +681,20 @@
       "qualificationHarnessBug": true,
       "rootCauseResolved": false,
       "status": "terminal-aware-physical-window-observer-fixed-pending-exact-sha-rerun"
+    },
+    {
+      "observedOnCandidate": "1d628e6e04c921ef2225086a035f3903d4fdc498",
+      "gate": "wave10-worker-loss/R-9",
+      "qualificationRunId": "standalone-v1-1790204776362-8adf2778fd76",
+      "runtimeRunId": "run-f769ae4d-cf84-4aff-96af-4d78afb62524",
+      "observed": "Q-ENTRY through R-6 passed and OpenAI/Luna remained green. Product Discovery executor completed exitCode=0, but semantic integration failed non-retryably with copy_integrate_root_changed:docs/specs/qualification/r9/PRD.md; Technical Refinement was cancelled by dependency_failed, so the physical behavior observer was not reached.",
+      "rootCause": "the exact external writer is not preserved in the old report, but the isolation contract was incomplete: model child cwd was the copy workspace while AGENT_HARNESS_PROJECT_ROOT still pointed at the bind-mounted source root, external_directory was left at OpenCode's default ask, and OpenCode bash absolute path arguments are not a sandbox boundary. Raw-byte baseline algorithms match, so the root did change after fork.",
+      "correction": "reproject model-child project root to the copy workspace, deny external_directory for every child, deny bash for bootstrap governance stages, retain implementation bash inside workspace, and capture root-change fingerprint events in R-9 evidence",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
+      "exactExternalWriterProven": false,
+      "rootCauseResolved": false,
+      "status": "source-root-authority-closed-pending-exact-sha-rerun"
     }
   ],
   "hardening": [
@@ -710,6 +727,10 @@
     "R-9 semantic snapshot contains all tasks/dependencies, pending results, reconcile state, outbox and bootstrap events",
     "R-9 true no-progress fails after 180 seconds instead of silently consuming the 20-minute safety ceiling",
     "R-9 prints compact semantic progress every 30 seconds",
-    "R-9 Runtime outbox snapshot records lastError presence only and never persists raw outbox error text"
+    "R-9 Runtime outbox snapshot records lastError presence only and never persists raw outbox error text",
+    "Runtime model child projects AGENT_HARNESS_PROJECT_ROOT to the copy workspace rather than the bind-mounted source root",
+    "Runtime model child denies external_directory globally; bootstrap governance additionally denies bash",
+    "implementation model stages retain bash authority inside the isolated workspace",
+    "R-9 semantic evidence preserves workspace root-change and integration-materialization fingerprint events"
   ]
 }
