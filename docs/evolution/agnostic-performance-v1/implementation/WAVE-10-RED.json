@@ -617,11 +617,12 @@
       "correction": [
         "resolve the host OpenCode auth source from explicit AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE, native XDG_DATA_HOME, or the native user-home .local/share/opencode/auth.json",
         "validate the OpenAI credential shape before stack startup: oauth type plus non-empty access/refresh and non-negative integer expires",
-        "materialize a qualification-owned auth.json containing only the openai credential under the qualification output directory with mode 0600",
+        "materialize a qualification-owned auth.json containing only the openai credential under a dedicated temporary directory with mode 0600",
         "set AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE to the qualification-owned projection before harness up/docker compose",
         "R-4 executes opencode --pure auth list inside agent-runtime-worker and HOLDs unless OpenAI oauth is observed",
         "R-4 evidence records only credential shape booleans and source strategy, never token values",
-        "restricted child model preflight now short-circuits immediately when OAuth is absent instead of spending up to 45 seconds on model refresh"
+        "restricted child model preflight now short-circuits immediately when OAuth is absent instead of spending up to 45 seconds on model refresh",
+        "remove the temporary OAuth projection during cleanup/R-11 so credential bytes never persist with qualification reports"
       ],
       "productionLogicBug": false,
       "qualificationHarnessBug": true,
@@ -716,7 +717,8 @@
     "qualification mounts a qualification-owned OpenAI-only OAuth projection instead of compose.yaml empty-auth fallback",
     "qualification validates OpenAI OAuth shape without logging access/refresh token values",
     "R-4 proves OpenAI oauth is visible inside agent-runtime-worker before semantic runtime gates",
-    "restricted model preflight short-circuits auth absence before any model-catalog refresh"
+    "restricted model preflight short-circuits auth absence before any model-catalog refresh",
+    "qualification OAuth projection is deleted after stack teardown and never persisted with report artifacts"
   ],
   "historicalGreenEvidence": {
     "candidate": "0d8c0b6ec4c034429d496822a6a2cc780f9a31bb",
