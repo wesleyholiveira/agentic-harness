@@ -438,6 +438,43 @@
       "upstreamDependencyBug": null,
       "rootCauseResolved": false,
       "status": "diagnostic-authority-hardened-pending-exact-sha-rerun"
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-runtime-event-wire-prefix",
+      "candidate": "69ea9f72335cb496c8e03ee3115c2d2cde095ae0",
+      "runId": "standalone-v1-1790128717557-b9c4c026224d",
+      "observed": {
+        "r0ThroughR6Passed": true,
+        "workerOpenCodeVersion": "1.18.32",
+        "pure": true,
+        "projectConfigDisabled": true,
+        "rawServerLogsForwarded": false,
+        "serverLogLevel": "ERROR",
+        "productDiscoveryAttemptsFailed": 3,
+        "technicalLeadCancelled": true,
+        "failFastMessage": "r9_pre_boundary_semantic_run_failed",
+        "errorRef": "err_5b7f2078",
+        "serverLogExcerptVisiblePrefix": "timestamp=2026-09-23T02:09:47.899Z level=ERROR run=de544389 mess",
+        "persistedStandaloneOpenCodeFailureEvent": false
+      },
+      "rootCause": [
+        "scripts/internal/opencode-task-executor.mjs and .agents/runtime/executor.mjs emit @@agentic-harness-runtime-event",
+        "apps/runtime-worker/src/agent_runtime.rs observe_runtime_event expected @@agent-harness-runtime-event",
+        "the Rust execution plane therefore discarded every structured child event instead of buffering it into ExecutionTelemetry.runtimeEvents",
+        "opencode.failure survived only inside stderrSummary/task.error_message, whose bounded tail/report projection truncated serverLogExcerpt before the underlying OpenCode defect cause",
+        "the same mismatch also prevented opencode.session.observed from updating Rust telemetry/session authority"
+      ],
+      "correction": [
+        "make @@agentic-harness-runtime-event the single canonical wire prefix in the Rust consumer",
+        "Rust async regression proves canonical session.observed updates session identity and canonical opencode.failure is buffered",
+        "legacy truncated @@agent-harness-runtime-event is explicitly non-authoritative",
+        "cross-language source contract requires both JS emitters and Rust consumer to contain the same canonical literal",
+        "R-9 reads latest persisted opencode.failure directly from agent_events and projects it as opencodeFailure instead of depending on task.error_message"
+      ],
+      "productionLogicBug": true,
+      "qualificationHarnessBug": true,
+      "rootCauseResolved": false,
+      "status": "wire-contract-fixed-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -511,7 +548,10 @@
     "restricted OpenCode XDG data/state/config/cache are all attempt-scoped Runtime-owned paths",
     "raw OpenCode server stderr is never forwarded to durable Runtime task logs",
     "opencode.failure carries a bounded redacted serverLogExcerpt correlated by errorRef",
-    "R-4 records and gates the live OpenCode version inside agent-runtime-worker"
+    "R-4 records and gates the live OpenCode version inside agent-runtime-worker",
+    "Rust and JS Runtime event transport share one canonical @@agentic-harness-runtime-event wire prefix",
+    "Rust regression proves opencode.session.observed and opencode.failure survive the cross-language boundary",
+    "R-9 surfaces persisted opencode.failure as a first-class opencodeFailure evidence object"
   ],
   "historicalGreenEvidence": {
     "candidate": "0d8c0b6ec4c034429d496822a6a2cc780f9a31bb",
@@ -533,5 +573,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R0_THROUGH_R6_PASS_R9_FAILFAST_PROVEN_SERVER_LOG_CAUSE_PENDING_EXACT_SHA_RERUN"
+  "greenAfterFix": "R0_THROUGH_R6_PASS_R9_WORKER_1_18_32_PROVEN_RUNTIME_EVENT_WIRE_PREFIX_FIXED_PENDING_EXACT_SHA_RERUN"
 }
