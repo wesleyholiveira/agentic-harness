@@ -482,6 +482,7 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
+    "exact-SHA R-1 contract rerun proving all harness contracts green after semantic-watchdog contract alignment",
     "exact-SHA scoped R-9 rerun identifying Product semantic finalization/refined bootstrap review tasks or scheduler stall through the new semantic snapshot",
     "exact-SHA scoped R-9 proving Technical Refinement reaches repair-checkpoint-before-behavior",
     "exact-SHA scoped R-9 physical Rust worker loss while behavior execution is in-flight",
@@ -621,6 +622,18 @@
       "qualificationHarnessBug": true,
       "rootCauseResolved": false,
       "status": "progress-aware-r9-fixed-production-cause-pending-exact-sha-rerun"
+    },
+    {
+      "observedOnCandidate": "99d6e8859660378040938a58d6038ddb831eb81c",
+      "gate": "R-1/contracts",
+      "runId": "standalone-v1-1790140282302-571e5b267ac6",
+      "observed": "Q-ENTRY, PRE-R0 and R-0 passed on exact HEAD 99d6e8859660378040938a58d6038ddb831eb81c. R-1 ran 490 contracts: 488 passed and exactly two legacy R-9 static-source contracts failed. R-2 through R-9 were correctly not run; R-11 cleanup passed with exact HEAD/tree equality and clean worktree.",
+      "rootCause": "contract drift only: qualification-controller still expected negative checkpoint predicates and the deleted boundaryEvents variable from the pre-semantic-watchdog R-9 implementation",
+      "correction": "align the static contracts to the current stronger positive checkpoint predicates and authoritative semanticSnapshot/event evidence without changing production Runtime behavior",
+      "productionLogicBug": false,
+      "qualificationHarnessBug": true,
+      "rootCauseResolved": true,
+      "status": "contracts-fixed-pending-exact-sha-rerun"
     }
   ],
   "hardening": [
