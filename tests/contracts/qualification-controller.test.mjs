@@ -222,6 +222,21 @@ test("qualification owns RabbitMQ credentials instead of inheriting product envi
 });
 
 
+test("qualification dispatch starts only after late-bound gate constants initialize", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const dispatchCall = controller.lastIndexOf("await executeQualification();");
+  const semanticStallConstant = controller.indexOf("const R9_PRE_BOUNDARY_SEMANTIC_STALL_MS = 180_000;");
+  const behaviorWindowConstant = controller.indexOf("const R9_BEHAVIOR_CONTAINER_START_TIMEOUT_MS = 120_000;");
+  const selfTestDeclaration = controller.lastIndexOf("async function selfTest()");
+
+  assert.ok(dispatchCall > 0);
+  assert.ok(semanticStallConstant > 0 && semanticStallConstant < dispatchCall);
+  assert.ok(behaviorWindowConstant > 0 && behaviorWindowConstant < dispatchCall);
+  assert.ok(selfTestDeclaration > 0 && selfTestDeclaration < dispatchCall);
+  assert.ok(controller.trimEnd().endsWith("await executeQualification();"));
+  assert.match(controller, /async function executeQualification\(\) \{[\s\S]*for \(const name of gateOrder\)/u);
+});
+
 test("R-4 proves Context Engine Git source authority before semantic task preparation", () => {
   const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
   const dockerfile = readFileSync(resolve(root, "apps/context-engine/Dockerfile"), "utf8");
