@@ -1735,7 +1735,31 @@ function latestAgentEventPayload(runId, eventType, taskId = null) {
   return raw ? safeJson(raw) : null;
 }
 
+function matchingBehaviorGatewayEvent(runId, taskId, eventType, {
+  attempt,
+  dispatchGeneration,
+  fencingToken,
+} = {}) {
+  const rows = sqlRows(`
+    SELECT payload_json
+    FROM agent_events
+    WHERE run_id='${sqlQuote(runId)}'
+      AND task_id='${sqlQuote(taskId)}'
+      AND event_type='${sqlQuote(eventType)}'
+    ORDER BY created_at DESC
+    LIMIT 12;
+  `);
+  for (const [payloadJson] of rows) {
+    const payload = safeJson(payloadJson);
+    if (Number(payload?.attempt) === Number(attempt)
+      && Number(payload?.dispatchGeneration) === Number(dispatchGeneration)
+      && Number(payload?.fencingToken) === Number(fencingToken)) return payload;
+  }
+  return null;
+}
+
 const R9_PRE_BOUNDARY_SEMANTIC_STALL_MS = 180_000;
+const R9_BEHAVIOR_CONTAINER_START_TIMEOUT_MS = 120_000;
 
 function r9SemanticSnapshot(runId) {
   const id = sqlQuote(runId);
@@ -1838,6 +1862,7 @@ function r9SemanticSnapshot(runId) {
               'dag.bootstrap_refined','bootstrap.topology.refined','dag.tasks.materialized',
               'scheduler.ready_preparation.completed','scheduler.waiting_dependencies',
               'policy.dispatch_decision',
+              'behavior.gateway.started','behavior.gateway.completed',
               'runtime.reconcile_failed','runtime.reconcile_recovered',
               'run.failed','run.blocked','run.cancelled','run.closed'
             )
@@ -2202,14 +2227,61 @@ async function r9() {
     dispatchGeneration: target.dispatchGeneration,
     fencingToken: target.fencingToken,
   }, QUALIFICATION_BEHAVIOR_DELAY_COMMAND_ID);
-  const sourceBehaviorContainer = await waitFor(() => {
-    const inspect = runner.run("docker", [
-      "container", "inspect", sourceBehaviorContainerName,
-    ], { label: "r9-source-behavior-running", allowExitCodes: [0, 1], timeoutMs: 10_000 });
-    if (inspect.exitCode !== 0) return null;
-    const value = JSON.parse(inspect.stdout)[0];
-    return value?.State?.Running === true ? value : null;
-  }, { timeoutMs: 30_000, intervalMs: 100, label: "r9-source-behavior-container-running" });
+  let sourceBehaviorWindow;
+  try {
+    sourceBehaviorWindow = await waitFor(() => {
+      const inspect = runner.run("docker", [
+        "container", "inspect", sourceBehaviorContainerName,
+      ], { label: "r9-source-behavior-running", allowExitCodes: [0, 1], timeoutMs: 10_000 });
+      if (inspect.exitCode === 0) {
+        const value = JSON.parse(inspect.stdout)[0];
+        if (value?.State?.Running === true) return { state: "running", container: value };
+      }
+      const completed = matchingBehaviorGatewayEvent(runId, target.taskId, "behavior.gateway.completed", target);
+      if (completed) return { state: "completed", completed };
+      return null;
+    }, {
+      timeoutMs: R9_BEHAVIOR_CONTAINER_START_TIMEOUT_MS,
+      intervalMs: 100,
+      label: "r9-source-behavior-container-running",
+    });
+  } catch (error) {
+    if (String(error?.message ?? "").startsWith("qualification_wait_timeout:r9-source-behavior-container-running:")) {
+      const gatewayId = composeCommand(["ps", "-q", "docker-behavior-gateway"], {
+        label: "r9-source-behavior-timeout-gateway-id",
+      }).stdout.trim();
+      const gatewayInspect = gatewayId
+        ? JSON.parse(runner.run("docker", ["inspect", gatewayId], {
+            label: "r9-source-behavior-timeout-gateway-inspect",
+          }).stdout)[0]
+        : null;
+      hold("R-9", "RUNTIME", "r9_source_behavior_container_not_materialized", {
+        target,
+        sourceBehaviorStarted,
+        behaviorGatewayCompleted: matchingBehaviorGatewayEvent(runId, target.taskId, "behavior.gateway.completed", target),
+        sourceBehaviorContainerName,
+        timeoutMs: R9_BEHAVIOR_CONTAINER_START_TIMEOUT_MS,
+        gateway: gatewayInspect ? {
+          id: gatewayInspect.Id ?? null,
+          running: gatewayInspect.State?.Running === true,
+          pid: gatewayInspect.State?.Pid ?? null,
+          restartCount: gatewayInspect.RestartCount ?? null,
+        } : null,
+        semanticSnapshot: r9SemanticSnapshot(runId),
+      });
+    }
+    throw error;
+  }
+  if (sourceBehaviorWindow.state === "completed") {
+    hold("R-9", "RUNTIME", "r9_source_behavior_gateway_completed_before_physical_window", {
+      target,
+      sourceBehaviorStarted,
+      behaviorGatewayCompleted: sourceBehaviorWindow.completed,
+      sourceBehaviorContainerName,
+      semanticSnapshot: r9SemanticSnapshot(runId),
+    });
+  }
+  const sourceBehaviorContainer = sourceBehaviorWindow.container;
 
   const gatewayIdBeforeWorkerLoss = composeCommand(["ps", "-q", "docker-behavior-gateway"], {
     label: "r9-gateway-before-worker-loss-id",
@@ -2331,16 +2403,61 @@ async function r9() {
     dispatchGeneration: replacement.dispatchGeneration,
     fencingToken: replacement.fencingToken,
   }, QUALIFICATION_BEHAVIOR_DELAY_COMMAND_ID);
-  const replacementBehaviorContainer = await waitFor(() => {
-    const inspect = runner.run("docker", ["container", "inspect", replacementBehaviorContainerName], {
-      label: "r9-replacement-behavior-running",
-      allowExitCodes: [0, 1],
-      timeoutMs: 10_000,
+  let replacementBehaviorWindow;
+  try {
+    replacementBehaviorWindow = await waitFor(() => {
+      const inspect = runner.run("docker", ["container", "inspect", replacementBehaviorContainerName], {
+        label: "r9-replacement-behavior-running",
+        allowExitCodes: [0, 1],
+        timeoutMs: 10_000,
+      });
+      if (inspect.exitCode === 0) {
+        const value = JSON.parse(inspect.stdout)[0];
+        if (value?.State?.Running === true) return { state: "running", container: value };
+      }
+      const completed = matchingBehaviorGatewayEvent(
+        runId,
+        target.taskId,
+        "behavior.gateway.completed",
+        replacement,
+      );
+      if (completed) return { state: "completed", completed };
+      return null;
+    }, {
+      timeoutMs: R9_BEHAVIOR_CONTAINER_START_TIMEOUT_MS,
+      intervalMs: 100,
+      label: "r9-replacement-behavior-container-running",
     });
-    if (inspect.exitCode !== 0) return null;
-    const value = JSON.parse(inspect.stdout)[0];
-    return value?.State?.Running === true ? value : null;
-  }, { timeoutMs: 30_000, intervalMs: 100, label: "r9-replacement-behavior-container-running" });
+  } catch (error) {
+    if (String(error?.message ?? "").startsWith("qualification_wait_timeout:r9-replacement-behavior-container-running:")) {
+      hold("R-9", "RUNTIME", "r9_replacement_behavior_container_not_materialized", {
+        target,
+        replacement,
+        replacementBehaviorStarted,
+        behaviorGatewayCompleted: matchingBehaviorGatewayEvent(
+          runId,
+          target.taskId,
+          "behavior.gateway.completed",
+          replacement,
+        ),
+        replacementBehaviorContainerName,
+        timeoutMs: R9_BEHAVIOR_CONTAINER_START_TIMEOUT_MS,
+        semanticSnapshot: r9SemanticSnapshot(runId),
+      });
+    }
+    throw error;
+  }
+  if (replacementBehaviorWindow.state === "completed") {
+    hold("R-9", "RUNTIME", "r9_replacement_behavior_gateway_completed_before_physical_window", {
+      target,
+      replacement,
+      replacementBehaviorStarted,
+      behaviorGatewayCompleted: replacementBehaviorWindow.completed,
+      replacementBehaviorContainerName,
+      semanticSnapshot: r9SemanticSnapshot(runId),
+    });
+  }
+  const replacementBehaviorContainer = replacementBehaviorWindow.container;
 
   const replacementBehaviorCompleted = await waitFor(() => {
     const rows = sqlRows(`SELECT payload_json FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND task_id='${sqlQuote(target.taskId)}' AND event_type='behavior.gateway.completed' ORDER BY created_at DESC LIMIT 8;`);
