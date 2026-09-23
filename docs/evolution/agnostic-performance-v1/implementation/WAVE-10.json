@@ -604,7 +604,7 @@
       "runId": "standalone-v1-1790136315663-27738e9a0e30",
       "observed": "Q-ENTRY through R-6 passed; Product Discovery failed once with non-retryable opencode_provider_auth_not_observed. The new provider preflight proved authStatus=0 but authProviderCredentialObserved=false and authDiagnostic=0 credentials; local and fresh-process provider probes both reported Provider not found: openai.",
       "rootCause": "qualification never projected the host OpenCode auth file into Compose. compose.yaml therefore mounted vendor/empty-opencode-auth.json through its default AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE fallback. Rust/JS authCopied=true only proved that this empty file was copied through the restricted HOME layers.",
-      "correction": "before R-4 startup, resolve and structurally validate the host OpenAI OAuth credential, materialize an OpenAI-only qualification-owned auth.json with mode 0600, inject AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE into the qualification Compose environment, prove OpenAI oauth inside agent-runtime-worker in R-4, and short-circuit semantic model catalog work when auth visibility is absent",
+      "correction": "before R-4 startup, resolve and structurally validate the host OpenAI OAuth credential, materialize an OpenAI-only qualification-owned auth.json in a dedicated temporary directory with mode 0600, inject AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE into the qualification Compose environment, prove OpenAI oauth inside agent-runtime-worker in R-4, remove the temporary credential during cleanup/R-11, and short-circuit semantic model catalog work when auth visibility is absent",
       "productionLogicBug": false,
       "qualificationHarnessBug": true,
       "rootCauseResolved": false,
@@ -635,6 +635,7 @@
     "qualification resolves and validates host OpenAI OAuth before runtime stack startup",
     "qualification Compose receives an OpenAI-only temporary auth file rather than the empty fallback",
     "R-4 proves OpenAI oauth inside the runtime worker before R-9",
-    "auth absence short-circuits model-catalog refresh immediately"
+    "auth absence short-circuits model-catalog refresh immediately",
+    "qualification OAuth projection lives outside persisted report output and is removed during cleanup/R-11"
   ]
 }
