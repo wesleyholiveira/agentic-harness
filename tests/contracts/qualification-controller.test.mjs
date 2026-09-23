@@ -813,8 +813,10 @@ test("standalone R-9 arms an exact repair checkpoint, forces lease expiry, and e
   const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
   assert.match(controller, /buildWorkerProcessLossCommand/);
   assert.match(controller, /evaluateH9RRecoveryEvidence/);
-  assert.match(controller, /repairKind !== "qualification-process-loss"/);
-  assert.match(controller, /checkpoint\.status !== "repair-started"/);
+  assert.match(controller, /checkpoint\.repairKind === "qualification-process-loss"/);
+  assert.match(controller, /checkpoint\.status === "repair-started"/);
+  assert.match(controller, /checkpoint\.contractVersion === "runtime-repair-checkpoint\/v1"/);
+  assert.match(controller, /checkpoint\.qualificationBoundary === "repair-checkpoint-before-behavior"/);
   assert.match(controller, /pg_notify\('agent_harness_runtime_wakeup'/);
   assert.match(controller, /dispatchGeneration\) !== target\.dispatchGeneration \+ 1/);
   assert.match(controller, /fencingToken\) !== target\.fencingToken \+ 1/);
@@ -857,7 +859,10 @@ test("R-9 proves process-loss fault projection before launching the semantic run
   assert.match(r9Section, /const armedWorkerEnv = containerEnvironmentMap\(armedWorkerInspect\)/);
   assert.match(r9Section, /r9_process_loss_boundary_not_materialized/);
   assert.match(r9Section, /r9_process_loss_boundary_not_disarmed_on_worker/);
-  assert.match(r9Section, /boundaryEvents/);
+  assert.match(controller, /function r9SemanticSnapshot\(runId\)/);
+  assert.match(r9Section, /semanticSnapshot: snapshot/);
+  assert.match(controller, /\'qualification\.process_loss_boundary_ready\'/);
+  assert.match(controller, /\'runtime\.reconcile_failed\'/);
 });
 
 test("R-9 uses an isolated additive PRD and distinguishes recovery from downstream semantic failure", async () => {
