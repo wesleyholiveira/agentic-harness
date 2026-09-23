@@ -482,6 +482,8 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
+    "exact-SHA R-9 rerun proving controller module initialization completes before gate dispatch",
+    "exact-SHA R-9 terminal-aware source behavior physical window and physical worker PID1 SIGKILL",
     "exact-SHA R-9 rerun proving Product Discovery integrates without any source-root mutation escape",
     "if a root conflict recurs, preserve workspace.root_changed_since_fork baseline/current fingerprints and identify the writer before any further authority change",
     "exact-SHA R-9 rerun through terminal-aware source behavior physical window and worker SIGKILL",
@@ -693,8 +695,20 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
       "exactExternalWriterProven": false,
-      "rootCauseResolved": false,
-      "status": "source-root-authority-closed-pending-exact-sha-rerun"
+      "rootCauseResolved": true,
+      "status": "model-child-root-isolation-fix-advanced-past-product-integration-on-18778a7978bb7d1bf6077a2d97a7298a90c61505"
+    },
+    {
+      "observedOnCandidate": "18778a7978bb7d1bf6077a2d97a7298a90c61505",
+      "gate": "wave10-worker-loss/R-9",
+      "qualificationRunId": "standalone-v1-1790206889388-86c9b7b23598",
+      "observed": "Q-ENTRY through R-6 passed and R-9 advanced beyond Product integration/Technical Refinement setup to the source behavior physical-window observer, then failed as QUALIFICATION PROCEDURE with ReferenceError: Cannot access R9_BEHAVIOR_CONTAINER_START_TIMEOUT_MS before initialization.",
+      "rootCause": "standalone-v1.mjs executed its gate loop through top-level await before later top-level R-9 const declarations had initialized. The function declaration for r9 was callable, but the const binding was still in the JavaScript temporal dead zone when the physical-window wait options were constructed.",
+      "correction": "defer gate dispatch into executeQualification() and invoke it only as the final module statement, after all constants/functions initialize; add static contract enforcing dispatcher ordering",
+      "productionLogicBug": false,
+      "qualificationHarnessBug": true,
+      "rootCauseResolved": true,
+      "status": "module-initialization-order-fixed-pending-exact-sha-rerun"
     }
   ],
   "hardening": [
@@ -731,6 +745,8 @@
     "Runtime model child projects AGENT_HARNESS_PROJECT_ROOT to the copy workspace rather than the bind-mounted source root",
     "Runtime model child denies external_directory globally; bootstrap governance additionally denies bash",
     "implementation model stages retain bash authority inside the isolated workspace",
-    "R-9 semantic evidence preserves workspace root-change and integration-materialization fingerprint events"
+    "R-9 semantic evidence preserves workspace root-change and integration-materialization fingerprint events",
+    "standalone qualification dispatch occurs only after all module-scope gate constants initialize",
+    "qualification-controller contract requires final await executeQualification() after R-9 constants"
   ]
 }
