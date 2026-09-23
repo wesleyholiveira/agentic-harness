@@ -882,22 +882,41 @@ async function main() {
       revalidationDiagnostic: modelCatalog.revalidation?.diagnostic ?? null,
     });
     if (!modelCatalog.available) {
+      const providerCredentialObserved = modelCatalog.auth.providerCredentialObserved === true;
+      const finalStatus = modelCatalog.revalidation?.status
+        ?? modelCatalog.refresh?.status
+        ?? modelCatalog.local.status;
+      const finalTimedOut = Boolean(
+        modelCatalog.revalidation?.timedOut
+        ?? modelCatalog.refresh?.timedOut
+        ?? modelCatalog.local.timedOut,
+      );
+      const errorName = providerCredentialObserved ? "ProviderModelNotFoundError" : "ProviderAuthError";
+      const errorCode = providerCredentialObserved
+        ? "model_unavailable_after_refresh_reload"
+        : "provider_credential_not_observed";
+      const errorMessage = providerCredentialObserved
+        ? `Model unavailable in active provider after models.dev refresh and fresh-process revalidation: ${modelCatalog.qualified}`
+        : `Provider credential not observed by isolated OpenCode auth state: ${modelCatalog.providerId}`;
       emitRuntimeEvent("opencode.failure", {
-        status: modelCatalog.refresh?.status ?? modelCatalog.local.status,
+        status: finalStatus,
         signal: null,
-        timedOut: Boolean(modelCatalog.refresh?.timedOut ?? modelCatalog.local.timedOut),
+        timedOut: finalTimedOut,
         aborted: false,
         source: "model-catalog-preflight",
         sessionId: null,
-        errorName: "ProviderModelNotFoundError",
-        errorCode: "model_unavailable_after_refresh",
+        errorName,
+        errorCode,
         errorRef: null,
-        errorMessage: `Model unavailable in active provider after models.dev refresh: ${modelCatalog.qualified}`,
+        errorMessage,
         providerId: modelCatalog.providerId,
         modelId: modelCatalog.modelId,
         serverLogExcerpt: null,
       });
-      throw new Error(`opencode_model_unavailable_after_refresh:${modelCatalog.qualified}`);
+      if (!providerCredentialObserved) {
+        throw new Error(`opencode_provider_credential_not_observed:${modelCatalog.providerId}`);
+      }
+      throw new Error(`opencode_model_unavailable_after_refresh_reload:${modelCatalog.qualified}`);
     }
 
     emitRuntimeEvent("opencode.launching", {
