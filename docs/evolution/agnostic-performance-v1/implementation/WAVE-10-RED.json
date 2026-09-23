@@ -723,6 +723,48 @@
       "qualificationHarnessBug": true,
       "rootCauseResolved": true,
       "status": "fixed-in-contracts-pending-exact-sha-rerun"
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-progress-watchdog-bookkeeping-churn",
+      "candidate": "5f2348ea168c564df8d5d44cacab328bfeeea059",
+      "runtimeRunId": "run-1efd1c35-097c-45dc-8064-4accf8b064e4",
+      "observed": {
+        "topologyTransitions": [
+          "provisional",
+          "refined"
+        ],
+        "productOwner": [
+          "routed",
+          "running",
+          "integrated"
+        ],
+        "architectureGovernance": [
+          "running",
+          "integrated"
+        ],
+        "technicalLead": "routed(a0/g0)",
+        "pendingResults": 0,
+        "outboxCount": 9,
+        "compactStateStableAfterArchitectureIntegrated": true,
+        "semanticStallDidNotFire": true
+      },
+      "rootCause": [
+        "after Product Discovery and Architecture Governance were both integrated, Technical Refinement remained the only non-terminal task and stayed routed at attempt/generation/fence zero",
+        "R-9 semantic progress fingerprint incorrectly included agent_runs.state_version and reconcile_generation plus outbox publish_count",
+        "dispatchReadyTasks rewrote peak_parallel on every reconcile whenever the historical peak was nonzero, even when the value did not change; updateRun therefore incremented state_version on every 30-second repair sweep",
+        "the watchdog interpreted this bookkeeping-only state_version churn as semantic DAG progress and continuously reset the 180-second no-progress timer"
+      ],
+      "correction": [
+        "update peak_parallel only when a strictly higher observed parallelism is reached",
+        "remove run stateVersion/reconcileGeneration, task stateVersion and outbox publishCount from the semantic-progress fingerprint",
+        "keep run status/topology revision, task lifecycle/attempt/generation/fence/dependencies/retry window, pending-result identity and outbox published/terminal identity as progress authority",
+        "compact R-9 progress now prints task dependencies and the latest runtime.reconcile_failed code/message",
+        "a selected ready task missing from the persisted plan now fails closed with scheduler_ready_task_missing_plan instead of silently returning null"
+      ],
+      "productionLogicBug": true,
+      "qualificationHarnessBug": true,
+      "rootCauseResolved": false,
+      "status": "bookkeeping-churn-fixed-post-architecture-dispatch-cause-pending-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -840,5 +882,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R1_CONTRACT_DRIFT_FIXED_PROGRESS_AWARE_R9_EXACT_SHA_RERUN_PENDING"
+  "greenAfterFix": "R9_BOOKKEEPING_PROGRESS_CHURN_FIXED_TL_DISPATCH_CAUSE_PENDING_EXACT_SHA_RERUN"
 }
