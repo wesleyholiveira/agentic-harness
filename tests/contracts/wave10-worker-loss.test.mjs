@@ -253,6 +253,8 @@ test("R9 fails fast when the semantic run fails before the process-loss boundary
   assert.match(r9, /status IN \('failed','blocked'\)/u);
   assert.match(r9, /opencode\.failure|task\.failed/u);
   assert.match(r9, /failedTask/u);
+  assert.match(r9, /latestAgentEventPayload\(runId, "opencode\.failure"/u);
+  assert.match(r9, /opencodeFailure/u);
   assert.match(
     r9,
     /label: "r9-process-loss-boundary"[\s\S]*shouldRetryError: shouldRetryQualificationPollError/u,
