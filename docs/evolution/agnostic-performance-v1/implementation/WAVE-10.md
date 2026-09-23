@@ -1216,6 +1216,61 @@ No scheduler, DAG, worker, gateway or production Runtime behavior changed for
 this correction. R-2 through R-9 were not run by that qualification, and R-11
 cleaned the environment while preserving exact HEAD/tree equality.
 
+## Live R-9 scheduler bookkeeping-progress defect
+
+Live Runtime observation `run-1efd1c35-097c-45dc-8064-4accf8b064e4` on
+candidate `5f2348ea168c564df8d5d44cacab328bfeeea059` finally exposed the
+post-Product topology that the earlier timeout report could not show.
+
+The run progressed through:
+- Product Discovery `routed -> running -> integrated`;
+- topology `provisional -> refined`;
+- Architecture Governance `running -> integrated`;
+- Technical Refinement remained `routed(a0/g0)`.
+
+After Architecture integrated, the compact state remained unchanged:
+`pendingResults=0`, Runtime outbox count `9`, and Technical Refinement was
+the only non-terminal task. Therefore the previous ambiguity about hidden
+review prerequisites is gone: no additional review task existed in this
+refined topology.
+
+The intended 180-second semantic-stall watchdog nevertheless did not fire.
+Source inspection found why:
+
+1. `dispatchReadyTasks()` computed
+   `peak = max(currentPeak, active + dispatched)`;
+2. it called `updateRun({ peak_parallel: peak })` whenever `peak > 0`,
+   even when `peak === currentPeak`;
+3. every no-op update incremented `agent_runs.state_version`;
+4. R-9's first semantic-progress fingerprint included `stateVersion`,
+   `reconcileGeneration`, task `stateVersion` and outbox
+   `publishCount`;
+5. the 30-second repair sweep therefore manufactured apparent progress forever
+   while the DAG itself did not advance.
+
+Correction:
+- `peak_parallel` is now persisted only when observed parallelism exceeds the
+  previous peak;
+- the R-9 progress fingerprint excludes bookkeeping-only
+  `stateVersion`, `reconcileGeneration`, task `stateVersion` and
+  `publishCount`;
+- progress authority remains run status/topology revision, task
+  lifecycle/attempt/generation/fence/dependencies/retry window, pending result
+  identities and outbox published/terminal identities;
+- compact progress output now prints each task dependency list and the latest
+  `runtime.reconcile_failed` code/message when present;
+- a row selected as ready but absent from the persisted plan now fails closed as
+  `scheduler_ready_task_missing_plan` instead of silently returning null.
+
+This fixes a real production bookkeeping bug and a qualification watchdog bug.
+It does **not** yet guess why Technical Refinement failed to transition from
+`routed` to `queued`. With Product and Architecture integrated,
+`dependenciesSatisfied()` should select the Technical Lead. The remaining
+boundary is therefore between ready-task selection and
+`dispatchPreparedTask()` -- policy dispatch or task preparation. The next
+exact-SHA run will expose that error directly through
+`runtime.reconcile_failed` if it persists.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
