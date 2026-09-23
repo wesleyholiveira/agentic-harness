@@ -1048,6 +1048,71 @@ true but the fresh revalidation remains status 1, its bounded diagnostic is the
 next authority. If the fresh process sees Luna, Product Discovery proceeds and
 R-9 can finally reach the physical worker-loss boundary.
 
+## Scoped R-9 qualification OAuth projection correction
+
+Scoped run `standalone-v1-1790136315663-27738e9a0e30` on exact candidate
+`6c331981347e77c048fbef014cc909b6dbc88636` proved the provider diagnostic
+surface and exposed the actual qualification defect.
+
+Q-ENTRY, PRE-R0 and R-0 through R-6 passed. R-4 again proved live worker
+OpenCode `1.18.32`. Product Discovery failed exactly once with
+`opencode_provider_auth_not_observed`, `retryable=false`.
+
+The decisive evidence was:
+- `authCopied=true` in the restricted child;
+- `authStatus=0`;
+- `authProviderCredentialObserved=false`;
+- `authDiagnostic=0 credentials`;
+- local and fresh-process provider probes both reported
+  `Provider not found: openai`.
+
+This is not contradictory. The Compose contract mounts:
+
+`${AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE:-./vendor/empty-opencode-auth.json}`
+
+at `/root/.local/share/opencode/auth.json`. The qualification's
+`buildConsumerEnv()` did not set
+`AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE`, so the worker received the intentional
+empty fallback. Rust then correctly copied that file into the disposable model
+HOME and the JS attempt isolation copied it again. Therefore
+`authCopied=true` only proved byte/path propagation of an empty authority.
+
+The earlier stale-provider/model-refresh interpretation is consequently
+secondary. The qualification had never mounted the real OpenAI OAuth credential
+into the worker.
+
+Correction:
+1. resolve the host OpenCode auth source from explicit
+   `AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE`, native
+   `XDG_DATA_HOME/opencode/auth.json`, or the native user-home
+   `.local/share/opencode/auth.json`;
+2. validate only structural OpenAI OAuth properties before stack startup:
+   `type=oauth`, non-empty `access` and `refresh`, and non-negative integer
+   `expires`;
+3. materialize a qualification-owned `auth.json` containing only the
+   `openai` credential under the qualification output directory with mode
+   `0600`;
+4. inject that temporary path as
+   `AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE` before `harness up` /
+   Docker Compose;
+5. R-4 executes `opencode --pure auth list` inside
+   `agent-runtime-worker` and HOLDs unless `OpenAI oauth` is visible;
+6. R-4 report evidence records only source strategy and credential-shape
+   booleans, never token values;
+7. the restricted model preflight now stops immediately at
+   `provider-credential-unavailable` when OAuth is not visible instead of
+   spending the model-refresh timeout.
+
+The generic Compose fallback remains unchanged and safe for deployments that
+have not configured model credentials. The correction is scoped to
+qualification authority: a live semantic qualification cannot claim to prove
+OpenAI model execution while silently using the empty-auth fallback.
+
+The next exact-SHA run must pass the new R-4 OpenAI OAuth proof before R-9 is
+allowed to become meaningful. If R-4 passes, the Product Discovery child must
+also observe the credential from its disposable HOME. Only then should catalog
+refresh/reload evidence be interpreted as a model-provider issue.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
