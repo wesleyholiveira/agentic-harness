@@ -87,6 +87,14 @@ test("OpenCode selected-model preflight avoids refresh on active-provider hit", 
     env: {},
     run: async (command, args) => {
       calls.push({ command, args });
+      if (args.includes("auth")) {
+        return {
+          status: 0,
+          timedOut: false,
+          stdout: "OpenAI oauth\n1 credentials\n",
+          stderr: "",
+        };
+      }
       return {
         status: 0,
         timedOut: false,
@@ -98,17 +106,15 @@ test("OpenCode selected-model preflight avoids refresh on active-provider hit", 
   assert.equal(result.available, true);
   assert.equal(result.refreshAttempted, false);
   assert.equal(result.source, "active-provider-cache");
-  assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0].args, ["--pure", "models", "openai"]);
+  assert.equal(result.auth.providerCredentialObserved, true);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0].args, ["--pure", "auth", "list"]);
+  assert.deepEqual(calls[1].args, ["--pure", "models", "openai"]);
 });
 
-test("OpenCode selected-model preflight refreshes stale provider state once and revalidates", async () => {
+test("OpenCode selected-model preflight refreshes then revalidates in a fresh provider process", async () => {
   const { ensureOpenCodeModelAvailable } = await import("../../scripts/internal/opencode-task-executor.mjs");
   const calls = [];
-  const outputs = [
-    "openai/gpt-5.4\n",
-    "Models cache refreshed\nopenai/gpt-5.4\nopenai/gpt-5.6-luna\n",
-  ];
   const result = await ensureOpenCodeModelAvailable({
     model: "openai/gpt-5.6-luna",
     workspace: root,
@@ -116,39 +122,80 @@ test("OpenCode selected-model preflight refreshes stale provider state once and 
     runtimeConfigContent: JSON.stringify({ default_agent: "product-owner" }),
     run: async (command, args, options) => {
       calls.push({ command, args, env: options.env });
+      if (args.includes("auth")) {
+        return {
+          status: 0,
+          timedOut: false,
+          stdout: "OpenAI oauth\n1 credentials\n",
+          stderr: "",
+        };
+      }
+      if (args.includes("--refresh")) {
+        return {
+          // OpenCode can refresh models.json and still exit nonzero because the
+          // provider projection inside this same process remains stale.
+          status: 1,
+          timedOut: false,
+          stdout: "Models cache refreshed\n",
+          stderr: "Provider not found: openai\n",
+        };
+      }
+      const modelProbeIndex = calls.filter((call) => call.args.includes("models")).length;
       return {
-        status: 0,
+        status: modelProbeIndex === 1 ? 1 : 0,
         timedOut: false,
-        stdout: outputs[calls.length - 1],
-        stderr: "",
+        stdout: modelProbeIndex === 1
+          ? ""
+          : "openai/gpt-5.4\nopenai/gpt-5.6-luna\n",
+        stderr: modelProbeIndex === 1 ? "Provider not found: openai\n" : "",
       };
     },
   });
   assert.equal(result.available, true);
   assert.equal(result.refreshAttempted, true);
-  assert.equal(result.source, "models-dev-refresh");
-  assert.equal(calls.length, 2);
-  assert.deepEqual(calls[0].args, ["--pure", "models", "openai"]);
-  assert.deepEqual(calls[1].args, ["--pure", "models", "openai", "--refresh"]);
-  assert.equal(calls[1].env.OPENCODE_CONFIG_CONTENT, JSON.stringify({ default_agent: "product-owner" }));
+  assert.equal(result.source, "models-dev-refresh-reloaded");
+  assert.equal(result.auth.providerCredentialObserved, true);
+  assert.equal(result.refresh.status, 1);
+  assert.equal(result.revalidation.status, 0);
+  assert.equal(calls.length, 4);
+  assert.deepEqual(calls[0].args, ["--pure", "auth", "list"]);
+  assert.deepEqual(calls[1].args, ["--pure", "models", "openai"]);
+  assert.deepEqual(calls[2].args, ["--pure", "models", "openai", "--refresh"]);
+  assert.deepEqual(calls[3].args, ["--pure", "models", "openai"]);
+  assert.equal(calls[2].env.OPENCODE_CONFIG_CONTENT, JSON.stringify({ default_agent: "product-owner" }));
+  assert.match(result.refresh.diagnostic, /Provider not found: openai/u);
 });
 
-test("OpenCode selected-model preflight fails closed when refresh still omits routed model", async () => {
+test("OpenCode selected-model preflight fails closed after fresh-process revalidation", async () => {
   const { ensureOpenCodeModelAvailable } = await import("../../scripts/internal/opencode-task-executor.mjs");
   const result = await ensureOpenCodeModelAvailable({
     model: "openai/gpt-5.6-luna",
     workspace: root,
     env: {},
-    run: async () => ({
-      status: 0,
-      timedOut: false,
-      stdout: "openai/gpt-5.4\n",
-      stderr: "",
-    }),
+    run: async (_command, args) => {
+      if (args.includes("auth")) {
+        return {
+          status: 0,
+          timedOut: false,
+          stdout: "0 credentials\n",
+          stderr: "",
+        };
+      }
+      return {
+        status: 1,
+        timedOut: false,
+        stdout: args.includes("--refresh") ? "Models cache refreshed\n" : "",
+        stderr: "Provider not found: openai\n",
+      };
+    },
   });
   assert.equal(result.available, false);
   assert.equal(result.refreshAttempted, true);
-  assert.equal(result.source, "unavailable-after-refresh");
+  assert.equal(result.source, "unavailable-after-refresh-reload");
+  assert.equal(result.auth.providerCredentialObserved, false);
+  assert.equal(result.revalidation.status, 1);
+  assert.match(result.local.diagnostic, /Provider not found: openai/u);
+  assert.match(result.revalidation.diagnostic, /Provider not found: openai/u);
 });
 
 test("OpenCode provider model misses are deterministic non-retryable failures", async () => {
