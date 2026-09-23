@@ -519,8 +519,9 @@
       "qualificationHarnessBug": false,
       "upstreamDependencyBehavior": true,
       "rootCauseResolved": false,
-      "status": "root-cause-confirmed-refresh-same-process-correction-insufficient",
-      "correctionStatus": "superseded-by-fresh-process-revalidation"
+      "status": "superseded-by-qualification-empty-auth-mount-root-cause",
+      "correctionStatus": "superseded-by-fresh-process-revalidation",
+      "supersededBy": "wave10-worker-loss/R-9-qualification-openai-oauth-projection"
     },
     {
       "gate": "wave10-worker-loss/R-9-model-refresh-process-boundary",
@@ -576,7 +577,56 @@
       "qualificationHarnessBug": false,
       "upstreamDependencyBehavior": true,
       "rootCauseResolved": false,
-      "status": "fresh-process-revalidation-and-auth-diagnostics-fixed-pending-exact-sha-rerun"
+      "status": "diagnostic-correct-but-secondary-to-empty-auth-mount",
+      "supersededBy": "wave10-worker-loss/R-9-qualification-openai-oauth-projection"
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-qualification-openai-oauth-projection",
+      "candidate": "6c331981347e77c048fbef014cc909b6dbc88636",
+      "runId": "standalone-v1-1790136315663-27738e9a0e30",
+      "observed": {
+        "r0ThroughR6Passed": true,
+        "workerOpenCodeVersion": "1.18.32",
+        "productDiscoveryAttemptsFailed": 1,
+        "technicalLeadCancelled": true,
+        "failFastMessage": "r9_pre_boundary_semantic_run_failed",
+        "taskErrorCode": "opencode_provider_auth_not_observed",
+        "failureCategory": "provider",
+        "retryable": false,
+        "authCopied": true,
+        "modelCatalog": {
+          "available": false,
+          "refreshAttempted": true,
+          "source": "unavailable-after-refresh-reload",
+          "authStatus": 0,
+          "authProviderCredentialObserved": false,
+          "authDiagnostic": "0 credentials",
+          "localStatus": 1,
+          "localDiagnostic": "Provider not found: openai",
+          "refreshTimedOut": true,
+          "revalidationStatus": 1,
+          "revalidationDiagnostic": "Provider not found: openai"
+        }
+      },
+      "rootCause": [
+        "compose.yaml mounts ${AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE:-./vendor/empty-opencode-auth.json} into /root/.local/share/opencode/auth.json",
+        "qualification buildConsumerEnv() never set AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE, so the qualification worker always received the intentional empty fallback auth file",
+        "the Rust restricted-agent preparation then correctly copied that empty auth file into the disposable HOME, and the JS attempt isolation copied it again, making authCopied=true while OpenCode decoded zero credentials",
+        "the resulting Provider not found/model refresh observations were downstream effects of absent qualification credential projection rather than proof that the host OAuth credential or model route was invalid"
+      ],
+      "correction": [
+        "resolve the host OpenCode auth source from explicit AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE, native XDG_DATA_HOME, or the native user-home .local/share/opencode/auth.json",
+        "validate the OpenAI credential shape before stack startup: oauth type plus non-empty access/refresh and non-negative integer expires",
+        "materialize a qualification-owned auth.json containing only the openai credential under the qualification output directory with mode 0600",
+        "set AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE to the qualification-owned projection before harness up/docker compose",
+        "R-4 executes opencode --pure auth list inside agent-runtime-worker and HOLDs unless OpenAI oauth is observed",
+        "R-4 evidence records only credential shape booleans and source strategy, never token values",
+        "restricted child model preflight now short-circuits immediately when OAuth is absent instead of spending up to 45 seconds on model refresh"
+      ],
+      "productionLogicBug": false,
+      "qualificationHarnessBug": true,
+      "rootCauseResolved": false,
+      "status": "qualification-oauth-projection-fixed-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -662,7 +712,11 @@
     "OpenCode models.dev refresh is followed by a fresh provider process before selected-model availability is accepted or rejected",
     "restricted model preflight records bounded redacted auth/local/refresh/revalidation diagnostics",
     "isolated OpenCode auth visibility is probed independently from active model projection",
-    "ProviderAuthError and ProviderModelNotFoundError remain distinct non-retryable Runtime provider failures"
+    "ProviderAuthError and ProviderModelNotFoundError remain distinct non-retryable Runtime provider failures",
+    "qualification mounts a qualification-owned OpenAI-only OAuth projection instead of compose.yaml empty-auth fallback",
+    "qualification validates OpenAI OAuth shape without logging access/refresh token values",
+    "R-4 proves OpenAI oauth is visible inside agent-runtime-worker before semantic runtime gates",
+    "restricted model preflight short-circuits auth absence before any model-catalog refresh"
   ],
   "historicalGreenEvidence": {
     "candidate": "0d8c0b6ec4c034429d496822a6a2cc780f9a31bb",
@@ -684,5 +738,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R0_THROUGH_R6_PASS_NONRETRYABLE_MODEL_MISS_PROVEN_FRESH_PROCESS_PROVIDER_REVALIDATION_PENDING_EXACT_SHA_RERUN"
+  "greenAfterFix": "R0_THROUGH_R6_PASS_EMPTY_AUTH_ROOT_CAUSE_FIXED_R4_OPENAI_OAUTH_PROOF_PENDING_EXACT_SHA_RERUN"
 }
