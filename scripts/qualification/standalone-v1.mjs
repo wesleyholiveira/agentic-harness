@@ -128,6 +128,7 @@ const gates = {
   "R-10": r10,
 };
 
+async function executeQualification() {
 try {
   if (args.selfTest) {
     await selfTest();
@@ -169,6 +170,7 @@ try {
     firstDivergence: report.firstDivergence,
   }, null, 2));
   process.exitCode = report.firstDivergence ? 1 : 0;
+}
 }
 
 function legacyProductNamespacePattern() {
@@ -2934,3 +2936,5 @@ async function selfTest() {
   report.pass(gate, { selfTest: true, requiredFiles, publicScripts: Object.keys(packageScripts).length, mainOrchestratorShell: "deny", mainOrchestratorSuperpowers: "isolated" });
   for (const name of gateOrder.slice(1)) report.skip(name, "self-test mode");
 }
+
+await executeQualification();
