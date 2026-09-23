@@ -659,12 +659,13 @@ function prepareQualificationOpenCodeAuthProjection() {
     });
   }
 
-  const authDir = ensureDir(resolve(outputDir, "qualification-auth"));
+  const authDir = mkdtempSync(join(tmpdir(), "agentic-harness-opencode-auth-"));
   const projectedPath = resolve(authDir, "auth.json");
   writeFileSync(projectedPath, JSON.stringify({ openai: credential }, null, 2) + "\n", { mode: 0o600 });
 
   state.opencodeAuthProjection = {
     source: selected.source,
+    directory: authDir,
     path: projectedPath,
     credentialShape,
   };
@@ -2469,7 +2470,7 @@ async function r10() {
 }
 
 async function cleanup() {
-  const evidence = { opencode: false, headroom: false, stack: false, consumers: false, sourceEquality: null };
+  const evidence = { opencode: false, headroom: false, stack: false, consumers: false, opencodeAuthProjection: false, sourceEquality: null };
   if (state.opencode?.child) {
     terminateProcessTree(state.opencode.child);
     evidence.opencode = true;
@@ -2489,6 +2490,10 @@ async function cleanup() {
       runner.run(process.execPath, [resolve(state.consumers.A, ".harness/bin/harness.mjs"), "down", "--volumes", "--remove-orphans"], { cwd: state.consumers.A, env: state.consumerEnv || buildConsumerEnv(), label: "cleanup-consumer-stack", allowExitCodes: [0, 1], timeoutMs: 10 * 60_000 });
       evidence.stack = true;
     } catch {}
+  }
+  if (state.opencodeAuthProjection?.directory && existsSync(state.opencodeAuthProjection.directory)) {
+    rmSync(state.opencodeAuthProjection.directory, { recursive: true, force: true });
+    evidence.opencodeAuthProjection = true;
   }
   for (const consumer of Object.values(state.consumers)) {
     if (consumer && existsSync(consumer)) rmSync(consumer, { recursive: true, force: true });
