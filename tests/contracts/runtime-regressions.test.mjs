@@ -166,18 +166,48 @@ test("OpenCode selected-model preflight refreshes then revalidates in a fresh pr
   assert.match(result.refresh.diagnostic, /Provider not found: openai/u);
 });
 
-test("OpenCode selected-model preflight fails closed after fresh-process revalidation", async () => {
+test("OpenCode selected-model preflight short-circuits immediately when OAuth is absent", async () => {
   const { ensureOpenCodeModelAvailable } = await import("../../scripts/internal/opencode-task-executor.mjs");
+  const calls = [];
   const result = await ensureOpenCodeModelAvailable({
     model: "openai/gpt-5.6-luna",
     workspace: root,
     env: {},
     run: async (_command, args) => {
+      calls.push(args);
+      return {
+        status: 0,
+        timedOut: false,
+        stdout: "0 credentials\n",
+        stderr: "",
+      };
+    },
+  });
+  assert.equal(result.available, false);
+  assert.equal(result.refreshAttempted, false);
+  assert.equal(result.source, "provider-credential-unavailable");
+  assert.equal(result.auth.providerCredentialObserved, false);
+  assert.equal(result.local, null);
+  assert.equal(result.refresh, null);
+  assert.equal(result.revalidation, null);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0], ["--pure", "auth", "list"]);
+});
+
+test("OpenCode selected-model preflight fails closed after fresh-process model revalidation", async () => {
+  const { ensureOpenCodeModelAvailable } = await import("../../scripts/internal/opencode-task-executor.mjs");
+  const calls = [];
+  const result = await ensureOpenCodeModelAvailable({
+    model: "openai/gpt-5.6-luna",
+    workspace: root,
+    env: {},
+    run: async (_command, args) => {
+      calls.push(args);
       if (args.includes("auth")) {
         return {
           status: 0,
           timedOut: false,
-          stdout: "0 credentials\n",
+          stdout: "OpenAI oauth\n1 credentials\n",
           stderr: "",
         };
       }
@@ -192,10 +222,11 @@ test("OpenCode selected-model preflight fails closed after fresh-process revalid
   assert.equal(result.available, false);
   assert.equal(result.refreshAttempted, true);
   assert.equal(result.source, "unavailable-after-refresh-reload");
-  assert.equal(result.auth.providerCredentialObserved, false);
+  assert.equal(result.auth.providerCredentialObserved, true);
   assert.equal(result.revalidation.status, 1);
   assert.match(result.local.diagnostic, /Provider not found: openai/u);
   assert.match(result.revalidation.diagnostic, /Provider not found: openai/u);
+  assert.equal(calls.length, 4);
 });
 
 test("OpenCode provider auth/model misses are deterministic non-retryable failures", async () => {
