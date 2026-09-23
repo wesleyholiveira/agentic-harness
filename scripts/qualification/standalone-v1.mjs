@@ -679,6 +679,7 @@ function buildConsumerEnv() {
   const password = process.env.AGENT_HARNESS_QUALIFICATION_OPENCODE_PASSWORD || randomBytes(18).toString("base64url");
   state.opencodeAuth ??= { username, password };
   state.behaviorGatewayHmacKey ??= randomBytes(32).toString("hex");
+  const opencodeAuthProjection = prepareQualificationOpenCodeAuthProjection();
   const base = {
     ...process.env,
     AGENT_HARNESS_ROOT: harness,
@@ -698,6 +699,7 @@ function buildConsumerEnv() {
     OPENCODE_PORT: String(p.opencode),
     OPENCODE_SERVER_USERNAME: username,
     OPENCODE_SERVER_PASSWORD: password,
+    AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE: opencodeAuthProjection.path,
     AGENT_HARNESS_OPENCODE_CONTINUATION_USERNAME: username,
     AGENT_HARNESS_OPENCODE_CONTINUATION_PASSWORD: password,
     AGENT_HARNESS_OPENCODE_CONTINUATION_URL: `http://host.docker.internal:${p.opencode}`,
