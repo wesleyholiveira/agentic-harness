@@ -11,7 +11,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveComposeProjectIdentity } from "../internal/compose-project-identity.mjs";
@@ -92,6 +92,7 @@ const state = {
   headroom: null,
   opencode: null,
   opencodeAuth: null,
+  opencodeAuthProjection: null,
   effectiveConfig: null,
   effectiveConfigPath: null,
   pluginSha: null,
@@ -603,6 +604,71 @@ function buildQualificationBehaviorImage(consumerRoot) {
 function isInside(parent, child) {
   const rel = relative(parent, child);
   return rel !== "" && rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+}
+
+function hostOpenCodeAuthCandidates() {
+  const explicit = String(process.env.AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE ?? "").trim();
+  const xdg = String(process.env.XDG_DATA_HOME ?? "").trim();
+  return [
+    explicit ? { path: resolve(explicit), source: "explicit-env" } : null,
+    xdg && isAbsolute(xdg)
+      ? { path: resolve(xdg, "opencode", "auth.json"), source: "xdg-data-home" }
+      : null,
+    { path: resolve(homedir(), ".local", "share", "opencode", "auth.json"), source: "user-home" },
+  ].filter(Boolean);
+}
+
+function prepareQualificationOpenCodeAuthProjection() {
+  if (state.opencodeAuthProjection) return state.opencodeAuthProjection;
+
+  const candidates = hostOpenCodeAuthCandidates();
+  const selected = candidates.find((candidate) => existsSync(candidate.path));
+  if (!selected) {
+    hold("R-4", "ENVIRONMENT", "qualification_opencode_auth_source_missing", {
+      searched: candidates.map((candidate) => candidate.source),
+    });
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(selected.path, "utf8"));
+  } catch {
+    hold("R-4", "ENVIRONMENT", "qualification_opencode_auth_source_invalid_json", {
+      source: selected.source,
+    });
+  }
+
+  const credential = parsed?.openai;
+  const credentialShape = {
+    provider: "openai",
+    type: typeof credential?.type === "string" ? credential.type : null,
+    accessPresent: typeof credential?.access === "string" && credential.access.length > 0,
+    refreshPresent: typeof credential?.refresh === "string" && credential.refresh.length > 0,
+    expiresValid: Number.isInteger(credential?.expires) && credential.expires >= 0,
+    accountIdPresent: typeof credential?.accountId === "string" && credential.accountId.length > 0,
+  };
+  if (
+    credentialShape.type !== "oauth"
+    || !credentialShape.accessPresent
+    || !credentialShape.refreshPresent
+    || !credentialShape.expiresValid
+  ) {
+    hold("R-4", "ENVIRONMENT", "qualification_openai_oauth_credential_invalid", {
+      source: selected.source,
+      credentialShape,
+    });
+  }
+
+  const authDir = ensureDir(resolve(outputDir, "qualification-auth"));
+  const projectedPath = resolve(authDir, "auth.json");
+  writeFileSync(projectedPath, JSON.stringify({ openai: credential }, null, 2) + "\n", { mode: 0o600 });
+
+  state.opencodeAuthProjection = {
+    source: selected.source,
+    path: projectedPath,
+    credentialShape,
+  };
+  return state.opencodeAuthProjection;
 }
 
 function buildConsumerEnv() {
