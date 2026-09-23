@@ -482,6 +482,8 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
+    "exact-SHA R-4 rerun proving Context Engine Git exists and /workspace/repository HEAD equals the qualification consumer commit",
+    "exact-SHA R-9 rerun proving Technical Refinement preparation crosses committed-source authority and reaches dispatch/checkpoint",
     "exact-SHA R-9 rerun proving the 180-second watchdog fires on real post-Architecture no-progress or Technical Refinement advances",
     "if stalled, use compact reconcileFailure plus semanticSnapshot dependencies/events to identify policy/preparation failure before changing Runtime semantics",
     "exact-SHA R-1 contract rerun proving all harness contracts green after semantic-watchdog contract alignment",
@@ -646,8 +648,20 @@
       "correction": "avoid no-op peak_parallel writes; define semantic progress only from actual DAG/transport state, not bookkeeping counters; print TL dependencies and latest reconcile failure; fail closed if a selected ready row has no task plan",
       "productionLogicBug": true,
       "qualificationHarnessBug": true,
+      "rootCauseResolved": true,
+      "status": "bookkeeping-watchdog-fix-proven-by-c94ead03ee89d9fdd1813ba6009afd932eedeb82"
+    },
+    {
+      "observedOnCandidate": "c94ead03ee89d9fdd1813ba6009afd932eedeb82",
+      "gate": "wave10-worker-loss/R-9",
+      "runtimeRunId": "run-d36f5e7b-53e9-40a3-b512-4c6472463695",
+      "observed": "Progress-aware R-9 now showed Technical Refinement dependency explicitly and surfaced reconcileFailure=source_git_command_failed:rev-parse immediately after Product Discovery integrated and topology refined. No hidden review task exists in this run.",
+      "rootCause": "Technical Refinement qualification behavior preparation calls loadCommittedProjectConfiguration inside Context Engine. That source-attested loader requires git, while apps/context-engine/Dockerfile used node:22-alpine without installing git. The consumer repository is correctly bind-mounted at /workspace/repository; the executable dependency was missing.",
+      "correction": "install Git in Context Engine and make R-4 prove git availability plus exact /workspace/repository top-level and HEAD commit identity against the host qualification consumer before any semantic Runtime gate",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": true,
       "rootCauseResolved": false,
-      "status": "bookkeeping-progress-fixed-underlying-tl-preparation-dispatch-cause-pending-rerun"
+      "status": "context-engine-git-source-authority-fixed-pending-exact-sha-rerun"
     }
   ],
   "hardening": [
