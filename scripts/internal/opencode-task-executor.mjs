@@ -165,7 +165,7 @@ export async function ensureOpenCodeModelAvailable({
   workspace,
   env,
   runtimeConfigContent = null,
-  timeoutMs = 20_000,
+  timeoutMs = 45_000,
   run = runProcess,
 } = {}) {
   const selected = qualifiedOpenCodeModel(model);
