@@ -482,8 +482,8 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
-    "exact-SHA scoped rerun proving R-4 observes OpenAI oauth inside agent-runtime-worker from qualification-owned auth projection",
-    "exact-SHA scoped R-9 proving Product Discovery reaches model execution and Technical Refinement reaches repair-checkpoint-before-behavior",
+    "exact-SHA scoped R-9 rerun identifying Product semantic finalization/refined bootstrap review tasks or scheduler stall through the new semantic snapshot",
+    "exact-SHA scoped R-9 proving Technical Refinement reaches repair-checkpoint-before-behavior",
     "exact-SHA scoped R-9 physical Rust worker loss while behavior execution is in-flight",
     "normal non-behavior model task restricted-UID runtime regression",
     "full existing Runtime/cache/memory/model-routing/continuation regression qualification",
@@ -607,8 +607,20 @@
       "correction": "before R-4 startup, resolve and structurally validate the host OpenAI OAuth credential, materialize an OpenAI-only qualification-owned auth.json in a dedicated temporary directory with mode 0600, inject AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE into the qualification Compose environment, prove OpenAI oauth inside agent-runtime-worker in R-4, remove the temporary credential during cleanup/R-11, and short-circuit semantic model catalog work when auth visibility is absent",
       "productionLogicBug": false,
       "qualificationHarnessBug": true,
+      "rootCauseResolved": true,
+      "status": "qualification-oauth-projection-proven-fixed-by-e6cdb2044deb61ad8f0100761ec5763eac80b03f"
+    },
+    {
+      "observedOnCandidate": "e6cdb2044deb61ad8f0100761ec5763eac80b03f",
+      "gate": "wave10-worker-loss/R-9",
+      "runId": "standalone-v1-1790137459096-b2f0cb6abc05",
+      "observed": "Q-ENTRY through R-6 passed. R-4 proved worker OpenCode 1.18.32 plus OpenAI OAuth projection; restricted Product Discovery observed OpenAI OAuth and openai/gpt-5.6-luna as active without refresh, then completed executor attempt 1 with exitCode=0 in 82853ms. R-9 nevertheless hit its 20-minute absolute timeout with technical-refinement still routed at attempt/generation/fence 0 and no opencode.failure.",
+      "rootCause": "the prior qualification lacked enough semantic state to distinguish Product finalization/refinement/scheduler stall from a legitimate Product-selected bootstrap review chain. technical-refinement=routed is not sufficient because refined bootstrap may add prerequisite review tasks. The fixed 20-minute absolute pre-boundary wait was therefore an observability/qualification defect; production root cause remains unresolved pending a richer exact-SHA snapshot.",
+      "correction": "R-9 now captures run reconcile/topology state, every task/dependency/retry identity, pending execution results, Runtime outbox and key semantic events in one snapshot; tracks semantic progress; emits progress every 30s; and HOLDs after 180s of true no-progress only when there is no real running execution, active reconcile lease or future retry_not_before",
+      "productionLogicBug": null,
+      "qualificationHarnessBug": true,
       "rootCauseResolved": false,
-      "status": "qualification-oauth-projection-fixed-pending-exact-sha-rerun"
+      "status": "progress-aware-r9-fixed-production-cause-pending-exact-sha-rerun"
     }
   ],
   "hardening": [
@@ -636,6 +648,10 @@
     "qualification Compose receives an OpenAI-only temporary auth file rather than the empty fallback",
     "R-4 proves OpenAI oauth inside the runtime worker before R-9",
     "auth absence short-circuits model-catalog refresh immediately",
-    "qualification OAuth projection lives outside persisted report output and is removed during cleanup/R-11"
+    "qualification OAuth projection lives outside persisted report output and is removed during cleanup/R-11",
+    "R-9 pre-boundary watchdog is progress-aware and preserves legitimate running/reconcile/backoff waits",
+    "R-9 semantic snapshot contains all tasks/dependencies, pending results, reconcile state, outbox and bootstrap events",
+    "R-9 true no-progress fails after 180 seconds instead of silently consuming the 20-minute safety ceiling",
+    "R-9 prints compact semantic progress every 30 seconds"
   ]
 }
