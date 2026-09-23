@@ -763,8 +763,50 @@
       ],
       "productionLogicBug": true,
       "qualificationHarnessBug": true,
+      "rootCauseResolved": true,
+      "status": "fixed-and-proven-by-c94ead03ee89d9fdd1813ba6009afd932eedeb82",
+      "greenEvidence": {
+        "candidate": "c94ead03ee89d9fdd1813ba6009afd932eedeb82",
+        "runtimeRunId": "run-d36f5e7b-53e9-40a3-b512-4c6472463695",
+        "dependenciesVisible": true,
+        "reconcileFailureVisible": true,
+        "exactFailure": "source_git_command_failed:rev-parse"
+      }
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-context-engine-committed-source-git",
+      "candidate": "c94ead03ee89d9fdd1813ba6009afd932eedeb82",
+      "runtimeRunId": "run-d36f5e7b-53e9-40a3-b512-4c6472463695",
+      "observed": {
+        "topology": "refined",
+        "productOwner": "integrated(a1/g1)",
+        "technicalLead": "routed(a0/g0)",
+        "technicalLeadDependencies": [
+          "run-d36f5e7b-53e9-40a3-b512-4c6472463695:product-discovery"
+        ],
+        "pendingResults": 0,
+        "outboxCount": 6,
+        "reconcileFailure": "source_git_command_failed:rev-parse"
+      },
+      "rootCause": [
+        "Technical Refinement is the qualification fault target, so qualificationBehaviorCommandSpecIds injects qualification.behavior.delay only for this task/attempt",
+        "prepareTaskExecution then derives command authority through loadCommittedProjectConfiguration(repositoryRoot)",
+        "that committed-source loader invokes git rev-parse/ls-tree/cat-file through packages/source-identity/src/git-snapshot.mjs",
+        "the semantic controller runs inside apps/context-engine/Dockerfile based on node:22-alpine, which did not install the git binary",
+        "Product Discovery can complete because it does not need the qualification behavior command authority; Technical Refinement is the first stage to cross this Git-dependent qualification boundary",
+        "the Context Engine already receives the consumer repository at /workspace/repository, so the missing runtime dependency is Git, not a missing repository mount"
+      ],
+      "correction": [
+        "install Git explicitly in the Context Engine image",
+        "R-4 executes git --version inside context-engine before semantic qualification",
+        "R-4 executes rev-parse --show-toplevel and rev-parse --verify HEAD^{commit} against /workspace/repository",
+        "R-4 compares the commit observed inside Context Engine with the qualification consumer HEAD and fails closed on any mismatch",
+        "retain source_git_command_failed fail-closed behavior; do not convert Git/source-authority failures into a generic task retry"
+      ],
+      "productionLogicBug": true,
+      "qualificationHarnessBug": true,
       "rootCauseResolved": false,
-      "status": "bookkeeping-churn-fixed-post-architecture-dispatch-cause-pending-rerun"
+      "status": "context-engine-git-installed-r4-source-proof-added-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -882,5 +924,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R9_BOOKKEEPING_PROGRESS_CHURN_FIXED_TL_DISPATCH_CAUSE_PENDING_EXACT_SHA_RERUN"
+  "greenAfterFix": "R9_RECONCILE_FAILURE_DIAGNOSTIC_PROVEN_CONTEXT_ENGINE_GIT_FIX_PENDING_EXACT_SHA_RERUN"
 }
