@@ -473,8 +473,53 @@
       ],
       "productionLogicBug": true,
       "qualificationHarnessBug": true,
+      "rootCauseResolved": true,
+      "status": "fixed-and-proven-by-74f227a04445a28153499ae89542fb98a4f892f5",
+      "greenEvidence": {
+        "candidate": "74f227a04445a28153499ae89542fb98a4f892f5",
+        "runId": "standalone-v1-1790133421264-2896f2118cef",
+        "persistedSource": "rust-buffered-opencode-runtime-event",
+        "directOpencodeFailure": true,
+        "completeServerLogExcerpt": true
+      }
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-openai-oauth-provider-model-state",
+      "candidate": "74f227a04445a28153499ae89542fb98a4f892f5",
+      "runId": "standalone-v1-1790133421264-2896f2118cef",
+      "observed": {
+        "r0ThroughR6Passed": true,
+        "workerOpenCodeVersion": "1.18.32",
+        "runtimeEventWirePrefixProven": true,
+        "persistedOpenCodeFailureSource": "rust-buffered-opencode-runtime-event",
+        "productDiscoveryAttemptsFailed": 3,
+        "technicalLeadCancelled": true,
+        "failFastMessage": "r9_pre_boundary_semantic_run_failed",
+        "attempt3ErrorRef": "err_d771e357",
+        "attempt3InternalError": "ProviderModelNotFoundError: Model not found: openai/gpt-5.6-luna. Did you mean: gpt-5.6-luna, gpt-5.6-luna-pro, gpt-5.6-luna-fast?",
+        "sameFailureAllAttempts": true
+      },
+      "rootCause": [
+        "OpenCode CLI correctly parses openai/gpt-5.6-luna as providerID=openai and modelID=gpt-5.6-luna; the displayed provider/model form is not a duplicated prefix",
+        "the unfiltered models.dev catalog contains gpt-5.6-luna, which is why OpenCode suggests the same model, but the active ChatGPT OAuth provider state omits it",
+        "OpenCode 1.18.32 ModelsDev population prefers the binary-embedded snapshot when an isolated cache has no models.json; the restricted Runtime creates a fresh XDG cache for every attempt",
+        "upstream anomalyco/opencode#47490 documents the same catalog-present/active-provider-missing failure class and verifies models openai --refresh plus a fresh provider process as recovery"
+      ],
+      "correction": [
+        "preserve the qualified Runtime route openai/gpt-5.6-luna",
+        "before the prompt, query the exact active provider with opencode --pure models openai",
+        "refresh models.dev only on selected-model miss using opencode --pure models openai --refresh",
+        "revalidate the exact qualified model after refresh and reuse that attempt-scoped XDG cache for the prompt and bounded structured repairs",
+        "clear inherited OPENCODE_DISABLE_MODELS_FETCH, OPENCODE_MODELS_PATH and OPENCODE_MODELS_URL from restricted child authority",
+        "emit/persist opencode.model_catalog readiness evidence",
+        "fail closed before model invocation if the selected model remains absent after refresh",
+        "classify persistent ProviderModelNotFoundError/model-unavailable-after-refresh as non-retryable provider failure"
+      ],
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
+      "upstreamDependencyBehavior": true,
       "rootCauseResolved": false,
-      "status": "wire-contract-fixed-pending-exact-sha-rerun"
+      "status": "model-catalog-refresh-boundary-fixed-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -551,7 +596,12 @@
     "R-4 records and gates the live OpenCode version inside agent-runtime-worker",
     "Rust and JS Runtime event transport share one canonical @@agentic-harness-runtime-event wire prefix",
     "Rust regression proves opencode.session.observed and opencode.failure survive the cross-language boundary",
-    "R-9 surfaces persisted opencode.failure as a first-class opencodeFailure evidence object"
+    "R-9 surfaces persisted opencode.failure as a first-class opencodeFailure evidence object",
+    "restricted OpenCode executor checks the routed model in active provider state before model invocation",
+    "selected-model miss triggers exactly one models.dev refresh and exact revalidation in the attempt-scoped cache",
+    "persistent OpenCode provider model misses are non-retryable and cannot burn the full task retry budget",
+    "restricted child clears inherited models-fetch/path/url overrides so consumer environment cannot redirect model catalog authority",
+    "opencode.model_catalog is persisted as Runtime evidence"
   ],
   "historicalGreenEvidence": {
     "candidate": "0d8c0b6ec4c034429d496822a6a2cc780f9a31bb",
@@ -573,5 +623,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R0_THROUGH_R6_PASS_R9_WORKER_1_18_32_PROVEN_RUNTIME_EVENT_WIRE_PREFIX_FIXED_PENDING_EXACT_SHA_RERUN"
+  "greenAfterFix": "R0_THROUGH_R6_PASS_RUNTIME_EVENT_WIRE_PROVEN_OPENAI_ACTIVE_PROVIDER_REFRESH_PENDING_EXACT_SHA_RERUN"
 }
