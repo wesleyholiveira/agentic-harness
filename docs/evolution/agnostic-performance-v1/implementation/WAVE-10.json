@@ -482,7 +482,7 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
-    "exact-SHA scoped R-9 rerun proving canonical cross-language Runtime events persist and exposing full redacted opencodeFailure.serverLogExcerpt if Product Discovery still fails",
+    "exact-SHA scoped R-9 rerun proving openai/gpt-5.6-luna active-provider preflight either hits cache or refreshes once and Product Discovery proceeds",
     "exact-SHA scoped R-9 physical Rust worker loss while behavior execution is in-flight",
     "normal non-behavior model task restricted-UID runtime regression",
     "full existing Runtime/cache/memory/model-routing/continuation regression qualification",
@@ -570,8 +570,20 @@
       "correction": "align Rust to the canonical JS prefix; test session.observed and opencode.failure across the Rust parser; reject the legacy typo; surface persisted opencode.failure directly in R-9 evidence",
       "productionLogicBug": true,
       "qualificationHarnessBug": true,
+      "rootCauseResolved": true,
+      "status": "wire-contract-proven-fixed-by-74f227a04445a28153499ae89542fb98a4f892f5"
+    },
+    {
+      "observedOnCandidate": "74f227a04445a28153499ae89542fb98a4f892f5",
+      "gate": "wave10-worker-loss/R-9",
+      "runId": "standalone-v1-1790133421264-2896f2118cef",
+      "observed": "Q-ENTRY through R-6 passed, worker OpenCode 1.18.32 was proven, and the canonical child->Rust event contract now persisted opencode.failure directly. Product Discovery still failed 3/3 attempts; the complete correlated server cause is ProviderModelNotFoundError for openai/gpt-5.6-luna while the same model is present in catalog suggestions.",
+      "rootCause": "OpenCode active ChatGPT OAuth provider state is stale relative to the models.dev catalog in the fresh isolated child cache. OpenCode 1.18.32 prefers its embedded catalog snapshot when no disk cache exists; upstream #47490 documents the same catalog-present/provider-state-missing class and a models --refresh recovery.",
+      "correction": "preflight exact active-provider model availability; refresh models.dev once only on miss; revalidate exact qualified model; reuse refreshed attempt cache for prompt/repairs; clear inherited model-catalog overrides; persist opencode.model_catalog; make persistent provider model misses non-retryable",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
       "rootCauseResolved": false,
-      "status": "wire-contract-fixed-pending-exact-sha-rerun"
+      "status": "active-provider-refresh-fixed-pending-exact-sha-rerun"
     }
   ],
   "hardening": [
@@ -585,6 +597,11 @@
     "R-4 proves the live OpenCode version inside agent-runtime-worker",
     "Rust and JS child-runtime event transport use a single canonical @@agentic-harness-runtime-event prefix",
     "canonical Runtime event parsing updates OpenCode session identity and buffers structured failure telemetry",
-    "R-9 queries persisted opencode.failure directly so long task stderr cannot truncate root-cause evidence"
+    "R-9 queries persisted opencode.failure directly so long task stderr cannot truncate root-cause evidence",
+    "selected OpenCode model is checked against active provider state before prompt execution",
+    "models.dev refresh is conditional on selected-model miss and the exact qualified route is revalidated",
+    "restricted child removes inherited OPENCODE_DISABLE_MODELS_FETCH/OPENCODE_MODELS_PATH/OPENCODE_MODELS_URL",
+    "persistent provider model miss is non-retryable",
+    "R-9 boundary diagnostics include opencode.model_catalog"
   ]
 }
