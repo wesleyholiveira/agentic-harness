@@ -289,6 +289,13 @@ test("R9 kills worker only inside a physical behavior window and proves replacem
   assert.match(qualification, /QUALIFICATION_BEHAVIOR_DELAY_COMMAND_ID/u);
   assert.match(qualification, /repair-checkpoint-before-behavior/u);
   assert.match(qualification, /behavior\.gateway\.started/u);
+  assert.match(qualification, /behavior\.gateway\.completed/u);
+  assert.match(qualification, /R9_BEHAVIOR_CONTAINER_START_TIMEOUT_MS = 120_000/u);
+  assert.match(qualification, /r9_source_behavior_gateway_completed_before_physical_window/u);
+  assert.match(qualification, /r9_source_behavior_container_not_materialized/u);
+  assert.match(qualification, /r9_replacement_behavior_gateway_completed_before_physical_window/u);
+  assert.match(qualification, /r9_replacement_behavior_container_not_materialized/u);
+  assert.match(qualification, /matchingBehaviorGatewayEvent/u);
   assert.match(qualification, /docker_gateway_behavior_passed/u);
   assert.match(qualification, /skippedFullAgentInvocation/u);
   assert.match(qualification, /r9_behavior_boundary_not_disarmed_on_context_engine/u);
