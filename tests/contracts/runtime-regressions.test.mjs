@@ -390,10 +390,6 @@ test("restricted model OpenCode state is rooted in Runtime-owned ephemeral HOME,
   assert.match(executor, /delete isolatedEnv\.OPENCODE_MODELS_PATH/u);
   assert.match(executor, /delete isolatedEnv\.OPENCODE_MODELS_URL/u);
   assert.match(executor, /delete isolatedEnv\.OPENCODE_DISABLE_DEFAULT_PLUGINS/u);
-  assert.match(executor, /ensureOpenCodeModelAvailable/u);
-  assert.match(executor, /"models-dev-refresh"/u);
-  assert.match(executor, /"opencode\.model_catalog"/u);
-  assert.match(executor, /opencode_model_unavailable_after_refresh/u);
   assert.match(executor, /"--pure"/u);
   assert.match(executor, /"--print-logs"/u);
   assert.match(executor, /"--log-level", "ERROR"/u);
@@ -403,6 +399,21 @@ test("restricted model OpenCode state is rooted in Runtime-owned ephemeral HOME,
     executor,
     /const stateRoot = join\(dirname\(resolve\(String\(manifestPath\)\)\), "opencode-attempt-state"/u,
   );
+});
+
+test("restricted OpenCode provider preflight owns auth, refresh and fresh-process revalidation", () => {
+  const executor = source("scripts/internal/opencode-task-executor.mjs");
+
+  assert.match(executor, /ensureOpenCodeModelAvailable/u);
+  assert.match(executor, /"--pure", "auth", "list"/u);
+  assert.match(executor, /const refresh = await invokeModels\(true\)/u);
+  assert.match(executor, /const revalidation = await invokeModels\(false\)/u);
+  assert.match(executor, /"models-dev-refresh-reloaded"/u);
+  assert.match(executor, /"unavailable-after-refresh-reload"/u);
+  assert.match(executor, /providerCredentialObserved/u);
+  assert.match(executor, /"opencode\.model_catalog"/u);
+  assert.match(executor, /opencode_provider_credential_not_observed/u);
+  assert.match(executor, /opencode_model_unavailable_after_refresh_reload/u);
 });
 
 test("runtime-worker image packages the full JS dependency closure required by technical plan synthesis", () => {
