@@ -495,6 +495,34 @@ test("runtime model child cannot mutate the bind-mounted source root from bootst
   );
 });
 
+test("bootstrap governance loses shell authority while implementation keeps workspace shell", async () => {
+  const { buildHeadlessRuntimeOverride } = await import("../../scripts/internal/opencode-task-executor.mjs");
+  const topology = {
+    orchestrationRole: "specialist",
+    interactiveMode: "subagent",
+    sessionRole: "primary",
+  };
+  const product = buildHeadlessRuntimeOverride({
+    agentId: "product-owner",
+    stepsLimit: 100,
+    stage: "product-discovery",
+    executionTopology: topology,
+    contextEngineUrl: null,
+  });
+  const implementation = buildHeadlessRuntimeOverride({
+    agentId: "backend-specialist",
+    stepsLimit: 100,
+    stage: "implementation",
+    executionTopology: topology,
+    contextEngineUrl: null,
+  });
+
+  assert.equal(product.agent["product-owner"].permission.external_directory, "deny");
+  assert.equal(product.agent["product-owner"].permission.bash, "deny");
+  assert.equal(implementation.agent["backend-specialist"].permission.external_directory, "deny");
+  assert.equal(Object.hasOwn(implementation.agent["backend-specialist"].permission, "bash"), false);
+});
+
 test("runtime-worker image packages the full JS dependency closure required by technical plan synthesis", () => {
   const dockerfile = source("apps/runtime-worker/Dockerfile");
   assert.match(dockerfile, /COPY packages \.\/packages/u);
