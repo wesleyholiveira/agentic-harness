@@ -783,7 +783,8 @@
     "R-9 pre-boundary qualification uses semantic progress rather than a silent absolute timeout",
     "R-9 timeout/stall evidence includes full task dependency state, pending results, reconcile state, Runtime outbox and key semantic events",
     "R-9 semantic stall detection exempts real running execution, active reconcile lease and durable retry_not_before backoff",
-    "R-9 emits compact bootstrap/task progress every 30 seconds"
+    "R-9 emits compact bootstrap/task progress every 30 seconds",
+    "R-9 Runtime outbox snapshot records lastError presence only and never persists raw outbox error text"
   ],
   "historicalGreenEvidence": {
     "candidate": "0d8c0b6ec4c034429d496822a6a2cc780f9a31bb",
