@@ -1271,6 +1271,57 @@ boundary is therefore between ready-task selection and
 exact-SHA run will expose that error directly through
 `runtime.reconcile_failed` if it persists.
 
+## Live R-9 Context Engine Git source-authority failure
+
+Live Runtime run `run-d36f5e7b-53e9-40a3-b512-4c6472463695` on candidate
+`c94ead03ee89d9fdd1813ba6009afd932eedeb82` proved that the preceding
+progress-watchdog correction is working: after Product Discovery integrated,
+the compact R-9 line exposed the exact Technical Refinement dependency and then
+reported:
+
+`reconcileFailure=source_git_command_failed:rev-parse`
+
+The refined topology for this run contained only Product Discovery and
+Technical Refinement, so no hidden review dependency was blocking dispatch.
+Technical Refinement remained `routed(a0/g0)` because its semantic
+preparation threw before `dispatchPreparedTask()`.
+
+The failure is qualification-boundary-specific but originates from a real
+Runtime image dependency:
+
+1. WAVE-10 arms `qualification.behavior.delay` only for
+   Technical Refinement attempt 1;
+2. `prepareTaskExecution()` therefore calls
+   `loadCommittedProjectConfiguration(repositoryRoot)` to derive immutable
+   command authority for that behavior;
+3. the committed-source loader in
+   `packages/source-identity/src/git-snapshot.mjs` invokes Git directly
+   (`rev-parse`, `ls-tree`, `cat-file`) and fails closed as
+   `source_git_command_failed:<command>`;
+4. the semantic controller runs from `apps/context-engine/Dockerfile`, based
+   on `node:22-alpine`, and that image did not install Git;
+5. the consumer repository itself is already correctly bind-mounted at
+   `/workspace/repository`.
+
+Product Discovery does not cross the qualification behavior command-authority
+boundary, which is why real Luna execution and Product integration succeeded
+before the failure first appeared at Technical Refinement.
+
+Correction:
+- install Git explicitly in the Context Engine image;
+- make R-4 execute `git --version` inside the running Context Engine;
+- make R-4 execute `rev-parse --show-toplevel` against
+  `/workspace/repository`;
+- make R-4 execute `rev-parse --verify HEAD^{commit}` there and compare it to
+  the qualification consumer's host-observed commit;
+- fail R-4 immediately on missing Git, wrong repository root or commit mismatch;
+- retain the existing committed-source loader fail-closed semantics instead of
+  converting source-authority failures into task retries.
+
+This moves the proof of the semantic controller's Git/source authority to the
+earliest live Runtime gate. A missing Git executable or an invalid repository
+mount can no longer survive until Technical Refinement in R-9.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
