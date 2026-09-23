@@ -1859,6 +1859,7 @@ function r9SemanticSnapshot(runId) {
               'execution.result.received',
               'task.queued','task.running','task.integrated','task.retry_scheduled','task.failed','task.blocked',
               'context.preparation_failed',
+              'workspace.root_changed_since_fork','workspace.integration_materialization_mismatch',
               'dag.bootstrap_refined','bootstrap.topology.refined','dag.tasks.materialized',
               'scheduler.ready_preparation.completed','scheduler.waiting_dependencies',
               'policy.dispatch_decision',
