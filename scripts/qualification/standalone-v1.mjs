@@ -1740,6 +1740,7 @@ function r9SemanticSnapshot(runId) {
           'completedAt', completed_at,
           'leaseOwner', lease_owner,
           'leaseExpiresAt', lease_expires_at,
+          'retryNotBefore', retry_not_before,
           'errorCode', error_code,
           'handoffPath', handoff_path,
           'descriptorPath', execution_descriptor_path
@@ -1832,6 +1833,7 @@ function r9SemanticProgressFingerprint(snapshot) {
       fencingToken: Number(task.fencingToken ?? 0),
       stateVersion: Number(task.stateVersion ?? 0),
       dependencies: task.dependencies ?? [],
+      retryNotBefore: task.retryNotBefore ?? null,
       errorCode: task.errorCode ?? null,
     })),
     pendingResults: (snapshot?.pendingResults ?? []).map((result) => ({
@@ -1864,6 +1866,11 @@ function r9SemanticStallDisposition(snapshot, nowMs = Date.now()) {
     const identity = `${task.taskId}:${Number(task.dispatchGeneration ?? 0)}`;
     return !pending.has(identity) && !completed.has(identity);
   });
+  const scheduledRetries = (snapshot?.tasks ?? []).filter((task) => {
+    if (task.status !== "retrying" || !task.retryNotBefore) return false;
+    const retryAt = Date.parse(task.retryNotBefore);
+    return Number.isFinite(retryAt) && retryAt > nowMs;
+  });
   const reconcileLeaseExpiresAt = snapshot?.run?.reconcileLeaseExpiresAt ?? null;
   const reconcileLeaseActive = Boolean(
     snapshot?.run?.reconcileLeaseOwner
@@ -1879,8 +1886,13 @@ function r9SemanticStallDisposition(snapshot, nowMs = Date.now()) {
       attempt: Number(task.attempt ?? 0),
       dispatchGeneration: Number(task.dispatchGeneration ?? 0),
     })),
+    scheduledRetries: scheduledRetries.map((task) => ({
+      taskId: task.taskId,
+      agentId: task.agentId,
+      retryNotBefore: task.retryNotBefore,
+    })),
     reconcileLeaseActive,
-    stallEligible: longRunningTasks.length === 0 && !reconcileLeaseActive,
+    stallEligible: longRunningTasks.length === 0 && scheduledRetries.length === 0 && !reconcileLeaseActive,
   };
 }
 
