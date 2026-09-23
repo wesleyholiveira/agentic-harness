@@ -1,4 +1,5 @@
 FROM node:22-alpine
+RUN apk add --no-cache git
 WORKDIR /workspace/harness
 COPY package.json package-lock.json tsconfig.json ./
 COPY apps/context-engine ./apps/context-engine
