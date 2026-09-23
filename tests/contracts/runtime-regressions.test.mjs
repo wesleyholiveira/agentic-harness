@@ -53,11 +53,22 @@ test("Runtime event wire prefix is identical across JS emitters and Rust consume
   const opencodeExecutor = source("scripts/internal/opencode-task-executor.mjs");
   const legacyExecutor = source(".agents/runtime/executor.mjs");
   const rustWorker = source("apps/runtime-worker/src/agent_runtime.rs");
-  const canonical = "@@agentic-harness-runtime-event ";
-  assert.ok(opencodeExecutor.includes(canonical));
-  assert.ok(legacyExecutor.includes(canonical));
-  assert.ok(rustWorker.includes(canonical));
-  assert.doesNotMatch(rustWorker, /@@agent-harness-runtime-event /u);
+  assert.match(
+    opencodeExecutor,
+    /const RUNTIME_EVENT_PREFIX = "@@agentic-harness-runtime-event ";/u,
+  );
+  assert.match(
+    legacyExecutor,
+    /const RUNTIME_EVENT_PREFIX = "@@agentic-harness-runtime-event ";/u,
+  );
+  assert.match(
+    rustWorker,
+    /const PREFIX: &str = "@@agentic-harness-runtime-event ";/u,
+  );
+  assert.doesNotMatch(
+    rustWorker,
+    /const PREFIX: &str = "@@agent-harness-runtime-event ";/u,
+  );
 });
 
 test("OpenCode failure runtime event is persisted by the semantic finalizer", () => {
