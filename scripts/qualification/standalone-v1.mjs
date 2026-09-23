@@ -812,6 +812,23 @@ async function r4() {
     });
   }
 
+  const workerAuthListResult = composeCommand(
+    ["exec", "-T", "agent-runtime-worker", "opencode", "--pure", "auth", "list"],
+    { label: "r4-worker-opencode-auth-list", timeoutMs: 30_000 },
+  );
+  const workerAuthList = stripAnsi(`${workerAuthListResult.stdout}\n${workerAuthListResult.stderr}`);
+  const workerOpenCodeAuth = {
+    provider: "openai",
+    type: "oauth",
+    credentialObserved: /\bOpenAI\b[^\n]*\boauth\b/iu.test(workerAuthList),
+  };
+  if (!workerOpenCodeAuth.credentialObserved) {
+    hold("R-4", "ENVIRONMENT", "runtime_worker_openai_oauth_credential_missing", {
+      projectedAuth: state.opencodeAuthProjection?.credentialShape ?? null,
+      authListSummary: workerAuthList.slice(0, 1_024),
+    });
+  }
+
   const workspaceDestination = "/workspace/agent-workspaces";
   const contextEngineEnv = containerEnvironmentMap(containerInspects["context-engine"]);
   const workerEnv = containerEnvironmentMap(containerInspects["agent-runtime-worker"]);
@@ -893,6 +910,11 @@ async function r4() {
     composeProject: state.composeProject.name,
     services: containerEvidence,
     workerOpenCodeVersion,
+    workerOpenCodeAuth,
+    qualificationOpenCodeAuthProjection: {
+      source: state.opencodeAuthProjection.source,
+      credentialShape: state.opencodeAuthProjection.credentialShape,
+    },
     workspaceAuthority,
     readiness: { contextEngine: contextEngineReadiness, rabbitmq: rabbitmqReadiness, embeddings: embeddingsReadiness },
     migrations: migrationCount,
