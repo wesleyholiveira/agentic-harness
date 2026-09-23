@@ -242,18 +242,26 @@ test("R4 starts behavior gateway with runtime dependency profile enabled", () =>
   );
 });
 
-test("R9 fails fast when the semantic run fails before the process-loss boundary", () => {
+test("R9 fails fast on terminal failure or semantic no-progress before the process-loss boundary", () => {
   const qualification = source("scripts/qualification/standalone-v1.mjs");
   const r9Start = qualification.indexOf("async function r9()");
   const r9End = qualification.indexOf("\nfunction safeJson", r9Start);
   const r9 = qualification.slice(r9Start, r9End);
   const fastFailure = r9.indexOf("r9_pre_boundary_semantic_run_failed");
+  const semanticStall = r9.indexOf("r9_pre_boundary_semantic_stall");
   const longWait = r9.indexOf('label: "r9-process-loss-boundary"');
-  assert.ok(fastFailure >= 0 && longWait > fastFailure);
-  assert.match(r9, /status IN \('failed','blocked'\)/u);
-  assert.match(r9, /opencode\.model_catalog/u);
-  assert.match(r9, /opencode\.failure|task\.failed/u);
-  assert.match(r9, /failedTask/u);
+  assert.ok(fastFailure >= 0 && semanticStall > fastFailure && longWait > semanticStall);
+  assert.match(qualification, /R9_PRE_BOUNDARY_SEMANTIC_STALL_MS = 180_000/u);
+  assert.match(qualification, /function r9SemanticSnapshot\(runId\)/u);
+  assert.match(qualification, /'pendingResults'/u);
+  assert.match(qualification, /'outbox'/u);
+  assert.match(qualification, /'bootstrapTopologyState'/u);
+  assert.match(qualification, /'reconcileLeaseOwner'/u);
+  assert.match(qualification, /function r9SemanticProgressFingerprint/u);
+  assert.match(qualification, /function r9SemanticStallDisposition/u);
+  assert.match(qualification, /longRunningTasks/u);
+  assert.match(qualification, /stallEligible: longRunningTasks\.length === 0 && !reconcileLeaseActive/u);
+  assert.match(r9, /semanticSnapshot/u);
   assert.match(r9, /latestAgentEventPayload\(runId, "opencode\.failure"/u);
   assert.match(r9, /opencodeFailure/u);
   assert.match(
