@@ -439,7 +439,17 @@ export function classifyValidationFailure({ result, preTeardownHealth, dockerBlo
       category: "code",
     };
   }
+  if (String(rawMessage).includes("opencode_provider_credential_not_observed:")
+      || String(rawMessage).includes('"errorName":"ProviderAuthError"')) {
+    return {
+      code: "opencode_provider_auth_not_observed",
+      message: String(rawMessage).slice(0, 4_000),
+      retryable: false,
+      category: "provider",
+    };
+  }
   if (String(rawMessage).includes("opencode_model_unavailable_after_refresh:")
+      || String(rawMessage).includes("opencode_model_unavailable_after_refresh_reload:")
       || String(rawMessage).includes("ProviderModelNotFoundError:")) {
     return {
       code: "opencode_provider_model_not_found",
