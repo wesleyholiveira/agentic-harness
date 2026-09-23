@@ -805,8 +805,51 @@
       ],
       "productionLogicBug": true,
       "qualificationHarnessBug": true,
+      "rootCauseResolved": true,
+      "status": "fixed-and-proven-by-38ca7013be090f8dd90bfeb2a759c5993090ccaf",
+      "greenEvidence": {
+        "candidate": "38ca7013be090f8dd90bfeb2a759c5993090ccaf",
+        "qualificationRunId": "standalone-v1-1790143830295-93b5d096be8c",
+        "runtimeRunId": "run-28e2f8c0-06cc-45cf-af68-3157d8bb608d",
+        "contextEngineGitVersion": "2.54.0",
+        "contextEngineRepositoryRoot": "/workspace/repository",
+        "contextEngineRepositoryCommit": "fb8d68aa3e948c4ea33ceceb88b01d522b6e36b2",
+        "technicalLeadReachedRunning": true
+      }
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-source-behavior-physical-window-observation",
+      "candidate": "38ca7013be090f8dd90bfeb2a759c5993090ccaf",
+      "qualificationRunId": "standalone-v1-1790143830295-93b5d096be8c",
+      "runtimeRunId": "run-28e2f8c0-06cc-45cf-af68-3157d8bb608d",
+      "observed": {
+        "r0ThroughR6Passed": true,
+        "contextEngineGitProven": true,
+        "productOwner": "integrated(a1/g1)",
+        "architectureGovernance": "integrated(a1/g1)",
+        "technicalLead": "running(a1/g1)",
+        "processLossBoundaryReached": true,
+        "failureClassification": "QUALIFICATION PROCEDURE",
+        "failureMessage": "qualification_wait_timeout:r9-source-behavior-container-running:30000"
+      },
+      "rootCause": [
+        "behavior.gateway.started is persisted by the Rust worker before invoke_gateway() and therefore before gateway committed-source, workspace-binding, materialization, image-attestation and toolchain probes",
+        "the qualification treated behavior.gateway.started as if the physical Docker behavior window were imminent and allowed only 30 seconds for the named behavior container to become Running",
+        "gateway pre-container probe budgets can legally consume approximately 20 seconds for materialization, 10 seconds for image attestation and 60 seconds for toolchain verification before docker run is launched",
+        "the report did not preserve the exact behavior.gateway.completed payload on this timeout, so it cannot distinguish a slow healthy preflight from a gateway HOLD/FAILED that completed before any physical container existed"
+      ],
+      "correction": [
+        "observe the exact named Docker container and the exact behavior.gateway.completed event concurrently",
+        "if the gateway completes before a physical container window is observed, fail immediately with the exact gateway status/code instead of waiting for a generic timeout",
+        "allow 120 seconds for physical behavior-container materialization so the observation budget covers the gateway pre-container probe envelope",
+        "on timeout, persist sourceBehaviorStarted, exact matching gateway completion if any, gateway container liveness and the semantic R-9 snapshot",
+        "apply the same terminal-aware 120-second physical-window observation to replacement behavior after worker recovery",
+        "include behavior.gateway.started and behavior.gateway.completed in the semantic snapshot event catalog"
+      ],
+      "productionLogicBug": null,
+      "qualificationHarnessBug": true,
       "rootCauseResolved": false,
-      "status": "context-engine-git-installed-r4-source-proof-added-pending-exact-sha-rerun"
+      "status": "physical-window-observation-fixed-gateway-outcome-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -924,5 +967,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R9_RECONCILE_FAILURE_DIAGNOSTIC_PROVEN_CONTEXT_ENGINE_GIT_FIX_PENDING_EXACT_SHA_RERUN"
+  "greenAfterFix": "R4_CONTEXT_ENGINE_GIT_AND_TL_RUNNING_PROVEN_R9_PHYSICAL_WINDOW_OBSERVER_PENDING_EXACT_SHA_RERUN"
 }
