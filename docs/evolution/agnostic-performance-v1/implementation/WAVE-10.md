@@ -1183,6 +1183,39 @@ still awaiting semantic finalization, Product selected review prerequisites, or
 the scheduler/reconciler stopped advancing. Only that evidence may authorize a
 production repair.
 
+## R-1 contract drift after the progress-aware R-9 refactor
+
+Scoped run `standalone-v1-1790140282302-571e5b267ac6` on candidate
+`99d6e8859660378040938a58d6038ddb831eb81c` stopped at R-1 before any
+Runtime fault execution. Q-ENTRY, PRE-R0 and R-0 passed; `harness:test`
+reported 490 tests with 488 pass and exactly two failures, both static
+qualification-controller assertions for R-9.
+
+Neither failure represented a production Runtime defect:
+
+- the old contract required the literal negative guard
+  `repairKind !== "qualification-process-loss"` plus
+  `checkpoint.status !== "repair-started"`; the progress-aware R-9 now accepts
+  the exact checkpoint using positive equality predicates inside the success
+  branch;
+- the old contract required a local `boundaryEvents` variable that no longer
+  exists because timeout/failure evidence is now carried by the richer
+  authoritative `semanticSnapshot`.
+
+The contracts are corrected without weakening authority. They now require:
+- `checkpoint.contractVersion === "runtime-repair-checkpoint/v1"`;
+- `checkpoint.repairKind === "qualification-process-loss"`;
+- `checkpoint.status === "repair-started"`;
+- `checkpoint.qualificationBoundary === "repair-checkpoint-before-behavior"`;
+- `r9SemanticSnapshot(runId)` and `semanticSnapshot: snapshot`;
+- explicit inclusion of
+  `qualification.process_loss_boundary_ready` and
+  `runtime.reconcile_failed` in the semantic evidence catalog.
+
+No scheduler, DAG, worker, gateway or production Runtime behavior changed for
+this correction. R-2 through R-9 were not run by that qualification, and R-11
+cleaned the environment while preserving exact HEAD/tree equality.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
