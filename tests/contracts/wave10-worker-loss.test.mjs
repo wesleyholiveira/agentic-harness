@@ -251,6 +251,7 @@ test("R9 fails fast when the semantic run fails before the process-loss boundary
   const longWait = r9.indexOf('label: "r9-process-loss-boundary"');
   assert.ok(fastFailure >= 0 && longWait > fastFailure);
   assert.match(r9, /status IN \('failed','blocked'\)/u);
+  assert.match(r9, /opencode\.model_catalog/u);
   assert.match(r9, /opencode\.failure|task\.failed/u);
   assert.match(r9, /failedTask/u);
   assert.match(r9, /latestAgentEventPayload\(runId, "opencode\.failure"/u);
