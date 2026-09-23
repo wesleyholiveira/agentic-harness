@@ -904,8 +904,45 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
       "exactExternalWriterProven": false,
-      "rootCauseResolved": false,
-      "status": "model-child-source-root-authority-closed-pending-exact-sha-rerun"
+      "rootCauseResolved": true,
+      "status": "isolation-hardening-proven-past-product-integration-by-18778a7978bb7d1bf6077a2d97a7298a90c61505",
+      "greenEvidence": {
+        "candidate": "18778a7978bb7d1bf6077a2d97a7298a90c61505",
+        "qualificationRunId": "standalone-v1-1790206889388-86c9b7b23598",
+        "reachedR9PhysicalWindowCode": true,
+        "copyIntegrateRootConflictObserved": false,
+        "note": "run advanced beyond Product integration and Technical Refinement checkpoint to source behavior window setup"
+      }
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-controller-module-initialization-order",
+      "candidate": "18778a7978bb7d1bf6077a2d97a7298a90c61505",
+      "qualificationRunId": "standalone-v1-1790206889388-86c9b7b23598",
+      "observed": {
+        "qEntryThroughR6": "PASS",
+        "r9": "HOLD",
+        "classification": "QUALIFICATION PROCEDURE",
+        "message": "Cannot access 'R9_BEHAVIOR_CONTAINER_START_TIMEOUT_MS' before initialization",
+        "stackLine": 2245,
+        "cleanupR11": "PASS",
+        "sourceEqualityClean": true
+      },
+      "rootCause": [
+        "standalone-v1.mjs dispatched qualification gates through top-level await near the beginning of the module",
+        "R9_PRE_BOUNDARY_SEMANTIC_STALL_MS and R9_BEHAVIOR_CONTAINER_START_TIMEOUT_MS were top-level const declarations located later in the same module",
+        "function declarations are hoisted but later const bindings remain in the temporal dead zone until module evaluation reaches their declarations",
+        "R-9 reached the physical behavior-window wait and evaluated R9_BEHAVIOR_CONTAINER_START_TIMEOUT_MS before that declaration had initialized"
+      ],
+      "correction": [
+        "wrap gate execution/cleanup/report emission in executeQualification() without invoking it at the top of the module",
+        "invoke await executeQualification() only as the final module statement after all late-bound gate constants and function declarations initialize",
+        "add a qualification-controller contract requiring both R-9 constants and selfTest declaration to appear before the final dispatcher call",
+        "require the module to end with await executeQualification() so future late top-level declarations cannot be bypassed by early gate dispatch"
+      ],
+      "productionLogicBug": false,
+      "qualificationHarnessBug": true,
+      "rootCauseResolved": true,
+      "status": "fixed-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -1023,5 +1060,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R9_PRODUCT_COPY_ROOT_ISOLATION_HARDENED_PHYSICAL_WINDOW_RERUN_PENDING"
+  "greenAfterFix": "R9_MODULE_INITIALIZATION_ORDER_FIXED_PHYSICAL_WINDOW_RERUN_PENDING"
 }
