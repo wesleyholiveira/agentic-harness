@@ -328,6 +328,26 @@ test("qualification waitFor propagates terminal predicate errors without convert
   assert.equal(attempts, 1);
 });
 
+test("qualification projects only OpenAI OAuth into the runtime worker and proves it in R-4", () => {
+  const qualification = source("scripts/qualification/standalone-v1.mjs");
+
+  assert.match(qualification, /prepareQualificationOpenCodeAuthProjection/u);
+  assert.match(qualification, /qualification_opencode_auth_source_missing/u);
+  assert.match(qualification, /qualification_openai_oauth_credential_invalid/u);
+  assert.match(qualification, /JSON\.stringify\(\{ openai: credential \}, null, 2\)/u);
+  assert.match(qualification, /mode: 0o600/u);
+  assert.match(
+    qualification,
+    /AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE: opencodeAuthProjection\.path/u,
+  );
+  assert.match(
+    qualification,
+    /"exec", "-T", "agent-runtime-worker", "opencode", "--pure", "auth", "list"/u,
+  );
+  assert.match(qualification, /runtime_worker_openai_oauth_credential_missing/u);
+  assert.match(qualification, /qualificationOpenCodeAuthProjection/u);
+});
+
 test("runtime worker pins and qualifies the exact OpenCode build", () => {
   const dockerfile = source("apps/runtime-worker/Dockerfile");
   const qualification = source("scripts/qualification/standalone-v1.mjs");
