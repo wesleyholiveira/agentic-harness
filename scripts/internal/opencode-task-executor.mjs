@@ -347,6 +347,7 @@ async function armQualificationProcessLossBoundary({ brief, handoff, sessionId, 
 export function buildHeadlessRuntimeOverride({
   agentId,
   stepsLimit,
+  stage = null,
   executionTopology = null,
   contextEngineUrl = process.env.AGENT_HARNESS_CONTEXT_ENGINE_INTERNAL_URL?.trim() || null,
 }) {
@@ -359,6 +360,10 @@ export function buildHeadlessRuntimeOverride({
   if (topology.sessionRole !== "primary") {
     throw new Error(`runtime_session_role_unsupported:${selectedAgentId}:${topology.sessionRole ?? "missing"}`);
   }
+  const normalizedStage = String(stage ?? "").trim();
+  const governanceStage = normalizedStage === "product-discovery"
+    || normalizedStage === "technical-refinement"
+    || isBootstrapReviewStage(normalizedStage);
   const runtimeOverride = {
     // Global topology and child-session topology are deliberately different:
     // specialists stay `subagent` in the generated OpenCode config so the interactive entrypoint
@@ -369,7 +374,16 @@ export function buildHeadlessRuntimeOverride({
       [selectedAgentId]: {
         mode: topology.sessionRole,
         steps: Number(stepsLimit),
-        permission: { question: "deny" },
+        permission: {
+          question: "deny",
+          // Runtime specialists execute inside a copy workspace. Never let a
+          // model-facing path tool cross back into the bind-mounted source root.
+          external_directory: "deny",
+          // Bootstrap governance stages produce semantic contracts only. Their
+          // executable validation is Runtime-owned, so a model shell would add
+          // filesystem authority without adding required capability.
+          ...(governanceStage ? { bash: "deny" } : {}),
+        },
       },
     },
   };
@@ -775,6 +789,7 @@ async function main() {
   const runtimeAgentOverride = buildHeadlessRuntimeOverride({
     agentId: args.agentId,
     stepsLimit: Number(args.stepsLimit ?? brief.modelRouting?.stepsLimit ?? 100),
+    stage: brief.sdd?.stage ?? null,
     executionTopology,
   });
   const attempt = Number(brief.modelRouting?.attempt ?? 1);
@@ -812,7 +827,13 @@ async function main() {
   let authority = null;
   let handoff = null;
   const isolatedState = await prepareIsolatedOpenCodeAttemptEnv({ manifestPath, attempt, env: process.env });
-  const openCodeEnv = isolatedState.env;
+  const openCodeEnv = {
+    ...isolatedState.env,
+    // The wrapper retains source-root authority for durable Runtime artifacts,
+    // but the model child sees the isolated copy as its project root.
+    AGENT_HARNESS_PROJECT_ROOT: workspace,
+    AGENT_HARNESS_AGENT_WORKSPACE: workspace,
+  };
   emitRuntimeEvent("opencode.state_isolated", {
     attempt,
     dataHome: isolatedState.dataHome,
@@ -825,6 +846,12 @@ async function main() {
     projectConfigDisabled: openCodeEnv.OPENCODE_DISABLE_PROJECT_CONFIG === "1",
     rawServerLogsForwarded: false,
     serverLogLevel: "ERROR",
+    projectRoot: openCodeEnv.AGENT_HARNESS_PROJECT_ROOT,
+    projectRootAuthority: "execution-workspace",
+    externalDirectoryDenied: true,
+    governanceShellDenied: String(brief.sdd?.stage ?? "") === "product-discovery"
+      || String(brief.sdd?.stage ?? "") === "technical-refinement"
+      || isBootstrapReviewStage(String(brief.sdd?.stage ?? "")),
   });
 
   if (resumeCheckpoint?.handoff && ["repair-started", "repair-completed", "repair-exhausted"].includes(resumeCheckpoint.status)) {
