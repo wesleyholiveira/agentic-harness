@@ -482,6 +482,8 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
+    "exact-SHA R-9 rerun proving the 180-second watchdog fires on real post-Architecture no-progress or Technical Refinement advances",
+    "if stalled, use compact reconcileFailure plus semanticSnapshot dependencies/events to identify policy/preparation failure before changing Runtime semantics",
     "exact-SHA R-1 contract rerun proving all harness contracts green after semantic-watchdog contract alignment",
     "exact-SHA scoped R-9 rerun identifying Product semantic finalization/refined bootstrap review tasks or scheduler stall through the new semantic snapshot",
     "exact-SHA scoped R-9 proving Technical Refinement reaches repair-checkpoint-before-behavior",
@@ -634,6 +636,18 @@
       "qualificationHarnessBug": true,
       "rootCauseResolved": true,
       "status": "contracts-fixed-pending-exact-sha-rerun"
+    },
+    {
+      "observedOnCandidate": "5f2348ea168c564df8d5d44cacab328bfeeea059",
+      "gate": "wave10-worker-loss/R-9",
+      "runtimeRunId": "run-1efd1c35-097c-45dc-8064-4accf8b064e4",
+      "observed": "Live progress proved the refined bootstrap contained only Product Discovery, Architecture Governance and Technical Refinement. Product and Architecture both reached integrated, pendingResults stayed 0 and outbox stayed 9, while Technical Refinement remained routed at a0/g0. The intended 180-second semantic stall did not fire.",
+      "rootCause": "qualification progress fingerprint counted bookkeeping churn as semantic progress. Scheduler dispatchReadyTasks rewrote unchanged peak_parallel on each repair sweep, incrementing run.state_version; the watchdog also fingerprinted stateVersion/reconcileGeneration/publishCount, so the timer reset despite an unchanged DAG.",
+      "correction": "avoid no-op peak_parallel writes; define semantic progress only from actual DAG/transport state, not bookkeeping counters; print TL dependencies and latest reconcile failure; fail closed if a selected ready row has no task plan",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": true,
+      "rootCauseResolved": false,
+      "status": "bookkeeping-progress-fixed-underlying-tl-preparation-dispatch-cause-pending-rerun"
     }
   ],
   "hardening": [
