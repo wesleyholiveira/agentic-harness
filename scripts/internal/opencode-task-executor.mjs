@@ -176,7 +176,26 @@ export async function ensureOpenCodeModelAvailable({
     OPENCODE_PERMISSION: JSON.stringify({ question: "deny" }),
     OPENCODE_LOG_LEVEL: "ERROR",
   };
-  const invoke = async (refresh) => {
+
+  const summarize = (result, qualified = selected.qualified) => {
+    const stdout = result.stdout ?? "";
+    const stderr = result.stderr ?? "";
+    const diagnostic = redactOpenCodeDiagnosticText(
+      stripAnsi(`${stderr}\n${stdout}`).slice(-2_048),
+    ) || null;
+    return {
+      status: result.status,
+      timedOut: Boolean(result.timedOut),
+      available: result.status === 0
+        && !result.timedOut
+        && openCodeModelListContains(stdout, qualified),
+      stdoutBytes: Buffer.byteLength(stdout),
+      stderrBytes: Buffer.byteLength(stderr),
+      diagnostic,
+    };
+  };
+
+  const invokeModels = async (refresh) => {
     const args = [
       ...invocation.prefixArgs,
       "--pure",
@@ -189,37 +208,55 @@ export async function ensureOpenCodeModelAvailable({
       env: probeEnv,
       timeoutMs,
     });
+    return summarize(result);
+  };
+
+  const invokeAuth = async () => {
+    const args = [...invocation.prefixArgs, "--pure", "auth", "list"];
+    const result = await run(invocation.command, args, {
+      cwd: workspace,
+      env: probeEnv,
+      timeoutMs,
+    });
+    const summary = summarize(result, "__never_match__");
+    const authText = stripAnsi(`${result.stdout ?? ""}\n${result.stderr ?? ""}`);
     return {
-      status: result.status,
-      timedOut: Boolean(result.timedOut),
-      available: result.status === 0
-        && !result.timedOut
-        && openCodeModelListContains(result.stdout ?? "", selected.qualified),
-      stdoutBytes: Buffer.byteLength(result.stdout ?? ""),
-      stderrBytes: Buffer.byteLength(result.stderr ?? ""),
+      ...summary,
+      providerCredentialObserved: /(^|\b)(openai|openai api)(\b|$)/iu.test(authText),
     };
   };
 
-  const local = await invoke(false);
+  const auth = await invokeAuth();
+  const local = await invokeModels(false);
   if (local.available) {
     return {
       ...selected,
       available: true,
       refreshAttempted: false,
       source: "active-provider-cache",
+      auth,
       local,
       refresh: null,
+      revalidation: null,
     };
   }
 
-  const refresh = await invoke(true);
+  // OpenCode's own stale-provider recovery requires a refreshed models.dev
+  // cache and a *new* provider process. The refresh command can itself exit
+  // nonzero after successfully updating models.json if the provider projection
+  // created inside that same process is stale, so never treat its exit status
+  // as the final availability authority.
+  const refresh = await invokeModels(true);
+  const revalidation = await invokeModels(false);
   return {
     ...selected,
-    available: refresh.available,
+    available: revalidation.available,
     refreshAttempted: true,
-    source: refresh.available ? "models-dev-refresh" : "unavailable-after-refresh",
+    source: revalidation.available ? "models-dev-refresh-reloaded" : "unavailable-after-refresh-reload",
+    auth,
     local,
     refresh,
+    revalidation,
   };
 }
 
@@ -831,10 +868,18 @@ async function main() {
       available: modelCatalog.available,
       refreshAttempted: modelCatalog.refreshAttempted,
       source: modelCatalog.source,
+      authStatus: modelCatalog.auth.status,
+      authProviderCredentialObserved: modelCatalog.auth.providerCredentialObserved,
+      authDiagnostic: modelCatalog.auth.diagnostic,
       localStatus: modelCatalog.local.status,
       localTimedOut: modelCatalog.local.timedOut,
+      localDiagnostic: modelCatalog.local.diagnostic,
       refreshStatus: modelCatalog.refresh?.status ?? null,
       refreshTimedOut: modelCatalog.refresh?.timedOut ?? false,
+      refreshDiagnostic: modelCatalog.refresh?.diagnostic ?? null,
+      revalidationStatus: modelCatalog.revalidation?.status ?? null,
+      revalidationTimedOut: modelCatalog.revalidation?.timedOut ?? false,
+      revalidationDiagnostic: modelCatalog.revalidation?.diagnostic ?? null,
     });
     if (!modelCatalog.available) {
       emitRuntimeEvent("opencode.failure", {
