@@ -1114,6 +1114,75 @@ allowed to become meaningful. If R-4 passes, the Product Discovery child must
 also observe the credential from its disposable HOME. Only then should catalog
 refresh/reload evidence be interpreted as a model-provider issue.
 
+## Scoped R-9 post-Product semantic progress correction
+
+Scoped run `standalone-v1-1790137459096-b2f0cb6abc05` on exact candidate
+`e6cdb2044deb61ad8f0100761ec5763eac80b03f` proved the prior OpenAI
+qualification-auth correction end-to-end.
+
+R-4 proved worker OpenCode `1.18.32`, `OpenAI oauth` inside the worker, and a
+qualification-owned OpenAI credential shape with access/refresh/expiry present.
+The restricted Product Discovery child independently observed that OAuth state,
+found `openai/gpt-5.6-luna` in the active provider without refresh, and its
+executor completed attempt 1 with exit code 0 in 82,853 ms.
+
+The R-9 process-loss boundary nevertheless did not materialize within the
+20-minute pre-boundary safety ceiling. At timeout the Technical Refinement task
+was still:
+
+`status=routed, attempt=0, dispatchGeneration=0, fencingToken=0`.
+
+There was no `opencode.failure`.
+
+That state proves Technical Refinement never reached
+`dispatchPreparedTask()`, but it does **not** by itself prove a scheduler
+deadlock. Product Discovery is the authority for bootstrap review selection.
+After Product integration the refined topology may legitimately materialize
+Architecture/Database/Infrastructure/etc. review tasks and make Technical
+Refinement depend on them.
+
+The previous R-9 evidence did not include:
+- Product Discovery semantic terminal status (`task.integrated` versus only
+  physical `executor.completed`);
+- refined bootstrap topology state/authority/revision;
+- materialized review tasks and their dependencies;
+- pending execution results awaiting semantic finalization;
+- reconcile generation/lease state;
+- Runtime outbox publication/terminal state;
+- scheduler dispatch decisions or reconcile failures.
+
+The fixed 20-minute wait was therefore an observability defect: it could report
+only "boundary not materialized" after a long wait without distinguishing
+legitimate prerequisite execution from finalizer/refinement/scheduler stall.
+
+Correction:
+- R-9 now obtains one bounded semantic snapshot containing run
+  status/state-version/reconcile-generation/lease plus bootstrap topology state;
+- every task contributes status, attempt, generation, fence, dependencies,
+  retry window and descriptor/handoff identity;
+- pending execution results are visible separately from tasks;
+- recent Runtime outbox entries expose kind, task/generation, publish count,
+  published/terminal state and only a boolean for last-error presence;
+- key semantic events include `task.integrated`, bootstrap refinement,
+  materialized tasks, preparation/dispatch decisions, executor completion and
+  reconcile failures;
+- R-9 tracks a semantic progress fingerprint instead of treating elapsed
+  wall-clock since run creation as progress;
+- every 30 seconds it prints a compact task/topology progress line;
+- if there is no semantic state change for 180 seconds, R-9 fails fast with
+  `r9_pre_boundary_semantic_stall` **only** when there is no genuine
+  `running` execution, no active reconcile lease and no future
+  `retry_not_before` backoff;
+- real model/review execution remains allowed to run and the original
+  20-minute interval remains only an absolute safety ceiling.
+
+This change is intentionally qualification-only. The current evidence is
+insufficient to justify modifying the production DAG, bootstrap refinement or
+scheduler. The next exact-SHA run will identify whether Product Discovery was
+still awaiting semantic finalization, Product selected review prerequisites, or
+the scheduler/reconciler stopped advancing. Only that evidence may authorize a
+production repair.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
