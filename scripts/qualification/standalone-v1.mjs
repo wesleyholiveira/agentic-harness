@@ -1820,8 +1820,6 @@ function r9SemanticProgressFingerprint(snapshot) {
   return JSON.stringify({
     run: snapshot?.run ? {
       status: snapshot.run.status,
-      stateVersion: Number(snapshot.run.stateVersion ?? 0),
-      reconcileGeneration: Number(snapshot.run.reconcileGeneration ?? 0),
       bootstrapTopologyState: snapshot.run.bootstrapTopologyState ?? null,
       bootstrapTopologyRevision: snapshot.run.bootstrapTopologyRevision ?? null,
     } : null,
@@ -1831,7 +1829,6 @@ function r9SemanticProgressFingerprint(snapshot) {
       attempt: Number(task.attempt ?? 0),
       dispatchGeneration: Number(task.dispatchGeneration ?? 0),
       fencingToken: Number(task.fencingToken ?? 0),
-      stateVersion: Number(task.stateVersion ?? 0),
       dependencies: task.dependencies ?? [],
       retryNotBefore: task.retryNotBefore ?? null,
       errorCode: task.errorCode ?? null,
@@ -1846,7 +1843,6 @@ function r9SemanticProgressFingerprint(snapshot) {
       kind: entry.kind,
       taskId: entry.taskId ?? null,
       dispatchGeneration: Number(entry.dispatchGeneration ?? 0),
-      publishCount: Number(entry.publishCount ?? 0),
       publishedAt: entry.publishedAt ?? null,
       terminalAt: entry.terminalAt ?? null,
     })),
@@ -1898,9 +1894,18 @@ function r9SemanticStallDisposition(snapshot, nowMs = Date.now()) {
 
 function formatR9SemanticProgress(snapshot) {
   const tasks = (snapshot?.tasks ?? [])
-    .map((task) => `${task.agentId}=${task.status}(a${Number(task.attempt ?? 0)}/g${Number(task.dispatchGeneration ?? 0)})`)
+    .map((task) => {
+      const dependencies = (task.dependencies ?? []).length > 0
+        ? ` deps=${(task.dependencies ?? []).join("+")}`
+        : "";
+      return `${task.agentId}=${task.status}(a${Number(task.attempt ?? 0)}/g${Number(task.dispatchGeneration ?? 0)})${dependencies}`;
+    })
     .join(",");
-  return `run=${snapshot?.run?.status ?? "missing"} topology=${snapshot?.run?.bootstrapTopologyState ?? "unknown"} tasks=[${tasks}] pendingResults=${snapshot?.pendingResults?.length ?? 0} outbox=${snapshot?.outbox?.length ?? 0}`;
+  const latestReconcileFailure = (snapshot?.events ?? []).find((event) => event.type === "runtime.reconcile_failed");
+  const reconcileFailure = latestReconcileFailure
+    ? ` reconcileFailure=${String(latestReconcileFailure.payload?.code ?? latestReconcileFailure.payload?.message ?? "unknown").slice(0, 180)}`
+    : "";
+  return `run=${snapshot?.run?.status ?? "missing"} topology=${snapshot?.run?.bootstrapTopologyState ?? "unknown"} tasks=[${tasks}] pendingResults=${snapshot?.pendingResults?.length ?? 0} outbox=${snapshot?.outbox?.length ?? 0}${reconcileFailure}`;
 }
 
 async function r9() {
