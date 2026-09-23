@@ -260,7 +260,12 @@ test("R9 fails fast on terminal failure or semantic no-progress before the proce
   assert.match(qualification, /function r9SemanticProgressFingerprint/u);
   assert.match(qualification, /function r9SemanticStallDisposition/u);
   assert.match(qualification, /longRunningTasks/u);
-  assert.match(qualification, /stallEligible: longRunningTasks\.length === 0 && !reconcileLeaseActive/u);
+  assert.match(qualification, /scheduledRetries/u);
+  assert.match(qualification, /retryNotBefore/u);
+  assert.match(
+    qualification,
+    /stallEligible: longRunningTasks\.length === 0 && scheduledRetries\.length === 0 && !reconcileLeaseActive/u,
+  );
   assert.match(r9, /semanticSnapshot/u);
   assert.match(r9, /latestAgentEventPayload\(runId, "opencode\.failure"/u);
   assert.match(r9, /opencodeFailure/u);
