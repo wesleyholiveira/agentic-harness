@@ -113,6 +113,11 @@ export async function prepareIsolatedOpenCodeAttemptEnv({ manifestPath, attempt,
   };
   delete isolatedEnv.OPENCODE_CONFIG;
   delete isolatedEnv.OPENCODE_CONFIG_DIR;
+  // Runtime model routing owns the provider/model choice. A parent shell or
+  // consumer project must not redirect or freeze the OpenCode model catalog.
+  delete isolatedEnv.OPENCODE_DISABLE_MODELS_FETCH;
+  delete isolatedEnv.OPENCODE_MODELS_PATH;
+  delete isolatedEnv.OPENCODE_MODELS_URL;
   // Pure mode suppresses only external plugins. Keep OpenCode's built-in
   // CodexAuthPlugin authoritative for ChatGPT OAuth even if a parent process
   // happened to disable default plugins.
@@ -133,6 +138,89 @@ export async function prepareIsolatedOpenCodeAttemptEnv({ manifestPath, attempt,
 
 function emitRuntimeEvent(type, payload = {}) {
   process.stderr.write(`${RUNTIME_EVENT_PREFIX}${JSON.stringify({ type, payload })}\n`);
+}
+
+function qualifiedOpenCodeModel(value) {
+  const normalized = String(value ?? "").trim();
+  const slash = normalized.indexOf("/");
+  if (slash <= 0 || slash === normalized.length - 1) {
+    throw new Error(`opencode_qualified_model_required:${normalized || "missing"}`);
+  }
+  return {
+    qualified: normalized,
+    providerId: normalized.slice(0, slash),
+    modelId: normalized.slice(slash + 1),
+  };
+}
+
+function openCodeModelListContains(stdout, qualified) {
+  return stripAnsi(stdout)
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .some((line) => line === qualified);
+}
+
+export async function ensureOpenCodeModelAvailable({
+  model,
+  workspace,
+  env,
+  runtimeConfigContent = null,
+  timeoutMs = 20_000,
+  run = runProcess,
+} = {}) {
+  const selected = qualifiedOpenCodeModel(model);
+  const invocation = resolveOpenCodeInvocation(env);
+  const probeEnv = {
+    ...env,
+    ...(runtimeConfigContent ? { OPENCODE_CONFIG_CONTENT: runtimeConfigContent } : {}),
+    OPENCODE_PERMISSION: JSON.stringify({ question: "deny" }),
+    OPENCODE_LOG_LEVEL: "ERROR",
+  };
+  const invoke = async (refresh) => {
+    const args = [
+      ...invocation.prefixArgs,
+      "--pure",
+      "models",
+      selected.providerId,
+      ...(refresh ? ["--refresh"] : []),
+    ];
+    const result = await run(invocation.command, args, {
+      cwd: workspace,
+      env: probeEnv,
+      timeoutMs,
+    });
+    return {
+      status: result.status,
+      timedOut: Boolean(result.timedOut),
+      available: result.status === 0
+        && !result.timedOut
+        && openCodeModelListContains(result.stdout ?? "", selected.qualified),
+      stdoutBytes: Buffer.byteLength(result.stdout ?? ""),
+      stderrBytes: Buffer.byteLength(result.stderr ?? ""),
+    };
+  };
+
+  const local = await invoke(false);
+  if (local.available) {
+    return {
+      ...selected,
+      available: true,
+      refreshAttempted: false,
+      source: "active-provider-cache",
+      local,
+      refresh: null,
+    };
+  }
+
+  const refresh = await invoke(true);
+  return {
+    ...selected,
+    available: refresh.available,
+    refreshAttempted: true,
+    source: refresh.available ? "models-dev-refresh" : "unavailable-after-refresh",
+    local,
+    refresh,
+  };
 }
 
 export function resolveQualificationProcessLossBoundary({ brief, resumeCheckpoint = null, env = process.env } = {}) {
@@ -729,7 +817,49 @@ async function main() {
       skippedFullAgentInvocation: true,
     });
   } else {
-    emitRuntimeEvent("opencode.launching", { agentId: String(args.agentId), modelId: String(args.model) });
+    const runtimeConfigContent = JSON.stringify(runtimeAgentOverride);
+    const modelCatalog = await ensureOpenCodeModelAvailable({
+      model: String(args.model),
+      workspace,
+      env: openCodeEnv,
+      runtimeConfigContent,
+    });
+    emitRuntimeEvent("opencode.model_catalog", {
+      modelId: modelCatalog.qualified,
+      providerId: modelCatalog.providerId,
+      providerModelId: modelCatalog.modelId,
+      available: modelCatalog.available,
+      refreshAttempted: modelCatalog.refreshAttempted,
+      source: modelCatalog.source,
+      localStatus: modelCatalog.local.status,
+      localTimedOut: modelCatalog.local.timedOut,
+      refreshStatus: modelCatalog.refresh?.status ?? null,
+      refreshTimedOut: modelCatalog.refresh?.timedOut ?? false,
+    });
+    if (!modelCatalog.available) {
+      emitRuntimeEvent("opencode.failure", {
+        status: modelCatalog.refresh?.status ?? modelCatalog.local.status,
+        signal: null,
+        timedOut: Boolean(modelCatalog.refresh?.timedOut ?? modelCatalog.local.timedOut),
+        aborted: false,
+        source: "model-catalog-preflight",
+        sessionId: null,
+        errorName: "ProviderModelNotFoundError",
+        errorCode: "model_unavailable_after_refresh",
+        errorRef: null,
+        errorMessage: `Model unavailable in active provider after models.dev refresh: ${modelCatalog.qualified}`,
+        providerId: modelCatalog.providerId,
+        modelId: modelCatalog.modelId,
+        serverLogExcerpt: null,
+      });
+      throw new Error(`opencode_model_unavailable_after_refresh:${modelCatalog.qualified}`);
+    }
+
+    emitRuntimeEvent("opencode.launching", {
+      agentId: String(args.agentId),
+      modelId: String(args.model),
+      modelCatalogSource: modelCatalog.source,
+    });
     let sessionProbe = "";
     let observedSessionId = null;
     const openCodeInvocation = resolveOpenCodeInvocation(openCodeEnv);
@@ -738,7 +868,7 @@ async function main() {
       timeoutMs: Number(process.env.AGENT_HARNESS_AGENT_TASK_TIMEOUT_MS ?? 3_600_000),
       env: {
         ...openCodeEnv,
-        OPENCODE_CONFIG_CONTENT: JSON.stringify(runtimeAgentOverride),
+        OPENCODE_CONFIG_CONTENT: runtimeConfigContent,
         OPENCODE_PERMISSION: JSON.stringify({ question: "deny" }),
         OPENCODE_PRINT_LOGS: "1",
         OPENCODE_LOG_LEVEL: "ERROR",
