@@ -222,6 +222,25 @@ test("qualification owns RabbitMQ credentials instead of inheriting product envi
 });
 
 
+test("R-4 proves Context Engine Git source authority before semantic task preparation", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const dockerfile = readFileSync(resolve(root, "apps/context-engine/Dockerfile"), "utf8");
+
+  assert.match(dockerfile, /apk add --no-cache git/u);
+  assert.match(controller, /"r4-context-engine-git-version"/u);
+  assert.match(
+    controller,
+    /"context-engine", "git", "-C", "\/workspace\/repository", "rev-parse", "--show-toplevel"/u,
+  );
+  assert.match(
+    controller,
+    /"context-engine", "git", "-C", "\/workspace\/repository", "rev-parse", "--verify", "HEAD\^\{commit\}"/u,
+  );
+  assert.match(controller, /context_engine_git_missing/u);
+  assert.match(controller, /context_engine_committed_source_authority_mismatch/u);
+  assert.match(controller, /contextEngineGit/u);
+});
+
 test("R-4 proves Context Engine and Runtime worker share the same execution-workspace volume authority", () => {
   const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
   assert.match(controller, /const workspaceDestination = "\/workspace\/agent-workspaces"/);
