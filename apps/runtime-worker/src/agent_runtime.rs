@@ -1138,7 +1138,7 @@ async fn observe_runtime_event(
     session: &Arc<Mutex<Option<String>>>,
     runtime_events: &Arc<Mutex<Vec<serde_json::Value>>>,
 ) {
-    const PREFIX: &str = "@@agent-harness-runtime-event ";
+    const PREFIX: &str = "@@agentic-harness-runtime-event ";
     const MAX_BUFFERED_RUNTIME_EVENTS: usize = 256;
     let Some(raw) = line.strip_prefix(PREFIX) else {
         return;
@@ -2440,6 +2440,43 @@ pub async fn run(config: Config, concurrency: u16) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn canonical_runtime_event_prefix_is_observed_and_buffered() {
+        let session = Arc::new(Mutex::new(None));
+        let events = Arc::new(Mutex::new(Vec::<serde_json::Value>::new()));
+        observe_runtime_event(
+            "@@agentic-harness-runtime-event {\"type\":\"opencode.failure\",\"payload\":{\"errorRef\":\"err_deadbeef\",\"serverLogExcerpt\":\"cause\"}}",
+            &session,
+            &events,
+        )
+        .await;
+        let buffered = events.lock().await.clone();
+        assert_eq!(buffered.len(), 1);
+        assert_eq!(
+            buffered[0].get("type").and_then(|value| value.as_str()),
+            Some("opencode.failure")
+        );
+        assert_eq!(
+            buffered[0]
+                .pointer("/payload/errorRef")
+                .and_then(|value| value.as_str()),
+            Some("err_deadbeef")
+        );
+    }
+
+    #[tokio::test]
+    async fn legacy_truncated_runtime_event_prefix_is_not_authoritative() {
+        let session = Arc::new(Mutex::new(None));
+        let events = Arc::new(Mutex::new(Vec::<serde_json::Value>::new()));
+        observe_runtime_event(
+            "@@agent-harness-runtime-event {\"type\":\"opencode.failure\",\"payload\":{\"errorRef\":\"err_wrong\"}}",
+            &session,
+            &events,
+        )
+        .await;
+        assert!(events.lock().await.is_empty());
+    }
 
     #[test]
     fn envelope_contract_is_id_only() {
