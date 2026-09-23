@@ -689,6 +689,40 @@
       "qualificationHarnessBug": true,
       "rootCauseResolved": false,
       "status": "semantic-progress-watchdog-fixed-production-root-cause-pending-exact-sha-rerun"
+    },
+    {
+      "gate": "R-1/contracts",
+      "candidate": "99d6e8859660378040938a58d6038ddb831eb81c",
+      "runId": "standalone-v1-1790140282302-571e5b267ac6",
+      "observed": {
+        "qEntry": "PASS",
+        "preR0": "PASS",
+        "r0": "PASS",
+        "r1": "HOLD",
+        "tests": 490,
+        "pass": 488,
+        "fail": 2,
+        "failedContracts": [
+          "standalone R-9 arms an exact repair checkpoint, forces lease expiry, and evaluates replacement identity",
+          "R-9 proves process-loss fault projection before launching the semantic run and fails closed on missing boundary"
+        ],
+        "downstreamR2ToR9": "NOT RUN",
+        "cleanupR11": "PASS"
+      },
+      "rootCause": [
+        "qualification-controller static contracts still asserted the pre-watchdog textual form repairKind !== qualification-process-loss and checkpoint.status !== repair-started",
+        "the progress-aware R-9 implementation now accepts the exact checkpoint through positive equality predicates",
+        "the old projection contract still required a boundaryEvents local variable removed when the authoritative semanticSnapshot replaced the narrow timeout evidence"
+      ],
+      "correction": [
+        "assert the exact positive checkpoint contractVersion/repairKind/status/qualificationBoundary predicates now used by R-9",
+        "assert r9SemanticSnapshot plus semanticSnapshot evidence instead of the deleted boundaryEvents projection",
+        "retain explicit qualification.process_loss_boundary_ready and runtime.reconcile_failed event coverage so the contract remains fail-closed"
+      ],
+      "productionLogicBug": false,
+      "qualificationHarnessBug": true,
+      "rootCauseResolved": true,
+      "status": "fixed-in-contracts-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -806,5 +840,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R0_THROUGH_R6_PASS_OAUTH_AND_LUNA_PROVEN_R9_SEMANTIC_PROGRESS_WATCHDOG_PENDING_EXACT_SHA_RERUN"
+  "greenAfterFix": "R1_CONTRACT_DRIFT_FIXED_PROGRESS_AWARE_R9_EXACT_SHA_RERUN_PENDING"
 }
