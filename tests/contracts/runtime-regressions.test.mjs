@@ -49,6 +49,17 @@ test("stalled executor output draining is bounded so inherited pipes cannot hold
   assert.match(worker, /drain_executor_output\(stderr_task, "stderr", claimed, client\)\.await/);
 });
 
+test("Runtime event wire prefix is identical across JS emitters and Rust consumer", () => {
+  const opencodeExecutor = source("scripts/internal/opencode-task-executor.mjs");
+  const legacyExecutor = source(".agents/runtime/executor.mjs");
+  const rustWorker = source("apps/runtime-worker/src/agent_runtime.rs");
+  const canonical = "@@agentic-harness-runtime-event ";
+  assert.ok(opencodeExecutor.includes(canonical));
+  assert.ok(legacyExecutor.includes(canonical));
+  assert.ok(rustWorker.includes(canonical));
+  assert.doesNotMatch(rustWorker, /@@agent-harness-runtime-event /u);
+});
+
 test("OpenCode failure runtime event is persisted by the semantic finalizer", () => {
   const finalizer = source(".agents/runtime/event-driven-finalizer.mjs");
   assert.match(finalizer, /"opencode\.failure"/u);
