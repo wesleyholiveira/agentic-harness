@@ -151,6 +151,32 @@ test("OpenCode selected-model preflight fails closed when refresh still omits ro
   assert.equal(result.source, "unavailable-after-refresh");
 });
 
+test("OpenCode provider model misses are deterministic non-retryable failures", async () => {
+  const { classifyValidationFailure } = await import("../../.agents/runtime/executor.mjs");
+  for (const stderr of [
+    "Error: opencode_model_unavailable_after_refresh:openai/gpt-5.6-luna",
+    "ProviderModelNotFoundError: Model not found: openai/gpt-5.6-luna",
+  ]) {
+    const failure = classifyValidationFailure({
+      result: {
+        status: 1,
+        timedOut: false,
+        softTimedOut: false,
+        stalled: false,
+        stderr,
+        stdout: "",
+        error: null,
+      },
+      preTeardownHealth: null,
+      dockerBlocked: null,
+      lifecycleUsed: false,
+    });
+    assert.equal(failure.code, "opencode_provider_model_not_found");
+    assert.equal(failure.retryable, false);
+    assert.equal(failure.category, "provider");
+  }
+});
+
 test("OpenCode nonzero JSON failure is reduced to redacted structured evidence", async () => {
   const { summarizeOpenCodeFailure } = await import("../../scripts/internal/opencode-task-executor.mjs");
   const stdout = JSON.stringify({
