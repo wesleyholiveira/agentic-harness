@@ -255,6 +255,7 @@ test("R9 fails fast on terminal failure or semantic no-progress before the proce
   assert.match(qualification, /function r9SemanticSnapshot\(runId\)/u);
   assert.match(qualification, /'pendingResults'/u);
   assert.match(qualification, /'outbox'/u);
+  assert.match(qualification, /'lastErrorPresent'/u);
   assert.match(qualification, /'bootstrapTopologyState'/u);
   assert.match(qualification, /'reconcileLeaseOwner'/u);
   assert.match(qualification, /function r9SemanticProgressFingerprint/u);
