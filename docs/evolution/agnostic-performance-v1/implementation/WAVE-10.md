@@ -1322,6 +1322,58 @@ This moves the proof of the semantic controller's Git/source authority to the
 earliest live Runtime gate. A missing Git executable or an invalid repository
 mount can no longer survive until Technical Refinement in R-9.
 
+## R-9 physical behavior-window observation correction
+
+Scoped qualification `standalone-v1-1790143830295-93b5d096be8c` on exact
+candidate `38ca7013be090f8dd90bfeb2a759c5993090ccaf` proved the previous
+Context Engine Git correction and advanced the fault boundary materially:
+
+- R-4 proved Git `2.54.0` inside Context Engine, exact
+  `/workspace/repository` top-level authority and exact consumer HEAD;
+- Product Discovery integrated;
+- Architecture Governance integrated;
+- Technical Refinement reached `running(a1/g1)`;
+- the durable process-loss checkpoint and `behavior.gateway.started` boundary
+  were reached;
+- R-9 then failed only while waiting 30 seconds for the named physical behavior
+  container to report `Running`.
+
+The qualification assumption at that point was too strong.
+`behavior.gateway.started` is persisted by the Rust worker immediately before
+`invoke_gateway()`; it does **not** mean the Docker behavior process has
+started. The gateway still performs committed-source loading, workspace
+binding, runner materialization, image attestation and toolchain verification
+before launching `docker run`.
+
+Those pre-container probes themselves have legal timeout envelopes of roughly
+20 seconds for materialization, 10 seconds for attestation and 60 seconds for
+toolchain verification. A 30-second physical-container observation window can
+therefore fail against a healthy but slow gateway. Conversely, if the gateway
+returns HOLD/FAILED during those probes, the old qualification waited for a
+container that would never be created and then discarded the exact terminal
+gateway status.
+
+Correction:
+- race exact named-container `Running` against the matching
+  `behavior.gateway.completed` event;
+- if the gateway terminates first, fail immediately with its exact status/code
+  and semantic snapshot;
+- use a 120-second bounded container-start observation so the qualification
+  budget exceeds the gateway's pre-container probe envelope;
+- on timeout, retain source `behavior.gateway.started`, exact matching
+  completion if any, gateway liveness/restart identity and the full R-9 semantic
+  snapshot;
+- add `behavior.gateway.started` and `behavior.gateway.completed` to the
+  semantic snapshot event catalog;
+- apply the same terminal-aware 120-second observation contract to the
+  replacement behavior after worker recovery.
+
+This correction does not claim that the gateway itself failed in the observed
+run. The old report did not preserve `behavior.gateway.completed`, so that
+outcome is not recoverable from the qualification report. The next exact-SHA
+run will distinguish a slow-but-valid preflight from an actual gateway HOLD
+without another opaque procedure timeout.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
