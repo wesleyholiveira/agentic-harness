@@ -17,6 +17,7 @@ import {
 } from "./repair-checkpoint.mjs";
 
 const BUFFERED_PERFORMANCE_EVENT_TYPES = new Set([
+  "opencode.model_catalog",
   "opencode.launching",
   "opencode.spawned",
   "opencode.completed",
