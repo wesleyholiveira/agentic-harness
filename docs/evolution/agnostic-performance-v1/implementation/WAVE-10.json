@@ -482,7 +482,7 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
-    "exact-SHA scoped R-9 rerun proving live worker OpenCode version and either Product Discovery progress or a redacted errorRef-correlated internal cause",
+    "exact-SHA scoped R-9 rerun proving canonical cross-language Runtime events persist and exposing full redacted opencodeFailure.serverLogExcerpt if Product Discovery still fails",
     "exact-SHA scoped R-9 physical Rust worker loss while behavior execution is in-flight",
     "normal non-behavior model task restricted-UID runtime regression",
     "full existing Runtime/cache/memory/model-routing/continuation regression qualification",
@@ -560,6 +560,18 @@
       "qualificationHarnessBug": true,
       "rootCauseResolved": false,
       "status": "server-log-diagnostic-closure-pending-exact-sha-rerun"
+    },
+    {
+      "observedOnCandidate": "69ea9f72335cb496c8e03ee3115c2d2cde095ae0",
+      "gate": "wave10-worker-loss/R-9",
+      "runId": "standalone-v1-1790128717557-b9c4c026224d",
+      "observed": "Q-ENTRY through R-6 passed; R-4 proved workerOpenCodeVersion=1.18.32; Product Discovery still failed 3/3 attempts under pure/config-isolated OpenCode with UnknownError errorRef err_5b7f2078. serverLogExcerpt was generated but truncated inside task error evidence before the underlying cause became visible.",
+      "rootCause": "cross-language Runtime event wire contract mismatch: JS emitters use @@agentic-harness-runtime-event while the Rust worker parser expected @@agent-harness-runtime-event, so structured child events were never buffered/persisted and only the bounded stderr summary survived",
+      "correction": "align Rust to the canonical JS prefix; test session.observed and opencode.failure across the Rust parser; reject the legacy typo; surface persisted opencode.failure directly in R-9 evidence",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": true,
+      "rootCauseResolved": false,
+      "status": "wire-contract-fixed-pending-exact-sha-rerun"
     }
   ],
   "hardening": [
@@ -570,6 +582,9 @@
     "restricted model OpenCode execution uses pure mode and disables consumer project config while retaining Runtime-owned OPENCODE_CONFIG_CONTENT",
     "restricted model XDG config/cache/data/state are isolated below the attempt Runtime state root",
     "OpenCode ERROR logs remain internal; only redacted errorRef-correlated evidence is persisted",
-    "R-4 proves the live OpenCode version inside agent-runtime-worker"
+    "R-4 proves the live OpenCode version inside agent-runtime-worker",
+    "Rust and JS child-runtime event transport use a single canonical @@agentic-harness-runtime-event prefix",
+    "canonical Runtime event parsing updates OpenCode session identity and buffers structured failure telemetry",
+    "R-9 queries persisted opencode.failure directly so long task stderr cannot truncate root-cause evidence"
   ]
 }
