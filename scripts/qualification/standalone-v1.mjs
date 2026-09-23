@@ -802,6 +802,35 @@ async function r4() {
     containerEvidence[service] = { id, pid: inspect.State?.Pid, health: inspect.State?.Health?.Status ?? "running", restartCount: inspect.RestartCount ?? 0 };
   }
 
+  const contextEngineGitVersion = composeCommand(
+    ["exec", "-T", "context-engine", "git", "--version"],
+    { label: "r4-context-engine-git-version", timeoutMs: 30_000 },
+  ).stdout.trim();
+  if (!/^git version\s+\d+\.\d+/u.test(contextEngineGitVersion)) {
+    hold("R-4", "SOURCE", "context_engine_git_missing", {
+      actual: contextEngineGitVersion || null,
+    });
+  }
+
+  const expectedConsumerCommit = gitText(state.consumers.A, ["rev-parse", "--verify", "HEAD^{commit}"]);
+  const contextEngineRepositoryRoot = composeCommand(
+    ["exec", "-T", "context-engine", "git", "-C", "/workspace/repository", "rev-parse", "--show-toplevel"],
+    { label: "r4-context-engine-git-root", timeoutMs: 30_000 },
+  ).stdout.trim();
+  const contextEngineRepositoryCommit = composeCommand(
+    ["exec", "-T", "context-engine", "git", "-C", "/workspace/repository", "rev-parse", "--verify", "HEAD^{commit}"],
+    { label: "r4-context-engine-git-head", timeoutMs: 30_000 },
+  ).stdout.trim();
+  if (contextEngineRepositoryRoot !== "/workspace/repository"
+      || contextEngineRepositoryCommit !== expectedConsumerCommit) {
+    hold("R-4", "SOURCE", "context_engine_committed_source_authority_mismatch", {
+      expectedRoot: "/workspace/repository",
+      actualRoot: contextEngineRepositoryRoot || null,
+      expectedCommit: expectedConsumerCommit,
+      actualCommit: contextEngineRepositoryCommit || null,
+    });
+  }
+
   const workerOpenCodeVersion = composeCommand(
     ["exec", "-T", "agent-runtime-worker", "opencode", "--version"],
     { label: "r4-worker-opencode-version", timeoutMs: 30_000 },
@@ -910,6 +939,11 @@ async function r4() {
   return {
     composeProject: state.composeProject.name,
     services: containerEvidence,
+    contextEngineGit: {
+      version: contextEngineGitVersion,
+      repositoryRoot: contextEngineRepositoryRoot,
+      repositoryCommit: contextEngineRepositoryCommit,
+    },
     workerOpenCodeVersion,
     workerOpenCodeAuth,
     qualificationOpenCodeAuthProjection: {
