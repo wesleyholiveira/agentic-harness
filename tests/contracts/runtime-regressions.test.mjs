@@ -470,6 +470,14 @@ test("restricted OpenCode provider preflight owns auth, refresh and fresh-proces
   assert.match(executor, /opencode_model_unavailable_after_refresh_reload/u);
 });
 
+test("event-driven scheduler does not create semantic progress from no-op peak bookkeeping", () => {
+  const reconciler = source(".agents/runtime/event-driven-reconciler.mjs");
+  assert.match(reconciler, /const currentPeak = Number\(\(await store\.getRun\(plan\.runId\)\)\?\.peak_parallel \?\? 0\)/u);
+  assert.match(reconciler, /if \(peak > currentPeak\) await store\.updateRun\(plan\.runId, \{ peak_parallel: peak \}\)/u);
+  assert.doesNotMatch(reconciler, /if \(peak > 0\) await store\.updateRun\(plan\.runId, \{ peak_parallel: peak \}\)/u);
+  assert.match(reconciler, /scheduler_ready_task_missing_plan/u);
+});
+
 test("runtime-worker image packages the full JS dependency closure required by technical plan synthesis", () => {
   const dockerfile = source("apps/runtime-worker/Dockerfile");
   assert.match(dockerfile, /COPY packages \.\/packages/u);
