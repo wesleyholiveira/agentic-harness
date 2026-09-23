@@ -652,6 +652,7 @@
     "R-9 pre-boundary watchdog is progress-aware and preserves legitimate running/reconcile/backoff waits",
     "R-9 semantic snapshot contains all tasks/dependencies, pending results, reconcile state, outbox and bootstrap events",
     "R-9 true no-progress fails after 180 seconds instead of silently consuming the 20-minute safety ceiling",
-    "R-9 prints compact semantic progress every 30 seconds"
+    "R-9 prints compact semantic progress every 30 seconds",
+    "R-9 Runtime outbox snapshot records lastError presence only and never persists raw outbox error text"
   ]
 }
