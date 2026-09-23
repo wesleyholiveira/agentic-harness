@@ -1090,8 +1090,9 @@ Correction:
    `type=oauth`, non-empty `access` and `refresh`, and non-negative integer
    `expires`;
 3. materialize a qualification-owned `auth.json` containing only the
-   `openai` credential under the qualification output directory with mode
-   `0600`;
+   `openai` credential under a dedicated temporary directory with mode `0600`;
+   the directory is removed during qualification cleanup/R-11 and is never part
+   of the persisted report output;
 4. inject that temporary path as
    `AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE` before `harness up` /
    Docker Compose;
