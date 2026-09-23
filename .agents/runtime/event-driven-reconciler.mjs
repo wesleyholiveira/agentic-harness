@@ -359,7 +359,11 @@ async function dispatchReadyTasks(input, plan, tasks, states) {
   const preparationStartedAt = Date.now();
   const preparedResults = await Promise.all(selection.ready.map(async (row) => {
     const taskPlan = plans.get(row.task_id);
-    if (!taskPlan) return null;
+    if (!taskPlan) {
+      const error = new Error(`scheduler_ready_task_missing_plan:${row.task_id}`);
+      error.code = "scheduler_ready_task_missing_plan";
+      throw error;
+    }
     const topologyReady = bootstrapTopologyReadyForTask(plan, taskPlan);
     const decision = options.policyEngine.evaluateDispatch({
       runStatus, taskStatus: row.status, dependenciesSatisfied: true, retryWindowOpen: retryWindowOpen(row), topologyReady,
@@ -424,9 +428,11 @@ async function dispatchReadyTasks(input, plan, tasks, states) {
     }
     dispatched += 1;
   }
-  const peak = Math.max(Number((await store.getRun(plan.runId))?.peak_parallel ?? 0), selection.active + dispatched);
-  if (peak > 0) await store.updateRun(plan.runId, { peak_parallel: peak });
-  return { dispatched, active: selection.active + dispatched };
+  const currentPeak = Number((await store.getRun(plan.runId))?.peak_parallel ?? 0);
+  const observedParallel = selection.active + dispatched;
+  const peak = Math.max(currentPeak, observedParallel);
+  if (peak > currentPeak) await store.updateRun(plan.runId, { peak_parallel: peak });
+  return { dispatched, active: observedParallel };
 }
 
 export async function reconcileRun({ repositoryRoot, registry, schemas, plan: suppliedPlan, store, options, ownerId = `semantic-controller:${process.pid}` }) {
