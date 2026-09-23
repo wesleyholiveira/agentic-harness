@@ -1774,7 +1774,7 @@ function r9SemanticSnapshot(runId) {
             'publishedAt', published_at,
             'terminalAt', terminal_at,
             'terminalReason', terminal_reason,
-            'lastError', last_error
+            'lastErrorPresent', last_error IS NOT NULL
           ) AS entry
           FROM agent_runtime_outbox
           WHERE run_id='${id}'
