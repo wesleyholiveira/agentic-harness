@@ -2446,19 +2446,30 @@ mod tests {
         let session = Arc::new(Mutex::new(None));
         let events = Arc::new(Mutex::new(Vec::<serde_json::Value>::new()));
         observe_runtime_event(
+            "@@agentic-harness-runtime-event {\"type\":\"opencode.session.observed\",\"payload\":{\"sessionId\":\"ses_wire\"}}",
+            &session,
+            &events,
+        )
+        .await;
+        observe_runtime_event(
             "@@agentic-harness-runtime-event {\"type\":\"opencode.failure\",\"payload\":{\"errorRef\":\"err_deadbeef\",\"serverLogExcerpt\":\"cause\"}}",
             &session,
             &events,
         )
         .await;
+        assert_eq!(session.lock().await.as_deref(), Some("ses_wire"));
         let buffered = events.lock().await.clone();
-        assert_eq!(buffered.len(), 1);
+        assert_eq!(buffered.len(), 2);
         assert_eq!(
             buffered[0].get("type").and_then(|value| value.as_str()),
+            Some("opencode.session.observed")
+        );
+        assert_eq!(
+            buffered[1].get("type").and_then(|value| value.as_str()),
             Some("opencode.failure")
         );
         assert_eq!(
-            buffered[0]
+            buffered[1]
                 .pointer("/payload/errorRef")
                 .and_then(|value| value.as_str()),
             Some("err_deadbeef")
