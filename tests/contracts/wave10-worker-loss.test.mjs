@@ -259,7 +259,15 @@ test("R9 fails fast on terminal failure or semantic no-progress before the proce
   assert.match(qualification, /'bootstrapTopologyState'/u);
   assert.match(qualification, /'reconcileLeaseOwner'/u);
   assert.match(qualification, /function r9SemanticProgressFingerprint/u);
+  assert.doesNotMatch(
+    qualification.slice(
+      qualification.indexOf("function r9SemanticProgressFingerprint"),
+      qualification.indexOf("function r9SemanticStallDisposition"),
+    ),
+    /stateVersion|reconcileGeneration|publishCount/u,
+  );
   assert.match(qualification, /function r9SemanticStallDisposition/u);
+  assert.match(qualification, /reconcileFailure=/u);
   assert.match(qualification, /longRunningTasks/u);
   assert.match(qualification, /scheduledRetries/u);
   assert.match(qualification, /retryNotBefore/u);
