@@ -367,6 +367,9 @@ test("qualification projects only OpenAI OAuth into the runtime worker and prove
   assert.match(qualification, /qualification_openai_oauth_credential_invalid/u);
   assert.match(qualification, /JSON\.stringify\(\{ openai: credential \}, null, 2\)/u);
   assert.match(qualification, /mode: 0o600/u);
+  assert.match(qualification, /mkdtempSync\(join\(tmpdir\(\), "agentic-harness-opencode-auth-"/u);
+  assert.match(qualification, /state\.opencodeAuthProjection\.directory/u);
+  assert.match(qualification, /rmSync\(state\.opencodeAuthProjection\.directory/u);
   assert.match(
     qualification,
     /AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE: opencodeAuthProjection\.path/u,
