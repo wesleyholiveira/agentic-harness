@@ -71,10 +71,84 @@ test("Runtime event wire prefix is identical across JS emitters and Rust consume
   );
 });
 
-test("OpenCode failure runtime event is persisted by the semantic finalizer", () => {
+test("OpenCode model-catalog and failure runtime events are persisted by the semantic finalizer", () => {
   const finalizer = source(".agents/runtime/event-driven-finalizer.mjs");
+  assert.match(finalizer, /"opencode\.model_catalog"/u);
   assert.match(finalizer, /"opencode\.failure"/u);
   assert.match(finalizer, /BUFFERED_PERFORMANCE_EVENT_TYPES/u);
+});
+
+test("OpenCode selected-model preflight avoids refresh on active-provider hit", async () => {
+  const { ensureOpenCodeModelAvailable } = await import("../../scripts/internal/opencode-task-executor.mjs");
+  const calls = [];
+  const result = await ensureOpenCodeModelAvailable({
+    model: "openai/gpt-5.6-luna",
+    workspace: root,
+    env: {},
+    run: async (command, args) => {
+      calls.push({ command, args });
+      return {
+        status: 0,
+        timedOut: false,
+        stdout: "openai/gpt-5.4\nopenai/gpt-5.6-luna\n",
+        stderr: "",
+      };
+    },
+  });
+  assert.equal(result.available, true);
+  assert.equal(result.refreshAttempted, false);
+  assert.equal(result.source, "active-provider-cache");
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].args, ["--pure", "models", "openai"]);
+});
+
+test("OpenCode selected-model preflight refreshes stale provider state once and revalidates", async () => {
+  const { ensureOpenCodeModelAvailable } = await import("../../scripts/internal/opencode-task-executor.mjs");
+  const calls = [];
+  const outputs = [
+    "openai/gpt-5.4\n",
+    "Models cache refreshed\nopenai/gpt-5.4\nopenai/gpt-5.6-luna\n",
+  ];
+  const result = await ensureOpenCodeModelAvailable({
+    model: "openai/gpt-5.6-luna",
+    workspace: root,
+    env: {},
+    runtimeConfigContent: JSON.stringify({ default_agent: "product-owner" }),
+    run: async (command, args, options) => {
+      calls.push({ command, args, env: options.env });
+      return {
+        status: 0,
+        timedOut: false,
+        stdout: outputs[calls.length - 1],
+        stderr: "",
+      };
+    },
+  });
+  assert.equal(result.available, true);
+  assert.equal(result.refreshAttempted, true);
+  assert.equal(result.source, "models-dev-refresh");
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0].args, ["--pure", "models", "openai"]);
+  assert.deepEqual(calls[1].args, ["--pure", "models", "openai", "--refresh"]);
+  assert.equal(calls[1].env.OPENCODE_CONFIG_CONTENT, JSON.stringify({ default_agent: "product-owner" }));
+});
+
+test("OpenCode selected-model preflight fails closed when refresh still omits routed model", async () => {
+  const { ensureOpenCodeModelAvailable } = await import("../../scripts/internal/opencode-task-executor.mjs");
+  const result = await ensureOpenCodeModelAvailable({
+    model: "openai/gpt-5.6-luna",
+    workspace: root,
+    env: {},
+    run: async () => ({
+      status: 0,
+      timedOut: false,
+      stdout: "openai/gpt-5.4\n",
+      stderr: "",
+    }),
+  });
+  assert.equal(result.available, false);
+  assert.equal(result.refreshAttempted, true);
+  assert.equal(result.source, "unavailable-after-refresh");
 });
 
 test("OpenCode nonzero JSON failure is reduced to redacted structured evidence", async () => {
@@ -235,7 +309,14 @@ test("restricted model OpenCode state is rooted in Runtime-owned ephemeral HOME,
   assert.match(executor, /OPENCODE_DISABLE_PROJECT_CONFIG: "1"/u);
   assert.match(executor, /delete isolatedEnv\.OPENCODE_CONFIG/u);
   assert.match(executor, /delete isolatedEnv\.OPENCODE_CONFIG_DIR/u);
+  assert.match(executor, /delete isolatedEnv\.OPENCODE_DISABLE_MODELS_FETCH/u);
+  assert.match(executor, /delete isolatedEnv\.OPENCODE_MODELS_PATH/u);
+  assert.match(executor, /delete isolatedEnv\.OPENCODE_MODELS_URL/u);
   assert.match(executor, /delete isolatedEnv\.OPENCODE_DISABLE_DEFAULT_PLUGINS/u);
+  assert.match(executor, /ensureOpenCodeModelAvailable/u);
+  assert.match(executor, /"models-dev-refresh"/u);
+  assert.match(executor, /"opencode\.model_catalog"/u);
+  assert.match(executor, /opencode_model_unavailable_after_refresh/u);
   assert.match(executor, /"--pure"/u);
   assert.match(executor, /"--print-logs"/u);
   assert.match(executor, /"--log-level", "ERROR"/u);
