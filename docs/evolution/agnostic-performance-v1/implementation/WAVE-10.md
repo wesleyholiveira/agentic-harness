@@ -1440,6 +1440,51 @@ writer in the observed run. The exact writer was not preserved. It closes the
 model-child source-root authority gap and improves evidence so a recurrent
 conflict becomes attributable rather than opaque.
 
+## R-9 qualification module-initialization ordering defect
+
+Scoped qualification `standalone-v1-1790206889388-86c9b7b23598` on exact
+candidate `18778a7978bb7d1bf6077a2d97a7298a90c61505` passed Q-ENTRY through
+R-6 and advanced R-9 far enough to execute the new source behavior
+physical-window observer. That progression also shows that the preceding
+Product copy-workspace isolation hardening no longer failed at Product
+integration in this run.
+
+R-9 then failed as a qualification-procedure error with:
+
+`ReferenceError: Cannot access 'R9_BEHAVIOR_CONTAINER_START_TIMEOUT_MS' before initialization`
+
+The defect was module execution ordering, not Runtime behavior.
+
+`standalone-v1.mjs` started its gate loop through top-level `await` near the
+top of the module. Function declarations such as `r9()` are hoisted, so R-9
+could be invoked from that early loop. However, these later module-scope
+declarations had not yet initialized:
+
+- `R9_PRE_BOUNDARY_SEMANTIC_STALL_MS`;
+- `R9_BEHAVIOR_CONTAINER_START_TIMEOUT_MS`.
+
+Those `const` bindings therefore remained in JavaScript's temporal dead zone
+until module evaluation reached their declarations. R-9 reached the physical
+window and evaluated the second binding before initialization.
+
+Correction:
+- gate execution, cleanup and report emission are now owned by
+  `executeQualification()`;
+- defining that function does not execute qualification during early module
+  evaluation;
+- `await executeQualification()` is the final module statement, after all
+  module-scope constants and function declarations have initialized;
+- a qualification-controller contract requires both R-9 constants and the
+  `selfTest` declaration to occur before the final dispatcher call and
+  requires the module to end with that call.
+
+This is deliberately a structural fix rather than moving one timeout constant
+upward. Future gate constants may now be declared alongside the code that owns
+them without being observable from a prematurely executing top-level gate loop.
+
+No scheduler, Runtime worker, gateway, fencing, model-routing or project
+isolation semantics changed in this correction.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
