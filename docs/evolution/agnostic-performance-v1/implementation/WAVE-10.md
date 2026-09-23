@@ -911,6 +911,75 @@ way into `agent_events`. If Product Discovery still fails,
 bounded redacted internal OpenCode cause. If Product Discovery succeeds, R-9
 continues to the physical worker-loss boundary.
 
+## Scoped R-9 OpenAI OAuth active-provider catalog correction
+
+Scoped run `standalone-v1-1790133421264-2896f2118cef` on exact candidate
+`74f227a04445a28153499ae89542fb98a4f892f5` proved the previous Runtime
+event transport correction. Q-ENTRY, PRE-R0 and R-0 through R-6 passed, R-4
+proved live worker OpenCode `1.18.32`, and `opencode.failure` was persisted
+as an independent `agent_events` row with
+`source=rust-buffered-opencode-runtime-event`.
+
+That made the underlying OpenCode error authoritative instead of inferred.
+All three Product Discovery attempts failed before Technical Refinement with:
+
+`ProviderModelNotFoundError: Model not found: openai/gpt-5.6-luna. Did you mean: gpt-5.6-luna, gpt-5.6-luna-pro, gpt-5.6-luna-fast?`
+
+The `openai/` prefix in this message is not a duplicated model identifier.
+OpenCode 1.18.32 parses `--model openai/gpt-5.6-luna` into
+`providerID=openai` and `modelID=gpt-5.6-luna`, and
+`ProviderModelNotFoundError` formats those two values back as
+`<provider>/<model>`.
+
+The diagnostic instead proves a catalog/provider-state split:
+- the model exists in the unfiltered models.dev catalog, otherwise it could not
+  be returned as an exact suggestion;
+- the active ChatGPT OAuth provider projection used by `Provider.getModel()`
+  does not contain the model;
+- the restricted Runtime intentionally gives every attempt a fresh XDG cache;
+- in OpenCode 1.18.32, ModelsDev population loads a disk cache first and then
+  prefers the binary-embedded snapshot when the fresh cache has no
+  `models.json`; it does not automatically fetch the current remote catalog
+  merely because the cache is empty;
+- upstream `anomalyco/opencode#47490` documents the same
+  catalog-present/active-provider-missing failure class and verifies
+  `opencode models openai --refresh` followed by a fresh provider process as
+  recovery.
+
+Correction:
+- the Runtime route remains the qualified `openai/gpt-5.6-luna`; no model ID
+  rewrite or allowlist bypass is introduced;
+- immediately before the first prompt, the restricted executor runs
+  `opencode --pure models openai` in the exact attempt environment;
+- if the routed model is already present, execution proceeds without network
+  refresh;
+- only on miss, the executor runs exactly one
+  `opencode --pure models openai --refresh`;
+- the exact qualified model is revalidated after refresh;
+- the same attempt-scoped XDG cache is then reused by the main prompt and all
+  bounded structured repair/finalization calls;
+- inherited `OPENCODE_DISABLE_MODELS_FETCH`, `OPENCODE_MODELS_PATH` and
+  `OPENCODE_MODELS_URL` are removed from the restricted child so parent or
+  consumer environment cannot silently redirect/freeze catalog authority;
+- `opencode.model_catalog` records whether the selected model came from the
+  active cache or a models.dev refresh;
+- if the model remains absent after refresh, the executor fails before model
+  invocation and emits a structured `opencode.failure`;
+- persistent model-unavailable / `ProviderModelNotFoundError` failures are
+  classified non-retryable so the Runtime cannot burn three identical full
+  attempts on a deterministic provider-state miss.
+
+This preserves model-routing authority while making provider metadata
+self-healing at the narrow external-cache boundary. It does not change model
+selection, ChatGPT OAuth credentials, retry routing, MCP, behavior-gateway,
+fencing, semantic cache, ProjectMemory or continuation semantics.
+
+The next exact-SHA run must show an `opencode.model_catalog` event with
+`available=true`. On this host the expected path is a local miss followed by
+one successful `models-dev-refresh`, after which Product Discovery should
+reach the actual model request. If it still fails, the persisted
+`opencode.failure` remains the authority for the next correction.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
