@@ -980,6 +980,74 @@ one successful `models-dev-refresh`, after which Product Discovery should
 reach the actual model request. If it still fails, the persisted
 `opencode.failure` remains the authority for the next correction.
 
+## Scoped R-9 provider refresh process-boundary correction
+
+Scoped run `standalone-v1-1790135118676-f9a52b184033` on exact candidate
+`1e301d1d3ef4774245906a6b5eb8a08193481c56` proved the previous
+performance/fail-closed hardening but showed that the first catalog-refresh
+correction stopped one lifecycle boundary too early.
+
+Q-ENTRY, PRE-R0 and R-0 through R-6 passed. R-4 again proved live worker
+OpenCode `1.18.32`. Product Discovery failed on **attempt 1 only** with
+`opencode_provider_model_not_found`, `failureCategory=provider` and
+`retryable=false`. This proves the deterministic provider miss no longer burns
+the three-attempt task retry budget.
+
+The persisted catalog event was:
+
+- `modelId=openai/gpt-5.6-luna`
+- `available=false`
+- `refreshAttempted=true`
+- `localStatus=1`
+- `refreshStatus=1`
+- `source=unavailable-after-refresh`
+
+The previous implementation treated the provider/model list emitted by the
+`models openai --refresh` process itself as the final post-refresh authority.
+That is not equivalent to the upstream recovery sequence.
+
+OpenCode 1.18.32 implements the command in two distinct phases: it refreshes the
+models.dev disk cache and then obtains/lists provider state inside that command
+process. A nonzero command result can therefore conflate the cache refresh with
+a stale or inactive provider projection. Upstream
+`anomalyco/opencode#47490` explicitly reports recovery only after
+`opencode models openai --refresh` **followed by a fresh OpenCode process /
+restart**.
+
+The Runtime preflight is therefore corrected as follows:
+
+1. run `opencode --pure auth list` in the exact isolated attempt environment;
+2. record only bounded/redacted provider-level auth evidence;
+3. run a local `opencode --pure models openai` selected-model probe;
+4. on miss, execute exactly one
+   `opencode --pure models openai --refresh`;
+5. regardless of whether that refresh process can immediately list the provider,
+   start a **new** `opencode --pure models openai` process with the same
+   attempt-scoped XDG cache;
+6. use only this fresh-process revalidation as final post-refresh model
+   availability authority;
+7. persist bounded/redacted diagnostics and status for auth, local probe,
+   refresh and revalidation;
+8. distinguish two fail-closed provider failures:
+   - `ProviderAuthError / provider_credential_not_observed` when the isolated
+     child cannot see the OpenAI credential at all;
+   - `ProviderModelNotFoundError /
+     model_unavailable_after_refresh_reload` when the credential is visible but
+     the selected model is still absent after refresh plus fresh-process
+     revalidation;
+9. keep both failures non-retryable.
+
+This retains `openai/gpt-5.6-luna` as the model-routing contract and does not
+inject local model metadata or bypass the OpenCode OAuth provider filter. It
+also avoids weakening the restricted UID network policy: public egress remains
+available, while private control-plane CIDRs remain denied.
+
+The next exact-SHA run now has a decisive diagnostic surface. If auth visibility
+is false, the issue is credential projection/decoding. If auth visibility is
+true but the fresh revalidation remains status 1, its bounded diagnostic is the
+next authority. If the fresh process sees Luna, Product Discovery proceeds and
+R-9 can finally reach the physical worker-loss boundary.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
