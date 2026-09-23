@@ -1374,6 +1374,72 @@ outcome is not recoverable from the qualification report. The next exact-SHA
 run will distinguish a slow-but-valid preflight from an actual gateway HOLD
 without another opaque procedure timeout.
 
+## R-9 Product copy-workspace source-root isolation conflict
+
+Scoped qualification `standalone-v1-1790204776362-8adf2778fd76` on exact
+candidate `1d628e6e04c921ef2225086a035f3903d4fdc498` did not reach the
+physical behavior-window observer. Q-ENTRY through R-6 passed, Context Engine
+Git/source authority remained green, OpenAI OAuth remained visible and
+`openai/gpt-5.6-luna` remained available without refresh.
+
+Product Discovery executed successfully at the process/model layer
+(`exitCode=0`, about 110 seconds) but semantic integration failed with:
+
+`copy_integrate_root_changed:docs/specs/qualification/r9/PRD.md`
+
+Technical Refinement was then correctly cancelled as `dependency_failed`.
+
+The copy-workspace integration fence compares the raw SHA-256 and byte count
+captured from the exact copied file at workspace materialization with the
+current source-root file immediately before integration. Rust and JavaScript use
+the same fingerprint contract. Therefore this is not mtime, file-mode or line
+ending metadata drift: the source-root PRD changed in bytes after the Product
+workspace fork.
+
+The old report did not include the
+`workspace.root_changed_since_fork` event, so the baseline/current hashes and
+the exact external writer were lost when R-11 cleaned the qualification
+consumer. The fixture assertion itself is read-only and no deterministic
+Product post-processor writes the PRD, so attributing the external write to a
+specific process would be unsupported.
+
+Source inspection nevertheless exposed a real isolation gap:
+- the model process ran with cwd/`--dir` set to the copy workspace;
+- but it inherited
+  `AGENT_HARNESS_PROJECT_ROOT=/workspace/repository`, directly naming the
+  bind-mounted mutable source root;
+- the Runtime child override denied only `question`; OpenCode 1.18.32 leaves
+  `external_directory` at its default `ask`;
+- OpenCode 1.18.32 enforces `external_directory` for path-aware tools and
+  structured external workdirs, but absolute path tokens embedded in Bash
+  commands are advisory rather than a sandbox boundary.
+
+Correction:
+- the OpenCode model child now receives
+  `AGENT_HARNESS_PROJECT_ROOT=<execution copy workspace>` and
+  `AGENT_HARNESS_AGENT_WORKSPACE=<execution copy workspace>`;
+- the Runtime wrapper itself retains source-root authority for durable
+  `.runtime` artifacts, so this is a model-facing authority projection rather
+  than a storage relocation;
+- every Runtime model child explicitly denies `external_directory`;
+- Product Discovery, registered bootstrap governance reviews and Technical
+  Refinement additionally deny Bash because these stages create semantic
+  contracts and have no model-owned implementation/validation shell
+  requirement;
+- implementation stages retain Bash but still see the isolated workspace as
+  project root;
+- `copy_integrate_root_changed` remains unchanged as the final optimistic
+  concurrency fence;
+- R-9 semantic snapshots now include
+  `workspace.root_changed_since_fork` and
+  `workspace.integration_materialization_mismatch`, preserving fingerprints
+  if any future root mutation occurs.
+
+This correction intentionally does not claim that the Product model was the
+writer in the observed run. The exact writer was not preserved. It closes the
+model-child source-root authority gap and improves evidence so a recurrent
+conflict becomes attributable rather than opaque.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
