@@ -1986,91 +1986,117 @@ async function r9() {
   // enters its bounded process-loss sleep, so it is stronger than guessing from
   // an arbitrary reusable checkpoint or executor.spawned event.
   let target;
+  const semanticWatch = {
+    fingerprint: null,
+    lastProgressAtMs: Date.now(),
+    lastProgressLogAtMs: 0,
+    lastSnapshot: null,
+  };
   try {
     target = await waitFor(() => {
-    const preBoundaryFailure = sqlRows(`
-      SELECT task_id,status,coalesce(error_code,''),coalesce(error_message,''),attempt::text,dispatch_generation::text,fencing_token::text
-      FROM agent_tasks
-      WHERE run_id='${sqlQuote(runId)}'
-        AND status IN ('failed','blocked')
-      ORDER BY state_version DESC
-      LIMIT 1;
-    `)[0] ?? null;
-    const runStatus = sqlScalar(`SELECT status FROM agent_runs WHERE run_id='${sqlQuote(runId)}' LIMIT 1;`);
-    if (preBoundaryFailure || ['failed','blocked','cancelled'].includes(String(runStatus ?? ''))) {
-      const technicalLead = sqlRows(`SELECT task_id,status,attempt::text,dispatch_generation::text,fencing_token::text,coalesce(handoff_path,''),coalesce(execution_descriptor_path,''),coalesce(lease_expires_at,'') FROM agent_tasks WHERE run_id='${sqlQuote(runId)}' AND agent_id='technical-lead' ORDER BY state_version DESC LIMIT 1;`)[0] ?? null;
-      const failedTaskId = preBoundaryFailure?.[0] ?? null;
-      const opencodeFailure = latestAgentEventPayload(runId, "opencode.failure", failedTaskId);
-      const boundaryEvents = sqlRows(`SELECT event_type,payload_json,coalesce(task_id,'') FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND event_type IN ('qualification.process_loss_boundary_ready','opencode.model_catalog','opencode.failure','executor.completed','task.failed','task.blocked','run.failed','run.blocked','run.cancelled','run.closed') ORDER BY created_at DESC LIMIT 12;`).map(([eventType, payloadJson, taskId]) => ({ eventType, taskId, payload: safeJson(payloadJson) }));
-      hold("R-9", "RUNTIME", "r9_pre_boundary_semantic_run_failed", {
-        runId,
-        sessionId,
-        armedWorkerId,
-        armedProjection,
-        runStatus: runStatus ?? null,
-        failedTask: preBoundaryFailure
-          ? {
-              taskId: preBoundaryFailure[0],
-              status: preBoundaryFailure[1],
-              errorCode: preBoundaryFailure[2],
-              errorMessage: preBoundaryFailure[3],
-              attempt: Number(preBoundaryFailure[4]),
-              dispatchGeneration: Number(preBoundaryFailure[5]),
-              fencingToken: Number(preBoundaryFailure[6]),
-            }
-          : null,
-        technicalLead,
-        opencodeFailure,
-        boundaryEvents,
-      });
-    }
-    const rows = sqlRows(`SELECT task_id,status,attempt::text,dispatch_generation::text,fencing_token::text,coalesce(handoff_path,''),coalesce(execution_descriptor_path,''),coalesce(lease_expires_at,'') FROM agent_tasks WHERE run_id='${sqlQuote(runId)}' AND agent_id='technical-lead' ORDER BY state_version DESC LIMIT 1;`);
-    if (!rows.length) return null;
-    const [taskId, status, attemptText, generationText, fenceText, handoffPath, descriptorPath, leaseExpiresAt] = rows[0];
-    const attempt = Number(attemptText);
-    const dispatchGeneration = Number(generationText);
-    const fencingToken = Number(fenceText);
-    if (status !== "running" || attempt !== 1 || !handoffPath || !descriptorPath) return null;
-    const checkpointPath = `${handoffPath}.repair-checkpoint.json`;
-    const read = composeCommand([
-      "exec", "-T", "agent-runtime-worker", "node", "-e",
-      "const fs=require('node:fs');const p=process.argv[1];if(!fs.existsSync(p))process.exit(2);process.stdout.write(fs.readFileSync(p,'utf8'));",
-      checkpointPath,
-    ], { allowExitCodes: [0, 2], label: "r9-read-process-loss-checkpoint", timeoutMs: 30_000 });
-    if (read.exitCode !== 0 || !read.stdout.trim()) return null;
-    const checkpoint = safeJson(read.stdout);
-    if (checkpoint.contractVersion !== "runtime-repair-checkpoint/v1"
-      || checkpoint.repairKind !== "qualification-process-loss"
-      || checkpoint.status !== "repair-started"
-      || checkpoint.runId !== runId
-      || checkpoint.taskId !== taskId
-      || Number(checkpoint.taskAttempt) !== attempt
-      || checkpoint.qualificationBoundary !== "repair-checkpoint-before-behavior"
-      || !checkpoint.effectKey) return null;
-    return {
-      taskId,
-      attempt,
-      dispatchGeneration,
-      fencingToken,
-      handoffPath,
-      descriptorPath,
-      leaseExpiresAt,
-      checkpointPath,
-      checkpointEffectKey: checkpoint.effectKey,
-      checkpointStatus: checkpoint.status,
-      repairKind: checkpoint.repairKind,
-    };
-  }, {
-    timeoutMs: 20 * 60_000,
-    intervalMs: 2_000,
-    label: "r9-process-loss-boundary",
-    shouldRetryError: shouldRetryQualificationPollError,
-  });
+      const snapshot = r9SemanticSnapshot(runId);
+      semanticWatch.lastSnapshot = snapshot;
+      const nowMs = Date.now();
+      const fingerprint = r9SemanticProgressFingerprint(snapshot);
+      if (fingerprint !== semanticWatch.fingerprint) {
+        semanticWatch.fingerprint = fingerprint;
+        semanticWatch.lastProgressAtMs = nowMs;
+      }
+      if (nowMs - semanticWatch.lastProgressLogAtMs >= 30_000) {
+        console.error(`[qualification][R-9] ${runId} ${formatR9SemanticProgress(snapshot)}`);
+        semanticWatch.lastProgressLogAtMs = nowMs;
+      }
+
+      const runStatus = snapshot?.run?.status ?? null;
+      const failedTask = (snapshot?.tasks ?? []).find((task) => ["failed", "blocked"].includes(task.status)) ?? null;
+      if (failedTask || ["failed", "blocked", "cancelled"].includes(String(runStatus ?? ""))) {
+        const technicalLead = (snapshot?.tasks ?? []).find((task) => task.agentId === "technical-lead") ?? null;
+        const opencodeFailure = latestAgentEventPayload(runId, "opencode.failure", failedTask?.taskId ?? null);
+        hold("R-9", "RUNTIME", "r9_pre_boundary_semantic_run_failed", {
+          runId,
+          sessionId,
+          armedWorkerId,
+          armedProjection,
+          runStatus,
+          failedTask,
+          technicalLead,
+          opencodeFailure,
+          semanticSnapshot: snapshot,
+        });
+      }
+
+      const technicalLead = (snapshot?.tasks ?? []).find((task) => task.agentId === "technical-lead") ?? null;
+      if (technicalLead?.status === "running"
+        && Number(technicalLead.attempt) === 1
+        && technicalLead.handoffPath
+        && technicalLead.descriptorPath) {
+        const taskId = technicalLead.taskId;
+        const attempt = Number(technicalLead.attempt);
+        const dispatchGeneration = Number(technicalLead.dispatchGeneration);
+        const fencingToken = Number(technicalLead.fencingToken);
+        const handoffPath = technicalLead.handoffPath;
+        const descriptorPath = technicalLead.descriptorPath;
+        const leaseExpiresAt = technicalLead.leaseExpiresAt ?? null;
+        const checkpointPath = `${handoffPath}.repair-checkpoint.json`;
+        const read = composeCommand([
+          "exec", "-T", "agent-runtime-worker", "node", "-e",
+          "const fs=require('node:fs');const p=process.argv[1];if(!fs.existsSync(p))process.exit(2);process.stdout.write(fs.readFileSync(p,'utf8'));",
+          checkpointPath,
+        ], { allowExitCodes: [0, 2], label: "r9-read-process-loss-checkpoint", timeoutMs: 30_000 });
+        if (read.exitCode === 0 && read.stdout.trim()) {
+          const checkpoint = safeJson(read.stdout);
+          if (checkpoint.contractVersion === "runtime-repair-checkpoint/v1"
+            && checkpoint.repairKind === "qualification-process-loss"
+            && checkpoint.status === "repair-started"
+            && checkpoint.runId === runId
+            && checkpoint.taskId === taskId
+            && Number(checkpoint.taskAttempt) === attempt
+            && checkpoint.qualificationBoundary === "repair-checkpoint-before-behavior"
+            && checkpoint.effectKey) {
+            return {
+              taskId,
+              attempt,
+              dispatchGeneration,
+              fencingToken,
+              handoffPath,
+              descriptorPath,
+              leaseExpiresAt,
+              checkpointPath,
+              checkpointEffectKey: checkpoint.effectKey,
+              checkpointStatus: checkpoint.status,
+              repairKind: checkpoint.repairKind,
+            };
+          }
+        }
+      }
+
+      const stalledForMs = Math.max(0, nowMs - semanticWatch.lastProgressAtMs);
+      const stallDisposition = r9SemanticStallDisposition(snapshot, nowMs);
+      if (stalledForMs >= R9_PRE_BOUNDARY_SEMANTIC_STALL_MS && stallDisposition.stallEligible) {
+        hold("R-9", "RUNTIME", "r9_pre_boundary_semantic_stall", {
+          runId,
+          sessionId,
+          armedWorkerId,
+          armedProjection,
+          stalledForMs,
+          stallThresholdMs: R9_PRE_BOUNDARY_SEMANTIC_STALL_MS,
+          stallDisposition,
+          technicalLead,
+          semanticSnapshot: snapshot,
+        });
+      }
+      return null;
+    }, {
+      timeoutMs: 20 * 60_000,
+      intervalMs: 2_000,
+      label: "r9-process-loss-boundary",
+      shouldRetryError: shouldRetryQualificationPollError,
+    });
   } catch (error) {
     if (String(error?.message ?? "").startsWith("qualification_wait_timeout:r9-process-loss-boundary:")) {
-      const technicalLead = sqlRows(`SELECT task_id,status,attempt::text,dispatch_generation::text,fencing_token::text,coalesce(handoff_path,''),coalesce(execution_descriptor_path,''),coalesce(lease_expires_at,'') FROM agent_tasks WHERE run_id='${sqlQuote(runId)}' AND agent_id='technical-lead' ORDER BY state_version DESC LIMIT 1;`)[0] ?? null;
+      const snapshot = semanticWatch.lastSnapshot ?? r9SemanticSnapshot(runId);
+      const technicalLead = (snapshot?.tasks ?? []).find((task) => task.agentId === "technical-lead") ?? null;
       const opencodeFailure = latestAgentEventPayload(runId, "opencode.failure");
-      const boundaryEvents = sqlRows(`SELECT event_type,payload_json,coalesce(task_id,'') FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND event_type IN ('qualification.process_loss_boundary_ready','opencode.model_catalog','opencode.failure','executor.completed','task.failed','run.failed','run.closed') ORDER BY created_at DESC LIMIT 12;`).map(([eventType, payloadJson, taskId]) => ({ eventType, taskId, payload: safeJson(payloadJson) }));
       hold("R-9", "RUNTIME", "r9_process_loss_boundary_not_materialized", {
         runId,
         sessionId,
@@ -2078,7 +2104,9 @@ async function r9() {
         armedProjection,
         technicalLead,
         opencodeFailure,
-        boundaryEvents,
+        semanticSnapshot: snapshot,
+        stallDisposition: r9SemanticStallDisposition(snapshot),
+        stalledForMs: Math.max(0, Date.now() - semanticWatch.lastProgressAtMs),
         timeoutMs: 20 * 60_000,
       });
     }
