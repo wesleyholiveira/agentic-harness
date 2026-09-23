@@ -227,6 +227,19 @@ export async function ensureOpenCodeModelAvailable({
   };
 
   const auth = await invokeAuth();
+  if (!auth.providerCredentialObserved) {
+    return {
+      ...selected,
+      available: false,
+      refreshAttempted: false,
+      source: "provider-credential-unavailable",
+      auth,
+      local: null,
+      refresh: null,
+      revalidation: null,
+    };
+  }
+
   const local = await invokeModels(false);
   if (local.available) {
     return {
@@ -871,9 +884,9 @@ async function main() {
       authStatus: modelCatalog.auth.status,
       authProviderCredentialObserved: modelCatalog.auth.providerCredentialObserved,
       authDiagnostic: modelCatalog.auth.diagnostic,
-      localStatus: modelCatalog.local.status,
-      localTimedOut: modelCatalog.local.timedOut,
-      localDiagnostic: modelCatalog.local.diagnostic,
+      localStatus: modelCatalog.local?.status ?? null,
+      localTimedOut: modelCatalog.local?.timedOut ?? false,
+      localDiagnostic: modelCatalog.local?.diagnostic ?? null,
       refreshStatus: modelCatalog.refresh?.status ?? null,
       refreshTimedOut: modelCatalog.refresh?.timedOut ?? false,
       refreshDiagnostic: modelCatalog.refresh?.diagnostic ?? null,
@@ -885,11 +898,13 @@ async function main() {
       const providerCredentialObserved = modelCatalog.auth.providerCredentialObserved === true;
       const finalStatus = modelCatalog.revalidation?.status
         ?? modelCatalog.refresh?.status
-        ?? modelCatalog.local.status;
+        ?? modelCatalog.local?.status
+        ?? modelCatalog.auth.status;
       const finalTimedOut = Boolean(
         modelCatalog.revalidation?.timedOut
         ?? modelCatalog.refresh?.timedOut
-        ?? modelCatalog.local.timedOut,
+        ?? modelCatalog.local?.timedOut
+        ?? modelCatalog.auth.timedOut,
       );
       const errorName = providerCredentialObserved ? "ProviderModelNotFoundError" : "ProviderAuthError";
       const errorCode = providerCredentialObserved
