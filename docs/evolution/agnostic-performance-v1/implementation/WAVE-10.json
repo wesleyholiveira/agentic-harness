@@ -482,6 +482,9 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
+    "exact-SHA R-9 rerun proving the source physical behavior container becomes Running or surfacing exact behavior.gateway.completed status/code before any container",
+    "exact-SHA R-9 physical worker SIGKILL only after the named source behavior container is physically Running",
+    "exact-SHA replacement behavior window and exactly-once PASS after fence/generation replacement",
     "exact-SHA R-4 rerun proving Context Engine Git exists and /workspace/repository HEAD equals the qualification consumer commit",
     "exact-SHA R-9 rerun proving Technical Refinement preparation crosses committed-source authority and reaches dispatch/checkpoint",
     "exact-SHA R-9 rerun proving the 180-second watchdog fires on real post-Architecture no-progress or Technical Refinement advances",
@@ -660,8 +663,21 @@
       "correction": "install Git in Context Engine and make R-4 prove git availability plus exact /workspace/repository top-level and HEAD commit identity against the host qualification consumer before any semantic Runtime gate",
       "productionLogicBug": true,
       "qualificationHarnessBug": true,
+      "rootCauseResolved": true,
+      "status": "context-engine-git-fix-proven-by-38ca7013be090f8dd90bfeb2a759c5993090ccaf"
+    },
+    {
+      "observedOnCandidate": "38ca7013be090f8dd90bfeb2a759c5993090ccaf",
+      "gate": "wave10-worker-loss/R-9",
+      "qualificationRunId": "standalone-v1-1790143830295-93b5d096be8c",
+      "runtimeRunId": "run-28e2f8c0-06cc-45cf-af68-3157d8bb608d",
+      "observed": "Q-ENTRY through R-6 passed; R-4 proved Git 2.54.0 and exact consumer HEAD inside Context Engine. Product and Architecture integrated and Technical Refinement reached running a1/g1. R-9 then timed out for 30 seconds waiting for the source behavior container after behavior.gateway.started.",
+      "rootCause": "qualification observation contract was too narrow: worker behavior.gateway.started precedes gateway source/materialization/attestation/toolchain checks, whose legal budgets can exceed 30 seconds before docker run. The timeout report also omitted the exact gateway terminal event, so no production gateway failure is yet proven.",
+      "correction": "race exact named-container Running against exact behavior.gateway.completed, fail immediately with terminal gateway evidence, extend the physical-container start observation to 120 seconds, persist gateway/task snapshot on timeout, and mirror the same logic for replacement behavior",
+      "productionLogicBug": null,
+      "qualificationHarnessBug": true,
       "rootCauseResolved": false,
-      "status": "context-engine-git-source-authority-fixed-pending-exact-sha-rerun"
+      "status": "terminal-aware-physical-window-observer-fixed-pending-exact-sha-rerun"
     }
   ],
   "hardening": [
