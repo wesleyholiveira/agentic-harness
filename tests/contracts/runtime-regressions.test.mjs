@@ -198,12 +198,16 @@ test("OpenCode selected-model preflight fails closed after fresh-process revalid
   assert.match(result.revalidation.diagnostic, /Provider not found: openai/u);
 });
 
-test("OpenCode provider model misses are deterministic non-retryable failures", async () => {
+test("OpenCode provider auth/model misses are deterministic non-retryable failures", async () => {
   const { classifyValidationFailure } = await import("../../.agents/runtime/executor.mjs");
-  for (const stderr of [
-    "Error: opencode_model_unavailable_after_refresh:openai/gpt-5.6-luna",
-    "ProviderModelNotFoundError: Model not found: openai/gpt-5.6-luna",
-  ]) {
+  const cases = [
+    ["Error: opencode_model_unavailable_after_refresh:openai/gpt-5.6-luna", "opencode_provider_model_not_found"],
+    ["Error: opencode_model_unavailable_after_refresh_reload:openai/gpt-5.6-luna", "opencode_provider_model_not_found"],
+    ["ProviderModelNotFoundError: Model not found: openai/gpt-5.6-luna", "opencode_provider_model_not_found"],
+    ["Error: opencode_provider_credential_not_observed:openai", "opencode_provider_auth_not_observed"],
+    ['@@agentic-harness-runtime-event {"type":"opencode.failure","payload":{"errorName":"ProviderAuthError"}}', "opencode_provider_auth_not_observed"],
+  ];
+  for (const [stderr, expectedCode] of cases) {
     const failure = classifyValidationFailure({
       result: {
         status: 1,
@@ -218,7 +222,7 @@ test("OpenCode provider model misses are deterministic non-retryable failures", 
       dockerBlocked: null,
       lifecycleUsed: false,
     });
-    assert.equal(failure.code, "opencode_provider_model_not_found");
+    assert.equal(failure.code, expectedCode);
     assert.equal(failure.retryable, false);
     assert.equal(failure.category, "provider");
   }
