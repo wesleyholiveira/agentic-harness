@@ -1596,6 +1596,20 @@ async function r8() {
   return { runId, sessionId, completionTimeoutMs, delivery, assistant: observation.assistant, wakeEvents, deliveredEvents, deliveredEvent };
 }
 
+function latestAgentEventPayload(runId, eventType, taskId = null) {
+  const taskFilter = taskId ? ` AND task_id='${sqlQuote(taskId)}'` : "";
+  const raw = sqlScalar(`
+    SELECT (payload_json::jsonb)::text
+    FROM agent_events
+    WHERE run_id='${sqlQuote(runId)}'
+      AND event_type='${sqlQuote(eventType)}'
+      ${taskFilter}
+    ORDER BY created_at DESC
+    LIMIT 1;
+  `);
+  return raw ? safeJson(raw) : null;
+}
+
 async function r9() {
   const armedFaultEnv = {
     AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: "repair-checkpoint-before-behavior",
@@ -1704,6 +1718,8 @@ async function r9() {
     const runStatus = sqlScalar(`SELECT status FROM agent_runs WHERE run_id='${sqlQuote(runId)}' LIMIT 1;`);
     if (preBoundaryFailure || ['failed','blocked','cancelled'].includes(String(runStatus ?? ''))) {
       const technicalLead = sqlRows(`SELECT task_id,status,attempt::text,dispatch_generation::text,fencing_token::text,coalesce(handoff_path,''),coalesce(execution_descriptor_path,''),coalesce(lease_expires_at,'') FROM agent_tasks WHERE run_id='${sqlQuote(runId)}' AND agent_id='technical-lead' ORDER BY state_version DESC LIMIT 1;`)[0] ?? null;
+      const failedTaskId = preBoundaryFailure?.[0] ?? null;
+      const opencodeFailure = latestAgentEventPayload(runId, "opencode.failure", failedTaskId);
       const boundaryEvents = sqlRows(`SELECT event_type,payload_json,coalesce(task_id,'') FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND event_type IN ('qualification.process_loss_boundary_ready','opencode.failure','executor.completed','task.failed','task.blocked','run.failed','run.blocked','run.cancelled','run.closed') ORDER BY created_at DESC LIMIT 12;`).map(([eventType, payloadJson, taskId]) => ({ eventType, taskId, payload: safeJson(payloadJson) }));
       hold("R-9", "RUNTIME", "r9_pre_boundary_semantic_run_failed", {
         runId,
@@ -1723,6 +1739,7 @@ async function r9() {
             }
           : null,
         technicalLead,
+        opencodeFailure,
         boundaryEvents,
       });
     }
@@ -1771,6 +1788,7 @@ async function r9() {
   } catch (error) {
     if (String(error?.message ?? "").startsWith("qualification_wait_timeout:r9-process-loss-boundary:")) {
       const technicalLead = sqlRows(`SELECT task_id,status,attempt::text,dispatch_generation::text,fencing_token::text,coalesce(handoff_path,''),coalesce(execution_descriptor_path,''),coalesce(lease_expires_at,'') FROM agent_tasks WHERE run_id='${sqlQuote(runId)}' AND agent_id='technical-lead' ORDER BY state_version DESC LIMIT 1;`)[0] ?? null;
+      const opencodeFailure = latestAgentEventPayload(runId, "opencode.failure");
       const boundaryEvents = sqlRows(`SELECT event_type,payload_json,coalesce(task_id,'') FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND event_type IN ('qualification.process_loss_boundary_ready','opencode.failure','executor.completed','task.failed','run.failed','run.closed') ORDER BY created_at DESC LIMIT 12;`).map(([eventType, payloadJson, taskId]) => ({ eventType, taskId, payload: safeJson(payloadJson) }));
       hold("R-9", "RUNTIME", "r9_process_loss_boundary_not_materialized", {
         runId,
@@ -1778,6 +1796,7 @@ async function r9() {
         armedWorkerId,
         armedProjection,
         technicalLead,
+        opencodeFailure,
         boundaryEvents,
         timeoutMs: 20 * 60_000,
       });
