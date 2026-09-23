@@ -849,7 +849,63 @@
       "productionLogicBug": null,
       "qualificationHarnessBug": true,
       "rootCauseResolved": false,
-      "status": "physical-window-observation-fixed-gateway-outcome-pending-exact-sha-rerun"
+      "status": "observer-fix-not-reached-by-1d628e6-run-product-failed-earlier"
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-product-copy-root-isolation",
+      "candidate": "1d628e6e04c921ef2225086a035f3903d4fdc498",
+      "qualificationRunId": "standalone-v1-1790204776362-8adf2778fd76",
+      "runtimeRunId": "run-f769ae4d-cf84-4aff-96af-4d78afb62524",
+      "observed": {
+        "qEntryThroughR6": "PASS",
+        "contextEngineGitProven": true,
+        "workerOpenCodeVersion": "1.18.32",
+        "workerOpenAiOauthObserved": true,
+        "productDiscovery": {
+          "executorExitCode": 0,
+          "executorDurationMs": 110284,
+          "model": "openai/gpt-5.6-luna",
+          "modelAvailable": true,
+          "status": "failed",
+          "errorCode": "integration_failed",
+          "errorMessage": "copy_integrate_root_changed:docs/specs/qualification/r9/PRD.md",
+          "retryable": false
+        },
+        "technicalRefinement": {
+          "status": "cancelled",
+          "attempt": 0,
+          "dispatchGeneration": 0,
+          "fencingToken": 0,
+          "errorCode": "dependency_failed"
+        },
+        "processLossBoundaryReached": false
+      },
+      "facts": [
+        "Product Discovery completed the model executor successfully; the failure occurred only during copy-workspace integration",
+        "the R-9 PRD was part of the Product Discovery workspace change-set, otherwise integrateWorkspace would not have performed a root-vs-baseline conflict check for that path",
+        "Rust copy-workspace baseline and JS integration fingerprint use the same raw SHA-256 plus byte-count identity, so the conflict is not mtime/mode/newline metadata drift",
+        "assertR9FixtureComplete reads the fixture but does not rewrite it during R-9",
+        "the report omitted workspace.root_changed_since_fork, so the baseline/current hashes and exact external writer are not recoverable after cleanup"
+      ],
+      "isolationGap": [
+        "the model child ran in the correct copy workspace but inherited AGENT_HARNESS_PROJECT_ROOT=/workspace/repository",
+        "OpenCode 1.18.32 defaults external_directory to ask; the runtime override previously denied only question",
+        "OpenCode 1.18.32 external_directory protects path-aware tools, but absolute paths embedded inside bash command strings are advisory rather than a filesystem sandbox",
+        "therefore the bind-mounted source root remained model-addressable despite copy-workspace cwd isolation"
+      ],
+      "correction": [
+        "project AGENT_HARNESS_PROJECT_ROOT and AGENT_HARNESS_AGENT_WORKSPACE to the copy workspace only in the model child environment; the Runtime wrapper retains root authority for durable .runtime artifacts",
+        "set external_directory=deny for every Runtime model child",
+        "deny bash for bootstrap governance stages (Product Discovery, registered bootstrap reviews, Technical Refinement), whose executable validation is Runtime-owned and which do not implement source changes",
+        "preserve bash for implementation stages, still rooted in the isolated workspace",
+        "retain copy_integrate_root_changed as the final optimistic-concurrency fence; do not weaken root-change detection",
+        "include workspace.root_changed_since_fork and workspace.integration_materialization_mismatch in the R-9 semantic snapshot so future conflicts preserve baseline/current fingerprints"
+      ],
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
+      "exactExternalWriterProven": false,
+      "rootCauseResolved": false,
+      "status": "model-child-source-root-authority-closed-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -967,5 +1023,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R4_CONTEXT_ENGINE_GIT_AND_TL_RUNNING_PROVEN_R9_PHYSICAL_WINDOW_OBSERVER_PENDING_EXACT_SHA_RERUN"
+  "greenAfterFix": "R9_PRODUCT_COPY_ROOT_ISOLATION_HARDENED_PHYSICAL_WINDOW_RERUN_PENDING"
 }
