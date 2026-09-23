@@ -1701,6 +1701,196 @@ function latestAgentEventPayload(runId, eventType, taskId = null) {
   return raw ? safeJson(raw) : null;
 }
 
+const R9_PRE_BOUNDARY_SEMANTIC_STALL_MS = 180_000;
+
+function r9SemanticSnapshot(runId) {
+  const id = sqlQuote(runId);
+  const raw = sqlScalar(`
+    SELECT json_build_object(
+      'run', (
+        SELECT json_build_object(
+          'status', status,
+          'stateVersion', state_version,
+          'reconcileGeneration', reconcile_generation,
+          'reconcileRequestedAt', reconcile_requested_at,
+          'reconcileLeaseOwner', reconcile_lease_owner,
+          'reconcileLeaseExpiresAt', reconcile_lease_expires_at,
+          'phase', plan_json::jsonb->>'phase',
+          'bootstrapTopologyState', plan_json::jsonb#>>'{workflow,bootstrapTopologyState}',
+          'bootstrapTopologyAuthority', plan_json::jsonb#>>'{workflow,bootstrapTopologyAuthority}',
+          'bootstrapTopologyRevision', plan_json::jsonb#>>'{workflow,bootstrapTopologyRevision}'
+        )
+        FROM agent_runs
+        WHERE run_id='${id}'
+        LIMIT 1
+      ),
+      'tasks', COALESCE((
+        SELECT json_agg(json_build_object(
+          'taskId', task_id,
+          'agentId', agent_id,
+          'role', role,
+          'status', status,
+          'attempt', attempt,
+          'dispatchGeneration', dispatch_generation,
+          'fencingToken', fencing_token,
+          'stateVersion', state_version,
+          'dependencies', dependencies_json::jsonb,
+          'queuedAt', queued_at,
+          'startedAt', started_at,
+          'completedAt', completed_at,
+          'leaseOwner', lease_owner,
+          'leaseExpiresAt', lease_expires_at,
+          'errorCode', error_code,
+          'handoffPath', handoff_path,
+          'descriptorPath', execution_descriptor_path
+        ) ORDER BY task_id)
+        FROM agent_tasks
+        WHERE run_id='${id}'
+      ), '[]'::json),
+      'pendingResults', COALESCE((
+        SELECT json_agg(json_build_object(
+          'resultId', result_id,
+          'taskId', task_id,
+          'attempt', attempt,
+          'dispatchGeneration', dispatch_generation,
+          'fencingToken', fencing_token,
+          'resultPath', result_path,
+          'createdAt', created_at
+        ) ORDER BY created_at)
+        FROM agent_execution_results
+        WHERE run_id='${id}' AND consumed_at IS NULL
+      ), '[]'::json),
+      'outbox', COALESCE((
+        SELECT json_agg(entry)
+        FROM (
+          SELECT json_build_object(
+            'outboxId', outbox_id,
+            'taskId', task_id,
+            'kind', message_kind,
+            'dispatchGeneration', dispatch_generation,
+            'publishCount', publish_count,
+            'createdAt', created_at,
+            'publishedAt', published_at,
+            'terminalAt', terminal_at,
+            'terminalReason', terminal_reason,
+            'lastError', last_error
+          ) AS entry
+          FROM agent_runtime_outbox
+          WHERE run_id='${id}'
+          ORDER BY created_at DESC, outbox_id DESC
+          LIMIT 24
+        ) recent_outbox
+      ), '[]'::json),
+      'events', COALESCE((
+        SELECT json_agg(entry)
+        FROM (
+          SELECT json_build_object(
+            'eventId', event_id,
+            'taskId', task_id,
+            'type', event_type,
+            'payload', payload_json::jsonb,
+            'createdAt', created_at
+          ) AS entry
+          FROM agent_events
+          WHERE run_id='${id}'
+            AND event_type IN (
+              'qualification.process_loss_boundary_ready',
+              'opencode.model_catalog','opencode.failure',
+              'executor.spawned','executor.completed',
+              'execution.result.received',
+              'task.queued','task.running','task.integrated','task.retry_scheduled','task.failed','task.blocked',
+              'context.preparation_failed',
+              'dag.bootstrap_refined','bootstrap.topology.refined','dag.tasks.materialized',
+              'scheduler.ready_preparation.completed','scheduler.waiting_dependencies',
+              'policy.dispatch_decision',
+              'runtime.reconcile_failed','runtime.reconcile_recovered',
+              'run.failed','run.blocked','run.cancelled','run.closed'
+            )
+          ORDER BY created_at DESC, event_id DESC
+          LIMIT 40
+        ) recent_events
+      ), '[]'::json)
+    )::text;
+  `);
+  return raw ? safeJson(raw) : { run: null, tasks: [], pendingResults: [], outbox: [], events: [] };
+}
+
+function r9SemanticProgressFingerprint(snapshot) {
+  return JSON.stringify({
+    run: snapshot?.run ? {
+      status: snapshot.run.status,
+      stateVersion: Number(snapshot.run.stateVersion ?? 0),
+      reconcileGeneration: Number(snapshot.run.reconcileGeneration ?? 0),
+      bootstrapTopologyState: snapshot.run.bootstrapTopologyState ?? null,
+      bootstrapTopologyRevision: snapshot.run.bootstrapTopologyRevision ?? null,
+    } : null,
+    tasks: (snapshot?.tasks ?? []).map((task) => ({
+      taskId: task.taskId,
+      status: task.status,
+      attempt: Number(task.attempt ?? 0),
+      dispatchGeneration: Number(task.dispatchGeneration ?? 0),
+      fencingToken: Number(task.fencingToken ?? 0),
+      stateVersion: Number(task.stateVersion ?? 0),
+      dependencies: task.dependencies ?? [],
+      errorCode: task.errorCode ?? null,
+    })),
+    pendingResults: (snapshot?.pendingResults ?? []).map((result) => ({
+      resultId: result.resultId,
+      taskId: result.taskId,
+      dispatchGeneration: Number(result.dispatchGeneration ?? 0),
+    })),
+    outbox: (snapshot?.outbox ?? []).map((entry) => ({
+      outboxId: entry.outboxId,
+      kind: entry.kind,
+      taskId: entry.taskId ?? null,
+      dispatchGeneration: Number(entry.dispatchGeneration ?? 0),
+      publishCount: Number(entry.publishCount ?? 0),
+      publishedAt: entry.publishedAt ?? null,
+      terminalAt: entry.terminalAt ?? null,
+    })),
+  });
+}
+
+function r9SemanticStallDisposition(snapshot, nowMs = Date.now()) {
+  const pending = new Set((snapshot?.pendingResults ?? []).map((result) =>
+    `${result.taskId}:${Number(result.dispatchGeneration ?? 0)}`));
+  const completed = new Set(
+    (snapshot?.events ?? [])
+      .filter((event) => event.type === "executor.completed")
+      .map((event) => `${event.taskId}:${Number(event.payload?.dispatchGeneration ?? 0)}`),
+  );
+  const longRunningTasks = (snapshot?.tasks ?? []).filter((task) => {
+    if (task.status !== "running") return false;
+    const identity = `${task.taskId}:${Number(task.dispatchGeneration ?? 0)}`;
+    return !pending.has(identity) && !completed.has(identity);
+  });
+  const reconcileLeaseExpiresAt = snapshot?.run?.reconcileLeaseExpiresAt ?? null;
+  const reconcileLeaseActive = Boolean(
+    snapshot?.run?.reconcileLeaseOwner
+    && reconcileLeaseExpiresAt
+    && Number.isFinite(Date.parse(reconcileLeaseExpiresAt))
+    && Date.parse(reconcileLeaseExpiresAt) > nowMs,
+  );
+  return {
+    longRunningTasks: longRunningTasks.map((task) => ({
+      taskId: task.taskId,
+      agentId: task.agentId,
+      status: task.status,
+      attempt: Number(task.attempt ?? 0),
+      dispatchGeneration: Number(task.dispatchGeneration ?? 0),
+    })),
+    reconcileLeaseActive,
+    stallEligible: longRunningTasks.length === 0 && !reconcileLeaseActive,
+  };
+}
+
+function formatR9SemanticProgress(snapshot) {
+  const tasks = (snapshot?.tasks ?? [])
+    .map((task) => `${task.agentId}=${task.status}(a${Number(task.attempt ?? 0)}/g${Number(task.dispatchGeneration ?? 0)})`)
+    .join(",");
+  return `run=${snapshot?.run?.status ?? "missing"} topology=${snapshot?.run?.bootstrapTopologyState ?? "unknown"} tasks=[${tasks}] pendingResults=${snapshot?.pendingResults?.length ?? 0} outbox=${snapshot?.outbox?.length ?? 0}`;
+}
+
 async function r9() {
   const armedFaultEnv = {
     AGENT_HARNESS_RUNTIME_TEST_PROCESS_LOSS_BOUNDARY: "repair-checkpoint-before-behavior",
