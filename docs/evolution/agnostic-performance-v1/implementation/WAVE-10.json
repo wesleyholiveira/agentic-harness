@@ -482,7 +482,8 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
-    "exact-SHA scoped R-9 rerun proving isolated OpenAI credential visibility and openai/gpt-5.6-luna availability after either active-provider cache hit or one refresh plus fresh-process revalidation",
+    "exact-SHA scoped rerun proving R-4 observes OpenAI oauth inside agent-runtime-worker from qualification-owned auth projection",
+    "exact-SHA scoped R-9 proving Product Discovery reaches model execution and Technical Refinement reaches repair-checkpoint-before-behavior",
     "exact-SHA scoped R-9 physical Rust worker loss while behavior execution is in-flight",
     "normal non-behavior model task restricted-UID runtime regression",
     "full existing Runtime/cache/memory/model-routing/continuation regression qualification",
@@ -583,7 +584,7 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
       "rootCauseResolved": false,
-      "status": "root-cause-confirmed-refresh-same-process-correction-insufficient"
+      "status": "superseded-by-empty-auth-qualification-root-cause"
     },
     {
       "observedOnCandidate": "1e301d1d3ef4774245906a6b5eb8a08193481c56",
@@ -595,7 +596,19 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
       "rootCauseResolved": false,
-      "status": "fresh-process-provider-revalidation-fixed-pending-exact-sha-rerun"
+      "status": "secondary-diagnostic-after-empty-auth-qualification-root-cause"
+    },
+    {
+      "observedOnCandidate": "6c331981347e77c048fbef014cc909b6dbc88636",
+      "gate": "wave10-worker-loss/R-9",
+      "runId": "standalone-v1-1790136315663-27738e9a0e30",
+      "observed": "Q-ENTRY through R-6 passed; Product Discovery failed once with non-retryable opencode_provider_auth_not_observed. The new provider preflight proved authStatus=0 but authProviderCredentialObserved=false and authDiagnostic=0 credentials; local and fresh-process provider probes both reported Provider not found: openai.",
+      "rootCause": "qualification never projected the host OpenCode auth file into Compose. compose.yaml therefore mounted vendor/empty-opencode-auth.json through its default AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE fallback. Rust/JS authCopied=true only proved that this empty file was copied through the restricted HOME layers.",
+      "correction": "before R-4 startup, resolve and structurally validate the host OpenAI OAuth credential, materialize an OpenAI-only qualification-owned auth.json with mode 0600, inject AGENT_HARNESS_OPENCODE_AUTH_HOST_FILE into the qualification Compose environment, prove OpenAI oauth inside agent-runtime-worker in R-4, and short-circuit semantic model catalog work when auth visibility is absent",
+      "productionLogicBug": false,
+      "qualificationHarnessBug": true,
+      "rootCauseResolved": false,
+      "status": "qualification-oauth-projection-fixed-pending-exact-sha-rerun"
     }
   ],
   "hardening": [
@@ -618,6 +631,10 @@
     "OpenCode active-provider revalidation occurs in a fresh process after models.dev refresh",
     "auth visibility and model availability are diagnosed independently in the restricted child",
     "bounded redacted preflight diagnostics make provider-not-found causes actionable without raw credentials",
-    "post-refresh provider auth/model misses fail closed on the first task attempt"
+    "post-refresh provider auth/model misses fail closed on the first task attempt",
+    "qualification resolves and validates host OpenAI OAuth before runtime stack startup",
+    "qualification Compose receives an OpenAI-only temporary auth file rather than the empty fallback",
+    "R-4 proves OpenAI oauth inside the runtime worker before R-9",
+    "auth absence short-circuits model-catalog refresh immediately"
   ]
 }
