@@ -482,6 +482,10 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
+    "exact-SHA R-9 rerun proving replacement physical behavior container is observed before semantic resume receipt finalization",
+    "exact-SHA repair.resume_checkpoint_loaded proof after replacement behavior with skippedFullAgentInvocation=true and sameTaskAttempt=true",
+    "exact-SHA Technical Refinement finalization without implementation_plan_invalid command-authority schema drift",
+    "exact-SHA scoped R-9 terminal success through physical worker loss and replacement behavior exactly once",
     "exact-SHA R-9 rerun proving Rust/Chrono execution fence is accepted by JS behavior admission",
     "exact-SHA source behavior container Running followed by physical worker PID1 SIGKILL",
     "exact-SHA replacement generation/fence with repair resume and replacement behavior exactly once",
@@ -724,7 +728,20 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
       "rootCauseResolved": true,
-      "status": "execution-fence-rfc3339-fixed-pending-exact-sha-rerun"
+      "status": "execution-fence-rfc3339-fix-proven-by-b62819b19ceca11740668f43314f3f5d9729c8a5"
+    },
+    {
+      "observedOnCandidate": "b62819b19ceca11740668f43314f3f5d9729c8a5",
+      "gate": "wave10-worker-loss/R-9",
+      "qualificationRunId": "standalone-v1-1790209324670-99163966291b",
+      "runtimeRunId": "run-d4c60707-0e16-414c-b9f9-fa5742c4acf7",
+      "observed": "The RFC3339 execution-fence fix is proven: replacement generation=2/fence=2 behavior completed PASSED with empty admissionReasons. R-9 nevertheless HOLDed because it waited for repair.resume_checkpoint_loaded before observing the replacement container; the event is projected only during semantic finalization after executor completion. The same replacement finalization then exposed execution-plan schema drift: compiled implementation tasks carry validationCommandIds/commandSpecIds/commandAuthority, but execution-plan.schema.json rejected them as additional properties and scheduled attempt 2/generation 3/fence 3.",
+      "rootCause": "two independent defects: qualification observation ordering was inverted relative to durable resume receipt projection, and the compiled execution-plan schema lagged fields intentionally emitted/consumed by the Runtime",
+      "correction": "observe replacement running identity directly from agent_tasks before the physical behavior window, require semantic resume receipt only after behavior completion, and explicitly admit the three Runtime command-authority fields in compiled task schema",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": true,
+      "rootCauseResolved": true,
+      "status": "replacement-window-order-and-compiled-schema-fixed-pending-exact-sha-rerun"
     }
   ],
   "hardening": [
@@ -765,6 +782,9 @@
     "standalone qualification dispatch occurs only after all module-scope gate constants initialize",
     "qualification-controller contract requires final await executeQualification() after R-9 constants",
     "execution-fence JS contract accepts strict RFC3339 timestamps from Rust/Chrono and canonicalizes after validation",
-    "behavior.gateway.completed includes admissionReasons extracted from gateway receipts"
+    "behavior.gateway.completed includes admissionReasons extracted from gateway receipts",
+    "replacement physical-window observation derives identity from authoritative agent_tasks before semantic finalizer receipt projection",
+    "repair.resume_checkpoint_loaded remains mandatory but is asserted after replacement behavior completion",
+    "compiled execution-plan task schema explicitly carries validationCommandIds, commandSpecIds and commandAuthority"
   ]
 }
