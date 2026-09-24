@@ -1069,6 +1069,31 @@
       "qualificationHarnessBug": false,
       "rootCauseResolved": true,
       "status": "compiled-dag-schema-aligned-pending-exact-sha-rerun"
+    },
+    {
+      "gate": "focused-contracts/R-9-replacement-identity-order",
+      "candidate": "e3f73222c868384c9ad1bf16e2c6f7e25ca9b475",
+      "observed": {
+        "command": "node --test tests/contracts/qualification-controller.test.mjs",
+        "failedTest": "standalone R-9 arms an exact repair checkpoint, forces lease expiry, and evaluates replacement identity",
+        "failure": "legacy static assertion expected payload.dispatchGeneration !== target.dispatchGeneration + 1",
+        "runtimeExecuted": false
+      },
+      "rootCause": [
+        "the R-9 replacement observer was intentionally reordered in e3f73222: replacement identity is now read live from agent_tasks before the physical behavior window",
+        "qualification-controller.test.mjs still asserted the prior receipt-first source form using payload.dispatchGeneration/payload.fencingToken negative predicates",
+        "the same contract also still expected skippedFullAgentInvocation !== true although the new post-behavior receipt proof uses positive equality"
+      ],
+      "correction": [
+        "require r9-replacement-execution-running and the live task-row invariants status=running, same attempt, generation=source+1, fence=source+1",
+        "require replacement physical behavior observation before the repair resume receipt",
+        "require positive skippedFullAgentInvocation=true, sameTaskAttempt=true and matching checkpointEffectKey in the final receipt proof"
+      ],
+      "productionLogicBug": false,
+      "qualificationHarnessBug": true,
+      "runtimeSemanticsChanged": false,
+      "rootCauseResolved": true,
+      "status": "contract-aligned-pending-local-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -1186,5 +1211,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R9_REPLACEMENT_PHYSICAL_OBSERVER_AND_COMPILED_DAG_SCHEMA_FIXED_PENDING_EXACT_SHA_RERUN"
+  "greenAfterFix": "FOCUSED_R9_REPLACEMENT_CONTRACT_DRIFT_FIXED_EXACT_SHA_RERUN_PENDING"
 }
