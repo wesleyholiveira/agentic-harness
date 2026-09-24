@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-24T01:13:44Z",
+  "generatedAt": "2026-09-24T02:51:26Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 690,
-  "treeSha256": "sha256:df7e6d83970e6ca3a6990f7a602566339b21f4bfbf8654286e2a4f62d78a16ec",
+  "treeSha256": "sha256:009bbe569a24e7a928616d9859d09ae3ed14b70dfaeffe21928cee8de23f2262",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -363,9 +363,9 @@
       "sha256": "sha256:72327c12b7a29eb33c362b3989aad6b6ec25847b0777b53690b29cb25202bcc7"
     },
     {
-      "bytes": 36336,
+      "bytes": 36490,
       "path": ".agents/runtime/event-driven-finalizer.mjs",
-      "sha256": "sha256:4ee3c21e19da82a1dcf8a56d1e6ccb59f16e79d2e5497fec2da481d522a51d3d"
+      "sha256": "sha256:24baea9fedfe4b9bd3e356b8ed8fc90891e511f2a47266aa3cec70ef0853a5f7"
     },
     {
       "bytes": 27184,
@@ -663,9 +663,9 @@
       "sha256": "sha256:41a3ba2f41f1df7f4101d04d269d41389ccdd93b87bd47ce652807c64f554fe7"
     },
     {
-      "bytes": 87596,
+      "bytes": 88019,
       "path": ".agents/runtime/technical-plan-synthesis.mjs",
-      "sha256": "sha256:7580103e4c548f92524cfbadb19867b04e15d53cfb467abae352542fac6d25bb"
+      "sha256": "sha256:3581abfaf07de66a45ba2461904c692f4f8288632499686b14811698563b87e4"
     },
     {
       "bytes": 6149,
@@ -1183,9 +1183,9 @@
       "sha256": "sha256:ad08db65bbb6dde2efd3fc92be21bc5abf351a5500a4dca20c6685549d828b3b"
     },
     {
-      "bytes": 17098,
+      "bytes": 17496,
       "path": "apps/docker-gateway/server.mjs",
-      "sha256": "sha256:9358a52d2152e9d0a04baac5d87e380ecb2107ee3e3f095b51f00a000ab29e24"
+      "sha256": "sha256:754836379a827305e31b28ee3d095a3eb27091c53e575b735bbdcebdc90d6bdf"
     },
     {
       "bytes": 85648,
@@ -1213,9 +1213,9 @@
       "sha256": "sha256:84e1b9adff51301a63a214a1307d12d952dd60f99f76a71525cabdfa10c32579"
     },
     {
-      "bytes": 106487,
+      "bytes": 106566,
       "path": "apps/runtime-worker/src/agent_runtime.rs",
-      "sha256": "sha256:31cd97bc946f0868f423d049b9214bdb48f761d80f720543a1e291a0ada5ee47"
+      "sha256": "sha256:4859b11676b0cfaec603352ecb8eb107550dfd55cca51ba05abd1945acf4b6b4"
     },
     {
       "bytes": 1373,
@@ -1223,9 +1223,9 @@
       "sha256": "sha256:1076fb6c694533416d6c90602018ca0f6bfce23a39222a97d32adb831fde31d1"
     },
     {
-      "bytes": 8768,
+      "bytes": 9622,
       "path": "apps/runtime-worker/src/behavior_gateway.rs",
-      "sha256": "sha256:620be17386fccc8bd43beb3cfb0d88f1e859482a5ede309bf218b80ef87a36c5"
+      "sha256": "sha256:7048b6cf7f1fd967580fa328123ab69a764a19475f9d38c9e221b07b587f94c2"
     },
     {
       "bytes": 6095,
@@ -1828,9 +1828,9 @@
       "sha256": "sha256:3ac8ab836a6411203e8e6faebd3f60e9153095a0564a85c2e09994017ae77618"
     },
     {
-      "bytes": 74620,
+      "bytes": 78081,
       "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-10-RED.json",
-      "sha256": "sha256:b3fab89e1a42ecc295141113fedd45a5643011e8cceb6cfeca73543b19f48a26"
+      "sha256": "sha256:0dd009a60e747fd660552409293277bd39dfae7971bf42ded8e6af39a7dadeb6"
     },
     {
       "bytes": 1507,
@@ -1838,14 +1838,14 @@
       "sha256": "sha256:abbeb1150eb715914c461c322b93ff0f4a9c02b5e3b93bb0208b32b366731182"
     },
     {
-      "bytes": 59895,
+      "bytes": 63713,
       "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-10.json",
-      "sha256": "sha256:987ff8581f1dbadb6725cc0865abed4cf2a67c923191e1b5cf91f4f3f0f317f2"
+      "sha256": "sha256:24086702754e1ecb261336132d4687871572d681b8d326efcf722fd030bac0ba"
     },
     {
-      "bytes": 78461,
+      "bytes": 81727,
       "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-10.md",
-      "sha256": "sha256:b9c14798b20669b4db94cf71a8819b16b1692deb920ca174f94a50eaf5221833"
+      "sha256": "sha256:541bc02f7d8e2490c44ee6261754da3dcdd3aaf3de8ca0006d870e3e11ae83d5"
     },
     {
       "bytes": 1244,
@@ -2883,9 +2883,9 @@
       "sha256": "sha256:29459bd29752fcb24a62bd0ddb548e930f4835074cb3a1adf677a85ba02e4227"
     },
     {
-      "bytes": 85528,
+      "bytes": 85667,
       "path": "scripts/internal/opencode-task-executor.mjs",
-      "sha256": "sha256:f041147e3370b1cffc7a1ebad930bf4558e5bb0f52451660b5cb75b74d75f5a0"
+      "sha256": "sha256:6aa960c57d3d2143277863bd9a3f622ab1f966716ff8cc54523773708334ad8b"
     },
     {
       "bytes": 3019,
@@ -3023,9 +3023,9 @@
       "sha256": "sha256:3cf31e3f560dd27a10552b8dc105b27a84bf7d99722a89a3a71164f70aa51837"
     },
     {
-      "bytes": 21403,
+      "bytes": 22726,
       "path": "tests/contracts/command-spec-execution-v2.test.mjs",
-      "sha256": "sha256:b428070820e942759d69785fc445221871d425a7d5be7478d54ab52fbbfd1277"
+      "sha256": "sha256:421a46395b43464b9ffd6db96f7fe65140c1b4f17413291e07a3c80036621ed5"
     },
     {
       "bytes": 46372,
@@ -3038,9 +3038,9 @@
       "sha256": "sha256:fe1ee5f4a3aefa07bacf925625b3288da069a89d5648477c3f1f7401553f8a59"
     },
     {
-      "bytes": 20113,
+      "bytes": 21516,
       "path": "tests/contracts/docker-behavior-gateway-v1.test.mjs",
-      "sha256": "sha256:14017eea82f059677614a21dbb0982c5c4ea19fcca4c6d8a6cbbeaf6efb5a694"
+      "sha256": "sha256:d9a5eed9fbc27db12c1f4d1817d0238ba5b7e91284efe173e6a68c022e7e9174"
     },
     {
       "bytes": 4033,
@@ -3108,9 +3108,9 @@
       "sha256": "sha256:8ac181f20b2948ce47a759ce01e3e1e426b155cac5951b3ca266ecbbbbaf3838"
     },
     {
-      "bytes": 35756,
+      "bytes": 37049,
       "path": "tests/contracts/runtime-regressions.test.mjs",
-      "sha256": "sha256:c6a5f139ef0d4f990d18640adeae97378ff7538f1d14ed435dc1a715d27e65b8"
+      "sha256": "sha256:91129c63b8910ee0993106861e5439d4180f48189fd7f6ed0a2cb4adfd389f3b"
     },
     {
       "bytes": 2069,
