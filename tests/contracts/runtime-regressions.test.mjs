@@ -855,6 +855,7 @@ test("planning-only requests compile a validated DAG without granting implementa
 
 test("agent_start current-user-message authority excludes OpenCode synthetic file expansion", async () => {
   const { authoritativeUserMessageText } = await import("../../.opencode/plugins/runtime-invocation-provenance.js");
+  const { executionIntentFromRequest } = await import("../../.agents/runtime/planner.mjs");
 
   const message = {
     info: {
@@ -886,8 +887,10 @@ test("agent_start current-user-message authority excludes OpenCode synthetic fil
     ],
   };
 
+  const authoritative = authoritativeUserMessageText(message);
   assert.equal(
-    authoritativeUserMessageText(message),
+    authoritative,
     "Leia o @modernization/00-START-HERE.md e planeje a implementação com sdd",
   );
+  assert.equal(executionIntentFromRequest(authoritative), "plan-only");
 });
