@@ -49,6 +49,48 @@ test("stalled executor output draining is bounded so inherited pipes cannot hold
   assert.match(worker, /drain_executor_output\(stderr_task, "stderr", claimed, client\)\.await/);
 });
 
+test("task execution fence accepts Rust Chrono RFC3339 and canonicalizes at the JS boundary", async () => {
+  const {
+    validateTaskExecutionFence,
+    validateActiveTaskExecutionFence,
+  } = await import("../../packages/harness-contracts/src/execution-fence.mjs");
+
+  const fence = {
+    schemaVersion: "task-execution-fence/v1",
+    runId: "run-rfc3339",
+    taskId: "task-rfc3339",
+    attempt: 1,
+    dispatchGeneration: 1,
+    fencingToken: 1,
+    leaseOwner: "agentic-harness-worker",
+    leaseExpiresAt: "2099-01-01T00:00:00.123456789+00:00",
+    observedAt: "2026-09-24T00:00:00+00:00",
+  };
+
+  const checked = validateTaskExecutionFence(fence);
+  assert.equal(checked.leaseExpiresAt, "2099-01-01T00:00:00.123Z");
+  assert.equal(checked.observedAt, "2026-09-24T00:00:00.000Z");
+  assert.doesNotThrow(() =>
+    validateActiveTaskExecutionFence(fence, {
+      now: new Date("2026-09-24T00:00:00.500Z"),
+    }),
+  );
+  assert.throws(
+    () => validateTaskExecutionFence({ ...fence, observedAt: "2026-09-24" }),
+    /task_execution_fence_invalid/u,
+  );
+});
+
+test("behavior gateway completion event preserves admission reasons", () => {
+  const worker = source("apps/runtime-worker/src/agent_runtime.rs");
+  const gateway = source("apps/runtime-worker/src/behavior_gateway.rs");
+
+  assert.match(gateway, /pub fn admission_reasons\(&self\) -> Vec<String>/u);
+  assert.match(gateway, /task-execution-fence-invalid/u);
+  assert.match(worker, /let admission_reasons = result\.admission_reasons\(\)/u);
+  assert.match(worker, /"admissionReasons": admission_reasons/u);
+});
+
 test("Runtime event wire prefix is identical across JS emitters and Rust consumer", () => {
   const opencodeExecutor = source("scripts/internal/opencode-task-executor.mjs");
   const legacyExecutor = source(".agents/runtime/executor.mjs");
