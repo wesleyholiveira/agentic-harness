@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -11,6 +11,7 @@ import {
   buildValidationCommandCatalog,
   buildValidationCommandRepairPrompt,
   normalizeTechnicalPlanMechanics,
+  planningEvidence,
   technicalPlanRepairIssues,
 } from "../../.agents/runtime/technical-plan-synthesis.mjs";
 
@@ -332,4 +333,42 @@ test("trusted catalog prevents exact-looking Product criterion text from being r
   });
 
   assert.deepEqual(normalized.plan.workItems[0].validation, ["npm test"]);
+});
+
+
+test("technical-plan repair preserves Runtime-authorized read-only context outside docs layout", async () => {
+  const workspace = await mkdtemp(join(tmpdir(), "agent-harness-planning-evidence-"));
+  try {
+    await mkdir(join(workspace, "modernization"), { recursive: true });
+    await writeFile(
+      join(workspace, "modernization", "06-IMPLEMENTATION-ROUTING.md"),
+      "W01 MUST split SQL, Python, and shared DTO ownership.",
+      "utf8",
+    );
+    await writeFile(
+      join(workspace, "modernization", "untrusted-changed.md"),
+      "This path was changed but was not projected as read-only authority.",
+      "utf8",
+    );
+
+    const evidence = await planningEvidence({
+      workspace,
+      handoff: {
+        changedPaths: ["modernization/untrusted-changed.md"],
+        reusedPaths: [],
+      },
+      brief: {
+        readOnlyContextPaths: ["modernization/06-IMPLEMENTATION-ROUTING.md"],
+      },
+      maxBytes: 80_000,
+    });
+
+    assert.deepEqual(
+      evidence.map((item) => item.path),
+      ["modernization/06-IMPLEMENTATION-ROUTING.md"],
+    );
+    assert.match(evidence[0].content, /MUST split SQL, Python, and shared DTO ownership/u);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
 });
