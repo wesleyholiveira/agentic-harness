@@ -1297,7 +1297,14 @@ async function main() {
   if (shouldSynthesizeTechnicalPlan({ brief, handoff })) {
     try {
       const implementationPlanSchema = await readJson(resolve(harnessRoot, ".agents", "schemas", "implementation-plan.schema.json"));
-      const synthesis = await synthesizeMissingImplementationPlan({ workspace, brief, handoff, implementationPlanSchema, structuredRunner });
+      const synthesis = await synthesizeMissingImplementationPlan({
+        workspace,
+        committedSourceRoot: repositoryRoot,
+        brief,
+        handoff,
+        implementationPlanSchema,
+        structuredRunner,
+      });
       handoff = synthesis.handoff;
       if (synthesis.attempted) {
         // A review decision authored before the implementation plan was repaired
@@ -1423,6 +1430,7 @@ async function main() {
       try {
         const repair = await repairImplementationPlanFromReview({
           workspace,
+          committedSourceRoot: repositoryRoot,
           brief,
           handoff,
           implementationPlanSchema,
