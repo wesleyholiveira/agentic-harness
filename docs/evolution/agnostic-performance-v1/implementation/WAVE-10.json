@@ -742,6 +742,18 @@
       "qualificationHarnessBug": true,
       "rootCauseResolved": true,
       "status": "replacement-window-order-and-compiled-schema-fixed-pending-exact-sha-rerun"
+    },
+    {
+      "observedOnCandidate": "e3f73222c868384c9ad1bf16e2c6f7e25ca9b475",
+      "gate": "focused-contracts",
+      "observed": "qualification-controller focused test failed before qualification because a legacy static assertion still expected the receipt-first replacement identity source form removed by the physical-window ordering fix.",
+      "rootCause": "test contract drift only; Runtime/qualification semantics were unchanged",
+      "correction": "align the controller contract with live agent_tasks replacement identity followed by physical behavior and post-completion durable resume receipt",
+      "productionLogicBug": false,
+      "qualificationHarnessBug": true,
+      "runtimeSemanticsChanged": false,
+      "rootCauseResolved": true,
+      "status": "contract-fixed-pending-rerun"
     }
   ],
   "hardening": [
