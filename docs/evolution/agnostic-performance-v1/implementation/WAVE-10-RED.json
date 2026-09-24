@@ -1,7 +1,7 @@
 {
   "schemaVersion": "target-host-red-evidence/v1",
   "wave": "WAVE-10",
-  "status": "RED_AND_STATIC_HARDENING_FIXED_PENDING_EXACT_SHA_RERUN",
+  "status": "SCOPED_GREEN_ON_2AB7FCB_PENDING_FULL_PROMOTION",
   "failures": [
     {
       "gate": "node-contracts",
@@ -362,8 +362,13 @@
       ],
       "productionLogicBug": true,
       "qualificationHarnessBug": true,
-      "rootCauseResolved": false,
-      "status": "diagnostics-and-failfast-fixed-pending-cause-rerun"
+      "rootCauseResolved": true,
+      "status": "superseded-and-proven-nonblocking-by-final-scoped-green",
+      "finalGreenEvidence": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "gate": "wave10-worker-loss/R-9-opencode-compiled-runtime",
@@ -397,10 +402,15 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": true,
       "upstreamDependencyBug": true,
-      "rootCauseResolved": false,
-      "status": "terminal-failfast-fixed-upstream-hypothesis-not-sufficient",
+      "rootCauseResolved": true,
+      "status": "superseded-and-proven-nonblocking-by-final-scoped-green",
       "upstreamDependencyHypothesis": "anomalyco/opencode#50439",
-      "hypothesisStatus": "not-sufficient-after-candidate-15cf8ad84996fbf8f6edf5fc552043b71692cc03-reproduced-UnknownError"
+      "hypothesisStatus": "not-sufficient-after-candidate-15cf8ad84996fbf8f6edf5fc552043b71692cc03-reproduced-UnknownError",
+      "finalGreenEvidence": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "gate": "wave10-worker-loss/R-9-opencode-server-defect",
@@ -436,8 +446,13 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": true,
       "upstreamDependencyBug": null,
-      "rootCauseResolved": false,
-      "status": "diagnostic-authority-hardened-pending-exact-sha-rerun"
+      "rootCauseResolved": true,
+      "status": "superseded-and-proven-nonblocking-by-final-scoped-green",
+      "finalGreenEvidence": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "gate": "wave10-worker-loss/R-9-runtime-event-wire-prefix",
@@ -518,10 +533,15 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
       "upstreamDependencyBehavior": true,
-      "rootCauseResolved": false,
-      "status": "superseded-by-qualification-empty-auth-mount-root-cause",
+      "rootCauseResolved": true,
+      "status": "superseded-and-proven-nonblocking-by-final-scoped-green",
       "correctionStatus": "superseded-by-fresh-process-revalidation",
-      "supersededBy": "wave10-worker-loss/R-9-qualification-openai-oauth-projection"
+      "supersededBy": "wave10-worker-loss/R-9-qualification-openai-oauth-projection",
+      "finalGreenEvidence": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "gate": "wave10-worker-loss/R-9-model-refresh-process-boundary",
@@ -576,9 +596,14 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
       "upstreamDependencyBehavior": true,
-      "rootCauseResolved": false,
-      "status": "diagnostic-correct-but-secondary-to-empty-auth-mount",
-      "supersededBy": "wave10-worker-loss/R-9-qualification-openai-oauth-projection"
+      "rootCauseResolved": true,
+      "status": "superseded-and-proven-nonblocking-by-final-scoped-green",
+      "supersededBy": "wave10-worker-loss/R-9-qualification-openai-oauth-projection",
+      "finalGreenEvidence": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "gate": "wave10-worker-loss/R-9-qualification-openai-oauth-projection",
@@ -687,8 +712,13 @@
       ],
       "productionLogicBug": null,
       "qualificationHarnessBug": true,
-      "rootCauseResolved": false,
-      "status": "semantic-progress-watchdog-fixed-production-root-cause-pending-exact-sha-rerun"
+      "rootCauseResolved": true,
+      "status": "superseded-and-proven-nonblocking-by-final-scoped-green",
+      "finalGreenEvidence": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "gate": "R-1/contracts",
@@ -848,8 +878,13 @@
       ],
       "productionLogicBug": null,
       "qualificationHarnessBug": true,
-      "rootCauseResolved": false,
-      "status": "observer-fix-not-reached-by-1d628e6-run-product-failed-earlier"
+      "rootCauseResolved": true,
+      "status": "superseded-and-proven-nonblocking-by-final-scoped-green",
+      "finalGreenEvidence": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "gate": "wave10-worker-loss/R-9-product-copy-root-isolation",
@@ -1211,5 +1246,14 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "FOCUSED_R9_REPLACEMENT_CONTRACT_DRIFT_FIXED_EXACT_SHA_RERUN_PENDING"
+  "greenAfterFix": "SCOPED_WAVE10_WORKER_LOSS_PASS_ON_2AB7FCB94FC74387F1DA6F5EA1D614521EA02469",
+  "finalScopedGreenEvidence": {
+    "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+    "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+    "verdict": "PASS",
+    "qualificationScope": "wave10-worker-loss",
+    "promotionEligible": false,
+    "firstDivergence": null,
+    "interpretation": "All scoped Wave-10 gates passed on one exact SHA; remaining work is MANIFEST/T17 closure plus full promotion."
+  }
 }
