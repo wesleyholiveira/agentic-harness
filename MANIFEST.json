@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-20T17:18:51Z",
+  "generatedAt": "2026-09-24T01:13:44Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 547,
-  "treeSha256": "sha256:60beb9077452a53fbd7ac46450f8c0f7e468ecf838891fd086ed1868bc1d7548",
+  "fileCount": 690,
+  "treeSha256": "sha256:df7e6d83970e6ca3a6990f7a602566339b21f4bfbf8654286e2a4f62d78a16ec",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -273,6 +273,11 @@
       "sha256": "sha256:5a459aeed7f3444f1675f7ba0d60e3825158199d2825ad9843d36457502b20c4"
     },
     {
+      "bytes": 4287,
+      "path": ".agents/runtime/behavior-fence.mjs",
+      "sha256": "sha256:579dca2a35fb80b758d7216032a26eac98718f5bf59881a2a82c18f52d093bd5"
+    },
+    {
       "bytes": 16558,
       "path": ".agents/runtime/bootstrap-capabilities.mjs",
       "sha256": "sha256:eadec77701b4443f610faa6530a3f872b96fcbf9911202306de5254dc306f03c"
@@ -298,9 +303,9 @@
       "sha256": "sha256:179e6449bb66752be6bcbd43fc78ac91444e768373cf04d6a356522d9ebc9916"
     },
     {
-      "bytes": 23329,
+      "bytes": 24386,
       "path": ".agents/runtime/context-builder.mjs",
-      "sha256": "sha256:12a9f0a39126a81f9825ef48e114a6d7737b18e8ba0477015aa86a0ae35e6560"
+      "sha256": "sha256:b8c047b7bf68564f67b9ac5a6cc0827288aadef453cc29b6f97f21e1da141d36"
     },
     {
       "bytes": 1030,
@@ -318,9 +323,9 @@
       "sha256": "sha256:11ac31f33156d8c1c68ba904a9a7aa293f8c561cdeb2cd0b1e1446cf9e8f0615"
     },
     {
-      "bytes": 25729,
+      "bytes": 26317,
       "path": ".agents/runtime/dag-compiler.mjs",
-      "sha256": "sha256:a88ffe726ed387829f83492525baa8b4331e853b87f016ab3e0dfa2bcad4cad7"
+      "sha256": "sha256:0e787922f006e89e96d4a7a78d728421e14188a3f21cb618fee91be2233aac5d"
     },
     {
       "bytes": 4457,
@@ -353,24 +358,24 @@
       "sha256": "sha256:ce15d2c2ffe5d218613afb126e94e73bf43a989f893bced53af82bf44fb6e70b"
     },
     {
-      "bytes": 5610,
+      "bytes": 5730,
       "path": ".agents/runtime/event-driven-contracts.mjs",
-      "sha256": "sha256:2d6587674a3b3a40c0b5fd0568ff92198d81b8c67b8ec1f727e65c0310f9c08f"
+      "sha256": "sha256:72327c12b7a29eb33c362b3989aad6b6ec25847b0777b53690b29cb25202bcc7"
     },
     {
-      "bytes": 34778,
+      "bytes": 36336,
       "path": ".agents/runtime/event-driven-finalizer.mjs",
-      "sha256": "sha256:b20d644e6ea2bd7b8bf74112c8e2254c390df442f22a52f110f41290bbbb2799"
+      "sha256": "sha256:4ee3c21e19da82a1dcf8a56d1e6ccb59f16e79d2e5497fec2da481d522a51d3d"
     },
     {
-      "bytes": 24852,
+      "bytes": 27184,
       "path": ".agents/runtime/event-driven-preparation.mjs",
-      "sha256": "sha256:13ea1155d952c9eba54321ac106e60b97aaac5822f5b6d69e12a3cccc8ea0c70"
+      "sha256": "sha256:67643639618635d5ebbe0891b5d35aa26b52c78e78a5f8074b4f42081d12e311"
     },
     {
-      "bytes": 25499,
+      "bytes": 25729,
       "path": ".agents/runtime/event-driven-reconciler.mjs",
-      "sha256": "sha256:d99db31dd67e643f71ff913e0f75b2333c854acb9313ed6f559133a94ada5441"
+      "sha256": "sha256:54514403a603e77ebcdaea20f5c3999557fa00d298bdac85db3304bd839162a0"
     },
     {
       "bytes": 2542,
@@ -383,9 +388,9 @@
       "sha256": "sha256:1aef37497980a95b2d5c840fd78005118afa816a7381c9e83e3fe0312604ec6c"
     },
     {
-      "bytes": 78569,
+      "bytes": 79317,
       "path": ".agents/runtime/executor.mjs",
-      "sha256": "sha256:9de7c49b7773e412f17497230218b13275503b0b254ff92baa94277ee22c7b96"
+      "sha256": "sha256:4f04ee83a09ef5dcf6546153bee9b1b87c08e7c57581f2352b804d66896702cf"
     },
     {
       "bytes": 4285,
@@ -553,6 +558,11 @@
       "sha256": "sha256:9eea38279866e7dfdc4fbc8c6719f09957ec76038ac0ebaef432435c7d81dc13"
     },
     {
+      "bytes": 2385,
+      "path": ".agents/runtime/qualification-behavior.mjs",
+      "sha256": "sha256:6255302b4e01e2d0f21881452c3e775b4f9f0474f40c5a433440eaef91b3ebf0"
+    },
+    {
       "bytes": 4140,
       "path": ".agents/runtime/qualification-meta-run-guard.mjs",
       "sha256": "sha256:a2846ab0d46e80df205df63e21e3adea2094a5d572f6099f9ff6bf41306b6309"
@@ -653,9 +663,9 @@
       "sha256": "sha256:41a3ba2f41f1df7f4101d04d269d41389ccdd93b87bd47ce652807c64f554fe7"
     },
     {
-      "bytes": 75382,
+      "bytes": 87596,
       "path": ".agents/runtime/technical-plan-synthesis.mjs",
-      "sha256": "sha256:40a65f125e4a403bae4e6972e5ec6b2746aa904f3c0b6c88a1c8b9a580bac199"
+      "sha256": "sha256:7580103e4c548f92524cfbadb19867b04e15d53cfb467abae352542fac6d25bb"
     },
     {
       "bytes": 6149,
@@ -663,9 +673,9 @@
       "sha256": "sha256:25306fc9107b65b10cf0dc60a3e88c8d3cad7fcebb27b0815a555f14f30a878c"
     },
     {
-      "bytes": 7884,
+      "bytes": 8987,
       "path": ".agents/runtime/validation-command.mjs",
-      "sha256": "sha256:9f85fc8112382dc420640c99ac1b7be087835c3fcde408c10b3fc0f7b2e6dd8c"
+      "sha256": "sha256:dc038d7d9453bf96086d92f2bb1abfe05bf6c35f637a52a14e5829eb4313b5c4"
     },
     {
       "bytes": 4518,
@@ -698,9 +708,9 @@
       "sha256": "sha256:c009f6e0ba8a6d0aa322760363a2d25e4347d8f9b228f7122ade7c198d9f1190"
     },
     {
-      "bytes": 13724,
+      "bytes": 16114,
       "path": ".agents/schemas/execution-plan.schema.json",
-      "sha256": "sha256:e3b3ba94c00aec3eac1a8bc417e6cfb318833531f57c2023cb3051a5c95ed85f"
+      "sha256": "sha256:b63d80162c71538d122b8f419e515022e4a2a0e2dd87444c5fe830a19db408a0"
     },
     {
       "bytes": 13339,
@@ -708,9 +718,9 @@
       "sha256": "sha256:29044bc8ecbae15716ff41d2853e7278470ad952638a151b03b0adcae9257c8f"
     },
     {
-      "bytes": 4660,
+      "bytes": 6837,
       "path": ".agents/schemas/implementation-plan.schema.json",
-      "sha256": "sha256:e475e1414ad92fa8d144dd242c4eaa20b5393a9f1057aa9f87675d98e59b6767"
+      "sha256": "sha256:546be0306a3d7843bb71a8e5d512eaab7f621dc1ddf349d225f590f4cd153a67"
     },
     {
       "bytes": 2559,
@@ -733,9 +743,9 @@
       "sha256": "sha256:4a625db95bca8731709bc243049d2d0d39058ee461a46f611e6757a9155e6f8b"
     },
     {
-      "bytes": 11036,
+      "bytes": 13115,
       "path": ".agents/schemas/task-brief.schema.json",
-      "sha256": "sha256:c983107f22bd467873ef537018ff4c1c7c6aba357b0ce14dcf901e1aaf447f29"
+      "sha256": "sha256:2a073ded4f9ebd11695297302cfd0810cab2ffc449adec22a3ff19e56b75bddb"
     },
     {
       "bytes": 838,
@@ -908,9 +918,9 @@
       "sha256": "sha256:137079e5bec03ecb69f12e677844e47fb0c5d131d77f47a006f9ba6b98f9efad"
     },
     {
-      "bytes": 2856,
+      "bytes": 3509,
       "path": ".env.example",
-      "sha256": "sha256:19eb50634108e280f03a6f27ec8973fc576f3fad93c4e61850d0c626eb4a63c8"
+      "sha256": "sha256:3dcf36b268ab3a3bd55fe7ea96dbf2734382c1d251e323552c3857c6fbc96b5c"
     },
     {
       "bytes": 268,
@@ -973,9 +983,9 @@
       "sha256": "sha256:27966bd0d889bafe0117a360b4f347135123f91366e531c0f76a2f5ab7750685"
     },
     {
-      "bytes": 641,
+      "bytes": 668,
       "path": "apps/context-engine/Dockerfile",
-      "sha256": "sha256:8a8d58b952bf77a7f214a76cb9ce0e6da9bbffc57ad7217f19ebacc5ff2284e4"
+      "sha256": "sha256:ad1b829287fbb3df39aa2e53b282b52b7f5d4d756522cca1724cc30fe8814820"
     },
     {
       "bytes": 719,
@@ -1163,24 +1173,39 @@
       "sha256": "sha256:a36eaf154ad7e196b4d9610f6b993542d861ed55a1e68883f0ddcf708bb290c6"
     },
     {
-      "bytes": 85632,
+      "bytes": 619,
+      "path": "apps/docker-gateway/Dockerfile",
+      "sha256": "sha256:5f0393bf211f26b867cadee0694ec2340f9e5c503193f50f271eff5d75e72e51"
+    },
+    {
+      "bytes": 4467,
+      "path": "apps/docker-gateway/fence-store.mjs",
+      "sha256": "sha256:ad08db65bbb6dde2efd3fc92be21bc5abf351a5500a4dca20c6685549d828b3b"
+    },
+    {
+      "bytes": 17098,
+      "path": "apps/docker-gateway/server.mjs",
+      "sha256": "sha256:9358a52d2152e9d0a04baac5d87e380ecb2107ee3e3f095b51f00a000ab29e24"
+    },
+    {
+      "bytes": 85648,
       "path": "apps/runtime-worker/Cargo.lock",
-      "sha256": "sha256:48ceb5667184fbbbd8b26f5edbc4420907dbe9ec2fd308f1da9d359d5abedd27"
+      "sha256": "sha256:b8d2b68e7cb45262171b2292dab29ccd6cd946ba06f80f7a4c146ff91ab910c0"
     },
     {
-      "bytes": 1075,
+      "bytes": 1087,
       "path": "apps/runtime-worker/Cargo.toml",
-      "sha256": "sha256:9083311c8a5f620cbef93fc153fdef0c9c4f55ce6e013ae554baecb5fd0cfc4a"
+      "sha256": "sha256:5bb67e21712376881a67acbc0ed92cd64eeeb7bc9cd0280b7cdb96f8df7f19a2"
     },
     {
-      "bytes": 1219,
+      "bytes": 1620,
       "path": "apps/runtime-worker/Dockerfile",
-      "sha256": "sha256:aa943a045146cf9deaa646d5a40a7410446b94a8f32eee6bea94c6b0c7dea3d7"
+      "sha256": "sha256:2cb391cd90af4bec6e41a27693afe760b3da0c6287b4e94630f101dc2fb00e97"
     },
     {
-      "bytes": 1129,
+      "bytes": 3714,
       "path": "apps/runtime-worker/entrypoint.sh",
-      "sha256": "sha256:1ac51688128673cbfcaa6e17745300c849e9949dbb72b28e7fe5d02433c001dc"
+      "sha256": "sha256:5580494317f9ba0d582ffee10b9aa2fb547410f5d15119b763839acadce6df53"
     },
     {
       "bytes": 72682,
@@ -1188,9 +1213,9 @@
       "sha256": "sha256:84e1b9adff51301a63a214a1307d12d952dd60f99f76a71525cabdfa10c32579"
     },
     {
-      "bytes": 88223,
+      "bytes": 106487,
       "path": "apps/runtime-worker/src/agent_runtime.rs",
-      "sha256": "sha256:0a7f56124fad3ae17b94d79fbe2d9b0e48c2e1ea31031b4fe7b4db16e80221f3"
+      "sha256": "sha256:31cd97bc946f0868f423d049b9214bdb48f761d80f720543a1e291a0ada5ee47"
     },
     {
       "bytes": 1373,
@@ -1198,14 +1223,19 @@
       "sha256": "sha256:1076fb6c694533416d6c90602018ca0f6bfce23a39222a97d32adb831fde31d1"
     },
     {
-      "bytes": 5321,
-      "path": "apps/runtime-worker/src/config.rs",
-      "sha256": "sha256:28da17315cda45a1a7504b45d1511fea98d1086337775b557534a05fd3c6f7cc"
+      "bytes": 8768,
+      "path": "apps/runtime-worker/src/behavior_gateway.rs",
+      "sha256": "sha256:620be17386fccc8bd43beb3cfb0d88f1e859482a5ede309bf218b80ef87a36c5"
     },
     {
-      "bytes": 935,
+      "bytes": 6095,
+      "path": "apps/runtime-worker/src/config.rs",
+      "sha256": "sha256:faf640929c633df5b47e9a23b37ae15498c0990db72cb1b0b13fc7ded46e2a8c"
+    },
+    {
+      "bytes": 957,
       "path": "apps/runtime-worker/src/main.rs",
-      "sha256": "sha256:9ee48b2e9bebc418fd0c1e57365839b95afb662dbd7244f2ef22a9deb4ed76ff"
+      "sha256": "sha256:b9fe3d9c40fed336ee51d1c5554058843bbd6f2617c6f7875a54dc019cbdde55"
     },
     {
       "bytes": 4266,
@@ -1213,9 +1243,9 @@
       "sha256": "sha256:8ccd4534294aa5c2681f523632fc0cc8c8b8cfb90bfa4e407891d42569c06487"
     },
     {
-      "bytes": 7092,
+      "bytes": 9478,
       "path": "compose.yaml",
-      "sha256": "sha256:0a44912ff7cf0e7961f423bb33f8e03832b5eb4ae7f584bf32be19321d9070bd"
+      "sha256": "sha256:4d101f630340012efad2b9f5ba4e4e250bfb15180d363481863d0e27f5ec087d"
     },
     {
       "bytes": 2309,
@@ -1433,6 +1463,21 @@
       "sha256": "sha256:7aa297d67e4084f26b8d81669064affb029ba191d26a9df2280817b4b3a326d6"
     },
     {
+      "bytes": 3771,
+      "path": "docs/adr/0042-post-commit-source-attested-one-off-images.md",
+      "sha256": "sha256:1cba0294d60bc6ffc93842ac17591b2d5e62053a82d7fadb5e296e4495424135"
+    },
+    {
+      "bytes": 5158,
+      "path": "docs/adr/0043-r9-physical-worker-loss-inside-behavior-gate.md",
+      "sha256": "sha256:1ac1afa225cb4e2ddb59229d45e323fb44c23f6ed7d81d1b8c347aae7d8bf3fc"
+    },
+    {
+      "bytes": 4272,
+      "path": "docs/adr/0044-wave-scoped-qualification-source-authority.md",
+      "sha256": "sha256:b76a9ba965e704ff31716449b67c9db591eb415c5450e28b3c1a6bc70c002c41"
+    },
+    {
       "bytes": 2250,
       "path": "docs/architecture/DECISIONS.md",
       "sha256": "sha256:46a3f775ba683fb27d1dfafbb6f6c879ad6d753f0bdab10cac0ca14829b5971f"
@@ -1506,6 +1551,426 @@
       "bytes": 7748,
       "path": "docs/architecture/lineage/0137-terminal-continuation-delivery-vs-consumer-completion.md",
       "sha256": "sha256:f075c1111223c7026cb53481099d0e9e21d843bb165e81b6801dd36cbd7fda90"
+    },
+    {
+      "bytes": 3902,
+      "path": "docs/evolution/agnostic-performance-v1/00-START-HERE.md",
+      "sha256": "sha256:15f1f9310bceaa3c11585d46cf0f01a88459282d610ef34341bddde5bec86650"
+    },
+    {
+      "bytes": 6186,
+      "path": "docs/evolution/agnostic-performance-v1/01-BASELINE-AND-PRESERVATION.md",
+      "sha256": "sha256:e4b1fa2c6eae83e62b765660d51e26b6e9acaac0bda7ce7f1854d6c78884ede6"
+    },
+    {
+      "bytes": 4192,
+      "path": "docs/evolution/agnostic-performance-v1/02-PRD.md",
+      "sha256": "sha256:99d4ba87fa7a42cdfe095001db0bf0fd38185b01a0438f8320c01c4d9241ada0"
+    },
+    {
+      "bytes": 5350,
+      "path": "docs/evolution/agnostic-performance-v1/03-ARCHITECTURE-AND-ADRS.md",
+      "sha256": "sha256:42537810e7dda13c93e00747a4ca33e8b284b168bd78dc1399abbcab3d1a6b7a"
+    },
+    {
+      "bytes": 6464,
+      "path": "docs/evolution/agnostic-performance-v1/04-CONTRACTS.md",
+      "sha256": "sha256:83a41b22926622a9756bb5d8e2a970fa6ced3be171ff0a59a39870392470d654"
+    },
+    {
+      "bytes": 5135,
+      "path": "docs/evolution/agnostic-performance-v1/05-SDD-TDD-RUNBOOK.md",
+      "sha256": "sha256:e0238874512377083e9430513fb4ac254a291932fc41d78c416988a2d4deb1dd"
+    },
+    {
+      "bytes": 4179,
+      "path": "docs/evolution/agnostic-performance-v1/06-QUALIFICATION-AND-PERFORMANCE.md",
+      "sha256": "sha256:ea09e9ec0bac6e7b41374755ff773191735bc3809ba40793ced8ac82b7f883e6"
+    },
+    {
+      "bytes": 2356,
+      "path": "docs/evolution/agnostic-performance-v1/07-MIGRATION-ROLLBACK.md",
+      "sha256": "sha256:95c524f2ce24b8b1e98dab1741fdfd8e1ed24a6b885218132d11178d913a1991"
+    },
+    {
+      "bytes": 1589,
+      "path": "docs/evolution/agnostic-performance-v1/08-EXTENSION-PARITY.md",
+      "sha256": "sha256:c5e0e90d26ddcfead83913026879031d1c99a51dfafbcaa82f1119402abed241"
+    },
+    {
+      "bytes": 8928,
+      "path": "docs/evolution/agnostic-performance-v1/09-DOCKER-TOOLCHAIN-AUTHORITY.md",
+      "sha256": "sha256:eddb418cede4b4cd3bc815d5e99dcda6ee23080080ce488140bbf0802d734247"
+    },
+    {
+      "bytes": 15027,
+      "path": "docs/evolution/agnostic-performance-v1/acceptance-catalog.json",
+      "sha256": "sha256:db98060c52077b904eb0e435fe7708709457d8caa6c79875e1a4d6fedc8ea0cc"
+    },
+    {
+      "bytes": 7601,
+      "path": "docs/evolution/agnostic-performance-v1/context-packets.json",
+      "sha256": "sha256:3dd59303f306ea75cc5d3416834e77142d6c50643fdc35971154cf662030eb97"
+    },
+    {
+      "bytes": 5278,
+      "path": "docs/evolution/agnostic-performance-v1/docker-toolchain-contract.json",
+      "sha256": "sha256:05540389b2be70c52acb171ffa19835dc472e304ddf179fead95e2552c8d67e1"
+    },
+    {
+      "bytes": 3316,
+      "path": "docs/evolution/agnostic-performance-v1/execution-plan.json",
+      "sha256": "sha256:2853ad9ccd29b839c24fdacfaf8a945327093ac772e726da1f6fd7d75d93d804"
+    },
+    {
+      "bytes": 811,
+      "path": "docs/evolution/agnostic-performance-v1/handoffs/ARCHITECTURE-TO-TECHNICAL-LEAD.json",
+      "sha256": "sha256:75df16a3e5c6fc997711a958ebf4fd30099682d0593b783218ec0d4c04c0e6a7"
+    },
+    {
+      "bytes": 807,
+      "path": "docs/evolution/agnostic-performance-v1/handoffs/IMPLEMENTATION-RESULT.template.json",
+      "sha256": "sha256:8c6ea632d21fc51bba90161c24ee79846d63e4580906058dc9d354131984996c"
+    },
+    {
+      "bytes": 475,
+      "path": "docs/evolution/agnostic-performance-v1/handoffs/RELEASE.template.json",
+      "sha256": "sha256:08821c878f570b1281c7758c530658243db227371dd1b77b7ec44c4b304b70d3"
+    },
+    {
+      "bytes": 5142,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-01.json",
+      "sha256": "sha256:ddce212f59732d26cb364cd9a4ba087936b974991bfd334b329a4ae2bf62ce05"
+    },
+    {
+      "bytes": 4185,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-01.md",
+      "sha256": "sha256:ff105a9a0e739f420470c78b52793fbe775b750268c7cd375c5abdf4c473cc73"
+    },
+    {
+      "bytes": 2032,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-02.json",
+      "sha256": "sha256:b412fafcd095356abf3f322943c28b03a844c39a4c1dedf10d1a3b3ced8bdad2"
+    },
+    {
+      "bytes": 5287,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-02.md",
+      "sha256": "sha256:ef6ee85fb270e030f014ec4a9778e853b56843800ea585572dff28f248490247"
+    },
+    {
+      "bytes": 416,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-03-WINDOWS-GREEN.json",
+      "sha256": "sha256:eb10e90f1ba47aa40e04ca0481f0cf828f4fdb8515b7043f78cd105d9057c7ca"
+    },
+    {
+      "bytes": 809,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-03-WINDOWS-GREEN.md",
+      "sha256": "sha256:70fead0394dcdf23d2f985e4548a3c180af0065fbcffc4e802ad83ca6e6e84d2"
+    },
+    {
+      "bytes": 728,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-03-WINDOWS-RED.json",
+      "sha256": "sha256:4dac1793705b5b43849d1679b3ab92cec8ea070445e9bd13befb6cb485db52e1"
+    },
+    {
+      "bytes": 2460,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-03-WINDOWS-RED.md",
+      "sha256": "sha256:6c46a0bb183fd1bb26468c9a9aed4629c047d4c4a83d517f08282a60af89de0b"
+    },
+    {
+      "bytes": 1484,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-03.json",
+      "sha256": "sha256:f6786509897a180f804b5650225a1497d2fa02fe902e718d3a412538d37439fe"
+    },
+    {
+      "bytes": 3860,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-03.md",
+      "sha256": "sha256:fa821b8d93924f12a60b43b6f0de565de3305dfee2251cede9e46f604b3d82a9"
+    },
+    {
+      "bytes": 1017,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-04.json",
+      "sha256": "sha256:8ff4f23d77f10853f56ce25f5148378fe0f198d6a9a1d55efb8cead11904dad1"
+    },
+    {
+      "bytes": 4577,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-04.md",
+      "sha256": "sha256:8c43402c00ea73d7c27913c39ed1a98438089fb1a7be216d4f94eca31de2902a"
+    },
+    {
+      "bytes": 407,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-05-FOCUSED-GREEN.json",
+      "sha256": "sha256:cc7b62ed592e092f0290a34877fb13d9196e3f56c5b74ed52acaf9086a4ee5af"
+    },
+    {
+      "bytes": 584,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-05-FOCUSED-GREEN.md",
+      "sha256": "sha256:a3cabd1d66308262f46dfa976481f08264780d4880c66601a5c725a9c94c204f"
+    },
+    {
+      "bytes": 1329,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-05.json",
+      "sha256": "sha256:f4823a5defbe92483e729baffdadde1bfc93081454f4c9d48d0d12b9c8b071c3"
+    },
+    {
+      "bytes": 5395,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-05.md",
+      "sha256": "sha256:85f38f9c49caafe2c23910d817c23e5104be4fd3d70b250763f2ac67e930a979"
+    },
+    {
+      "bytes": 361,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-06-DOCKER-GREEN.json",
+      "sha256": "sha256:9168e2fd45ed3e9255e2f1b407cce2cdfb803880bc90f084d65f7659f4caf054"
+    },
+    {
+      "bytes": 863,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-06-DOCKER-GREEN.md",
+      "sha256": "sha256:d9e44966f35ce3b62de05ddf092c2d09a4e59f6e9a26335fbb74d6d892f27fb5"
+    },
+    {
+      "bytes": 1031,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-06.json",
+      "sha256": "sha256:a4356f8efdc8a96e5001cf5ecd5328d8629710cef85bc46c322348b10c39f1bc"
+    },
+    {
+      "bytes": 4243,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-06.md",
+      "sha256": "sha256:d4dcfabc6b1ebb616503fb8bce60247b18cfb7cb0fa98d54f3ac97e0f8601421"
+    },
+    {
+      "bytes": 638,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-07-DOCKER-RED.json",
+      "sha256": "sha256:e387b795f4353a258421bc6512864b7514d9b00c7f1d142c758fa01554efd381"
+    },
+    {
+      "bytes": 1017,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-07-DOCKER-RED.md",
+      "sha256": "sha256:b78a89e1e6dccfd3368f1d206b23d77fcb3c59505302f78855768e62683c02d4"
+    },
+    {
+      "bytes": 428,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-07-GREEN.json",
+      "sha256": "sha256:14125d6628e7a831f98720655f68e59236485f608e1b95839bc1a1d35cb611a6"
+    },
+    {
+      "bytes": 765,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-07-GREEN.md",
+      "sha256": "sha256:d7224378e3987277f9fb7e0c5ef9d2383a477812798d5f4b5aad8ff1492a67d7"
+    },
+    {
+      "bytes": 435,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-07-WINDOWS-RED.json",
+      "sha256": "sha256:cfef4ad91e0b36f8a139f54c13da1893ade6270d7068abb6bb2f5e7474c100ed"
+    },
+    {
+      "bytes": 1056,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-07-WINDOWS-RED.md",
+      "sha256": "sha256:b9f16bba1ebe63509259dd731a884eb24a039cb6a9fb5fa3963bd6f3b2194cc9"
+    },
+    {
+      "bytes": 1289,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-07.json",
+      "sha256": "sha256:883f97c3ca01839a273f10f4b8ff6cdbb69fc34d6a278d76d3d70ab4b69f5874"
+    },
+    {
+      "bytes": 4421,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-07.md",
+      "sha256": "sha256:716ecd9ef723a9824c9550b4ec4596703155578d4a86fde6d204223e0b0cd89b"
+    },
+    {
+      "bytes": 273,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-08-GREEN.json",
+      "sha256": "sha256:7a8ef687efa56ad011a77ff9100e115d71d81172ea53bbdc4d55af29ed6d5816"
+    },
+    {
+      "bytes": 500,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-08-GREEN.md",
+      "sha256": "sha256:c431fab26ece199957190443e8ec4e0827c4295fb17a723d980c7d9ae8de4d4e"
+    },
+    {
+      "bytes": 1117,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-08.json",
+      "sha256": "sha256:38cf6a7f5b521abc6941d333aa15e11b4befce7ce53ae949b15fbe625afefd5b"
+    },
+    {
+      "bytes": 4814,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-08.md",
+      "sha256": "sha256:dee124ec329e6ccdc23d6268c2772d1edda649f07b664f04540ac1a5eddf06dc"
+    },
+    {
+      "bytes": 257,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-09-GREEN.json",
+      "sha256": "sha256:53ce1c07c66e4e6b66a196c61ba4d5b7dc29501c61d4cf793a27192525fd0fdb"
+    },
+    {
+      "bytes": 514,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-09-GREEN.md",
+      "sha256": "sha256:a6d9c94a33615d0019bb3ba18a044dd84b9440565314cce5e9146c891f1e027b"
+    },
+    {
+      "bytes": 530,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-09-SYNTAX-RED.json",
+      "sha256": "sha256:29107b59ea2abf8eed326ff953ff2197febbfb06884e502cdeb8a3fbf1f7ad54"
+    },
+    {
+      "bytes": 820,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-09-SYNTAX-RED.md",
+      "sha256": "sha256:4dcaab145413936f6383342724050d3597d0df1c83c1c7e14093d881736febb7"
+    },
+    {
+      "bytes": 1015,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-09.json",
+      "sha256": "sha256:446c95d3f9553ebbd2677322aa8526ab1d39fc31eb8263bd0214a3169f8bebf7"
+    },
+    {
+      "bytes": 4351,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-09.md",
+      "sha256": "sha256:3ac8ab836a6411203e8e6faebd3f60e9153095a0564a85c2e09994017ae77618"
+    },
+    {
+      "bytes": 74620,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-10-RED.json",
+      "sha256": "sha256:b3fab89e1a42ecc295141113fedd45a5643011e8cceb6cfeca73543b19f48a26"
+    },
+    {
+      "bytes": 1507,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-10-RED.md",
+      "sha256": "sha256:abbeb1150eb715914c461c322b93ff0f4a9c02b5e3b93bb0208b32b366731182"
+    },
+    {
+      "bytes": 59895,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-10.json",
+      "sha256": "sha256:987ff8581f1dbadb6725cc0865abed4cf2a67c923191e1b5cf91f4f3f0f317f2"
+    },
+    {
+      "bytes": 78461,
+      "path": "docs/evolution/agnostic-performance-v1/implementation/WAVE-10.md",
+      "sha256": "sha256:b9c14798b20669b4db94cf71a8819b16b1692deb920ca174f94a50eaf5221833"
+    },
+    {
+      "bytes": 1244,
+      "path": "docs/evolution/agnostic-performance-v1/planning-task.schema.json",
+      "sha256": "sha256:ff138aaf9db7fbb36adbddeaaf7adbe052490ed8befcf4aba9ee01f37e049e11"
+    },
+    {
+      "bytes": 6560,
+      "path": "docs/evolution/agnostic-performance-v1/source-index.json",
+      "sha256": "sha256:3fba33aa28cf0882326e75a96d366681ab7700de93c96db833e6622154f7a968"
+    },
+    {
+      "bytes": 3513,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/README.md",
+      "sha256": "sha256:ccc99b00a9754c38a48bdc08bec9cae25b579acab222f4cd3b549accb9b3ca8f"
+    },
+    {
+      "bytes": 1036,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T00.json",
+      "sha256": "sha256:181c3bbf2dda8bb437686e04c9765f88dbbd6692e562bcaa5a30f85e844ba111"
+    },
+    {
+      "bytes": 1307,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T01.json",
+      "sha256": "sha256:43f57abf5a557796edec7bd7cdfa640afcc44f8db106ad4cc802ec07120a1e54"
+    },
+    {
+      "bytes": 1203,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T02.json",
+      "sha256": "sha256:357bfed4d191701dda0c65375a32babdc1fe368a1d80bb79a9e90622a91c8048"
+    },
+    {
+      "bytes": 1123,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T03.json",
+      "sha256": "sha256:20254e244bc1ebd2757e059b13be2ab16b0de2ca039191d7cbfe628e78b9ab88"
+    },
+    {
+      "bytes": 1258,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T04.json",
+      "sha256": "sha256:e5a74805c2bc8c0a26f1c0b76e709c7b1fd2da1f73685846ba1800edb2ab9f4c"
+    },
+    {
+      "bytes": 1334,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T05.json",
+      "sha256": "sha256:f04be50afa98b1af74d07001c7ddc1c8e80bfc272ab19016e91fdbd20bcac18f"
+    },
+    {
+      "bytes": 1525,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T06.json",
+      "sha256": "sha256:943571370953c4ca14f66001ab7a51a8480bc9f23c8dec69187c20d4925b1d4d"
+    },
+    {
+      "bytes": 1400,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T07.json",
+      "sha256": "sha256:222f77c65cafbd072fae98a6370481e32dddcb801e6781b2b2b77f056717f04f"
+    },
+    {
+      "bytes": 1504,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T08.json",
+      "sha256": "sha256:fa7a4dc274a445438147d988ad89c5b3fd057b7772c79967ad7cef50b7ed121c"
+    },
+    {
+      "bytes": 1455,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T09.json",
+      "sha256": "sha256:b0a7e9e0060ed58ab6f8b1570389a886532d2003402a5404f3e2738729a42303"
+    },
+    {
+      "bytes": 1144,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T10.json",
+      "sha256": "sha256:3db2ec5c8538784baccdfe8791664746e51e5584e67d5a73fd530608957adaae"
+    },
+    {
+      "bytes": 1152,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T11.json",
+      "sha256": "sha256:889da006624f3b957a4e2b38ef637c225d2fac5694e3ea3ac3ce4fffe6466b2d"
+    },
+    {
+      "bytes": 1182,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T12.json",
+      "sha256": "sha256:ae5e2bd6ae014793e5d9956e8bfab66313e93a83a8af6168cfc36f331a6643a0"
+    },
+    {
+      "bytes": 1517,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T13.json",
+      "sha256": "sha256:20d9dfdafacd8c8bd613ecba5af65a070cb191c97ef5b51ece094b5201c81dbf"
+    },
+    {
+      "bytes": 1677,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T14.json",
+      "sha256": "sha256:d96e925539fb961b8c9b9d87fb207bd0c416258a6ce11c82a94dcb9ceb126f30"
+    },
+    {
+      "bytes": 1171,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T15.json",
+      "sha256": "sha256:5db44771cc323820c5c5cb49f6abb035955a607717858db25f97093b3e34ad9c"
+    },
+    {
+      "bytes": 1172,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T16.json",
+      "sha256": "sha256:2826f46d097b50aa6398fb8a86f081cb6d2445581c5ec0aef2c81086ffdf1a7c"
+    },
+    {
+      "bytes": 1143,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T17.json",
+      "sha256": "sha256:c7792c13544ce6bbb17084c2b84c717fce14a250d9ee6398d6957f7628b289e1"
+    },
+    {
+      "bytes": 1234,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T18.json",
+      "sha256": "sha256:3ef16af4e8a2a89589c6d951407ed13d246f0a414c139a2412a1b1f64e1483f5"
+    },
+    {
+      "bytes": 1187,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T19.json",
+      "sha256": "sha256:a50f41ab75d682b47762a01fa326a9cafe1ed0d6b381f7d4da319083d485d69f"
+    },
+    {
+      "bytes": 1321,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T20.json",
+      "sha256": "sha256:b25fedc089d3b210e4406b0bafb35970a45facfa22f93147dd2440a34c89bc74"
+    },
+    {
+      "bytes": 1730,
+      "path": "docs/evolution/agnostic-performance-v1/task-briefs/T21.json",
+      "sha256": "sha256:12cf4e5c092ecc3c6017b9c05ebdcd358741274b1a3b705e79e1ec5c622157fe"
     },
     {
       "bytes": 1653,
@@ -2028,6 +2493,61 @@
       "sha256": "sha256:05478bb0d2abb322405b2392b47d4b1073a3fe920f29ee630e5acaf6aa09bd70"
     },
     {
+      "bytes": 1626,
+      "path": "packages/harness-contracts/README.md",
+      "sha256": "sha256:9509db4449ea27db4888f9682f009b29c86734b7c6f01c99f98a37956cfbd69d"
+    },
+    {
+      "bytes": 10067,
+      "path": "packages/harness-contracts/src/docker-runner-v2.mjs",
+      "sha256": "sha256:4b1820a3f731c95d9300a629801f0fb58e754e9f61e7f6b032faaa9d32fd15f0"
+    },
+    {
+      "bytes": 7802,
+      "path": "packages/harness-contracts/src/docker-runner.mjs",
+      "sha256": "sha256:51bf9c3eeb1bbcdc0979a1c0acdb310a72848fd37510c04e76beddda7de56311"
+    },
+    {
+      "bytes": 262,
+      "path": "packages/harness-contracts/src/docker-source-labels.mjs",
+      "sha256": "sha256:61a8916c92297ae414f7a6c902052cd01444d2450b6ab56f4e8a5670656e0daf"
+    },
+    {
+      "bytes": 2956,
+      "path": "packages/harness-contracts/src/execution-fence.mjs",
+      "sha256": "sha256:792352ee2e1368451774dc1aec88b6754feb78c6d9aa865b2470c75f3462ffe9"
+    },
+    {
+      "bytes": 4955,
+      "path": "packages/harness-contracts/src/execution-policy-v2.mjs",
+      "sha256": "sha256:d6e1770b1e4e467b7e07ba4d5821df8be095238ffb0a3e9bde43e4c15e2bf0de"
+    },
+    {
+      "bytes": 5589,
+      "path": "packages/harness-contracts/src/execution-policy.mjs",
+      "sha256": "sha256:0642f98356fee88449ee0096803c75f1bb7da01239e29a38d239bad5eb16792c"
+    },
+    {
+      "bytes": 4003,
+      "path": "packages/harness-contracts/src/image-source-attestation.mjs",
+      "sha256": "sha256:f9c1622b36f4ab5888cc6bdcc0beddbae0465d6bf33433df5028dae5203874ce"
+    },
+    {
+      "bytes": 3844,
+      "path": "packages/harness-contracts/src/project-descriptor-v2.mjs",
+      "sha256": "sha256:0cc4df7eff183fd59bde0e4a06ed4e8e425815a8bafc38b693b1311c0da2f406"
+    },
+    {
+      "bytes": 7558,
+      "path": "packages/harness-contracts/src/project-descriptor.mjs",
+      "sha256": "sha256:e68cfa1b7574c1dc498a3498f76fadd8bc1631b8fcf976e4d5e5764909dc03ca"
+    },
+    {
+      "bytes": 3356,
+      "path": "packages/harness-contracts/src/source-identity.mjs",
+      "sha256": "sha256:ba742bf6df08b904f6b228cce99a7879ade818dfbcab9d55676e23f2e1c1b9d2"
+    },
+    {
       "bytes": 263,
       "path": "packages/invalidation/package.json",
       "sha256": "sha256:0aa08773be31282e6daeb67c70f4590846c00086000496cfc632338bb356a295"
@@ -2056,6 +2576,91 @@
       "bytes": 2573,
       "path": "packages/invalidation/test/invalidation.test.ts",
       "sha256": "sha256:3da15ed4729f81075788b7a28fe8f3a8599a24bcc778fea793f36f1bba765c24"
+    },
+    {
+      "bytes": 2946,
+      "path": "packages/project-adapters/bin/inspect.mjs",
+      "sha256": "sha256:1d2a769f714515bd1be101f9819ff5aa82249b362e46d9407c24f1bd632db071"
+    },
+    {
+      "bytes": 2725,
+      "path": "packages/project-adapters/bin/trust-config.mjs",
+      "sha256": "sha256:ccb2aeeb66e3b4b5571853f59f7b629e6662b391c9e60c770b1dcf8dc3168000"
+    },
+    {
+      "bytes": 5019,
+      "path": "packages/project-adapters/Dockerfile",
+      "sha256": "sha256:743e72e0dbd7b04dc2b8749c350a98dfe8ea18e90b211372255d934a8982ca3e"
+    },
+    {
+      "bytes": 19959,
+      "path": "packages/project-adapters/README.md",
+      "sha256": "sha256:881d1eb9ad3c0613c5edcdea74cb7861a876b44773164cf5c9be76e5b512f6b0"
+    },
+    {
+      "bytes": 18525,
+      "path": "packages/project-adapters/src/behavior-executor-v2.mjs",
+      "sha256": "sha256:c60d8b3fc46fb621014f146f4707907a841db2eefe8ef89bedf7b3eb0cd98b47"
+    },
+    {
+      "bytes": 3281,
+      "path": "packages/project-adapters/src/command-readiness.mjs",
+      "sha256": "sha256:3fa9c1b9e2d0d81727dc445a655fb9d022133172efa4f37b7efa690016610261"
+    },
+    {
+      "bytes": 1910,
+      "path": "packages/project-adapters/src/command-spec-catalog.mjs",
+      "sha256": "sha256:a4f7d951dd8193098eb9b88b35de6e14f33228ced40814dd5d22971407596469"
+    },
+    {
+      "bytes": 5328,
+      "path": "packages/project-adapters/src/discovery.mjs",
+      "sha256": "sha256:7d1a6097d7d2dc16ee1c68ca94e4859bcb6e120d454d4b897ed09c0e2f6e96d4"
+    },
+    {
+      "bytes": 5007,
+      "path": "packages/project-adapters/src/docker-image-attestation.mjs",
+      "sha256": "sha256:d69aa47b8701132f67a51930bcc1bfb4210fafdf43439654d55338930421db75"
+    },
+    {
+      "bytes": 11542,
+      "path": "packages/project-adapters/src/docker-materialization-v2.mjs",
+      "sha256": "sha256:2135acd3c058e28498564c5b7b98cc1094efb54d1c699a3b918f4ce349a4b904"
+    },
+    {
+      "bytes": 5960,
+      "path": "packages/project-adapters/src/docker-probe.mjs",
+      "sha256": "sha256:8876d1539766c0cf9261ba8fe00053347a707380c37a941cf645d7cdfaa40642"
+    },
+    {
+      "bytes": 9793,
+      "path": "packages/project-adapters/src/docker-toolchain-v2.mjs",
+      "sha256": "sha256:8e80e7f2d8a01d5782b2e58547b957452e6707755acd278452253787bb81cf34"
+    },
+    {
+      "bytes": 7950,
+      "path": "packages/project-adapters/src/docker-toolchain.mjs",
+      "sha256": "sha256:0ad3f050b953961b36e26e09acc4c0edcb675eb0d29c527d23588d3c9d22097e"
+    },
+    {
+      "bytes": 2622,
+      "path": "packages/project-adapters/src/planner.mjs",
+      "sha256": "sha256:3e41d45eb1c25f0773ab663f38a26687c4cf277f615f4562fd8b420dd48cf996"
+    },
+    {
+      "bytes": 3982,
+      "path": "packages/project-adapters/src/safe-files.mjs",
+      "sha256": "sha256:f67ce47d63f19a117a903e74029be1a53b69e7231c017c33af13e159faa6750e"
+    },
+    {
+      "bytes": 6965,
+      "path": "packages/project-adapters/src/trusted-config.mjs",
+      "sha256": "sha256:d9b961a2aacce88761a5a6a3faccb3735131e772c1b17bd0ac41906281c9681d"
+    },
+    {
+      "bytes": 5502,
+      "path": "packages/project-adapters/src/workspace-binding.mjs",
+      "sha256": "sha256:f2c443438f716053c36514de4b70aaa660075ff5b1b4f48cdde770b97abcae28"
     },
     {
       "bytes": 197,
@@ -2116,6 +2721,31 @@
       "bytes": 1527,
       "path": "packages/serena-adapter/test/serena-adapter.test.ts",
       "sha256": "sha256:a5d827f62070b78550f70593704f8be7ea6e8c69ec26accf6da2d282bdb1a256"
+    },
+    {
+      "bytes": 1333,
+      "path": "packages/source-identity/bin/verify.mjs",
+      "sha256": "sha256:e9e2dd72662105d0c45e0b00ea88416806d53eb6d3a8d649ba6e6e76d0737880"
+    },
+    {
+      "bytes": 1092,
+      "path": "packages/source-identity/Dockerfile",
+      "sha256": "sha256:e344e3bacf6c7102a378e3a9c106113e24271c7493254bc9be25d5dad3b659e9"
+    },
+    {
+      "bytes": 4446,
+      "path": "packages/source-identity/README.md",
+      "sha256": "sha256:9d0e828f35da2fb46fe0f95ee4133cca310df269e72ab4696761da10e4acfcad"
+    },
+    {
+      "bytes": 6460,
+      "path": "packages/source-identity/src/codec.mjs",
+      "sha256": "sha256:d3c00679718a38d90ce06a2736eda32c634c6ec5d0a960c0d262a532c646e66e"
+    },
+    {
+      "bytes": 14255,
+      "path": "packages/source-identity/src/git-snapshot.mjs",
+      "sha256": "sha256:acc02d86054d4708548bd5a857035f058358e091905f0414b9cb80d5e36f3cf4"
     },
     {
       "bytes": 265,
@@ -2253,9 +2883,9 @@
       "sha256": "sha256:29459bd29752fcb24a62bd0ddb548e930f4835074cb3a1adf677a85ba02e4227"
     },
     {
-      "bytes": 71159,
+      "bytes": 85528,
       "path": "scripts/internal/opencode-task-executor.mjs",
-      "sha256": "sha256:4760e68d1ca55253b287f4e4c4dcd358627c0cd25143b2cd03f6646b4ef66a52"
+      "sha256": "sha256:f041147e3370b1cffc7a1ebad930bf4558e5bb0f52451660b5cb75b74d75f5a0"
     },
     {
       "bytes": 3019,
@@ -2268,9 +2898,9 @@
       "sha256": "sha256:afa6a35d9a7b62043c5314e4d1a2e98e39bae9c2e0ee4955720b6b9efa468a82"
     },
     {
-      "bytes": 6269,
+      "bytes": 8061,
       "path": "scripts/internal/source-manifest.mjs",
-      "sha256": "sha256:cca3b8f124dcaa67844792a5da54d1797d85ddd1f972c835e89af89caf209b93"
+      "sha256": "sha256:e4c1f188397d9767f39424e0a5b31f70b11b898b86fc926de5d1f05c44b6b25d"
     },
     {
       "bytes": 752,
@@ -2293,9 +2923,9 @@
       "sha256": "sha256:a05e40958047472aaf234c0aaa72b5a1ea50718029cf16243fe0cc10f6c76137"
     },
     {
-      "bytes": 9890,
+      "bytes": 14565,
       "path": "scripts/qualification/lib/fixture.mjs",
-      "sha256": "sha256:b92c03eb1f6a17cd13242f3fe5a2a0408f8438607bf99e4893907b3ec6c02e26"
+      "sha256": "sha256:aa5446bace598a5068a531f12db9ac51a49b8d3bba9b32e79afd13e4f441ee5e"
     },
     {
       "bytes": 4471,
@@ -2303,14 +2933,19 @@
       "sha256": "sha256:b628d774dc765a4c451e8062f3dfa096811961479993b91007925be645afc408"
     },
     {
-      "bytes": 8194,
+      "bytes": 9660,
       "path": "scripts/qualification/lib/process.mjs",
-      "sha256": "sha256:a4c7f850864869a728e5eca6dccfe705be7aca6728a145e124962265ef94422a"
+      "sha256": "sha256:16c6c2a67c6d48f839a20ed44a75e498866215daf5dfee512eb49d9007c8b977"
     },
     {
-      "bytes": 3876,
+      "bytes": 636,
+      "path": "scripts/qualification/lib/product-namespace-scan.mjs",
+      "sha256": "sha256:f1fffca7a8fb01686d66504389653fd012104558ac5fe03f729c65162916bb3b"
+    },
+    {
+      "bytes": 4418,
       "path": "scripts/qualification/lib/report.mjs",
-      "sha256": "sha256:951e95fe9735393189f67a0af9ab3365f94c48f67ac490c39a61bcd8c06a2966"
+      "sha256": "sha256:101c3b7eb3bb2f1b307a49b1a53b50a92a3d35ae36e0405e9b784442b77395f0"
     },
     {
       "bytes": 10869,
@@ -2318,14 +2953,29 @@
       "sha256": "sha256:cd9e389efc9dfd8446c22ffc50fb644898d26c61374823e91f64b17cc4fdaa6d"
     },
     {
-      "bytes": 3232,
-      "path": "scripts/qualification/lib/util.mjs",
-      "sha256": "sha256:02561e785ef0db3b2b7595cc43160ce3c8cec37d8e185b8c6cbec863e2388d14"
+      "bytes": 3961,
+      "path": "scripts/qualification/lib/source-attested-behavior.mjs",
+      "sha256": "sha256:0650bcba358de6279e746ff4b41581b5dc5cd77982acde34d41a8f73b6797a03"
     },
     {
-      "bytes": 106122,
+      "bytes": 3321,
+      "path": "scripts/qualification/lib/util.mjs",
+      "sha256": "sha256:4840f79ab9417ac7b5a2030cf6c8fced532537bb76bfa0f20bb65d27e5a2c274"
+    },
+    {
+      "bytes": 145551,
       "path": "scripts/qualification/standalone-v1.mjs",
-      "sha256": "sha256:658a25d6d3a8169075cdb797cfe02864c4e41ee1a1dae76d42e74831cb880a87"
+      "sha256": "sha256:c11f1eefc21461d30bf356925e82291c2c989b725bd84d73f0b08a5cc3a594b7"
+    },
+    {
+      "bytes": 27172,
+      "path": "scripts/qualification/wave10-fault-preflight.mjs",
+      "sha256": "sha256:2efa8b63a34a051f0bd0e9cff6bbf8399cd32f564800bb7eff9c0d337a35c7ff"
+    },
+    {
+      "bytes": 18426,
+      "path": "scripts/qualification/wave10-live-preflight.mjs",
+      "sha256": "sha256:c5dd566c379e7463898e3763d2a6416adff71bf81c163320136753eaa6e40919"
     },
     {
       "bytes": 1892,
@@ -2348,6 +2998,11 @@
       "sha256": "sha256:a58d99517ad0581397a33b1811e58cf265b2f5fcd0b54fe13b50e07b6d71b217"
     },
     {
+      "bytes": 16116,
+      "path": "tests/contracts/behavior-fence-attestation-v2.test.mjs",
+      "sha256": "sha256:65341f82fe1bba1d9043a4941b32cb14f436f957bbc45f1221e9615e74a2ade8"
+    },
+    {
       "bytes": 2816,
       "path": "tests/contracts/bootstrap-capability-reconciliation.test.mjs",
       "sha256": "sha256:57bc95aea356cefaa9a8f82bf8282fe4341d31e31891a540457873bd4b24ab64"
@@ -2358,6 +3013,21 @@
       "sha256": "sha256:f4b3ef794acd858e00bfeddf99e084066260481d66950686e4f00d7abb9ff3e7"
     },
     {
+      "bytes": 11652,
+      "path": "tests/contracts/command-admission-v2.test.mjs",
+      "sha256": "sha256:158cd659c97e3ed7bffc40bc74a8b8cc803efac92f7f931daef41bac4ac15815"
+    },
+    {
+      "bytes": 19185,
+      "path": "tests/contracts/command-readiness-v2.test.mjs",
+      "sha256": "sha256:3cf31e3f560dd27a10552b8dc105b27a84bf7d99722a89a3a71164f70aa51837"
+    },
+    {
+      "bytes": 21403,
+      "path": "tests/contracts/command-spec-execution-v2.test.mjs",
+      "sha256": "sha256:b428070820e942759d69785fc445221871d425a7d5be7478d54ab52fbbfd1277"
+    },
+    {
       "bytes": 46372,
       "path": "tests/contracts/config.test.mjs",
       "sha256": "sha256:ee0d78bba4004646252f4af29fa597998c85ed1599f1ac2dfa76c3c4e63f3681"
@@ -2366,6 +3036,11 @@
       "bytes": 1117,
       "path": "tests/contracts/context-engine-container-deps.test.mjs",
       "sha256": "sha256:fe1ee5f4a3aefa07bacf925625b3288da069a89d5648477c3f1f7401553f8a59"
+    },
+    {
+      "bytes": 20113,
+      "path": "tests/contracts/docker-behavior-gateway-v1.test.mjs",
+      "sha256": "sha256:14017eea82f059677614a21dbb0982c5c4ea19fcca4c6d8a6cbbeaf6efb5a694"
     },
     {
       "bytes": 4033,
@@ -2393,6 +3068,11 @@
       "sha256": "sha256:7f8eadec83654ffd37f54d82bd53c25ba7db879bd6943ef2fef52ab88507f2d1"
     },
     {
+      "bytes": 6925,
+      "path": "tests/contracts/portable-contracts.test.mjs",
+      "sha256": "sha256:bfe8b5d5779153041fbc6fc64a4922710c851870e1475cae521c9f09bda00f7d"
+    },
+    {
       "bytes": 3791,
       "path": "tests/contracts/post-run-authority-regressions.test.mjs",
       "sha256": "sha256:5449ee0dc184e77f61f0e37dac3aabed9683c550a4119c97478290f54a75fd3f"
@@ -2408,9 +3088,14 @@
       "sha256": "sha256:829d4cf27b3a35088d4acede9c00ebfd1a20551311c526b48e5f1cd7fd467b96"
     },
     {
-      "bytes": 45486,
+      "bytes": 23522,
+      "path": "tests/contracts/project-descriptor.test.mjs",
+      "sha256": "sha256:6d79f69e3f338afb337d70a9cd316ed1d8204a0c75a0a45ef090137ad649250b"
+    },
+    {
+      "bytes": 49064,
       "path": "tests/contracts/qualification-controller.test.mjs",
-      "sha256": "sha256:f63a3cda6d79c841f4007959ac030becc1398452da0fdcffbeb4b0c6d4973511"
+      "sha256": "sha256:29e76e760c160e5b31f2a35ff1ce6fa562c7e6e7139cd27f101ac3a89eb71f10"
     },
     {
       "bytes": 1982,
@@ -2423,9 +3108,9 @@
       "sha256": "sha256:8ac181f20b2948ce47a759ce01e3e1e426b155cac5951b3ca266ecbbbbaf3838"
     },
     {
-      "bytes": 3129,
+      "bytes": 35756,
       "path": "tests/contracts/runtime-regressions.test.mjs",
-      "sha256": "sha256:6a517c936e97b475b4de8438c3a0237f880f97c201fceb7bc050a5a5b5964e73"
+      "sha256": "sha256:c6a5f139ef0d4f990d18640adeae97378ff7538f1d14ed435dc1a715d27e65b8"
     },
     {
       "bytes": 2069,
@@ -2438,14 +3123,19 @@
       "sha256": "sha256:75eeba024a0cd0e517320e8aefcbcb11585ca045900f7cee8b60a8a36cc0d7a4"
     },
     {
+      "bytes": 20933,
+      "path": "tests/contracts/source-identity-v2.test.mjs",
+      "sha256": "sha256:4469726d6f4f1e18ec6974c5234aaecc5b141329ad34734a4129a50787ce1ae6"
+    },
+    {
       "bytes": 1478,
       "path": "tests/contracts/source-inventory.test.mjs",
       "sha256": "sha256:f7f9b179bb931c1a0c08f65f94893b068e659c9f969d0665c324fddd61d249f6"
     },
     {
-      "bytes": 2816,
+      "bytes": 3086,
       "path": "tests/contracts/structure.test.mjs",
-      "sha256": "sha256:d480c0698cf13af52b17927deba486adeaf65c6f502c7f31d27696e115ea4e9f"
+      "sha256": "sha256:72e9c50a679ba4a7805d399a44fb766771beceab464502d4569118fbe1508efb"
     },
     {
       "bytes": 846,
@@ -2463,9 +3153,34 @@
       "sha256": "sha256:5642ec64097b7588366613f34c8b05870e552806067e9ef7bb83d6652315fa92"
     },
     {
+      "bytes": 14822,
+      "path": "tests/contracts/trusted-project-config-v2.test.mjs",
+      "sha256": "sha256:4477068cac195631017683ab800b49d5ca360fa81ac9a277715d7378b5ef8370"
+    },
+    {
+      "bytes": 8183,
+      "path": "tests/contracts/validation-command-authority-v2.test.mjs",
+      "sha256": "sha256:2b0aa1ac09b76fc83e84fb81d241b4f0081f5bbc213a619f8241c55f271f9912"
+    },
+    {
       "bytes": 5292,
       "path": "tests/contracts/validation-toolchain-preflight.test.mjs",
       "sha256": "sha256:fb80322ea581a7476857ee9b5f4d9facf55b1d7cf726ab8abf2880250bff5a15"
+    },
+    {
+      "bytes": 3621,
+      "path": "tests/contracts/wave10-fault-preflight.test.mjs",
+      "sha256": "sha256:2c1674eda38b9279840c8f23db06a8b84e919e5101bca2220deb2554fc91db02"
+    },
+    {
+      "bytes": 6599,
+      "path": "tests/contracts/wave10-live-preflight.test.mjs",
+      "sha256": "sha256:59b1e2f3d648f7059b5f492c74754923566d9c6f32c6ab8781be52707233d669"
+    },
+    {
+      "bytes": 15895,
+      "path": "tests/contracts/wave10-worker-loss.test.mjs",
+      "sha256": "sha256:85254a6e0883c0e390c1c7432d22197c104380c684eee6f5afa66a0ea4a83ff0"
     },
     {
       "bytes": 1335,
@@ -2473,9 +3188,9 @@
       "sha256": "sha256:0866c42670f9a961f16b56951eaaefb7a1d1377f47b18a29faedc91bc68fba62"
     },
     {
-      "bytes": 69119,
+      "bytes": 69654,
       "path": "tests/contracts/workflow.test.mjs",
-      "sha256": "sha256:4c0fa55bbb281d618626a50cae56a29fcb69498c22948f8d87497978bb582c78"
+      "sha256": "sha256:c5679a5775d6f1b84ba9ece5503c858b2101511676136464beca2eaf3cc0662e"
     },
     {
       "bytes": 1049,
