@@ -37,6 +37,13 @@ function nativeDocker(argv, { cwd, timeoutMs }) {
 function hold(code, details = {}) {
   return { schemaVersion: 'docker-behavior-gateway-result/v1', status: 'HOLD', code, receipts: [], ...details };
 }
+function committedConfigurationErrorCode(error) {
+  const value = String(error?.code ?? error?.message ?? '').trim();
+  if (!/^(?:source_|trusted_config_|project_|execution_policy_|docker_runner_|command_)[a-z0-9_.:-]{0,120}$/u.test(value)) {
+    return 'committed_configuration_invalid';
+  }
+  return value;
+}
 export function behaviorContainerName(fence, commandId) {
   const hash = createHash('sha256');
   for (const value of [
@@ -266,8 +273,10 @@ export async function runBehaviorGateRequest(request, {
   let configuration;
   try {
     configuration = loadConfiguration(projectRoot, { commit: checked.commandAuthority.sourceCommit });
-  } catch {
-    return hold('docker_gateway_committed_configuration_invalid');
+  } catch (error) {
+    return hold('docker_gateway_committed_configuration_invalid', {
+      configurationErrorCode: committedConfigurationErrorCode(error),
+    });
   }
   if (!authorityMatches(authority(configuration), checked.commandAuthority)) {
     return hold('docker_gateway_command_authority_mismatch');
