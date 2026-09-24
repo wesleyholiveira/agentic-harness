@@ -1621,32 +1621,45 @@ The contract is aligned to the current stronger sequence:
 
 No Runtime or qualification production semantics changed in this correction.
 
-## Remaining promotion gates
+## Wave-10 scoped worker-loss qualification GREEN
 
-WAVE-10 remains fail-closed and is not promoted until all of the following are
-green on one exact source SHA:
+Exact scoped qualification on harness source
+`2ab7fcb94fc74387f1da6f5ea1d614521ea02469` completed successfully:
 
-1. focused Node syntax/contracts;
-2. Rust fmt and `cargo test --locked`;
-3. `docker compose --profile runtime --profile behavior-gateway config`;
-4. exact-SHA Docker contract target;
-5. exact-SHA `agent-runtime-worker` and `docker-behavior-gateway` builds;
-6. normal non-behavior model task regression under UID 10001;
-7. end-to-end typed behavior task using a WAVE-08 source-attested runner image;
-8. live in-flight fence replacement proving the named behavior container is
-   removed and the old receipt cannot become authoritative;
-9. gateway outage and PostgreSQL outage proving deterministic HOLD/fail-closed;
-10. physical worker process loss while behavior execution is in-flight, proving
-    client-disconnect revocation plus replacement-fence recovery;
-11. no regression in existing L1/L2, semantic cache, ProjectMemory, model routing,
-    durable continuation or Runtime qualification.
+- run: `standalone-v1-1790211029105-836ef25cbfb9`;
+- scope: `wave10-worker-loss`;
+- verdict: `PASS`;
+- `promotionEligible=false` by design;
+- `firstDivergence=null`.
 
-A dedicated least-privilege PostgreSQL role for the gateway remains optional
-defense-in-depth: the gateway already owns the Docker socket and the model UID
-cannot reach the private control-plane network. It is not used as a substitute
-for any gate above.
+The live progress reached the complete scoped recovery path and then returned to
+normal semantic execution:
 
-No main or consumer qualified pin is changed by this wave. Clip Compass adoption
-remains pending until WAVE-10 target qualification is green; its qualified
-`.harness` pin/lock/certificate stays on the prior qualified release until T17
-produces the next exact qualified harness release.
+- Product Discovery integrated;
+- Technical Refinement crossed the physical worker-loss/replacement boundary;
+- implementation work integrated;
+- Quality Assurance reached verified;
+- Product Acceptance completed;
+- the scoped qualification closed without divergence.
+
+This PASS closes the Wave-10 worker-loss target on one exact SHA. Historical RED
+entries that remained marked "pending rerun" are superseded by this exact-SHA
+green result.
+
+It is **not** release promotion. The scoped mode intentionally excludes
+R-7/R-8/R-10 and leaves the release `MANIFEST.json` closure to T17.
+
+## Remaining release promotion gates
+
+1. complete the scoped-green documentation closure, regenerate
+   `MANIFEST.json` from the final tracked source with
+   `scripts/internal/source-manifest.mjs --write`, and commit the manifest;
+2. run the standalone controller **without** `--wave10-worker-loss` on that
+   exact MANIFEST-closed SHA and require full `promotionEligible=true` PASS,
+   including the R-7/R-8/R-10 gates omitted by the scoped qualification;
+3. only after that full promotion PASS, move the Clip Compass qualified
+   `.harness` gitlink/lock/certificate to the exact promoted harness SHA.
+
+Until step 3, Clip Compass remains on the prior qualified harness release and
+the current Wave-10 green SHA is evidence for the scoped target, not a release
+pin.
