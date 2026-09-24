@@ -1556,6 +1556,7 @@ async fn run_behavior_gateway_under_lease(
             "code": result.code.clone(),
             "receiptCount": result.receipts.len(),
             "admissionReasons": admission_reasons,
+            "configurationErrorCode": result.configuration_error_code.clone(),
             "source": "rust-agent-runtime-worker",
         }),
     )
