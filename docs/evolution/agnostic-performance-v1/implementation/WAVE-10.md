@@ -1649,17 +1649,85 @@ green result.
 It is **not** release promotion. The scoped mode intentionally excludes
 R-7/R-8/R-10 and leaves the release `MANIFEST.json` closure to T17.
 
+## Full-promotion R-7 committed CommandSpec authority-root defect
+
+Full promotion on exact MANIFEST-closed source
+`a83ca39c34013d8f71473691bedea4854fd26472` reached the previously
+excluded semantic path and stopped at R-7.
+
+The run proved:
+- `promotionEligible=true`;
+- R-0 accepted the T17 MANIFEST and exact source tree;
+- R-1 through R-6 passed;
+- Product Discovery, Architecture Review and Technical Refinement integrated;
+- the implementation model process itself completed with exit status 0;
+- the implementation task then failed only at its typed behavior gate with
+  `HOLD / docker_gateway_committed_configuration_invalid`;
+- QA and Product Acceptance were cancelled as downstream dependents;
+- R-8/R-9/R-10 were therefore not run;
+- R-11 preserved exact source equality and clean cleanup.
+
+The gateway code returns `docker_gateway_committed_configuration_invalid`
+before workspace binding, runner materialization, image attestation, toolchain
+verification or behavior admission. It means
+`loadCommittedProjectConfiguration(projectRoot, { commit:
+commandAuthority.sourceCommit })` failed.
+
+Source review found an authority-boundary defect in Technical Plan synthesis.
+The function `buildValidationCommandCatalog()` used one `workspace`
+argument for two different concerns:
+
+1. executable validation discovery, which correctly belongs to the isolated
+   task copy;
+2. committed CommandSpec / commandAuthority provenance, which must come from
+   the Runtime consumer Git root.
+
+Runtime copy workspaces deliberately omit `.git`. They are execution surfaces,
+not provenance roots. Meanwhile `opencode-task-executor.mjs` already knows
+both authorities independently:
+- `workspace`: isolated mutable task copy;
+- `repositoryRoot`: source consumer root reconstructed from the Agent Input
+  Manifest path.
+
+Correction:
+- `buildValidationCommandCatalog()` now accepts
+  `committedSourceRoot` separately from `workspace`;
+- package/script validation remains discovered from the isolated workspace;
+- `buildCommittedCommandSpecCatalog()` receives only
+  `committedSourceRoot`;
+- both initial Technical Plan synthesis and bounded Technical Review repair
+  receive `committedSourceRoot: repositoryRoot`;
+- a regression proves a non-Git copy workspace can still produce workspace-local
+  validation while CommandSpec IDs/sourceCommit are loaded from a distinct
+  committed Git root.
+
+The historical R-7 report retained only the stable outer gateway code, so the
+exact internal `source_*` / `trusted_config_*` failure cannot be recovered
+after cleanup. Diagnostics are hardened as part of the same correction:
+- committed-configuration failures keep
+  `docker_gateway_committed_configuration_invalid` as the public code;
+- a bounded, prefix-validated `configurationErrorCode` preserves the safe
+  internal source/trusted-config code;
+- Rust transports that field;
+- `behavior.gateway.completed`, `behavior.gateway.result`, and the behavior
+  receipt checkpoint preserve it.
+
+This source change invalidates the MANIFEST that was green on `a83ca39c...`.
+T17 must therefore be regenerated again after this fix/documentation closure
+before another full-promotion attempt.
+
 ## Remaining release promotion gates
 
-1. complete the scoped-green documentation closure, regenerate
-   `MANIFEST.json` from the final tracked source with
-   `scripts/internal/source-manifest.mjs --write`, and commit the manifest;
-2. run the standalone controller **without** `--wave10-worker-loss` on that
-   exact MANIFEST-closed SHA and require full `promotionEligible=true` PASS,
-   including the R-7/R-8/R-10 gates omitted by the scoped qualification;
-3. only after that full promotion PASS, move the Clip Compass qualified
+1. run the focused Node/Rust/gateway contracts for the R-7 authority-root fix;
+2. regenerate `MANIFEST.json` from the resulting final tracked source with
+   `scripts/internal/source-manifest.mjs --write`, commit it, and require
+   `source-manifest.mjs --check` PASS on a clean worktree;
+3. run the standalone controller **without** `--wave10-worker-loss` on that
+   exact MANIFEST-closed SHA and require `promotionEligible=true`,
+   `firstDivergence=null`, and R-7/R-8/R-9/R-10/R-11 PASS;
+4. only after that full promotion PASS, move the Clip Compass qualified
    `.harness` gitlink/lock/certificate to the exact promoted harness SHA.
 
-Until step 3, Clip Compass remains on the prior qualified harness release and
-the current Wave-10 green SHA is evidence for the scoped target, not a release
-pin.
+The scoped worker-loss PASS on `2ab7fcb...` remains valid evidence for its
+target, but neither it nor the prior MANIFEST-closed `a83ca39c...` is the
+release pin after this R-7 source correction.
