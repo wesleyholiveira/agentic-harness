@@ -73,6 +73,8 @@ pub struct BehaviorGatewayResult {
     pub command_authority: Option<Value>,
     #[serde(default)]
     pub workspace_binding_digest: Option<String>,
+    #[serde(default)]
+    pub configuration_error_code: Option<String>,
 }
 
 impl BehaviorGatewayResult {
@@ -84,6 +86,7 @@ impl BehaviorGatewayResult {
             receipts: Vec::new(),
             command_authority: None,
             workspace_binding_digest: None,
+            configuration_error_code: None,
         }
     }
 
@@ -233,6 +236,23 @@ mod tests {
     }
 
     #[test]
+    fn gateway_result_preserves_committed_configuration_error_code() {
+        let result: BehaviorGatewayResult = serde_json::from_value(serde_json::json!({
+            "schemaVersion": "docker-behavior-gateway-result/v1",
+            "status": "HOLD",
+            "code": "docker_gateway_committed_configuration_invalid",
+            "receipts": [],
+            "configurationErrorCode": "source_commit_mismatch"
+        }))
+        .expect("gateway result must deserialize");
+        assert_eq!(
+            result.configuration_error_code.as_deref(),
+            Some("source_commit_mismatch")
+        );
+        result.validate().expect("gateway result must validate");
+    }
+
+    #[test]
     fn gateway_result_projects_behavior_admission_reasons() {
         let result = BehaviorGatewayResult {
             schema_version: "docker-behavior-gateway-result/v1".into(),
@@ -248,6 +268,7 @@ mod tests {
             })],
             command_authority: None,
             workspace_binding_digest: None,
+            configuration_error_code: None,
         };
         assert_eq!(
             result.admission_reasons(),
