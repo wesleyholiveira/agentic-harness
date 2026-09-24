@@ -1,7 +1,7 @@
 {
   "schemaVersion": "target-host-red-evidence/v1",
   "wave": "WAVE-10",
-  "status": "SCOPED_GREEN_ON_2AB7FCB_PENDING_FULL_PROMOTION",
+  "status": "FULL_PROMOTION_R7_RED_FIXED_PENDING_T17_REMANIFEST_AND_RERUN",
   "failures": [
     {
       "gate": "node-contracts",
@@ -1129,6 +1129,54 @@
       "runtimeSemanticsChanged": false,
       "rootCauseResolved": true,
       "status": "contract-aligned-pending-local-rerun"
+    },
+    {
+      "gate": "full-promotion/R-7-committed-command-authority-root",
+      "candidate": "a83ca39c34013d8f71473691bedea4854fd26472",
+      "qualificationRunId": "standalone-v1-1790212442124-9068e6cd768a",
+      "runtimeRunId": "run-ad2ab29b-46b3-467e-b88a-38dc5ec34bcc",
+      "observed": {
+        "qualificationScope": "full-promotion",
+        "promotionEligible": true,
+        "qEntryThroughR6": "PASS",
+        "manifest": "agent_harness_manifest_matches_git_source",
+        "implementationTask": {
+          "taskId": "run-ad2ab29b-46b3-467e-b88a-38dc5ec34bcc:implementation:wi-format-name",
+          "executorExitCode": 0,
+          "behaviorGatewayStatus": "HOLD",
+          "behaviorGatewayCode": "docker_gateway_committed_configuration_invalid",
+          "taskStatus": "failed",
+          "taskErrorCode": "behavior_gateway_hold"
+        },
+        "downstream": {
+          "qualityAssurance": "cancelled",
+          "productAcceptance": "cancelled"
+        },
+        "r8": "NOT RUN",
+        "r9": "NOT RUN",
+        "r10": "NOT RUN",
+        "cleanupR11": "PASS"
+      },
+      "rootCause": [
+        "R-7 compiled an implementation task with commandSpecIds/commandAuthority, so event-driven preparation correctly created a typed behavior gate",
+        "Technical Plan synthesis used one 'workspace' argument both for mutable implementation validation discovery and for committed CommandSpec provenance",
+        "the Runtime copy workspace intentionally omits .git; committed CommandSpec provenance must never be derived from that mutable non-Git copy",
+        "the opencode task executor already knows the distinct repositoryRoot from the Agent Input Manifest and the isolated workspace from --workspace, but previously passed only workspace into synthesis/repair",
+        "the gateway then attempted to reconstruct configuration for the sourceCommit carried by the compiled task and returned docker_gateway_committed_configuration_invalid before workspace binding/materialization/toolchain/behavior admission",
+        "the old gateway result swallowed the internal SourceIdentityError code, so the exact source_* failure for this historical run is not recoverable after cleanup"
+      ],
+      "correction": [
+        "separate buildValidationCommandCatalog inputs: validation commands remain derived from the isolated workspace, while CommandSpec catalog/commandAuthority are derived only from committedSourceRoot",
+        "pass committedSourceRoot=repositoryRoot from opencode-task-executor into both initial Technical Plan synthesis and bounded Technical Review repair",
+        "add a regression where the task workspace has no .git but the committed source root is a valid Git repository; validation remains workspace-local while CommandSpec authority is loaded from the committed root",
+        "preserve docker_gateway_committed_configuration_invalid as the stable outer HOLD code but add a bounded configurationErrorCode for safe source/trusted-config error codes",
+        "propagate configurationErrorCode through Rust behavior.gateway.completed plus semantic behavior.gateway.result/checkpoint evidence"
+      ],
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
+      "exactHistoricalConfigurationErrorCodeProven": false,
+      "rootCauseResolved": true,
+      "status": "committed-source-root-separated-and-diagnostics-hardened-pending-remanifest-full-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -1246,7 +1294,7 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "SCOPED_WAVE10_WORKER_LOSS_PASS_ON_2AB7FCB94FC74387F1DA6F5EA1D614521EA02469",
+  "greenAfterFix": "FULL_PROMOTION_R7_COMMAND_AUTHORITY_ROOT_FIXED_PENDING_NEW_MANIFEST_AND_EXACT_SHA_RERUN",
   "finalScopedGreenEvidence": {
     "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
     "runId": "standalone-v1-1790211029105-836ef25cbfb9",
