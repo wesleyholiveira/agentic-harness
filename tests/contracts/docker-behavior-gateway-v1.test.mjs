@@ -130,6 +130,37 @@ test("capability HOLD stops before committed config or Docker activity", async (
   assert.equal(docker, 0);
 });
 
+test("committed configuration HOLD preserves a bounded safe internal source error code", async () => {
+  let bound = 0, docker = 0;
+  const sourceError = new Error("source_commit_mismatch");
+  sourceError.code = "source_commit_mismatch";
+  const result = await runBehaviorGateRequest(request(), {
+    projectRoot: "/workspace/repository",
+    workspaceRoot: "/workspace/agent-workspaces",
+    verifyCapability: async () => ({ status: "VERIFIED", code: "ok" }),
+    loadConfiguration: () => { throw sourceError; },
+    bindWorkspace: () => { bound++; throw new Error("should-not-bind"); },
+    executeDocker: () => { docker++; throw new Error("should-not-docker"); },
+  });
+  assert.equal(result.status, "HOLD");
+  assert.equal(result.code, "docker_gateway_committed_configuration_invalid");
+  assert.equal(result.configurationErrorCode, "source_commit_mismatch");
+  assert.equal(bound, 0);
+  assert.equal(docker, 0);
+
+  const unsafe = await runBehaviorGateRequest(request(), {
+    projectRoot: "/workspace/repository",
+    workspaceRoot: "/workspace/agent-workspaces",
+    verifyCapability: async () => ({ status: "VERIFIED", code: "ok" }),
+    loadConfiguration: () => {
+      const error = new Error("/secret/path credential=abc");
+      error.code = "/secret/path credential=abc";
+      throw error;
+    },
+  });
+  assert.equal(unsafe.configurationErrorCode, "committed_configuration_invalid");
+});
+
 test("command authority mismatch stops before workspace or Docker activity", async () => {
   let bound = 0, docker = 0;
   const result = await runBehaviorGateRequest(request({
