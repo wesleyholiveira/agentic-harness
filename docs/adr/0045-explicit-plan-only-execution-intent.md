@@ -70,7 +70,7 @@ Because the new executionIntent field is optional in the schema, previously pers
 
 The contract suite must prove:
 
-- the Clip Compass-style phrase "planeje a implementação com SDD" resolves to plan-only;
+- a planning-only phrase equivalent to "plan the implementation with SDD" resolves to plan-only;
 - "planeje e implemente" resolves to execute;
 - the event-driven reconciler does not materialize planned implementation tasks for plan-only;
 - plan-only produces planning.completed and a terminal continuation wake;
