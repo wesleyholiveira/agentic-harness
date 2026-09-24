@@ -449,6 +449,74 @@
               "agent",
               "deterministic-reuse"
             ]
+          },
+          "validationCommandIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^vcmd:sha256:[a-f0-9]{64}$"
+            },
+            "description": "Runtime-canonical validation command identities projected from the approved implementation plan."
+          },
+          "commandSpecIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+            },
+            "description": "Committed ProjectDescriptor CommandSpec references relevant to this compiled task."
+          },
+          "commandAuthority": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "schemaVersion",
+                  "projectId",
+                  "repositoryId",
+                  "sourceCommit",
+                  "sourceSnapshotSha256",
+                  "descriptorDigest",
+                  "policyDigest"
+                ],
+                "properties": {
+                  "schemaVersion": {
+                    "const": "command-authority/v1"
+                  },
+                  "projectId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "repositoryId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sourceCommit": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{40,64}$"
+                  },
+                  "sourceSnapshotSha256": {
+                    "type": "string",
+                    "pattern": "^sha256:[a-f0-9]{64}$"
+                  },
+                  "descriptorDigest": {
+                    "type": "string",
+                    "pattern": "^sha256:[a-f0-9]{64}$"
+                  },
+                  "policyDigest": {
+                    "type": "string",
+                    "pattern": "^sha256:[a-f0-9]{64}$"
+                  }
+                }
+              }
+            ],
+            "description": "Runtime-canonical committed command authority for this compiled task."
           }
         }
       }
