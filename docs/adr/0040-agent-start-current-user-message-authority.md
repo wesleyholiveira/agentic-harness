@@ -12,7 +12,7 @@ The runtime already has a fail-closed OpenCode provenance sidechannel that ident
 
 1. `agent_start` supports `requestSource: "current-user-message"` with `request` omitted.
 2. Only trusted HTTP `main-orchestrator` ingress with `opencode-plugin-sidechannel` provenance and `origin=explicit-human-turn` may use that source.
-3. The OpenCode plugin captures the current user message text only for `agent_start`, bounds it to 1 MiB UTF-8, and sends text + byte count + SHA-256 through the local provenance sidechannel.
+3. The OpenCode plugin captures the current user message text only for `agent_start`, using only non-synthetic user-authored text parts from the OpenCode message. Synthetic text parts injected by file/tool expansion (for example resolved `@file` context) are context, never request authority. The resulting text is bounded to 1 MiB UTF-8 and sent with byte count + SHA-256 through the local provenance sidechannel.
 4. Context Engine recomputes byte count and SHA-256 before registering provenance. Mismatch, missing identity, wrong tool, oversized text, non-human origin, or absent provenance fails closed.
 5. The full message text exists only in the short-lived in-process provenance registration/request context. Structured logs record message id/hash/size, never the message text.
 6. After provenance consumption, `authoritativeAgentStartArgs` materializes the Runtime `request` server-side and removes `requestSource` before `control.start`.
@@ -23,6 +23,7 @@ The runtime already has a fail-closed OpenCode provenance sidechannel that ident
 
 - Large human requests no longer consume model output budget a second time at Runtime ingress.
 - Runtime receives the provenance-bound human request rather than a lossy model copy.
+- Referenced-file expansion remains available to the model as context but cannot add execution verbs or otherwise mutate the authoritative human request.
 - Durable continuation and session canonicalization remain unchanged.
 - The security boundary becomes stricter: current-message sourcing is unavailable to autonomous assistants, durable continuation turns, stdio callers, or missing provenance.
 - Requests larger than 1 MiB fail explicitly at the sidechannel instead of being silently truncated.
