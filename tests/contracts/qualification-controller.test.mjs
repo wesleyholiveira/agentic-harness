@@ -266,6 +266,14 @@ test("R-4 proves Context Engine and Runtime worker share the same execution-work
   assert.match(controller, /workspaceAuthority/);
 });
 
+test("R-7 current-user authority is exercised with OpenCode file expansion", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const r7Section = controller.slice(controller.indexOf("async function r7()"), controller.indexOf("async function waitForContinuationObserved"));
+  assert.match(r7Section, /@docs\/specs\/example\/PRD\.md/u);
+  assert.match(r7Section, /@docs\/adr\/0001-example\.md/u);
+  assert.match(r7Section, /waitForRunId\(sessionId, \{ gate: "R-7", baselineWorktree, request: workload \}\)/u);
+});
+
 test("R-7 discovers Runtime run identity independently of durable continuation and then requires the binding", () => {
   const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
   assert.match(controller, /SELECT run_id,status,created_at FROM agent_runs WHERE request=/);
