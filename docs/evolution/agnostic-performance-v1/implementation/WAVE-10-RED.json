@@ -988,7 +988,87 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
       "rootCauseResolved": true,
-      "status": "rfc3339-contract-fixed-pending-exact-sha-rerun"
+      "status": "fixed-and-proven-by-b62819b19ceca11740668f43314f3f5d9729c8a5",
+      "greenEvidence": {
+        "candidate": "b62819b19ceca11740668f43314f3f5d9729c8a5",
+        "qualificationRunId": "standalone-v1-1790209324670-99163966291b",
+        "runtimeRunId": "run-d4c60707-0e16-414c-b9f9-fa5742c4acf7",
+        "replacementBehaviorStatus": "PASSED",
+        "replacementBehaviorCode": "docker_gateway_behavior_passed",
+        "admissionReasons": [],
+        "dispatchGeneration": 2,
+        "fencingToken": 2
+      }
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-replacement-physical-window-observation-order",
+      "candidate": "b62819b19ceca11740668f43314f3f5d9729c8a5",
+      "qualificationRunId": "standalone-v1-1790209324670-99163966291b",
+      "runtimeRunId": "run-d4c60707-0e16-414c-b9f9-fa5742c4acf7",
+      "observed": {
+        "sourceRepairCheckpoint": true,
+        "replacementIdentity": {
+          "attempt": 1,
+          "dispatchGeneration": 2,
+          "fencingToken": 2,
+          "statusObserved": "running"
+        },
+        "replacementBehavior": {
+          "status": "PASSED",
+          "code": "docker_gateway_behavior_passed",
+          "receiptCount": 1,
+          "admissionReasons": []
+        },
+        "firstDivergence": "r9_replacement_behavior_gateway_completed_before_physical_window"
+      },
+      "rootCause": [
+        "R-9 discovered replacement identity by waiting for repair.resume_checkpoint_loaded before observing the replacement behavior container",
+        "the model child writes the durable repair resume receipt early, but repair.resume_checkpoint_loaded is projected into agent_events only by finalizeExecutionResult after the replacement executor result is available",
+        "the replacement behavior therefore executes and its docker run --rm container can finish before the qualifier sees repair.resume_checkpoint_loaded",
+        "the live run proves this temporal inversion: generation/fence 2 behavior completed PASSED while the qualifier still reported that the gateway completed before its physical replacement window"
+      ],
+      "correction": [
+        "observe replacement identity directly from authoritative agent_tasks status=running with same attempt and exact generation+1/fence+1",
+        "wait for matching behavior.gateway.started and the exact named container while the replacement executor is still in flight",
+        "prove behavior completion/removal first",
+        "only after physical behavior completion require repair.resume_checkpoint_loaded with same attempt/generation/fence, skippedFullAgentInvocation=true, sameTaskAttempt=true and matching checkpointEffectKey",
+        "retain the semantic resume receipt as required evidence; only its ordering changes"
+      ],
+      "productionLogicBug": false,
+      "qualificationHarnessBug": true,
+      "rootCauseResolved": true,
+      "status": "observer-order-fixed-pending-exact-sha-rerun"
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-compiled-execution-plan-command-authority-schema",
+      "candidate": "b62819b19ceca11740668f43314f3f5d9729c8a5",
+      "qualificationRunId": "standalone-v1-1790209324670-99163966291b",
+      "runtimeRunId": "run-d4c60707-0e16-414c-b9f9-fa5742c4acf7",
+      "observed": {
+        "replacementBehaviorPassed": true,
+        "semanticFailure": "implementation_plan_invalid",
+        "schemaMessage": "executionPlan.tasks[2].validationCommandIds / commandSpecIds / commandAuthority additional property not allowed",
+        "retryScheduled": {
+          "attempt": 2,
+          "dispatchGeneration": 3,
+          "fencingToken": 3
+        }
+      },
+      "rootCause": [
+        "compileImplementationDag intentionally projects validationCommandIds, commandSpecIds and commandAuthority onto compiled implementation task plans",
+        "event-driven preparation/context building consumes those task-level fields as Runtime execution authority",
+        "execution-plan.schema.json did not declare those three task properties while additionalProperties=false",
+        "the compiled DAG was therefore rejected by its own schema after replacement behavior passed, causing an unnecessary Technical Refinement retry"
+      ],
+      "correction": [
+        "extend execution-plan.schema.json task properties with validationCommandIds, commandSpecIds and commandAuthority using the same contracts already present in implementation-plan.schema.json",
+        "retain additionalProperties=false so only the explicit Runtime authority fields are admitted",
+        "add regression coverage requiring compiled execution-plan schema to carry those Runtime fields"
+      ],
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
+      "rootCauseResolved": true,
+      "status": "compiled-dag-schema-aligned-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -1106,5 +1186,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R9_EXECUTION_FENCE_RFC3339_INTEROP_FIXED_PHYSICAL_WORKER_LOSS_RERUN_PENDING"
+  "greenAfterFix": "R9_REPLACEMENT_PHYSICAL_OBSERVER_AND_COMPILED_DAG_SCHEMA_FIXED_PENDING_EXACT_SHA_RERUN"
 }
