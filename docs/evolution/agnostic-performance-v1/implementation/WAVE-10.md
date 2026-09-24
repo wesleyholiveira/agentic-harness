@@ -1485,6 +1485,73 @@ them without being observable from a prematurely executing top-level gate loop.
 No scheduler, Runtime worker, gateway, fencing, model-routing or project
 isolation semantics changed in this correction.
 
+## R-9 execution-fence RFC3339 interoperability defect
+
+Scoped qualification `standalone-v1-1790207852309-551e39f2e161` on exact
+candidate `de3beab247c17a91341e3583be581fef5c4e151f` proved the preceding
+module-initialization correction and reached the actual behavior admission
+boundary.
+
+The run progressed through Product integration and Technical Refinement
+`running(a1/g1)`, materialized the durable
+`qualification-process-loss` repair checkpoint, emitted
+`behavior.gateway.started`, and then received a terminal gateway result:
+
+`HOLD / behavior_not_authorized`
+
+before a physical behavior container was created.
+
+The gateway had already passed committed configuration loading, command
+authority matching, workspace binding, runner materialization, image
+attestation and toolchain verification. The qualification fixture also uses the
+supported behavior subset: one-off Docker execution, behavior phase,
+`networkPolicy=none`, `effects=["read-only"]`, no secrets/env allowlist,
+`dependencyPolicy=none`, and `validationScope=workspace`.
+
+The remaining admission-specific failure was the task execution fence.
+
+The Rust worker creates fence timestamps using
+`chrono::DateTime::to_rfc3339()`. Valid values therefore use standard RFC3339
+wire forms such as:
+
+`2026-09-24T00:10:59.868143637+00:00`
+
+The JavaScript contract in
+`packages/harness-contracts/src/execution-fence.mjs` instead required:
+
+`new Date(value).toISOString() === value`
+
+That accepts only JavaScript's own canonical millisecond UTC representation,
+for example:
+
+`2026-09-24T00:10:59.868Z`
+
+The Rust value represented the same valid instant but failed the byte-equality
+test. `evaluateBehaviorAdmission()` therefore added
+`task-execution-fence-invalid`; the behavior executor returned its generic
+outer receipt code `behavior_not_authorized`.
+
+Correction:
+- RFC3339, not `Date.toISOString()` byte shape, is now the cross-runtime wire
+  contract;
+- the JS validator requires a strict RFC3339 timestamp with `Z` or numeric
+  offset and optional 1-9 fractional digits;
+- after wire validation the timestamp is canonicalized to
+  `Date.toISOString()` for deterministic downstream comparisons;
+- date-only/non-RFC3339 values remain fail-closed;
+- contract coverage includes the exact Rust/Chrono shape with
+  `+00:00` and nanosecond precision;
+- `BehaviorGatewayResult` now extracts receipt
+  `admission.reasons`, and `behavior.gateway.completed` persists them as
+  `admissionReasons`.
+
+The diagnostic hardening keeps the existing outer gateway code stable while
+making future authorization HOLDs attributable without reading transient
+container logs.
+
+No change was made to behavior capability HMACs, worker fencing identity,
+policy grants, runner source attestation, or the physical worker-loss procedure.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
