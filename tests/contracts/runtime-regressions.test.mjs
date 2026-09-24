@@ -810,3 +810,38 @@ test("revoked behavior execution repeatedly reaps its fence-bound Docker contain
   assert.match(executor, /if \(aborted \|\| timedOut \|\| outputLimit\)/);
   assert.match(executor, /await verifyNamedContainerRemovedAfterAbort/);
 });
+
+
+test("planning-only requests compile a validated DAG without granting implementation execution", async () => {
+  const { executionIntentFromRequest } = await import("../../.agents/runtime/planner.mjs");
+  const schema = JSON.parse(source(".agents/schemas/execution-plan.schema.json"));
+  const reconciler = source(".agents/runtime/event-driven-reconciler.mjs");
+
+  assert.equal(
+    executionIntentFromRequest("Leia o @modernization/00-START-HERE.md e planeje a implementação com sdd"),
+    "plan-only",
+  );
+  assert.equal(
+    executionIntentFromRequest("Plan the implementation with SDD"),
+    "plan-only",
+  );
+  assert.equal(
+    executionIntentFromRequest("Planeje e implemente a nova arquitetura com SDD"),
+    "execute",
+  );
+  assert.equal(
+    executionIntentFromRequest("Implemente o plano aprovado"),
+    "execute",
+  );
+
+  assert.deepEqual(
+    schema.properties.workflow.properties.executionIntent.enum,
+    ["execute", "plan-only"],
+  );
+  assert.match(reconciler, /executionIntent === "plan-only"/u);
+  assert.match(reconciler, /plannedTaskIds/u);
+  assert.match(reconciler, /newTaskIds: planOnly \? \[\] : plannedTasks/u);
+  assert.match(reconciler, /"planning\.completed"/u);
+  assert.match(reconciler, /plan_only_request_satisfied/u);
+  assert.match(reconciler, /materializeContinuationWake\?\.\(plan\.runId, \{ status: "closed" \}\)/u);
+});
