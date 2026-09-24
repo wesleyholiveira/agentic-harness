@@ -26,6 +26,21 @@ const STAGES = {
   technicalRefinement: "technical-refinement",
 };
 
+export function executionIntentFromRequest(request) {
+  const normalized = String(request ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+
+  // Execution authority wins when planning and implementation are both
+  // explicitly requested. Nouns such as "implementacao"/"implementation" do
+  // not count as execution verbs, so "planeje a implementação" remains plan-only.
+  const executeRequested = /\b(?:implemente|implementar|execute|executar|aplique|aplicar|corrija|corrigir|modifique|modificar|altere|alterar|codifique|codificar|desenvolva|desenvolver|implement|execute|apply|fix|modify|change|code|build)\b/u.test(normalized);
+  const planningRequested = /\b(?:planeje|planejar|planejamento|elabore|elaborar|plano|plan|planning|roadmap)\b/u.test(normalized);
+
+  return planningRequested && !executeRequested ? "plan-only" : "execute";
+}
+
 const REVIEW_TASK_DEFINITIONS = Object.freeze({
   [STAGES.architectureReview]: {
     objective: (request, hint) => `Define durable application/data/integration/security boundaries and ADR deltas for: ${request}${hint}`,
@@ -147,6 +162,7 @@ export function createExecutionPlan({
   if (!request?.trim()) throw new Error("agent_request_required");
   const activePolicy = policyEngine ?? new RuntimePolicyEngine();
   const reasoning = reasoningAssessment ?? fallbackAssessment(registry, request, explicitAgents);
+  const executionIntent = executionIntentFromRequest(request);
   const capabilityCatalog = capabilityCatalogFromRegistry(registry);
   const selectedIds = new Set([...(reasoning.recommendedAgents ?? []), ...explicitAgents]);
   const processAgentIds = new Set([
@@ -316,6 +332,7 @@ export function createExecutionPlan({
     })),
     sharedPathOwner: {},
     workflow: {
+      executionIntent,
       requiresDatabase: reviews.requiresDatabase,
       requiresDevOps: reviews.requiresDevOps,
       requiresAiLlmOps: reviews.requiresAiLlmOps,
