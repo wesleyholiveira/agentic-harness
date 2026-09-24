@@ -693,6 +693,7 @@ const VALIDATION_SCRIPT_NAME = /(?:^|:|-)(?:test|tests|check|lint|typecheck|veri
 
 export async function buildValidationCommandCatalog({
   workspace,
+  committedSourceRoot = workspace,
   brief,
   requiredAcceptanceCriteria,
 }) {
@@ -734,7 +735,11 @@ export async function buildValidationCommandCatalog({
     }
   }
 
-  const commandSpecContext = buildCommittedCommandSpecCatalog(workspace);
+  // Validation commands are workspace-local execution evidence, but committed
+  // CommandSpec authority belongs to the Runtime source root. Copy workspaces
+  // intentionally omit .git and must never become the provenance source for
+  // commandAuthority.
+  const commandSpecContext = buildCommittedCommandSpecCatalog(committedSourceRoot);
   Object.defineProperty(catalog, "commandSpecCatalog", {
     value: commandSpecContext.catalog,
     enumerable: false,
@@ -1080,6 +1085,7 @@ function synthesisUsage(info) {
 
 export async function synthesizeMissingImplementationPlan({
   workspace,
+  committedSourceRoot = workspace,
   brief,
   handoff,
   implementationPlanSchema,
@@ -1094,6 +1100,7 @@ export async function synthesizeMissingImplementationPlan({
   const resolvedRegistry = registry ?? await loadAgentCatalog(process.env.AGENT_HARNESS_ROOT ?? workspace);
   const validationCommandCatalog = await buildValidationCommandCatalog({
     workspace,
+    committedSourceRoot,
     brief,
     requiredAcceptanceCriteria,
   });
@@ -1551,6 +1558,7 @@ ${JSON.stringify(input, null, 2)}`;
 
 export async function repairImplementationPlanFromReview({
   workspace,
+  committedSourceRoot = workspace,
   brief,
   handoff,
   implementationPlanSchema,
@@ -1573,6 +1581,7 @@ export async function repairImplementationPlanFromReview({
   const resolvedRegistry = registry ?? await loadAgentCatalog(process.env.AGENT_HARNESS_ROOT ?? workspace);
   const validationCommandCatalog = await buildValidationCommandCatalog({
     workspace,
+    committedSourceRoot,
     brief,
     requiredAcceptanceCriteria,
   });
