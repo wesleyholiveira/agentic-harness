@@ -91,14 +91,18 @@ test("task execution fence accepts Rust Chrono RFC3339 and canonicalizes at the 
   );
 });
 
-test("behavior gateway completion event preserves admission reasons", () => {
+test("behavior gateway completion event preserves admission and committed-config diagnostics", () => {
   const worker = source("apps/runtime-worker/src/agent_runtime.rs");
   const gateway = source("apps/runtime-worker/src/behavior_gateway.rs");
+  const finalizer = source(".agents/runtime/event-driven-finalizer.mjs");
 
   assert.match(gateway, /pub fn admission_reasons\(&self\) -> Vec<String>/u);
+  assert.match(gateway, /pub configuration_error_code: Option<String>/u);
   assert.match(gateway, /task-execution-fence-invalid/u);
   assert.match(worker, /let admission_reasons = result\.admission_reasons\(\)/u);
   assert.match(worker, /"admissionReasons": admission_reasons/u);
+  assert.match(worker, /"configurationErrorCode": result\.configuration_error_code\.clone\(\)/u);
+  assert.match(finalizer, /configurationErrorCode: behaviorGate\.configurationErrorCode \?\? null/u);
 });
 
 test("Runtime event wire prefix is identical across JS emitters and Rust consumer", () => {
