@@ -282,6 +282,13 @@
         },
         "requiresSecurity": {
           "type": "boolean"
+        },
+        "executionIntent": {
+          "enum": [
+            "execute",
+            "plan-only"
+          ],
+          "description": "Whether the run should continue beyond validated SDD planning into implementation. Older plans without this field default to execute."
         }
       }
     },
