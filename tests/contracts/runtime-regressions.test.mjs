@@ -575,6 +575,29 @@ test("bootstrap governance loses shell authority while implementation keeps work
   assert.equal(Object.hasOwn(implementation.agent["backend-specialist"].permission, "bash"), false);
 });
 
+test("Technical Plan synthesis uses copy workspace for validation and repository root for committed command authority", () => {
+  const executor = source("scripts/internal/opencode-task-executor.mjs");
+  const synthesis = source(".agents/runtime/technical-plan-synthesis.mjs");
+
+  assert.match(
+    executor,
+    /synthesizeMissingImplementationPlan\(\{[\s\S]*?workspace,[\s\S]*?committedSourceRoot: repositoryRoot,/u,
+  );
+  assert.match(
+    executor,
+    /repairImplementationPlanFromReview\(\{[\s\S]*?workspace,[\s\S]*?committedSourceRoot: repositoryRoot,/u,
+  );
+  assert.match(
+    synthesis,
+    /buildValidationCommandCatalog\(\{[\s\S]*?workspace,[\s\S]*?committedSourceRoot = workspace,/u,
+  );
+  assert.match(synthesis, /buildCommittedCommandSpecCatalog\(committedSourceRoot\)/u);
+  assert.doesNotMatch(
+    synthesis,
+    /const commandSpecContext = buildCommittedCommandSpecCatalog\(workspace\)/u,
+  );
+});
+
 test("runtime-worker image packages the full JS dependency closure required by technical plan synthesis", () => {
   const dockerfile = source("apps/runtime-worker/Dockerfile");
   assert.match(dockerfile, /COPY packages \.\/packages/u);
