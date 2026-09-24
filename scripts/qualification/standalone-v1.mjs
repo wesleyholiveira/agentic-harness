@@ -2367,25 +2367,36 @@ async function r9() {
     hold("R-9", "RUNTIME", "r9_worker_restart_count_not_exactly_once", { before: before.RestartCount, after: after.RestartCount });
   }
 
+  // Observe replacement identity directly from the authoritative task row.
+  // The durable repair resume receipt is projected by the semantic finalizer
+  // only after the replacement executor completes, which is too late to observe
+  // the short-lived physical behavior container. The physical window must be
+  // observed first; semantic resume proof is asserted after behavior completion.
   const replacement = await waitFor(() => {
-    const rows = sqlRows(`SELECT payload_json FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND task_id='${sqlQuote(target.taskId)}' AND event_type='repair.resume_checkpoint_loaded' ORDER BY created_at DESC LIMIT 1;`);
+    const rows = sqlRows(`
+      SELECT status,attempt::text,dispatch_generation::text,fencing_token::text,coalesce(lease_expires_at,'')
+      FROM agent_tasks
+      WHERE run_id='${sqlQuote(runId)}' AND task_id='${sqlQuote(target.taskId)}'
+      LIMIT 1;
+    `);
     if (!rows.length) return null;
-    const payload = safeJson(rows[0][0]);
-    if (Number(payload.taskAttempt) !== target.attempt
-      || Number(payload.dispatchGeneration) !== target.dispatchGeneration + 1
-      || Number(payload.fencingToken) !== target.fencingToken + 1
-      || payload.skippedFullAgentInvocation !== true
-      || payload.sameTaskAttempt !== true
-      || String(payload.checkpointEffectKey ?? "") !== String(target.checkpointEffectKey)) return null;
-    const status = sqlRows(`SELECT status FROM agent_tasks WHERE task_id='${sqlQuote(target.taskId)}' LIMIT 1;`)[0]?.[0] ?? "unknown";
+    const [status, attemptText, generationText, fenceText, leaseExpiresAt] = rows[0];
+    const attempt = Number(attemptText);
+    const dispatchGeneration = Number(generationText);
+    const fencingToken = Number(fenceText);
+    if (status !== "running"
+      || attempt !== target.attempt
+      || dispatchGeneration !== target.dispatchGeneration + 1
+      || fencingToken !== target.fencingToken + 1) return null;
     return {
       taskId: target.taskId,
-      attempt: Number(payload.taskAttempt),
-      dispatchGeneration: Number(payload.dispatchGeneration),
-      fencingToken: Number(payload.fencingToken),
+      attempt,
+      dispatchGeneration,
+      fencingToken,
       statusObserved: status,
+      leaseExpiresAt: leaseExpiresAt || null,
     };
-  }, { timeoutMs: 20 * 60_000, intervalMs: 1_000, label: "r9-repair-resume-receipt" });
+  }, { timeoutMs: 20 * 60_000, intervalMs: 250, label: "r9-replacement-execution-running" });
 
   const replacementBehaviorStarted = await waitFor(() => {
     const rows = sqlRows(`SELECT payload_json FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND task_id='${sqlQuote(target.taskId)}' AND event_type='behavior.gateway.started' ORDER BY created_at DESC LIMIT 8;`);
@@ -2484,6 +2495,30 @@ async function r9() {
     });
     return inspect.exitCode !== 0 ? new Date().toISOString() : null;
   }, { timeoutMs: 30_000, intervalMs: 100, label: "r9-replacement-behavior-container-removed" });
+
+  const replacementResumeReceipt = await waitFor(() => {
+    const rows = sqlRows(`
+      SELECT payload_json
+      FROM agent_events
+      WHERE run_id='${sqlQuote(runId)}'
+        AND task_id='${sqlQuote(target.taskId)}'
+        AND event_type='repair.resume_checkpoint_loaded'
+      ORDER BY created_at DESC
+      LIMIT 8;
+    `);
+    for (const [payloadJson] of rows) {
+      const payload = safeJson(payloadJson);
+      if (Number(payload.taskAttempt) === replacement.attempt
+        && Number(payload.dispatchGeneration) === replacement.dispatchGeneration
+        && Number(payload.fencingToken) === replacement.fencingToken
+        && payload.skippedFullAgentInvocation === true
+        && payload.sameTaskAttempt === true
+        && String(payload.checkpointEffectKey ?? "") === String(target.checkpointEffectKey)) {
+        return payload;
+      }
+    }
+    return null;
+  }, { timeoutMs: 2 * 60_000, intervalMs: 250, label: "r9-repair-resume-receipt" });
 
   const gatewayAfterRecovery = JSON.parse(runner.run("docker", ["inspect", gatewayIdBeforeWorkerLoss], {
     label: "r9-gateway-after-recovery-inspect",
@@ -2652,6 +2687,7 @@ async function r9() {
         containerId: replacementBehaviorContainer?.Id ?? null,
         completed: replacementBehaviorCompleted,
         removedAt: replacementBehaviorRemovedAt,
+        resumeReceipt: replacementResumeReceipt,
       },
       gatewayStable: {
         containerId: gatewayIdBeforeWorkerLoss,
