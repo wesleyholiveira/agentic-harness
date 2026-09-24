@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "r9-opencode-nonzero-diagnostics-and-failfast-implemented-pending-cause-rerun",
+  "status": "SCOPED_WAVE10_WORKER_LOSS_PASS_PENDING_T17_FULL_PROMOTION",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -66,22 +66,22 @@
     "taskBriefContextDescriptorLogResultWritableByModel": false
   },
   "validation": {
-    "nodeFocused": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_LIVE_PREFLIGHT_IMPLEMENTATION",
-    "rustFmt": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
-    "rustTestsLocked": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
-    "dockerComposeConfig": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
+    "nodeFocused": "PASS_IN_R1_ON_2ab7fcb",
+    "rustFmt": "PASS_IN_R2_ON_2ab7fcb",
+    "rustTestsLocked": "PASS_IN_R2_CARGO_TEST_ON_2ab7fcb",
+    "dockerComposeConfig": "PASS_IN_R2_ON_2ab7fcb",
     "dockerContractTarget": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_LIVE_PREFLIGHT_IMPLEMENTATION",
-    "workerImageBuild": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
-    "gatewayImageBuild": "PENDING_NEW_EXACT_SHA_RERUN_AFTER_ADR_0042",
-    "normalModelTaskRestrictedUidRegression": "NOT_RUN",
-    "endToEndBehaviorTask": "NOT_RUN",
+    "workerImageBuild": "PASS_IN_R2_RUNTIME_BUILD_ON_2ab7fcb",
+    "gatewayImageBuild": "PROVEN_LIVE_IN_R4_AND_R9_ON_2ab7fcb",
+    "normalModelTaskRestrictedUidRegression": "PASS_IN_SCOPED_R9_ON_2ab7fcb",
+    "endToEndBehaviorTask": "PASS_IN_SCOPED_R9_ON_2ab7fcb",
     "inFlightFenceReplacementFault": "PASS_ON_51c1b8f",
     "gatewayOutageFault": "PASS_ON_51c1b8f",
     "postgresOutageFault": "PASS_ON_51c1b8f",
-    "behaviorProcessLossRecovery": "IMPLEMENTED_PENDING_SCOPED_R9_EXACT_SHA",
-    "runtimeQualification": "NOT_RUN",
+    "behaviorProcessLossRecovery": "PASS_ON_2ab7fcb",
+    "runtimeQualification": "PASS_SCOPED_WAVE10_ON_2ab7fcb",
     "livePreflight": "PASS_ON_0d8c0b6",
-    "fullPromotionManifest": "DEFERRED_T17",
+    "fullPromotionManifest": "DEFERRED_T17_AFTER_SCOPED_GREEN",
     "fullPromotionAttemptOn3d7cfc5": {
       "verdict": "HOLD",
       "gate": "R-0",
@@ -262,6 +262,24 @@
         "actualCause": "unknown-until-structured-opencode-error-is-promoted",
         "processLossBoundaryReached": false
       }
+    },
+    "scopedWorkerLossQualification": {
+      "verdict": "PASS",
+      "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+      "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+      "qEntry": "PASS",
+      "preR0": "PASS",
+      "r0": "PASS",
+      "r1": "PASS",
+      "r2": "PASS",
+      "r3": "PASS",
+      "r4": "PASS",
+      "r5": "PASS",
+      "r6": "PASS",
+      "r9": "PASS",
+      "r11": "PASS",
+      "promotionEligible": false,
+      "manifestStatus": "DEFERRED_T17"
     }
   },
   "historicalOperatorEvidence": {
@@ -281,7 +299,7 @@
     "cacheMemoryWorkerRoutingTouched": false,
     "manifestRegenerated": false
   },
-  "releaseBoundary": "Clip Compass remains adoption-pending. Qualified pin/lock/certificate must not move until T17 qualifies the exact next harness release.",
+  "releaseBoundary": "Wave-10 worker-loss target is scoped-green on 2ab7fcb94fc74387f1da6f5ea1d614521ea02469. Clip Compass adoption and qualified pin/lock/certificate remain frozen until MANIFEST T17 closure plus a full promotion PASS on one exact later SHA.",
   "hardeningCorrections": [
     {
       "observedOnCandidate": "c32ba0089326bbf940ecd1addebe9de42b0607bf",
@@ -290,28 +308,48 @@
       "observed": "behavior_execution_aborted",
       "expected": "docker_gateway_client_disconnected",
       "correction": "sticky client-disconnect revocation cause wins races against executor abort receipts; a pre-disconnected client cannot start behavior execution",
-      "status": "fixed-pending-exact-sha-rerun"
+      "status": "fixed-pending-exact-sha-rerun",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "2f9c7cf153cab388f6325e8d434e1568aa767716",
       "gate": "docker-contract-target",
       "observed": "262/264 pass; ENOENT for apps/runtime-worker/Cargo.lock and apps/runtime-worker/entrypoint.sh",
       "correction": "project-adapters Docker test target now copies runtime-worker Cargo.toml, Cargo.lock and entrypoint.sh required by runtime-regressions",
-      "status": "fixed-pending-exact-sha-rerun"
+      "status": "fixed-pending-exact-sha-rerun",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "e6dd924745c396ec03a05372b87c0d89bd23888e",
       "gate": "pre-e2e-architecture-review",
       "observed": "one-off pinned image digest participated in source/runner identities that the same image was required to carry as labels",
       "correction": "ADR 0042 source-attested-build commits descriptor first, stamps authority labels post-commit, resolves one immutable image by those labels, and never executes by mutable tag",
-      "status": "fixed-pending-exact-sha-rerun"
+      "status": "fixed-pending-exact-sha-rerun",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "27480e5004ddf903e2dafaf8487437b7adf66858",
       "gate": "pre-live-preflight-review",
       "observed": "no deterministic host proof yet exercised post-commit source-attested image -> PostgreSQL capability/fence -> real gateway -> behavior receipt before the expensive Runtime qualification",
       "correction": "wave10-live-preflight.mjs now proves the behavior data plane without LLM, transports raw capability via stdin, verifies exact container cleanup, and fails closed on cleanup errors",
-      "status": "implemented-pending-exact-sha-run"
+      "status": "implemented-pending-exact-sha-run",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "3e091f1083509758971aaa1c14e5f73a9b972713",
@@ -320,7 +358,12 @@
       "observed": "gateway behavior admission fully authorized but Docker execution returned exitCode=125 with 338 stderr bytes",
       "rootCause": "gateway image installed Debian Bookworm docker.io 20.10.24; behavior isolation requires volume-subpath introduced in Docker CLI/Engine 26.0 API 1.45",
       "correction": "copy official docker:27.5.1-cli binary into gateway and reject client<26 or server API<1.45 in live preflight",
-      "status": "fixed-pending-exact-sha-live-preflight-rerun"
+      "status": "fixed-pending-exact-sha-live-preflight-rerun",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "cd909cfbb61dea32f52ab70bbe0d5e2556718ace",
@@ -330,7 +373,12 @@
       "correction": "parse exactly two non-empty whitespace-delimited fields; retain client >=26 and daemon API >=1.45 enforcement; add exact Windows/Docker Desktop aligned-output regression",
       "productionLogicBug": false,
       "qualificationHarnessBug": true,
-      "status": "fixed-pending-exact-sha-live-preflight-rerun"
+      "status": "fixed-pending-exact-sha-live-preflight-rerun",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "560e857ad8034947732c539b8d59e48a24bebc19",
@@ -341,7 +389,12 @@
       "correction": "add docker run -i to the external fault client and pin the requirement in wave10-fault-preflight contracts",
       "productionLogicBug": false,
       "qualificationHarnessBug": true,
-      "status": "fixed-pending-exact-sha-fault-preflight-rerun"
+      "status": "fixed-pending-exact-sha-fault-preflight-rerun",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "fc3e5f7423b57a851ff3752526f472ce36ee4451",
@@ -352,7 +405,12 @@
       "correction": "install Pool#error listener; keep query failure mapping to docker_gateway_capability_store_unavailable; physically require same gateway PID and RestartCount after DB recovery; bound recovery retries to store-unavailable only",
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
-      "status": "fixed-pending-exact-sha-fault-preflight-rerun"
+      "status": "fixed-pending-exact-sha-fault-preflight-rerun",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "2dd72760a4f9ee7ab267239c8ef584604df2814b",
@@ -363,7 +421,12 @@
       "correction": "exclude docs/evolution/** and the legacy qualification baseline only; retain blocking scan over ADR/runtime/apps/packages/scripts/config",
       "productionLogicBug": false,
       "qualificationHarnessBug": true,
-      "status": "fixed-pending-exact-sha-scoped-r9-rerun"
+      "status": "fixed-pending-exact-sha-scoped-r9-rerun",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "11b8d4004a7acd9eddc6be51f099452a9af713fe",
@@ -373,7 +436,12 @@
       "correction": "reconcile four stale contracts; make Technical Plan acceptance/validation authority exact Runtime projections; re-canonicalize model repair output before validation; calculate semantic mutation evidence after canonicalization",
       "productionLogicBug": true,
       "qualificationHarnessBug": true,
-      "status": "fixed-pending-exact-sha-r1-rerun"
+      "status": "fixed-pending-exact-sha-r1-rerun",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "gate": "R-1/workflow Technical Refinement criterion-assignment repair",
@@ -382,7 +450,12 @@
       "correction": "preserve schema-valid transient criterion/prose until bounded assignment; canonicalize to trusted implementation criterion/validation only after repair",
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
-      "status": "fixed-pending-exact-sha-rerun"
+      "status": "fixed-pending-exact-sha-rerun",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "gate": "R-1/workflow criterion-assignment routing",
@@ -390,14 +463,24 @@
       "rootCause": "criterion-assignment issue classifier recognized invalid validation prose/coverage issues but not the Runtime-owned validation ID absence caused by the same criterionless transient work item",
       "correction": "route validation ID absence through criterion-assignment only when it belongs to the exact criterionless target work item; unrelated ID authority failures remain outside the narrow repair",
       "productionLogicBug": true,
-      "status": "fixed-pending-focused-rerun"
+      "status": "fixed-pending-focused-rerun",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "gate": "R-1/workflow criterion-assignment issue normalization",
       "observed": "same invalid validation was emitted twice, once as W-durable and once as implementationPlan.workItems.W-durable.validation[0], causing the bounded repair classifier to treat the second form as another target",
       "correction": "normalize direct and path-qualified validation issues against the exact criterionless work-item identity before narrow repair classification",
       "productionLogicBug": true,
-      "status": "fixed-pending-focused-rerun"
+      "status": "fixed-pending-focused-rerun",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "54e3a3ed786af59d81ad8e5a3be79d641b14882d",
@@ -408,7 +491,12 @@
       "productionLogicBug": false,
       "qualificationHarnessBug": false,
       "formattingOnly": true,
-      "status": "fixed-pending-exact-sha-check"
+      "status": "fixed-pending-exact-sha-check",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "227cacb064420bf598e85d63483412734a6609bf",
@@ -419,7 +507,12 @@
       "productionLogicBug": false,
       "qualificationHarnessBug": false,
       "portabilityLint": true,
-      "status": "fixed-pending-exact-sha-check"
+      "status": "fixed-pending-exact-sha-check",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "12702c35bc68f569d863b7c3a2dcb267b1a132ab",
@@ -429,7 +522,12 @@
       "correction": "R-4 activates runtime and behavior-gateway profiles together while still targeting only docker-behavior-gateway; contract pins the topology",
       "productionLogicBug": false,
       "qualificationHarnessBug": true,
-      "status": "fixed-pending-exact-sha-rerun"
+      "status": "fixed-pending-exact-sha-rerun",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "e200f432b8aff5b94d676d32ae6fee71b06ca492",
@@ -440,7 +538,12 @@
       "correction": "COPY packages ./packages and build-time import smoke for technical-plan-synthesis; regression contract pins full local module closure",
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
-      "status": "fixed-pending-exact-sha-rerun"
+      "status": "fixed-pending-exact-sha-rerun",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "848344fe63ca5cb8aeae34159944c9f2cfe91b80",
@@ -451,7 +554,12 @@
       "correction": "Rust projects an execution-state root below the restricted ephemeral HOME; executor prefers that root; inherited XDG roots are cleared; HOME cleanup removes copied auth/state before behavior",
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
-      "status": "fixed-pending-exact-sha-rerun"
+      "status": "fixed-pending-exact-sha-rerun",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "f8020cd110ed15657cae520f855a3cf5e16326cc",
@@ -462,7 +570,12 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": true,
       "rootCauseResolved": false,
-      "status": "diagnostics-and-failfast-fixed-pending-cause-rerun"
+      "status": "diagnostics-and-failfast-fixed-pending-cause-rerun",
+      "finalScopedGreen": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     }
   ],
   "livePreflightEvidence": {
@@ -482,35 +595,9 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
-    "exact-SHA R-9 rerun proving replacement physical behavior container is observed before semantic resume receipt finalization",
-    "exact-SHA repair.resume_checkpoint_loaded proof after replacement behavior with skippedFullAgentInvocation=true and sameTaskAttempt=true",
-    "exact-SHA Technical Refinement finalization without implementation_plan_invalid command-authority schema drift",
-    "exact-SHA scoped R-9 terminal success through physical worker loss and replacement behavior exactly once",
-    "exact-SHA R-9 rerun proving Rust/Chrono execution fence is accepted by JS behavior admission",
-    "exact-SHA source behavior container Running followed by physical worker PID1 SIGKILL",
-    "exact-SHA replacement generation/fence with repair resume and replacement behavior exactly once",
-    "exact-SHA R-9 rerun proving controller module initialization completes before gate dispatch",
-    "exact-SHA R-9 terminal-aware source behavior physical window and physical worker PID1 SIGKILL",
-    "exact-SHA R-9 rerun proving Product Discovery integrates without any source-root mutation escape",
-    "if a root conflict recurs, preserve workspace.root_changed_since_fork baseline/current fingerprints and identify the writer before any further authority change",
-    "exact-SHA R-9 rerun through terminal-aware source behavior physical window and worker SIGKILL",
-    "exact-SHA R-9 rerun proving the source physical behavior container becomes Running or surfacing exact behavior.gateway.completed status/code before any container",
-    "exact-SHA R-9 physical worker SIGKILL only after the named source behavior container is physically Running",
-    "exact-SHA replacement behavior window and exactly-once PASS after fence/generation replacement",
-    "exact-SHA R-4 rerun proving Context Engine Git exists and /workspace/repository HEAD equals the qualification consumer commit",
-    "exact-SHA R-9 rerun proving Technical Refinement preparation crosses committed-source authority and reaches dispatch/checkpoint",
-    "exact-SHA R-9 rerun proving the 180-second watchdog fires on real post-Architecture no-progress or Technical Refinement advances",
-    "if stalled, use compact reconcileFailure plus semanticSnapshot dependencies/events to identify policy/preparation failure before changing Runtime semantics",
-    "exact-SHA R-1 contract rerun proving all harness contracts green after semantic-watchdog contract alignment",
-    "exact-SHA scoped R-9 rerun identifying Product semantic finalization/refined bootstrap review tasks or scheduler stall through the new semantic snapshot",
-    "exact-SHA scoped R-9 proving Technical Refinement reaches repair-checkpoint-before-behavior",
-    "exact-SHA scoped R-9 physical Rust worker loss while behavior execution is in-flight",
-    "normal non-behavior model task restricted-UID runtime regression",
-    "full existing Runtime/cache/memory/model-routing/continuation regression qualification",
-    "T10 reusable receipt qualification",
-    "T13 CLI/profile integration",
-    "T21 context-economy parity",
-    "T15/T16/T17 release closure including MANIFEST regeneration and full promotion"
+    "T17: regenerate MANIFEST.json from the final tracked source after this scoped-green documentation closure and commit the manifest",
+    "run full standalone qualification without --wave10-worker-loss on the exact MANIFEST-closed SHA; this must cover the previously excluded R-7/R-8/R-10 gates and return promotionEligible=true with no divergence",
+    "only after full promotion PASS, update the Clip Compass qualified .harness gitlink/lock/certificate to the exact promoted harness SHA"
   ],
   "faultEvidence": {
     "fenceReplacement": {
@@ -566,9 +653,14 @@
       "productionLogicBug": true,
       "qualificationHarnessBug": true,
       "upstreamDependencyBug": true,
-      "rootCauseResolved": false,
-      "status": "failfast-fixed-upstream-hypothesis-not-sufficient",
-      "hypothesisStatus": "OpenCode 1.18.32 source adoption did not eliminate the generic UnknownError on candidate 15cf8ad84996fbf8f6edf5fc552043b71692cc03; #50439 is no longer treated as sufficient root cause"
+      "rootCauseResolved": true,
+      "status": "superseded-and-proven-nonblocking-by-scoped-green-2ab7fcb",
+      "hypothesisStatus": "OpenCode 1.18.32 source adoption did not eliminate the generic UnknownError on candidate 15cf8ad84996fbf8f6edf5fc552043b71692cc03; #50439 is no longer treated as sufficient root cause",
+      "finalGreenEvidence": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "15cf8ad84996fbf8f6edf5fc552043b71692cc03",
@@ -579,8 +671,13 @@
       "correction": "make Runtime child OpenCode config authoritative with --pure + OPENCODE_DISABLE_PROJECT_CONFIG, isolate XDG config/cache, capture ERROR logs internally without forwarding raw stderr, project only a redacted errorRef-matching serverLogExcerpt, and qualify the live worker OpenCode version in R-4",
       "productionLogicBug": true,
       "qualificationHarnessBug": true,
-      "rootCauseResolved": false,
-      "status": "server-log-diagnostic-closure-pending-exact-sha-rerun"
+      "rootCauseResolved": true,
+      "status": "superseded-and-proven-nonblocking-by-scoped-green-2ab7fcb",
+      "finalGreenEvidence": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "69ea9f72335cb496c8e03ee3115c2d2cde095ae0",
@@ -603,8 +700,13 @@
       "correction": "preflight exact active-provider model availability; refresh models.dev once only on miss; revalidate exact qualified model; reuse refreshed attempt cache for prompt/repairs; clear inherited model-catalog overrides; persist opencode.model_catalog; make persistent provider model misses non-retryable",
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
-      "rootCauseResolved": false,
-      "status": "superseded-by-empty-auth-qualification-root-cause"
+      "rootCauseResolved": true,
+      "status": "superseded-and-proven-nonblocking-by-scoped-green-2ab7fcb",
+      "finalGreenEvidence": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "1e301d1d3ef4774245906a6b5eb8a08193481c56",
@@ -615,8 +717,13 @@
       "correction": "probe isolated auth visibility; local provider probe; one models.dev refresh on miss; start a fresh provider process for post-refresh revalidation using the same cache; persist bounded redacted diagnostics for auth/local/refresh/revalidation; distinguish auth absence from post-refresh model absence; keep both non-retryable",
       "productionLogicBug": true,
       "qualificationHarnessBug": false,
-      "rootCauseResolved": false,
-      "status": "secondary-diagnostic-after-empty-auth-qualification-root-cause"
+      "rootCauseResolved": true,
+      "status": "superseded-and-proven-nonblocking-by-scoped-green-2ab7fcb",
+      "finalGreenEvidence": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "6c331981347e77c048fbef014cc909b6dbc88636",
@@ -639,8 +746,13 @@
       "correction": "R-9 now captures run reconcile/topology state, every task/dependency/retry identity, pending execution results, Runtime outbox and key semantic events in one snapshot; tracks semantic progress; emits progress every 30s; and HOLDs after 180s of true no-progress only when there is no real running execution, active reconcile lease or future retry_not_before",
       "productionLogicBug": null,
       "qualificationHarnessBug": true,
-      "rootCauseResolved": false,
-      "status": "progress-aware-r9-fixed-production-cause-pending-exact-sha-rerun"
+      "rootCauseResolved": true,
+      "status": "superseded-and-proven-nonblocking-by-scoped-green-2ab7fcb",
+      "finalGreenEvidence": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "99d6e8859660378040938a58d6038ddb831eb81c",
@@ -688,8 +800,13 @@
       "correction": "race exact named-container Running against exact behavior.gateway.completed, fail immediately with terminal gateway evidence, extend the physical-container start observation to 120 seconds, persist gateway/task snapshot on timeout, and mirror the same logic for replacement behavior",
       "productionLogicBug": null,
       "qualificationHarnessBug": true,
-      "rootCauseResolved": false,
-      "status": "terminal-aware-physical-window-observer-fixed-pending-exact-sha-rerun"
+      "rootCauseResolved": true,
+      "status": "superseded-and-proven-nonblocking-by-scoped-green-2ab7fcb",
+      "finalGreenEvidence": {
+        "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+        "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+        "verdict": "PASS"
+      }
     },
     {
       "observedOnCandidate": "1d628e6e04c921ef2225086a035f3903d4fdc498",
@@ -798,5 +915,36 @@
     "replacement physical-window observation derives identity from authoritative agent_tasks before semantic finalizer receipt projection",
     "repair.resume_checkpoint_loaded remains mandatory but is asserted after replacement behavior completion",
     "compiled execution-plan task schema explicitly carries validationCommandIds, commandSpecIds and commandAuthority"
-  ]
+  ],
+  "scopedWorkerLossQualification": {
+    "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
+    "runId": "standalone-v1-1790211029105-836ef25cbfb9",
+    "verdict": "PASS",
+    "qualificationScope": "wave10-worker-loss",
+    "promotionEligible": false,
+    "firstDivergence": null,
+    "passedGates": [
+      "Q-ENTRY",
+      "PRE-R0",
+      "R-0",
+      "R-1",
+      "R-2",
+      "R-3",
+      "R-4",
+      "R-5",
+      "R-6",
+      "R-9",
+      "R-11"
+    ],
+    "runtimeProgress": [
+      "Product Discovery integrated",
+      "Technical Refinement survived physical worker-loss qualification and resumed",
+      "Implementation integrated",
+      "Quality Assurance verified",
+      "Product Acceptance completed",
+      "scoped run closed without divergence"
+    ],
+    "authority": "operator-provided qualification result from exact branch HEAD",
+    "interpretation": "Wave-10 worker-loss target is green; this scoped mode is intentionally non-promotional and leaves MANIFEST closure to T17."
+  }
 }
