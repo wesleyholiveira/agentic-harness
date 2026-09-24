@@ -814,8 +814,11 @@ test("revoked behavior execution repeatedly reaps its fence-bound Docker contain
 
 test("planning-only requests compile a validated DAG without granting implementation execution", async () => {
   const { executionIntentFromRequest } = await import("../../.agents/runtime/planner.mjs");
+  await import("../../.agents/runtime/event-driven-reconciler.mjs");
+  await import("../../.agents/runtime/summary.mjs");
   const schema = JSON.parse(source(".agents/schemas/execution-plan.schema.json"));
   const reconciler = source(".agents/runtime/event-driven-reconciler.mjs");
+  const summary = source(".agents/runtime/summary.mjs");
 
   assert.equal(
     executionIntentFromRequest("Leia o @modernization/00-START-HERE.md e planeje a implementação com sdd"),
@@ -844,4 +847,7 @@ test("planning-only requests compile a validated DAG without granting implementa
   assert.match(reconciler, /"planning\.completed"/u);
   assert.match(reconciler, /plan_only_request_satisfied/u);
   assert.match(reconciler, /materializeContinuationWake\?\.\(plan\.runId, \{ status: "closed" \}\)/u);
+  assert.match(summary, /executionIntent: persistedPlan\.workflow\?\.executionIntent \?\? "execute"/u);
+  assert.match(summary, /Compiled DAG:/u);
+  assert.match(summary, /refinedDagPath/u);
 });
