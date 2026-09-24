@@ -1552,6 +1552,54 @@ container logs.
 No change was made to behavior capability HMACs, worker fencing identity,
 policy grants, runner source attestation, or the physical worker-loss procedure.
 
+## R-9 replacement physical-window ordering and compiled-DAG schema defects
+
+Scoped qualification `standalone-v1-1790209324670-99163966291b` on exact
+candidate `b62819b19ceca11740668f43314f3f5d9729c8a5` advanced through the
+physical worker-loss boundary and proved the prior RFC3339 fence correction.
+
+The replacement execution was observed at the same semantic attempt with
+`dispatchGeneration=2` and `fencingToken=2`. Its behavior gateway completed
+`PASSED / docker_gateway_behavior_passed` with an empty
+`admissionReasons` array, proving that the replacement fence, capability,
+source authority, workspace binding, materialization, image attestation,
+toolchain and behavior admission were accepted.
+
+R-9 nevertheless reported
+`r9_replacement_behavior_gateway_completed_before_physical_window`.
+The qualifier discovered replacement identity by waiting first for
+`repair.resume_checkpoint_loaded`. That event is not a live worker event: the
+model child writes the durable resume receipt early, but the semantic controller
+projects `repair.resume_checkpoint_loaded` only from
+`finalizeExecutionResult()`, after the replacement executor has completed.
+By then the 15-second qualification behavior had already finished and
+`docker run --rm` had removed the named container.
+
+Correction:
+- detect replacement identity directly from the authoritative `agent_tasks`
+  row while it is `running`;
+- require the same semantic attempt and exactly
+  `dispatchGeneration = source + 1`, `fencingToken = source + 1`;
+- observe the matching `behavior.gateway.started` and named physical container
+  while the replacement executor is in flight;
+- prove behavior completion and container removal;
+- only then require `repair.resume_checkpoint_loaded` with the exact
+  replacement identity, `skippedFullAgentInvocation=true`,
+  `sameTaskAttempt=true`, and the original checkpoint effect key.
+
+The same run exposed an independent schema drift after replacement behavior
+passed. Technical Refinement finalization failed with
+`implementation_plan_invalid` because compiled implementation tasks contained
+`validationCommandIds`, `commandSpecIds`, and `commandAuthority`, while
+`execution-plan.schema.json` still rejected those fields through
+`additionalProperties=false`.
+
+Those fields are intentional Runtime authority: the DAG compiler projects them
+and task preparation/context building consumes them. The execution-plan task
+schema now declares all three explicitly using the same identity/authority
+contracts already used by the implementation-plan schema. Strict
+`additionalProperties=false` remains unchanged.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
