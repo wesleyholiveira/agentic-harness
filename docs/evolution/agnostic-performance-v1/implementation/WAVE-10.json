@@ -482,6 +482,9 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
+    "exact-SHA R-9 rerun proving Rust/Chrono execution fence is accepted by JS behavior admission",
+    "exact-SHA source behavior container Running followed by physical worker PID1 SIGKILL",
+    "exact-SHA replacement generation/fence with repair resume and replacement behavior exactly once",
     "exact-SHA R-9 rerun proving controller module initialization completes before gate dispatch",
     "exact-SHA R-9 terminal-aware source behavior physical window and physical worker PID1 SIGKILL",
     "exact-SHA R-9 rerun proving Product Discovery integrates without any source-root mutation escape",
@@ -708,7 +711,20 @@
       "productionLogicBug": false,
       "qualificationHarnessBug": true,
       "rootCauseResolved": true,
-      "status": "module-initialization-order-fixed-pending-exact-sha-rerun"
+      "status": "module-init-fix-proven-by-de3beab247c17a91341e3583be581fef5c4e151f"
+    },
+    {
+      "observedOnCandidate": "de3beab247c17a91341e3583be581fef5c4e151f",
+      "gate": "wave10-worker-loss/R-9",
+      "qualificationRunId": "standalone-v1-1790207852309-551e39f2e161",
+      "runtimeRunId": "run-433039da-91a8-4d4d-a57b-ae79694111d3",
+      "observed": "R-9 passed Product integration, dispatched Technical Refinement a1/g1, materialized the qualification-process-loss repair checkpoint and reached behavior.gateway.started. The terminal-aware observer then captured gateway HOLD behavior_not_authorized before any physical behavior container existed.",
+      "rootCause": "cross-runtime execution-fence timestamp contract mismatch: Rust Chrono emits valid RFC3339 with +00:00/sub-millisecond precision, while JS validateTaskExecutionFence required byte identity with Date.toISOString(). The active fence was rejected as task-execution-fence-invalid inside behavior admission and surfaced externally as behavior_not_authorized.",
+      "correction": "accept strict RFC3339 wire timestamps and canonicalize at the JS contract boundary; add Rust-format regression and persist gateway admissionReasons in runtime events",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
+      "rootCauseResolved": true,
+      "status": "execution-fence-rfc3339-fixed-pending-exact-sha-rerun"
     }
   ],
   "hardening": [
@@ -747,6 +763,8 @@
     "implementation model stages retain bash authority inside the isolated workspace",
     "R-9 semantic evidence preserves workspace root-change and integration-materialization fingerprint events",
     "standalone qualification dispatch occurs only after all module-scope gate constants initialize",
-    "qualification-controller contract requires final await executeQualification() after R-9 constants"
+    "qualification-controller contract requires final await executeQualification() after R-9 constants",
+    "execution-fence JS contract accepts strict RFC3339 timestamps from Rust/Chrono and canonicalizes after validation",
+    "behavior.gateway.completed includes admissionReasons extracted from gateway receipts"
   ]
 }
