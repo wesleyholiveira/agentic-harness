@@ -871,7 +871,7 @@ test("agent_start current-user-message authority excludes OpenCode synthetic fil
       {
         type: "text",
         synthetic: true,
-        text: 'Called the Read tool with the following input: {"filePath":"D:\\\\clip-compass-v2\\\\modernization\\\\00-START-HERE.md"}',
+        text: 'Called the Read tool with the following input: {"filePath":"D:\\\\consumer-project\\\\modernization\\\\00-START-HERE.md"}',
       },
       {
         type: "text",
