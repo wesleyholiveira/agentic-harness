@@ -1600,6 +1600,27 @@ schema now declares all three explicitly using the same identity/authority
 contracts already used by the implementation-plan schema. Strict
 `additionalProperties=false` remains unchanged.
 
+## Focused R-9 replacement identity contract drift
+
+After the replacement physical-window observer was reordered, the focused
+qualification-controller contract still asserted the previous receipt-first
+source form. The failing assertion expected
+`payload.dispatchGeneration !== target.dispatchGeneration + 1`, even though
+the qualifier now derives replacement identity directly from the authoritative
+`agent_tasks` row while the replacement is `running`.
+
+The contract is aligned to the current stronger sequence:
+- replacement task status is `running`;
+- semantic attempt is unchanged;
+- dispatch generation and fencing token are exactly source + 1;
+- the named replacement behavior physical window is observed next;
+- only after behavior completion/removal does R-9 require
+  `repair.resume_checkpoint_loaded`;
+- that receipt must prove `skippedFullAgentInvocation=true`,
+  `sameTaskAttempt=true`, and the original checkpoint effect key.
+
+No Runtime or qualification production semantics changed in this correction.
+
 ## Remaining promotion gates
 
 WAVE-10 remains fail-closed and is not promoted until all of the following are
