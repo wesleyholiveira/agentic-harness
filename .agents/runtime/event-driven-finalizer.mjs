@@ -294,6 +294,7 @@ export async function finalizeExecutionResult({ repositoryRoot, plan, taskPlan, 
       fencingToken: result.fencingToken,
       status: behaviorGate.status ?? null,
       code: behaviorGate.code ?? null,
+      configurationErrorCode: behaviorGate.configurationErrorCode ?? null,
       receiptCount: Array.isArray(behaviorGate.receipts) ? behaviorGate.receipts.length : 0,
     });
     if (typeof store.writeCheckpoint === "function") {
@@ -308,6 +309,7 @@ export async function finalizeExecutionResult({ repositoryRoot, plan, taskPlan, 
         payload: {
           status: behaviorGate.status ?? null,
           code: behaviorGate.code ?? null,
+          configurationErrorCode: behaviorGate.configurationErrorCode ?? null,
           receiptCount: Array.isArray(behaviorGate.receipts) ? behaviorGate.receipts.length : 0,
         },
       });
