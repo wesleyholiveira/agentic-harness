@@ -1542,6 +1542,7 @@ async fn run_behavior_gateway_under_lease(
             BehaviorGatewayResult::hold(format!("behavior_gateway_post_fence_invalid:{error}"))
         }
     };
+    let admission_reasons = result.admission_reasons();
     if let Err(error) = insert_event(
         client,
         &claimed.run_id,
@@ -1554,6 +1555,7 @@ async fn run_behavior_gateway_under_lease(
             "status": result.status.clone(),
             "code": result.code.clone(),
             "receiptCount": result.receipts.len(),
+            "admissionReasons": admission_reasons,
             "source": "rust-agent-runtime-worker",
         }),
     )
