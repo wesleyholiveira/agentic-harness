@@ -99,6 +99,18 @@ impl BehaviorGatewayResult {
         }
         Ok(())
     }
+
+    pub fn admission_reasons(&self) -> Vec<String> {
+        self.receipts
+            .iter()
+            .filter_map(|receipt| receipt.get("admission"))
+            .filter_map(|admission| admission.get("reasons"))
+            .filter_map(Value::as_array)
+            .flat_map(|reasons| reasons.iter())
+            .filter_map(Value::as_str)
+            .map(str::to_owned)
+            .collect()
+    }
 }
 
 pub fn new_capability() -> String {
@@ -218,6 +230,32 @@ mod tests {
             capability_proof(&secret, &capability, &replacement_fence).unwrap()
         );
         assert!(capability_proof("short", &capability, &fence).is_err());
+    }
+
+    #[test]
+    fn gateway_result_projects_behavior_admission_reasons() {
+        let result = BehaviorGatewayResult {
+            schema_version: "docker-behavior-gateway-result/v1".into(),
+            status: "HOLD".into(),
+            code: "behavior_not_authorized".into(),
+            receipts: vec![serde_json::json!({
+                "admission": {
+                    "reasons": [
+                        "task-execution-fence-invalid",
+                        "toolchain-readiness-required"
+                    ]
+                }
+            })],
+            command_authority: None,
+            workspace_binding_digest: None,
+        };
+        assert_eq!(
+            result.admission_reasons(),
+            vec![
+                "task-execution-fence-invalid".to_string(),
+                "toolchain-readiness-required".to_string(),
+            ]
+        );
     }
 
     #[test]
