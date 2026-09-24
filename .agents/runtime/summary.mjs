@@ -156,6 +156,7 @@ async function runMetrics(store, run) {
     initialReasoningLevel: run.initial_reasoning_level ?? null,
     reasoningConfidence: run.reasoning_confidence === null || run.reasoning_confidence === undefined ? null : Number(run.reasoning_confidence),
     reasoningPromotions: events.filter((event) => event.event_type === "reasoning.promoted").length,
+    executionIntent: persistedPlan.workflow?.executionIntent ?? "execute",
     bootstrapReviewTopology: persistedPlan.workflow?.bootstrapReviewTopology ?? null,
     bootstrapFactTopology: persistedPlan.workflow?.bootstrapFactTopology ?? null,
     bootstrapTopologyState: persistedPlan.workflow?.bootstrapTopologyState ?? null,
@@ -183,6 +184,10 @@ async function runMetrics(store, run) {
       compileDurationMs: Number(dagCompilation.compileDurationMs ?? 0),
       materializationDurationMs: Number(dagCompilation.materializationDurationMs ?? 0),
       taskCount: Number(dagCompilation.taskCount ?? tasks.length),
+      executionIntent: dagCompilation.executionIntent ?? persistedPlan.workflow?.executionIntent ?? "execute",
+      refinedDagPath: dagCompilation.refinedDagPath ?? null,
+      plannedTaskIds: Array.isArray(dagCompilation.plannedTaskIds) ? dagCompilation.plannedTaskIds : [],
+      newTaskIds: Array.isArray(dagCompilation.newTaskIds) ? dagCompilation.newTaskIds : [],
     } : null,
     p50TaskMs: percentile(durations, 0.50),
     p95TaskMs: percentile(durations, 0.95),
@@ -310,9 +315,13 @@ export function summaryMarkdown(summary) {
         lines.push(`- Bootstrap review decision edges: ${run.bootstrapReviewDependencies.map((edge) => `${edge.fromStage} → ${edge.toStage} [${edge.requiredDecision}]`).join("; ")}`);
       }
     }
-    lines.push("", `- Runtime policy: **${run.policy.fingerprint ?? "unavailable"}** (${run.policy.decisions.length} decision receipts)`);
+    lines.push("", `- Execution intent: **${run.executionIntent ?? "execute"}**`);
+    lines.push(`- Runtime policy: **${run.policy.fingerprint ?? "unavailable"}** (${run.policy.decisions.length} decision receipts)`);
     lines.push(`- Replay capsule: **${run.replay?.path ?? "unavailable"}**`);
-    if (run.dagCompilation) lines.push(`- DAG compiler: **${run.dagCompilation.compileDurationMs} ms** compile + **${run.dagCompilation.materializationDurationMs} ms** materialization`);
+    if (run.dagCompilation) {
+      lines.push(`- DAG compiler: **${run.dagCompilation.compileDurationMs} ms** compile + **${run.dagCompilation.materializationDurationMs} ms** materialization`);
+      lines.push(`- Compiled DAG: **${run.dagCompilation.refinedDagPath ?? "unavailable"}** · planned **${run.dagCompilation.plannedTaskIds.length}** · materialized **${run.dagCompilation.newTaskIds.length}**`);
+    }
     lines.push("", "| Agente | Modelo | Estado | Reasoning | Tentativas | Steps | Custo | In/cache/out | Duração | Erro |", "|---|---|---:|---:|---:|---:|---:|---:|---:|---|");
     for (const task of run.tasks) {
       const steps = task.stepsUsed === null ? "—" : `${task.stepsUsed}/${task.stepsLimit ?? "?"}${task.stepLimitReached ? " ⚠" : ""}`;
