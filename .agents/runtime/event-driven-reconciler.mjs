@@ -7,7 +7,7 @@ import { finalizeExecutionResult } from "./event-driven-finalizer.mjs";
 import { dependenciesFailed, dependenciesSatisfied, stableFingerprint, SUCCESS_TASK_STATUSES, TERMINAL_RUN_STATUSES, TERMINAL_TASK_STATUSES } from "./event-driven-contracts.mjs";
 import { prefetchTaskPreparation, prepareTaskExecution } from "./event-driven-preparation.mjs";
 import { nowIso, readJson } from "./utils.mjs";
-import { recordReplayCapsuleArtifact, updateReplayCapsuleWithCompiledPlan, updateReplayCapsuleWithRefinedBootstrapPlan } from "./run-replay.mjs";
+import { recordReplayCapsuleArtifact, updateReplayCapsuleEvidence, updateReplayCapsuleWithCompiledPlan, updateReplayCapsuleWithRefinedBootstrapPlan } from "./run-replay.mjs";
 import { bootstrapTopologyReadyForTask, refineBootstrapPlanFromProductDiscovery } from "./bootstrap-topology-refiner.mjs";
 
 
@@ -210,12 +210,19 @@ async function compileRefinedDagIfReady({ repositoryRoot, registry, schemas, pla
   const compileDurationMs = Date.now() - compileStartedAt;
   const materializationStartedAt = Date.now();
   const existingIds = new Set(rows.map((task) => task.task_id));
-  const newTasks = compiled.tasks.filter((task) => !existingIds.has(task.taskId));
-  await store.addTasks(plan.runId, newTasks, {
-    maxAttempts: options.maxAttempts,
-    reasoningSource: compiled.reasoning?.source ?? null,
-  });
-  await store.replacePlan(plan.runId, compiled);
+  const plannedTasks = compiled.tasks.filter((task) => !existingIds.has(task.taskId));
+  const planOnly = plan.workflow?.executionIntent === "plan-only";
+  const persistedPlan = planOnly
+    ? { ...compiled, tasks: plan.tasks }
+    : compiled;
+
+  if (!planOnly) {
+    await store.addTasks(plan.runId, plannedTasks, {
+      maxAttempts: options.maxAttempts,
+      reasoningSource: compiled.reasoning?.source ?? null,
+    });
+  }
+  await store.replacePlan(plan.runId, persistedPlan);
   const refinedDagPath = await saveCompiledDag(repositoryRoot, compiled);
   const replayUpdate = await updateReplayCapsuleWithCompiledPlan(repositoryRoot, compiled, {
     implementationPlan: technicalLeadHandoff.implementationPlan,
@@ -237,12 +244,54 @@ async function compileRefinedDagIfReady({ repositoryRoot, registry, schemas, pla
   await store.event(plan.runId, null, "dag.compiled", {
     implementationPlanRevision: compiled.workflow.implementationPlanRevision,
     taskCount: compiled.tasks.length,
-    newTaskIds: newTasks.map((task) => task.taskId),
+    newTaskIds: planOnly ? [] : plannedTasks.map((task) => task.taskId),
+    plannedTaskIds: plannedTasks.map((task) => task.taskId),
+    executionIntent: plan.workflow?.executionIntent ?? "execute",
     refinedDagPath,
     compileDurationMs,
     materializationDurationMs: Date.now() - materializationStartedAt,
   });
-  return compiled;
+
+  if (planOnly) {
+    const completedAt = nowIso();
+    await store.updateRun(plan.runId, {
+      status: "closed",
+      completed_at: completedAt,
+    });
+    await store.event(plan.runId, null, "planning.completed", {
+      reason: "plan_only_request_satisfied",
+      executionIntent: "plan-only",
+      implementationPlanRevision: compiled.workflow.implementationPlanRevision,
+      plannedTaskIds: plannedTasks.map((task) => task.taskId),
+      refinedDagPath,
+    });
+    const replayFinal = await updateReplayCapsuleEvidence(repositoryRoot, plan.runId, {
+      events: await store.listEvents(plan.runId),
+      artifacts: await store.listArtifacts(plan.runId),
+      checkpoints: await store.listCheckpoints(plan.runId),
+      terminal: {
+        status: "closed",
+        completedAt,
+        planPhase: "compiled",
+        executionIntent: "plan-only",
+        reason: "plan_only_request_satisfied",
+        implementationPlanRevision: compiled.workflow.implementationPlanRevision,
+        refinedDagPath,
+      },
+      schemas,
+    });
+    if (replayFinal) {
+      await recordReplayCapsuleArtifact(store, {
+        runId: plan.runId,
+        taskId: plan.workflow.technicalLeadTaskId,
+        path: replayFinal.path,
+        capsule: replayFinal.capsule,
+        stage: "compiled",
+      });
+    }
+    await store.materializeContinuationWake?.(plan.runId, { status: "closed" });
+  }
+  return persistedPlan;
 }
 
 async function finalizePendingResults(input, plan) {
@@ -477,6 +526,10 @@ export async function reconcileRun({ repositoryRoot, registry, schemas, plan: su
     await recoverExpiredExecutions(plan, store);
     await cascadeDependencyFailures(plan, store);
     plan = await compileRefinedDagIfReady({ repositoryRoot, registry, schemas, plan, store, options });
+    run = await store.getRun(plan.runId);
+    if (TERMINAL_RUN_STATUSES.has(run.status)) {
+      return { status: run.status, terminal: true, plan };
+    }
 
     let tasks = await store.listTasks(plan.runId);
     if (tasks.length > 0 && tasks.every((task) => TERMINAL_TASK_STATUSES.has(task.status))) {
