@@ -942,7 +942,53 @@
       "productionLogicBug": false,
       "qualificationHarnessBug": true,
       "rootCauseResolved": true,
-      "status": "fixed-pending-exact-sha-rerun"
+      "status": "fixed-and-proven-by-de3beab247c17a91341e3583be581fef5c4e151f",
+      "greenEvidence": {
+        "candidate": "de3beab247c17a91341e3583be581fef5c4e151f",
+        "qualificationRunId": "standalone-v1-1790207852309-551e39f2e161",
+        "physicalWindowObserverExecuted": true,
+        "gatewayTerminalEvidenceObserved": true
+      }
+    },
+    {
+      "gate": "wave10-worker-loss/R-9-execution-fence-rfc3339-interoperability",
+      "candidate": "de3beab247c17a91341e3583be581fef5c4e151f",
+      "qualificationRunId": "standalone-v1-1790207852309-551e39f2e161",
+      "runtimeRunId": "run-433039da-91a8-4d4d-a57b-ae79694111d3",
+      "observed": {
+        "productOwner": "integrated(a1/g1)",
+        "technicalRefinement": "running(a1/g1)",
+        "checkpointStatus": "repair-started",
+        "repairKind": "qualification-process-loss",
+        "behaviorGatewayStarted": true,
+        "behaviorGatewayCompleted": {
+          "status": "HOLD",
+          "code": "behavior_not_authorized",
+          "receiptCount": 1
+        },
+        "taskFailure": {
+          "errorCode": "behavior_gateway_hold",
+          "message": "Behavior gateway HOLD: behavior_not_authorized"
+        },
+        "leaseExpiresAtExample": "2026-09-24T00:10:59.868143637+00:00"
+      },
+      "rootCause": [
+        "the Rust worker serializes task execution fence timestamps with chrono::DateTime::to_rfc3339(), which legitimately emits +00:00 and variable fractional precision",
+        "packages/harness-contracts/src/execution-fence.mjs required new Date(value).toISOString() === value, accepting only JavaScript's canonical millisecond-Z byte shape",
+        "the live lease timestamp format shown in the qualification report therefore fails validateTaskExecutionFence despite representing a valid active instant",
+        "evaluateBehaviorAdmission catches that validation failure and adds task-execution-fence-invalid, causing prepareDockerBehaviorExecutionV2 to return the generic behavior_not_authorized receipt before docker run"
+      ],
+      "correction": [
+        "treat RFC3339 as the cross-runtime wire contract instead of JavaScript Date.toISOString byte identity",
+        "accept strict RFC3339 timestamps with Z or numeric offsets and 1-9 fractional digits, then canonicalize to Date.toISOString only after validation",
+        "add regression coverage for Rust/Chrono values such as 2099-01-01T00:00:00.123456789+00:00",
+        "preserve invalid/date-only fail-closed behavior",
+        "project admission.reasons from gateway receipts into behavior.gateway.completed so future generic gateway codes retain their exact internal admission cause"
+      ],
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
+      "rootCauseResolved": true,
+      "status": "rfc3339-contract-fixed-pending-exact-sha-rerun"
     }
   ],
   "staticHardeningFindings": [
@@ -1060,5 +1106,5 @@
       "qualificationUse": "authoritative-for-data-plane-faults-only"
     }
   },
-  "greenAfterFix": "R9_MODULE_INITIALIZATION_ORDER_FIXED_PHYSICAL_WINDOW_RERUN_PENDING"
+  "greenAfterFix": "R9_EXECUTION_FENCE_RFC3339_INTEROP_FIXED_PHYSICAL_WORKER_LOSS_RERUN_PENDING"
 }
