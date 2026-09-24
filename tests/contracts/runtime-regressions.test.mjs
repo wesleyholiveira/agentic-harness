@@ -851,3 +851,43 @@ test("planning-only requests compile a validated DAG without granting implementa
   assert.match(summary, /Compiled DAG:/u);
   assert.match(summary, /refinedDagPath/u);
 });
+
+
+test("agent_start current-user-message authority excludes OpenCode synthetic file expansion", async () => {
+  const { authoritativeUserMessageText } = await import("../../.opencode/plugins/runtime-invocation-provenance.js");
+
+  const message = {
+    info: {
+      id: "msg_user_plan_only",
+      role: "user",
+      time: { created: 1790270000000 },
+    },
+    parts: [
+      {
+        type: "text",
+        text: "Leia o @modernization/00-START-HERE.md e planeje a implementação com sdd",
+      },
+      {
+        type: "text",
+        synthetic: true,
+        text: 'Called the Read tool with the following input: {"filePath":"D:\\\\clip-compass-v2\\\\modernization\\\\00-START-HERE.md"}',
+      },
+      {
+        type: "text",
+        synthetic: true,
+        text: "## Ordem macro\\nFixar evidência atual; corrigir contrato/identidade; tornar execução fenced.",
+      },
+      {
+        type: "file",
+        synthetic: true,
+        mime: "text/markdown",
+        filename: "00-START-HERE.md",
+      },
+    ],
+  };
+
+  assert.equal(
+    authoritativeUserMessageText(message),
+    "Leia o @modernization/00-START-HERE.md e planeje a implementação com sdd",
+  );
+});
