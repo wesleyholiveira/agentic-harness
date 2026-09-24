@@ -49,6 +49,16 @@ test("stalled executor output draining is bounded so inherited pipes cannot hold
   assert.match(worker, /drain_executor_output\(stderr_task, "stderr", claimed, client\)\.await/);
 });
 
+test("compiled execution-plan schema carries Runtime command authority fields", () => {
+  const schema = JSON.parse(source(".agents/schemas/execution-plan.schema.json"));
+  const taskProperties = schema.properties.tasks.items.properties;
+  assert.ok(taskProperties.validationCommandIds);
+  assert.ok(taskProperties.commandSpecIds);
+  assert.ok(taskProperties.commandAuthority);
+  assert.equal(taskProperties.commandAuthority.anyOf[1].properties.schemaVersion.const, "command-authority/v1");
+  assert.equal(taskProperties.validationCommandIds.items.pattern, "^vcmd:sha256:[a-f0-9]{64}$");
+});
+
 test("task execution fence accepts Rust Chrono RFC3339 and canonicalizes at the JS boundary", async () => {
   const {
     validateTaskExecutionFence,
