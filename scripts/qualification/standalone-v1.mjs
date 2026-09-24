@@ -1611,7 +1611,7 @@ async function r7() {
   const fixture = assertFixtureComplete(state.consumers.A);
   for (const [path, sha] of Object.entries(state.fixtureA)) if (fixture.identity[path] !== sha) hold("R-7", "QUALIFICATION PROCEDURE", "synthetic_fixture_drift", { path, expected: sha, actual: fixture.identity[path] });
   const sessionId = await createOpenCodeSession("Agentic Harness R-7 consumer workload");
-  const workload = "Implemente integralmente os requisitos definidos em docs/specs/example/PRD.md.\n\nUse docs/adr/0001-example.md como restrição arquitetural.\n\nMantenha o escopo limitado ao projeto consumidor atual e execute a validação especificada no PRD antes de concluir.";
+  const workload = "Implemente integralmente os requisitos definidos em @docs/specs/example/PRD.md.\n\nUse @docs/adr/0001-example.md como restrição arquitetural.\n\nMantenha o escopo limitado ao projeto consumidor atual e execute a validação especificada no PRD antes de concluir.";
   const baselineWorktree = worktreeFingerprint();
   const userMessageId = await sendWorkload(sessionId, workload);
   const runId = await waitForRunId(sessionId, { gate: "R-7", baselineWorktree, request: workload });
