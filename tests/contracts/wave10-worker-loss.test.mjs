@@ -306,19 +306,22 @@ test("R9 kills worker only inside a physical behavior window and proves replacem
   const processLoss = qualification.indexOf('label: "r9-worker-process-loss"');
   const sourceRemoved = qualification.indexOf('label: "r9-source-behavior-container-removed"');
   const leaseExpired = qualification.indexOf("const leaseExpiryForcedAt", sourceRemoved);
-  const replacementResume = qualification.indexOf('label: "r9-repair-resume-receipt"', leaseExpired);
-  const replacementRunning = qualification.indexOf('label: "r9-replacement-behavior-container-running"', replacementResume);
+  const replacementIdentity = qualification.indexOf('label: "r9-replacement-execution-running"', leaseExpired);
+  const replacementRunning = qualification.indexOf('label: "r9-replacement-behavior-container-running"', replacementIdentity);
   const replacementCompleted = qualification.indexOf('label: "r9-replacement-behavior-completed"', replacementRunning);
   const replacementRemoved = qualification.indexOf('label: "r9-replacement-behavior-container-removed"', replacementCompleted);
+  const replacementResume = qualification.indexOf('label: "r9-repair-resume-receipt"', replacementRemoved);
 
   assert.ok(sourceRunning >= 0);
   assert.ok(processLoss > sourceRunning);
   assert.ok(sourceRemoved > processLoss);
   assert.ok(leaseExpired > sourceRemoved);
-  assert.ok(replacementResume > leaseExpired);
-  assert.ok(replacementRunning > replacementResume);
+  assert.ok(replacementIdentity > leaseExpired);
+  assert.ok(replacementRunning > replacementIdentity);
   assert.ok(replacementCompleted > replacementRunning);
   assert.ok(replacementRemoved > replacementCompleted);
+  assert.ok(replacementResume > replacementRemoved);
+  assert.match(qualification, /The durable repair resume receipt is projected by the semantic finalizer/u);
 
   assert.match(qualification, /r9_gateway_restarted_during_worker_disconnect/u);
   assert.match(qualification, /r9_gateway_identity_changed_during_worker_recovery/u);
