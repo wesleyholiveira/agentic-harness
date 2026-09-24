@@ -651,9 +651,18 @@ function registrySummary(registry) {
     }));
 }
 
-async function planningEvidence({ workspace, handoff, maxBytes = 80_000 }) {
-  const paths = [...new Set([...(handoff.changedPaths ?? []), ...(handoff.reusedPaths ?? [])].map(normalizePath))]
-    .filter((path) => /^(docs\/(plans|specs|architecture)\/|\.agent\/)/.test(path));
+export async function planningEvidence({ workspace, handoff, brief = null, maxBytes = 80_000 }) {
+  const handoffPaths = [...new Set(
+    [...(handoff.changedPaths ?? []), ...(handoff.reusedPaths ?? [])].map(normalizePath),
+  )].filter((path) => /^(docs\/(plans|specs|architecture)\/|\.agent\/)/.test(path));
+
+  // Runtime-projected read-only context is already bounded authority for the
+  // Technical Lead. Preserve it through structured plan repair regardless of
+  // the project's documentation layout (for example modernization/**).
+  const readOnlyContextPaths = [...new Set(
+    (brief?.readOnlyContextPaths ?? []).map(normalizePath),
+  )];
+  const paths = [...new Set([...handoffPaths, ...readOnlyContextPaths])];
   const evidence = [];
   let used = 0;
   for (const path of paths) {
@@ -1120,7 +1129,7 @@ export async function synthesizeMissingImplementationPlan({
     registry: resolvedRegistry,
     validationCommandCatalog,
   });
-  const evidence = await planningEvidence({ workspace, handoff, maxBytes: Number(process.env.AGENT_HARNESS_TECHNICAL_PLAN_SYNTHESIS_EVIDENCE_BYTES ?? 80_000) });
+  const evidence = await planningEvidence({ workspace, handoff, brief, maxBytes: Number(process.env.AGENT_HARNESS_TECHNICAL_PLAN_SYNTHESIS_EVIDENCE_BYTES ?? 80_000) });
   const candidates = models ?? String(process.env.AGENT_HARNESS_TECHNICAL_PLAN_SYNTHESIS_MODELS ?? "openai/gpt-5.6-luna")
     .split(",").map((value) => value.trim()).filter(Boolean);
   if (candidates.length === 0) candidates.push("openai/gpt-5.6-luna");
@@ -1671,7 +1680,7 @@ export async function repairImplementationPlanFromReview({
       validationCommandCatalog,
     });
     schema.properties.revision = { const: sourceRevision + 1 };
-    const evidence = await planningEvidence({ workspace, handoff, maxBytes: Number(process.env.AGENT_HARNESS_TECHNICAL_PLAN_SYNTHESIS_EVIDENCE_BYTES ?? 80_000) });
+    const evidence = await planningEvidence({ workspace, handoff, brief, maxBytes: Number(process.env.AGENT_HARNESS_TECHNICAL_PLAN_SYNTHESIS_EVIDENCE_BYTES ?? 80_000) });
     result = await structuredRunner({
       workspace,
       model: selectedModel,
