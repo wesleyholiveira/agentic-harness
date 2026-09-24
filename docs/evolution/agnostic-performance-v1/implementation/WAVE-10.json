@@ -1,7 +1,7 @@
 {
   "schemaVersion": "implementation-wave-report/v1",
   "wave": "WAVE-10",
-  "status": "SCOPED_WAVE10_WORKER_LOSS_PASS_PENDING_T17_FULL_PROMOTION",
+  "status": "FULL_PROMOTION_R7_FIX_PENDING_REMANIFEST_AND_RERUN",
   "parent": "5184ac3c604530ad024fd09b7d66818b480f2080",
   "delivered": [
     "behavior-gate-descriptor/v1 in event-driven execution descriptor",
@@ -81,7 +81,7 @@
     "behaviorProcessLossRecovery": "PASS_ON_2ab7fcb",
     "runtimeQualification": "PASS_SCOPED_WAVE10_ON_2ab7fcb",
     "livePreflight": "PASS_ON_0d8c0b6",
-    "fullPromotionManifest": "DEFERRED_T17_AFTER_SCOPED_GREEN",
+    "fullPromotionManifest": "STALE_AFTER_R7_SOURCE_FIX_REQUIRES_T17_REGENERATION",
     "fullPromotionAttemptOn3d7cfc5": {
       "verdict": "HOLD",
       "gate": "R-0",
@@ -280,6 +280,23 @@
       "r11": "PASS",
       "promotionEligible": false,
       "manifestStatus": "DEFERRED_T17"
+    },
+    "fullPromotionAttemptOnA83ca39c": {
+      "verdict": "HOLD",
+      "runId": "standalone-v1-1790212442124-9068e6cd768a",
+      "r0Manifest": "PASS",
+      "r1": "PASS",
+      "r2": "PASS",
+      "r3": "PASS",
+      "r4": "PASS",
+      "r5": "PASS",
+      "r6": "PASS",
+      "r7": "HOLD",
+      "r8": "NOT RUN",
+      "r9": "NOT RUN",
+      "r10": "NOT RUN",
+      "r11": "PASS",
+      "failure": "docker_gateway_committed_configuration_invalid on implementation behavior gate"
     }
   },
   "historicalOperatorEvidence": {
@@ -299,7 +316,7 @@
     "cacheMemoryWorkerRoutingTouched": false,
     "manifestRegenerated": false
   },
-  "releaseBoundary": "Wave-10 worker-loss target is scoped-green on 2ab7fcb94fc74387f1da6f5ea1d614521ea02469. Clip Compass adoption and qualified pin/lock/certificate remain frozen until MANIFEST T17 closure plus a full promotion PASS on one exact later SHA.",
+  "releaseBoundary": "Scoped Wave-10 worker-loss remains green on 2ab7fcb94fc74387f1da6f5ea1d614521ea02469. Full promotion on a83ca39c34013d8f71473691bedea4854fd26472 exposed an R-7 committed-command-authority provenance defect. Current branch source changes make that T17 MANIFEST stale; Clip Compass release pins remain frozen until a new MANIFEST-closed full PASS.",
   "hardeningCorrections": [
     {
       "observedOnCandidate": "c32ba0089326bbf940ecd1addebe9de42b0607bf",
@@ -595,9 +612,10 @@
     "cleanupOk": true
   },
   "remainingAfterFaultPreflight": [
-    "T17: regenerate MANIFEST.json from the final tracked source after this scoped-green documentation closure and commit the manifest",
-    "run full standalone qualification without --wave10-worker-loss on the exact MANIFEST-closed SHA; this must cover the previously excluded R-7/R-8/R-10 gates and return promotionEligible=true with no divergence",
-    "only after full promotion PASS, update the Clip Compass qualified .harness gitlink/lock/certificate to the exact promoted harness SHA"
+    "run focused Node/Rust/gateway contracts for the R-7 committed-source-root correction",
+    "T17 again: regenerate MANIFEST.json after the final R-7 fix/docs source and commit it",
+    "run full standalone qualification on that exact MANIFEST-closed SHA and require promotionEligible=true with R-7/R-8/R-9/R-10/R-11 all PASS",
+    "only after full promotion PASS update Clip Compass .harness gitlink/lock/certificate to the exact promoted harness SHA"
   ],
   "faultEvidence": {
     "fenceReplacement": {
@@ -871,6 +889,20 @@
       "runtimeSemanticsChanged": false,
       "rootCauseResolved": true,
       "status": "contract-fixed-pending-rerun"
+    },
+    {
+      "observedOnCandidate": "a83ca39c34013d8f71473691bedea4854fd26472",
+      "gate": "full-promotion/R-7",
+      "qualificationRunId": "standalone-v1-1790212442124-9068e6cd768a",
+      "runtimeRunId": "run-ad2ab29b-46b3-467e-b88a-38dc5ec34bcc",
+      "observed": "Full promotion passed Q-ENTRY through R-6 with promotionEligible=true and a valid T17 MANIFEST. R-7 Product/Architecture/Technical Refinement integrated; the implementation model executor exited 0, then its typed behavior gate HOLDed docker_gateway_committed_configuration_invalid and the task failed non-retryably, cancelling QA/Product Acceptance.",
+      "rootCause": "Technical Plan command authority conflated mutable copy-workspace validation discovery with immutable Git provenance. Copy workspaces intentionally omit .git, while commandAuthority/sourceCommit must come from the Runtime consumer repository root. The executor knew both roots but passed only the copy workspace into initial synthesis and review repair. The historical gateway result discarded the inner source/trusted-config error code, so the exact source_* subcode is not recoverable from this run.",
+      "correction": "derive validation command catalog from the copy workspace but committed CommandSpec catalog/commandAuthority from an explicit committedSourceRoot=repositoryRoot; pass both roots through synthesis and repair; persist a bounded configurationErrorCode through gateway/Rust/finalizer diagnostics",
+      "productionLogicBug": true,
+      "qualificationHarnessBug": false,
+      "exactHistoricalConfigurationErrorCodeProven": false,
+      "rootCauseResolved": true,
+      "status": "fixed-pending-new-manifest-and-full-promotion-rerun"
     }
   ],
   "hardening": [
@@ -914,7 +946,10 @@
     "behavior.gateway.completed includes admissionReasons extracted from gateway receipts",
     "replacement physical-window observation derives identity from authoritative agent_tasks before semantic finalizer receipt projection",
     "repair.resume_checkpoint_loaded remains mandatory but is asserted after replacement behavior completion",
-    "compiled execution-plan task schema explicitly carries validationCommandIds, commandSpecIds and commandAuthority"
+    "compiled execution-plan task schema explicitly carries validationCommandIds, commandSpecIds and commandAuthority",
+    "Technical Plan validation discovery and committed CommandSpec provenance use separate roots",
+    "opencode task executor passes repositoryRoot as committedSourceRoot for both plan synthesis and review repair",
+    "gateway committed-configuration HOLDs retain bounded configurationErrorCode diagnostics through Rust and semantic finalizer"
   ],
   "scopedWorkerLossQualification": {
     "candidate": "2ab7fcb94fc74387f1da6f5ea1d614521ea02469",
@@ -946,5 +981,48 @@
     ],
     "authority": "operator-provided qualification result from exact branch HEAD",
     "interpretation": "Wave-10 worker-loss target is green; this scoped mode is intentionally non-promotional and leaves MANIFEST closure to T17."
+  },
+  "fullPromotionAttempt": {
+    "candidate": "a83ca39c34013d8f71473691bedea4854fd26472",
+    "runId": "standalone-v1-1790212442124-9068e6cd768a",
+    "verdict": "HOLD",
+    "qualificationScope": "full-promotion",
+    "promotionEligible": true,
+    "passed": [
+      "Q-ENTRY",
+      "PRE-R0",
+      "R-0",
+      "R-1",
+      "R-2",
+      "R-3",
+      "R-4",
+      "R-5",
+      "R-6",
+      "R-11"
+    ],
+    "firstDivergence": {
+      "gate": "R-7",
+      "classification": "RUNTIME",
+      "message": "r7_runtime_not_closed",
+      "implementationFailure": {
+        "agentId": "coding-fast",
+        "stage": "implementation",
+        "executorExitCode": 0,
+        "behaviorGatewayStatus": "HOLD",
+        "behaviorGatewayCode": "docker_gateway_committed_configuration_invalid",
+        "taskErrorCode": "behavior_gateway_hold"
+      }
+    },
+    "notRun": [
+      "R-8",
+      "R-9",
+      "R-10"
+    ],
+    "sourceIdentity": {
+      "head": "a83ca39c34013d8f71473691bedea4854fd26472",
+      "treeSha256": "sha256:df7e6d83970e6ca3a6990f7a602566339b21f4bfbf8654286e2a4f62d78a16ec",
+      "manifest": "agent_harness_manifest_matches_git_source",
+      "cleanAfterCleanup": true
+    }
   }
 }
