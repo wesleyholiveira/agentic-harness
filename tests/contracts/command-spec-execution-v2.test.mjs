@@ -193,6 +193,35 @@ test("committed descriptor exposes exact CommandSpec IDs to Technical Refinement
   assert.equal(validationCatalog.commandSpecContext.sourceCommit, f.git(["rev-parse","HEAD"]));
 });
 
+test("isolated non-Git workspace keeps validation local but loads CommandSpec authority from committed source root", async t => {
+  const f = gitRepo(t);
+  const workspace = mkdtempSync(join(tmpdir(), "command-spec-copy-workspace-"));
+  t.after(() => rmSync(workspace, { recursive: true, force: true }));
+  writeTree(workspace, {
+    "package.json": JSON.stringify({
+      packageManager: "npm@11.0.0",
+      scripts: { test: "node --test", localonly: "node local.js" },
+    }),
+    "src/foo.js": "export const value = 2;\n",
+  });
+
+  const directWorkspaceCatalog = buildCommittedCommandSpecCatalog(workspace);
+  assert.equal(directWorkspaceCatalog.status, "absent");
+
+  const validationCatalog = await buildValidationCommandCatalog({
+    workspace,
+    committedSourceRoot: f.root,
+    brief: { validation: [], objective: "implement" },
+    requiredAcceptanceCriteria: [criterion()],
+  });
+
+  assert.ok(validationCatalog.some(entry => entry.command === "npm test"));
+  assert.deepEqual(validationCatalog.commandSpecCatalog.map(item => item.id), ["verify.unit"]);
+  assert.equal(validationCatalog.commandSpecContext.status, "ok");
+  assert.equal(validationCatalog.commandSpecContext.sourceCommit, f.git(["rev-parse","HEAD"]));
+  assert.equal(validationCatalog.commandSpecContext.configuration.repositoryRoot, f.root);
+});
+
 test("dynamic Technical Plan schema enumerates only committed CommandSpec IDs", async t => {
   const f = gitRepo(t);
   const validationCatalog = await buildValidationCommandCatalog({
