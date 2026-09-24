@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-24T17:23:57Z",
+  "generatedAt": "2026-09-24T21:27:59Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 691,
-  "treeSha256": "sha256:73c1780f6d47e802a603beba638fe4e16884ac9e3b23fbb53e631e8fea6d4b6d",
+  "treeSha256": "sha256:e059ee58f80af995616be1c5eb705b444f8114cacbd590da061ad6b60b64f58c",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -943,9 +943,9 @@
       "sha256": "sha256:f4c652227c84363b1464293cc3c4f25cac7a308028c49a54eac97e66252b9fd0"
     },
     {
-      "bytes": 24174,
+      "bytes": 24469,
       "path": ".opencode/plugins/runtime-invocation-provenance.js",
-      "sha256": "sha256:ad59e144a4c3f083b567c9c1e5b0800671f3ea8bc304edd50014279358de001a"
+      "sha256": "sha256:0c6ff0e6ed752b85e65cbf4fb8594af84f6de2dd052a8ff2df2b098a6ab600e7"
     },
     {
       "bytes": 21828,
@@ -1453,9 +1453,9 @@
       "sha256": "sha256:9a3a7c69bfe0c92c13af5013dccb1586070117403540cafb794f08c7446d4a82"
     },
     {
-      "bytes": 2785,
+      "bytes": 3162,
       "path": "docs/adr/0040-agent-start-current-user-message-authority.md",
-      "sha256": "sha256:b6ac81fd3aa02a81cea4a57f186f374e33329d1c4057a2951e29e50460f7e481"
+      "sha256": "sha256:794d5f4c29a427651365f7c73d6fcce2240731c9cd3223e6a70d1d12784a0794"
     },
     {
       "bytes": 2664,
@@ -2968,9 +2968,9 @@
       "sha256": "sha256:4840f79ab9417ac7b5a2030cf6c8fced532537bb76bfa0f20bb65d27e5a2c274"
     },
     {
-      "bytes": 145551,
+      "bytes": 145553,
       "path": "scripts/qualification/standalone-v1.mjs",
-      "sha256": "sha256:c11f1eefc21461d30bf356925e82291c2c989b725bd84d73f0b08a5cc3a594b7"
+      "sha256": "sha256:2a216a2966b3e6c4e9a9b08c16fbc23c189e445309a05d4fa2ae1261c81a5c37"
     },
     {
       "bytes": 27172,
@@ -3098,9 +3098,9 @@
       "sha256": "sha256:6d79f69e3f338afb337d70a9cd316ed1d8204a0c75a0a45ef090137ad649250b"
     },
     {
-      "bytes": 49064,
+      "bytes": 49637,
       "path": "tests/contracts/qualification-controller.test.mjs",
-      "sha256": "sha256:29e76e760c160e5b31f2a35ff1ce6fa562c7e6e7139cd27f101ac3a89eb71f10"
+      "sha256": "sha256:0ac1f938a07e40be35bff31fd3ea2d4a3ecb0c69c15bf6ab8cfa9581103a372d"
     },
     {
       "bytes": 1982,
@@ -3113,9 +3113,9 @@
       "sha256": "sha256:8ac181f20b2948ce47a759ce01e3e1e426b155cac5951b3ca266ecbbbbaf3838"
     },
     {
-      "bytes": 38784,
+      "bytes": 40167,
       "path": "tests/contracts/runtime-regressions.test.mjs",
-      "sha256": "sha256:d55e979024825a24959e8d64baa9618f8e341bfb2f263bad5e9c1952b9e0d114"
+      "sha256": "sha256:7c2336eecd3a27884633e2cf4c8932a0af07b31028508632a5071aa95dcef902"
     },
     {
       "bytes": 2069,
