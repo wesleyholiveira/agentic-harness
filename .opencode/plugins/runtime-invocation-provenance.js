@@ -99,13 +99,25 @@ function messageText(message) {
   return (message?.parts ?? []).filter((part) => part?.type === "text" && typeof part.text === "string").map((part) => part.text).join("\n").trim();
 }
 
+export function authoritativeUserMessageText(message) {
+  return (message?.parts ?? [])
+    .filter((part) =>
+      part?.type === "text"
+      && typeof part.text === "string"
+      && part.synthetic !== true
+    )
+    .map((part) => part.text)
+    .join("\n")
+    .trim();
+}
+
 function messageId(message) {
   return String(message?.info?.id ?? "").trim() || null;
 }
 
 function agentStartUserMessageAuthority(toolName, message) {
   if (toolName !== "agent_start" || !message) return {};
-  const userMessageText = messageText(message);
+  const userMessageText = authoritativeUserMessageText(message);
   if (!userMessageText) throw new Error("runtime_invocation_user_message_text_missing");
   const userMessageBytes = Buffer.byteLength(userMessageText, "utf8");
   if (userMessageBytes > MAX_AGENT_START_USER_MESSAGE_BYTES) {
