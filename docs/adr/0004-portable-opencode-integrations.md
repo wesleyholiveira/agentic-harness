@@ -9,7 +9,7 @@ Keep one project-agnostic non-auto-discovered template at `config/opencode.templ
 Pinned integrations:
 
 - OpenCode host/server with repository-bound provenance plugin;
-- Headroom `0.36.5` managed proxy/MCP plus `headroom-opencode@0.36.5` native host transport;
+- Headroom `0.36.5` managed proxy/MCP plus the absolute self-contained OpenCode transport entry bundled in `headroom-ai[proxy]==0.36.5`;
 - Serena `1.7.0` via `uvx`;
 - Context7 via environment-provided token;
 - codebase-memory-mcp via PATH/configured command;
@@ -25,4 +25,4 @@ Secrets are environment/runtime state and must never be committed. Durable conti
 
 ## Host launch authority
 
-ADR 0041 supersedes the historical host wrapper launch path. The persistent host now starts the pinned Headroom proxy under harness supervision and launches OpenCode directly with the pinned native Headroom transport plugin. Runtime children remain isolated from this host-only integration.
+ADR 0041 supersedes the historical host wrapper launch path. The persistent host now resolves the self-contained `headroom/providers/opencode/_dist/entry.opencode.js` from the exact pinned Headroom uvx environment, starts the proxy under harness supervision, and launches OpenCode directly with that absolute plugin entry. Runtime children remain isolated from this host-only integration.
