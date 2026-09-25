@@ -895,11 +895,14 @@ test("standalone R-9 arms an exact repair checkpoint, forces lease expiry, and e
   assert.match(controller, /attempt !== target\.attempt/);
   assert.match(controller, /dispatchGeneration !== target\.dispatchGeneration \+ 1/);
   assert.match(controller, /fencingToken !== target\.fencingToken \+ 1/);
-  assert.match(controller, /label: "r9-replacement-behavior-container-running"/);
-  assert.match(controller, /label: "r9-repair-resume-receipt"/);
-  assert.match(controller, /payload\.skippedFullAgentInvocation === true/);
-  assert.match(controller, /payload\.sameTaskAttempt === true/);
-  assert.match(controller, /String\(payload\.checkpointEffectKey \?\? ""\) === String\(target\.checkpointEffectKey\)/);
+  assert.match(controller, /label: "r9-replacement-behavior-started"/);
+  assert.match(controller, /label: "r9-read-repair-resume-receipt"/);
+  assert.match(controller, /runtime-repair-resume-receipt\/v1/);
+  assert.match(controller, /replacementResumeReceipt\.skippedFullAgentInvocation === true/);
+  assert.match(controller, /replacementResumeReceipt\.sameTaskAttempt === true/);
+  assert.match(controller, /String\(replacementResumeReceipt\.checkpointEffectKey \?\? ""\) === String\(target\.checkpointEffectKey\)/);
+  assert.match(controller, /String\(payload\.effectKey \?\? ""\) === String\(replacementResumeReceipt\.effectKey \?\? ""\)/);
+  assert.doesNotMatch(controller, /label: "r9-repair-resume-receipt"/);
   assert.match(controller, /r9-disarm-process-loss-boundary/);
   assert.doesNotMatch(controller, /runner\.run\("docker", \["kill", workerId\]/);
 });
@@ -965,10 +968,21 @@ test("R-9 uses an isolated additive PRD and distinguishes recovery from downstre
   assert.match(r9Section, /formatNameTestSha256: sha256File/);
   assert.match(r9Section, /docs\/specs\/qualification\/r9\/PRD\.md/);
   assert.doesNotMatch(r9Section, /adicione uma função exportada formatInitials\(name\) em src\/format-name\.mjs/);
-  assert.ok(
-    r9Section.indexOf("evaluateH9RRecoveryEvidence") < r9Section.indexOf("waitForTerminalRun(runId, { gate: \"R-9\" })"),
-    "worker-loss recovery evidence must be evaluated before downstream semantic terminal status",
-  );
+
+  const replacementIdentity = r9Section.indexOf('label: "r9-replacement-execution-running"');
+  const physicalReceipt = r9Section.indexOf('label: "r9-read-repair-resume-receipt"');
+  const terminalWait = r9Section.indexOf('waitForTerminalRun(runId, { gate: "R-9" })');
+  const terminalFailure = r9Section.indexOf("r9_post_recovery_semantic_run_failed");
+  const recoveryEvaluation = r9Section.indexOf("evaluateH9RRecoveryEvidence");
+
+  assert.ok(replacementIdentity >= 0);
+  assert.ok(physicalReceipt > replacementIdentity);
+  assert.ok(terminalWait > physicalReceipt);
+  assert.ok(recoveryEvaluation > terminalWait);
+  assert.ok(terminalFailure > recoveryEvaluation);
+  assert.match(r9Section, /replacementResumeReceipt\.skippedFullAgentInvocation === true/);
+  assert.match(r9Section, /replacementResumeReceipt\.sameTaskAttempt === true/);
+  assert.match(r9Section, /r9_repair_resume_event_not_projected_after_terminal/);
   assert.match(r9Section, /r9_post_recovery_semantic_run_failed/);
   assert.match(r9Section, /r9_established_format_name_baseline_mutated/);
   assert.match(r9Section, /r9_isolated_initials_artifacts_missing/);
