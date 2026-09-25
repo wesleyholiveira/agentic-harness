@@ -311,11 +311,12 @@ test("R9 kills worker only inside a physical behavior window and proves replacem
   const sourceRemoved = qualification.indexOf('label: "r9-source-behavior-container-removed"');
   const leaseExpired = qualification.indexOf("const leaseExpiryForcedAt", sourceRemoved);
   const replacementIdentity = qualification.indexOf('label: "r9-replacement-execution-running"', leaseExpired);
-  const replacementRunning = qualification.indexOf('label: "r9-replacement-behavior-container-running"', replacementIdentity);
+  const replacementStarted = qualification.indexOf('label: "r9-replacement-behavior-started"', replacementIdentity);
+  const physicalReceipt = qualification.indexOf('label: "r9-read-repair-resume-receipt"', replacementStarted);
+  const replacementRunning = qualification.indexOf('label: "r9-replacement-behavior-container-running"', physicalReceipt);
   const replacementCompleted = qualification.indexOf('label: "r9-replacement-behavior-completed"', replacementRunning);
   const replacementRemoved = qualification.indexOf('label: "r9-replacement-behavior-container-removed"', replacementCompleted);
-  const physicalReceipt = qualification.indexOf('label: "r9-read-repair-resume-receipt"', replacementRemoved);
-  const terminal = qualification.indexOf('const terminal = await waitForTerminalRun(runId, { gate: "R-9" });', physicalReceipt);
+  const terminal = qualification.indexOf('const terminal = await waitForTerminalRun(runId, { gate: "R-9" });', replacementRemoved);
   const semanticProjection = qualification.indexOf("r9_repair_resume_event_not_projected_after_terminal", terminal);
 
   assert.ok(sourceRunning >= 0);
@@ -323,11 +324,12 @@ test("R9 kills worker only inside a physical behavior window and proves replacem
   assert.ok(sourceRemoved > processLoss);
   assert.ok(leaseExpired > sourceRemoved);
   assert.ok(replacementIdentity > leaseExpired);
-  assert.ok(replacementRunning > replacementIdentity);
+  assert.ok(replacementStarted > replacementIdentity);
+  assert.ok(physicalReceipt > replacementStarted);
+  assert.ok(replacementRunning > physicalReceipt);
   assert.ok(replacementCompleted > replacementRunning);
   assert.ok(replacementRemoved > replacementCompleted);
-  assert.ok(physicalReceipt > replacementRemoved);
-  assert.ok(terminal > physicalReceipt);
+  assert.ok(terminal > replacementRemoved);
   assert.ok(semanticProjection > terminal);
   assert.doesNotMatch(qualification, /label: "r9-repair-resume-receipt"/u);
   assert.match(qualification, /The replacement executor writes the durable resume receipt immediately/u);
