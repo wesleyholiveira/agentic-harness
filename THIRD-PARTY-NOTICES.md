@@ -12,4 +12,4 @@ OpenCode is an external runtime/tool. The Rust worker image pins `opencode-ai@1.
 
 ## Headroom, Serena, Context7, codebase-memory, Caveman and RTK
 
-These are external integrations. The harness stores portable configuration, version pins where applicable, and local usage skills; installation/licensing of the external binaries/services remains governed by their respective projects. Secrets/API tokens are environment-only and are not vendored.
+These are external integrations. The harness stores portable configuration, version pins where applicable, and local usage skills; installation/licensing of the external binaries/services remains governed by their respective projects. Headroom host transport references the external Apache-2.0 `headroom-opencode@0.36.5` package and does not vendor its source. Secrets/API tokens are environment-only and are not vendored.
