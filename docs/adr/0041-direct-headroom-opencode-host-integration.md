@@ -14,19 +14,23 @@ On Windows the wrapped launch was observed to terminate with native exit code
 when `AGENT_HARNESS_HEADROOM_ENABLED=false`. The failure therefore sits on the wrapped
 host launch path rather than the direct OpenCode path.
 
-Headroom 0.36.5 already provides the `headroom-opencode` native plugin. The plugin accepts
+Headroom 0.36.5 already ships a self-contained native OpenCode transport entry at
+`headroom/providers/opencode/_dist/entry.opencode.js`. The entry accepts
 `HEADROOM_PROXY_URL`, installs transport interception in-process and exposes Headroom
-retrieve tooling without requiring Headroom to own the OpenCode process lifecycle.
+retrieve tooling without requiring Headroom to own the OpenCode process lifecycle. The
+library/package barrel is not a valid OpenCode loader authority; the harness resolves and
+validates the absolute standalone entry from the exact pinned Headroom uvx environment.
 
 ## Decision
 
 1. The Agentic Harness is the sole process-lifecycle authority for persistent host OpenCode.
-2. Headroom remains pinned to `0.36.5` for this change. The native OpenCode plugin is pinned
-   independently but to the same version as `headroom-opencode@0.36.5`.
+2. Headroom remains pinned to `0.36.5` for this change. The native OpenCode transport is
+   the self-contained entry bundled by that exact `headroom-ai[proxy]==0.36.5` distribution;
+   the harness resolves its absolute path fail-closed before generating the host config.
 3. The harness starts and health-checks the Headroom proxy itself, then launches
    `opencode` directly with `HEADROOM_PROXY_URL` and `HEADROOM_ACTIVE=1`.
 4. `headroom wrap opencode` is removed from the operational host path.
-5. The host effective OpenCode config enables the pinned native plugin and the Headroom MCP
+5. The host effective OpenCode config enables the resolved absolute bundled transport entry and the Headroom MCP
    only when `AGENT_HARNESS_HEADROOM_ENABLED` is not `false`.
 6. Runtime-dispatched OpenCode children do not load the native Headroom plugin and keep the
    existing child rule that disables host-only MCP integrations.
@@ -46,7 +50,7 @@ retrieve tooling without requiring Headroom to own the OpenCode process lifecycl
 
 - **HHR-1** — Persistent host OpenCode is launched directly by the harness.
 - **HHR-2** — Headroom proxy lifecycle is supervised by the harness.
-- **HHR-3** — Host transport uses the pinned native plugin and explicit
+- **HHR-3** — Host transport uses the validated absolute wheel-bundled standalone entry and explicit
   `HEADROOM_PROXY_URL`.
 - **HHR-4** — No operational host path invokes `headroom wrap opencode`.
 - **HHR-5** — Runtime children never inherit the host Headroom transport plugin.
@@ -60,7 +64,7 @@ retrieve tooling without requiring Headroom to own the OpenCode process lifecycl
 
 The contract suite must prove:
 
-- the pinned host plugin version matches the pinned proxy version;
+- the resolved host plugin is the absolute regular-file `headroom/providers/opencode/_dist/entry.opencode.js` from the pinned Headroom environment;
 - the direct launch command is `opencode`, not `uvx ... headroom wrap opencode`;
 - the direct child environment contains `HEADROOM_PROXY_URL` and `HEADROOM_ACTIVE=1`;
 - outer provider proxy chaining is preserved without leaking competing base URLs;
@@ -68,6 +72,7 @@ The contract suite must prove:
 - a native Windows-style exit code such as `3221226505` is returned unchanged;
 - the proxy is cleaned up after OpenCode exits;
 - qualification reads the telemetry-disabled local `/stats.requests.total` counter before and after the real R-7 workload and requires it to increase;
+- R-6 observes `headroom_retrieve` in OpenCode's tool ids, proving the plugin initialized rather than merely appearing in config;
 - host config includes the plugin/MCP only when enabled;
 - runtime-child config excludes the plugin and disables the Headroom MCP.
 
