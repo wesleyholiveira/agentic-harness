@@ -67,6 +67,7 @@ The contract suite must prove:
 - a proxy startup failure results in zero OpenCode launches;
 - a native Windows-style exit code such as `3221226505` is returned unchanged;
 - the proxy is cleaned up after OpenCode exits;
+- qualification reads the telemetry-disabled local `/stats.requests.total` counter before and after the real R-7 workload and requires it to increase;
 - host config includes the plugin/MCP only when enabled;
 - runtime-child config excludes the plugin and disables the Headroom MCP.
 
