@@ -16,6 +16,7 @@ import {
   normalizeTechnicalPlanMechanics,
   technicalPlanRepairIssues,
 } from "../../.agents/runtime/technical-plan-synthesis.mjs";
+import { collectImplementationPlanValidationIssues } from "../../.agents/runtime/dag-compiler.mjs";
 
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), "validation-authority-"));
@@ -155,6 +156,12 @@ test("Technical Plan does not demand byte-exact prose verification containing sl
 
   assert.equal(
     issues.some((issue) => issue.startsWith("implementation_plan_criterion_verification_missing:")),
+    false,
+  );
+
+  const compilerIssues = collectImplementationPlanValidationIssues(implementationPlan, registry());
+  assert.equal(
+    compilerIssues.some((issue) => issue.startsWith("implementation_plan_criterion_verification_missing:")),
     false,
   );
 });
