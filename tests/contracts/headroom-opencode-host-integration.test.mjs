@@ -41,18 +41,10 @@ test("Headroom-enabled host launches OpenCode directly instead of through headro
   assert.doesNotMatch(source, /["']wrap["']\s*,\s*["']opencode["']/u);
 });
 
-test("Headroom proxy keeps local telemetry off by default and allows explicit qualification telemetry", () => {
-  const disabled = buildHeadroomProxyInvocation("18793", { PATH: process.env.PATH ?? "" }, "3.12");
-  assert.equal(disabled.args.includes("--no-telemetry"), true);
-  assert.equal(disabled.args.includes("--telemetry"), false);
-
-  const enabled = buildHeadroomProxyInvocation(
-    "18793",
-    { PATH: process.env.PATH ?? "", HEADROOM_TELEMETRY: "on" },
-    "3.12",
-  );
-  assert.equal(enabled.args.includes("--telemetry"), true);
-  assert.equal(enabled.args.includes("--no-telemetry"), false);
+test("Headroom proxy keeps anonymous telemetry disabled while local stats remain qualification evidence", () => {
+  const invocation = buildHeadroomProxyInvocation("18793", { PATH: process.env.PATH ?? "" }, "3.12");
+  assert.equal(invocation.args.includes("--no-telemetry"), true);
+  assert.equal(invocation.args.includes("--telemetry"), false);
 });
 
 test("Headroom environment keeps outer proxy chaining without leaking competing provider base URLs", () => {
@@ -145,3 +137,13 @@ test("direct OpenCode exit code is preserved and managed proxy is cleaned up", a
   assert.equal(launched.options.env.HEADROOM_ACTIVE, "1");
   assert.equal(terminated, 1);
 });
+
+test("standalone qualification uses direct OpenCode launch and proves Headroom request traffic", () => {
+  const qualification = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  assert.match(qualification, /buildDirectOpenCodeInvocation/u);
+  assert.doesNotMatch(qualification, /buildHeadroomWrapInvocation/u);
+  assert.match(qualification, /\/stats/u);
+  assert.match(qualification, /headroom_native_transport_traffic_unproven/u);
+  assert.doesNotMatch(qualification, /HEADROOM_TELEMETRY:\s*"on"/u);
+});
+
