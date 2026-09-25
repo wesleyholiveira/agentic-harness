@@ -305,6 +305,7 @@ test("OpenCode effective config is generated under the consuming project runtime
       resolve(root, ".agents/skills").replaceAll("\\", "/"),
     ]);
     assert.equal(config.plugin.some((entry) => String(entry).startsWith("superpowers@")), false);
+    assert.equal(config.plugin.includes("headroom-opencode@0.36.5"), true);
     for (const skill of JSON.parse(readFileSync(resolve(root, "vendor/superpowers/lock.json"), "utf8")).skills) {
       assert.equal(config.agent["main-orchestrator"].permission.skill[skill], "deny");
     }
@@ -313,6 +314,7 @@ test("OpenCode effective config is generated under the consuming project runtime
     assert.equal("headers" in config.mcp.context7, false);
     assert.equal(config.instructions.every((value) => !value.includes("\\")), true);
     assert.equal(config.skills.paths.every((value) => !value.includes("\\")), true);
+    assert.equal(config.mcp.headroom.enabled, true);
     assert.deepEqual(config.mcp.headroom.command.slice(-2), ["--proxy-url", "http://127.0.0.1:18893"]);
     assert.match(config.mcp.headroom.command.join(" "), /headroom-ai\[mcp\]==0\.36\.5/);
     const cbmCommand = config.mcp["codebase-memory-mcp"].command[0];
@@ -356,6 +358,7 @@ test("runtime-child OpenCode effective config is container-private and cannot cl
     const child = JSON.parse(readFileSync(childConfig, "utf8"));
     assert.equal(child.mcp.serena.enabled, false);
     assert.equal(child.mcp.headroom.enabled, false);
+    assert.equal(child.plugin.some((entry) => String(entry).startsWith("headroom-opencode")), false);
     assert.equal(child.mcp["codebase-memory-mcp"].enabled, false);
     assert.equal(child.mcp["context-engine"].url, "http://context-engine:8789/mcp");
     assert.ok(child.skills.paths.includes(resolve(root, "vendor/superpowers/skills").replaceAll("\\", "/")));
@@ -363,6 +366,32 @@ test("runtime-child OpenCode effective config is container-private and cannot cl
   } finally {
     rmSync(consumerRoot, { recursive: true, force: true });
     rmSync(childRoot, { recursive: true, force: true });
+  }
+});
+
+test("persistent host can explicitly disable both Headroom transport plugin and MCP", () => {
+  const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-headroom-disabled-consumer-"));
+  try {
+    const result = spawnSync(process.execPath, [resolve(root, "scripts", "generate-opencode-config.mjs")], {
+      cwd: consumerRoot,
+      env: {
+        ...process.env,
+        AGENT_HARNESS_ROOT: root,
+        AGENT_HARNESS_PROJECT_ROOT: consumerRoot,
+        AGENT_HARNESS_HEADROOM_ENABLED: "false",
+        CONTEXT7_API_KEY: "",
+        CODEBASE_MEMORY_MCP_COMMAND: process.execPath,
+      },
+      encoding: "utf8",
+      shell: false,
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const output = (result.stdout || "").trim().split(/\r?\n/).at(-1);
+    const config = JSON.parse(readFileSync(output, "utf8"));
+    assert.equal(config.mcp.headroom.enabled, false);
+    assert.equal(config.plugin.some((entry) => String(entry).startsWith("headroom-opencode")), false);
+  } finally {
+    rmSync(consumerRoot, { recursive: true, force: true });
   }
 });
 
