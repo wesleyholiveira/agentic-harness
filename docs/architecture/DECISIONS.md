@@ -9,6 +9,7 @@
 - Redis: exact/semantic context cache.
 - TEI: optional embeddings for semantic context reuse.
 - OpenCode: interactive orchestrator and isolated specialist execution.
+- Headroom host transport: the harness supervises the pinned Headroom proxy and launches persistent host OpenCode directly with `headroom-opencode@0.36.5`; runtime children do not inherit this host transport.
 - Technical Refinement repair: same-attempt semantic re-review is monotonic over the exact incoming `requiredDeltas`; stale blocking/follow-up markers require explicit closure and interactive Superpowers planning is not a second authority for this machine-contract stage.
 
 - Consumer-scoped Compose identity: Docker containers, networks and named volumes are namespaced by a deterministic hash of the canonical consuming-project root; only `AGENT_HARNESS_COMPOSE_PROJECT_NAME` may explicitly override it.
