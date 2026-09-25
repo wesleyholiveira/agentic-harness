@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +9,7 @@ import {
   HEADROOM_OPENCODE_PLUGIN_SPEC,
   buildDirectOpenCodeInvocation,
   buildHeadroomEnvironment,
+  runOpenCodeWithHeadroom,
 } from "../../scripts/internal/headroom-opencode.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -59,4 +61,72 @@ test("OpenCode config generation declares Headroom plugin only for enabled persi
   assert.match(generator, /AGENT_HARNESS_HEADROOM_ENABLED/u);
   assert.match(generator, /runtimeChild/u);
   assert.match(generator, /config\.plugin/u);
+});
+
+test("managed Headroom proxy failure is fail-closed before OpenCode launch", async () => {
+  let launches = 0;
+  const status = await runOpenCodeWithHeadroom(
+    ["--port", "14096"],
+    { PATH: process.env.PATH ?? "", HEADROOM_PROXY_PORT: "18793" },
+    {
+      startProxy: async () => {
+        throw new Error("fixture_proxy_failed");
+      },
+      spawnProcess: () => {
+        launches += 1;
+        throw new Error("must_not_launch");
+      },
+      terminateProcessTree: () => {},
+    },
+  );
+
+  assert.equal(status, 1);
+  assert.equal(launches, 0);
+});
+
+test("direct OpenCode exit code is preserved and managed proxy is cleaned up", async () => {
+  const proxyChild = new EventEmitter();
+  proxyChild.pid = 777;
+  proxyChild.exitCode = null;
+  const openCodeChild = new EventEmitter();
+  openCodeChild.pid = 778;
+  openCodeChild.exitCode = null;
+  let terminated = 0;
+  let launched;
+
+  const baseEnv = {
+    PATH: process.env.PATH ?? "",
+    HEADROOM_PROXY_PORT: "18793",
+  };
+  const statusPromise = runOpenCodeWithHeadroom(
+    ["--hostname", "0.0.0.0", "--port", "14096"],
+    baseEnv,
+    {
+      startProxy: async ({ baseEnv: receivedEnv, port }) => ({
+        child: proxyChild,
+        python: "3.12",
+        port: String(port),
+        env: buildHeadroomEnvironment(receivedEnv),
+        invocation: { command: "uvx", args: [] },
+        output: [],
+      }),
+      spawnProcess: (command, args, options) => {
+        launched = { command, args, options };
+        queueMicrotask(() => openCodeChild.emit("exit", 3221226505, null));
+        return openCodeChild;
+      },
+      terminateProcessTree: (child) => {
+        assert.equal(child, proxyChild);
+        terminated += 1;
+      },
+    },
+  );
+
+  const status = await statusPromise;
+  assert.equal(status, 3221226505);
+  assert.equal(launched.command, "opencode");
+  assert.deepEqual(launched.args, ["--hostname", "0.0.0.0", "--port", "14096"]);
+  assert.equal(launched.options.env.HEADROOM_PROXY_URL, "http://127.0.0.1:18793");
+  assert.equal(launched.options.env.HEADROOM_ACTIVE, "1");
+  assert.equal(terminated, 1);
 });
