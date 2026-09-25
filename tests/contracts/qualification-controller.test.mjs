@@ -301,7 +301,7 @@ test("R-7 current-user authority is exercised with OpenCode file expansion", () 
   const r7Section = controller.slice(controller.indexOf("async function r7()"), controller.indexOf("async function waitForContinuationObserved"));
   assert.match(r7Section, /@docs\/specs\/example\/PRD\.md/u);
   assert.match(r7Section, /@docs\/adr\/0001-example\.md/u);
-  assert.match(r7Section, /waitForRunId\(sessionId, \{ gate: "R-7", baselineWorktree, request: workload \}\)/u);
+  assert.match(r7Section, /waitForRunId\\(sessionId, \\{[\\s\\S]*headroomBaseline: headroomBefore\\.requests/u);
 });
 
 test("R-7 discovers Runtime run identity independently of durable continuation and then requires the binding", () => {
@@ -309,8 +309,27 @@ test("R-7 discovers Runtime run identity independently of durable continuation a
   assert.match(controller, /SELECT run_id,status,created_at FROM agent_runs WHERE request=/);
   assert.match(controller, /requireDurableContinuation\(runId, sessionId/);
   assert.match(controller, /r7_run_created_without_durable_continuation/);
-  assert.match(controller, /r7_main_orchestrator_failed_to_enter_runtime/);
+  assert.match(controller, /r7_main_orchestrator_runtime_ingress_safety_ceiling/);
   assert.match(controller, /r7_agent_start_provenance_log_seen_but_run_not_materialized/);
+});
+
+test("R-7 Runtime ingress treats 90 seconds as a soft boundary and preserves OpenCode diagnostics", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const start = controller.indexOf("const R7_RUNTIME_INGRESS_SOFT_TIMEOUT_MS");
+  const end = controller.indexOf("async function requireDurableContinuation", start);
+  const section = controller.slice(start, end);
+
+  assert.match(section, /R7_RUNTIME_INGRESS_SOFT_TIMEOUT_MS = 90_000/u);
+  assert.match(section, /R7_RUNTIME_INGRESS_SAFETY_CEILING_MS = 10 \* 60_000/u);
+  assert.match(section, /assistantDiagnostics\(history\)/u);
+  assert.match(section, /openCodeSessionStatus\(sessionId\)/u);
+  assert.match(section, /headroomBaseline/u);
+  assert.match(section, /softBoundaryObservation/u);
+  assert.match(section, /r7_main_orchestrator_assistant_error_before_runtime/u);
+  assert.match(section, /r7_main_orchestrator_completed_without_runtime_ingress/u);
+  assert.match(section, /r7_main_orchestrator_runtime_ingress_safety_ceiling/u);
+  assert.match(section, /opencodeHostDiagnosticLines\(sessionId\)/u);
+  assert.doesNotMatch(section, /qualification_wait_timeout:/u);
 });
 
 test("persistent Main Orchestrator cannot inherit Superpowers approval workflows before Runtime ingress", () => {
