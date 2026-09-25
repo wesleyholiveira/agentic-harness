@@ -86,6 +86,7 @@
   },
   "plugin": [
     "opencode-openai-codex-auth",
+    "headroom-opencode@0.36.5",
     "superpowers@git+https://github.com/obra/superpowers.git#v5.1.0"
   ],
   "command": {
