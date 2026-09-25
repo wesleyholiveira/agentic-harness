@@ -24,11 +24,17 @@ When those evidence gates prove completion, a model-authored `changes_requested`
 
 When any evidence gate is not proven, negative review decisions remain fail-closed and may not be upgraded. A genuine QA blocker therefore has to be represented in an authoritative evidence channel before it can justify a negative review.
 
+A negative QA result is not automatically terminal. When the authoritative QA evidence identifies a repository-fixable code, test, documentation, or configuration delta, the Handoff uses `status=complete` with `sddReview.decision=changes_requested`, a concrete next role, and non-empty `requiredDeltas`. The Runtime re-opens the direct implementation dependencies under their existing attempt budgets, preserves the already-integrated repository state as the repair baseline, and defers the QA retry until those implementation dependencies integrate again. The next implementation Task Brief receives the QA diagnostic as authoritative retry context. QA then re-runs against only the newest accepted dependency artifact for each producer.
+
+This feedback loop is bounded by the existing task `maxAttempts`; it does not create a separate unbounded review counter. If the implementation attempt budget is exhausted, no implementation task is re-opened. A `blocked` QA status/decision is reserved for a genuinely unresolved human/external authority or environmental condition that repository implementation cannot repair and remains terminal.
+
 This rule is intentionally scoped to Quality Assurance. Product Acceptance remains a genuinely semantic acceptance authority, and other review/readiness stages are unchanged unless separately specified.
 
 ## Consequences
 
 - QA no longer has two conflicting authorities for the same completion fact.
 - Model variability in a redundant review summary cannot veto fully proven QA evidence.
-- Genuine QA failures remain terminal because failed/missing criteria, failed Runtime validation, blocking risks, and required follow-ups still prevent approval.
-- The Runtime only canonicalizes the `sddReview` projection; it never fabricates or rewrites criterion or validation evidence.
+- Genuine QA failures still prevent approval; repository-fixable failures drive bounded implementation repair, while human/external/environmental blockers remain terminal.
+- QA repair reuses the compiled DAG and existing task attempt budgets rather than silently replanning or creating unbounded retry loops.
+- Downstream consumers observe only the newest accepted artifact per direct dependency after a repair attempt, avoiding conflicting historical implementation evidence.
+- The Runtime only canonicalizes the `sddReview` projection and schedules repair from explicit negative evidence; it never fabricates or rewrites criterion or validation evidence.
