@@ -306,6 +306,8 @@ test("OpenCode effective config is generated under the consuming project runtime
     ]);
     assert.equal(config.plugin.some((entry) => String(entry).startsWith("superpowers@")), false);
     assert.equal(config.plugin.includes("headroom-opencode@0.36.5"), true);
+    assert.equal(config.small_model, "openai/gpt-5.6-luna");
+    assert.equal(config.provider?.headroom, undefined, "native transport must not replace harness model routing");
     for (const skill of JSON.parse(readFileSync(resolve(root, "vendor/superpowers/lock.json"), "utf8")).skills) {
       assert.equal(config.agent["main-orchestrator"].permission.skill[skill], "deny");
     }
