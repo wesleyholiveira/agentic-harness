@@ -119,7 +119,7 @@ test("QA changes_requested reopens only direct implementation dependencies with 
   assert.equal(reopened.completed_at, null);
   assert.equal(reopened.error_code, "qa_review_changes_requested");
   assert.equal(reopened.retry_not_before, null);
-  assert.match(reopened.error_message, /formatName\("\\"\\"\)/u);
+  assert.match(reopened.error_message, /formatName\(""\)/u);
   assert.match(reopened.error_message, /AC-3/u);
 
   assert.equal(rows.get(architectureTaskId).status, "integrated");
@@ -241,6 +241,6 @@ test("QA corrective retry invariants preserve the already integrated implementat
   assert.match(text, /preceding implementation was integrated/u);
   assert.match(text, /current authoritative workspace/u);
   assert.match(text, /CURRENT Task Brief\.ownedPaths/u);
-  assert.match(text, /formatName\("\\"\\"\)/u);
+  assert.match(text, /formatName\(""\)/u);
   assert.doesNotMatch(text, /do not assume edits from the failed workspace survived integration/u);
 });
