@@ -9,6 +9,7 @@ import { anyPatternMatches, exists, fileFingerprint, nowIso, readJson, sha256, w
 import { SUCCESS_TASK_STATUSES } from "./event-driven-contracts.mjs";
 import { sanitizeHandoffTelemetryShape } from "./handoff-telemetry.mjs";
 import { classifyHandoffValidationError, normalizeModelHandoffContract } from "./handoff-contract.mjs";
+import { isSddReviewStage } from "./review-contract.mjs";
 import {
   readRepairCheckpoint,
   readRepairResumeReceipt,
@@ -113,6 +114,111 @@ async function scheduleReconcile(store, plan, taskPlan, reason) {
       reason,
     }).catch(() => {});
   }
+}
+
+function qaRepairDiagnostic(handoff) {
+  const requiredDeltas = [...new Set((handoff?.sddReview?.requiredDeltas ?? []).map((value) => String(value).trim()).filter(Boolean))];
+  const failedCriterionIds = (handoff?.criterionResults ?? [])
+    .filter((entry) => ["failed", "blocked"].includes(entry?.result))
+    .map((entry) => String(entry?.criterionId ?? "").trim())
+    .filter(Boolean);
+  const failedValidation = (handoff?.validation ?? [])
+    .filter((entry) => entry?.blocking !== false && ["failed", "blocked"].includes(entry?.result))
+    .map((entry) => String(entry?.command ?? "").trim())
+    .filter(Boolean);
+  const residualRisks = (handoff?.residualRisks ?? []).map((value) => String(value).trim()).filter(Boolean);
+  return [
+    "Downstream Quality Assurance requested a corrective implementation pass after the prior implementation was integrated.",
+    requiredDeltas.length > 0 ? `Required deltas: ${requiredDeltas.join(" | ")}` : null,
+    failedCriterionIds.length > 0 ? `Failed/blocked QA criteria: ${failedCriterionIds.join(", ")}` : null,
+    failedValidation.length > 0 ? `Failed/blocked QA validation: ${failedValidation.join(" | ")}` : null,
+    residualRisks.length > 0 ? `QA residual risks: ${residualRisks.join(" | ")}` : null,
+  ].filter(Boolean).join(" ");
+}
+
+export function classifyHandoffStatusFailure({ taskPlan, handoff }) {
+  if (!handoff) return null;
+  if (handoff.status === "blocked") {
+    // SDD review stages use a complete review + changes_requested to express a
+    // repository-fixable delta. Some model handoffs still pair that review with
+    // status=blocked. Let stageContractFailure classify the structured review
+    // instead of collapsing it into a terminal agent_blocked failure.
+    if (isSddReviewStage(taskPlan?.stage ?? "") && handoff.sddReview?.decision === "changes_requested") return null;
+    return {
+      code: "agent_blocked",
+      message: handoff.residualRisks?.join("; ") || "agent blocked",
+      retryable: false,
+      blocked: true,
+    };
+  }
+  if (handoff.status === "cancelled") {
+    return { code: "agent_cancelled", message: "agent cancelled", retryable: false, cancelled: true };
+  }
+  if (handoff.status === "failed") {
+    return {
+      code: "agent_failed",
+      message: handoff.residualRisks?.join("; ") || "agent failed",
+      retryable: handoff.retryable === true,
+    };
+  }
+  return null;
+}
+
+export async function reopenImplementationDependenciesForQaRepair({
+  plan,
+  taskPlan,
+  store,
+  handoff,
+  qaAttempt,
+}) {
+  if (taskPlan?.stage !== "quality-assurance" || handoff?.sddReview?.decision !== "changes_requested") {
+    return { reopenedTaskIds: [], exhaustedTaskIds: [] };
+  }
+  const taskById = new Map((plan?.tasks ?? []).map((task) => [task.taskId, task]));
+  const implementationTaskIds = (taskPlan.dependencies ?? [])
+    .filter((taskId) => taskById.get(taskId)?.stage === "implementation");
+  const diagnostic = qaRepairDiagnostic(handoff);
+  const reopenedTaskIds = [];
+  const exhaustedTaskIds = [];
+
+  for (const taskId of implementationTaskIds) {
+    const row = await store.getTask(taskId);
+    if (!row || !SUCCESS_TASK_STATUSES.has(row.status)) continue;
+    const attempt = Number(row.attempt ?? 0);
+    const maxAttempts = Number(row.max_attempts ?? 0);
+    if (maxAttempts > 0 && attempt >= maxAttempts) {
+      exhaustedTaskIds.push(taskId);
+      await store.event(plan.runId, taskId, "qa.repair_target_exhausted", {
+        sourceQaTaskId: taskPlan.taskId,
+        sourceQaAttempt: Number(qaAttempt ?? 0),
+        attempt,
+        maxAttempts,
+      });
+      continue;
+    }
+    await store.updateTask(taskId, {
+      status: "retrying",
+      completed_at: null,
+      error_code: "qa_review_changes_requested",
+      error_message: diagnostic,
+      retry_not_before: null,
+      lease_owner: null,
+      lease_expires_at: null,
+    });
+    await store.event(plan.runId, taskId, "task.reopened_for_qa_repair", {
+      sourceQaTaskId: taskPlan.taskId,
+      sourceQaAttempt: Number(qaAttempt ?? 0),
+      previousAttempt: attempt,
+      nextAttempt: attempt + 1,
+      requiredDeltas: [...(handoff.sddReview?.requiredDeltas ?? [])],
+      failedCriterionIds: (handoff.criterionResults ?? [])
+        .filter((entry) => ["failed", "blocked"].includes(entry?.result))
+        .map((entry) => entry.criterionId)
+        .filter(Boolean),
+    });
+    reopenedTaskIds.push(taskId);
+  }
+  return { reopenedTaskIds, exhaustedTaskIds };
 }
 
 export async function persistRuntimeRepairFindingEvents({
@@ -474,9 +580,8 @@ export async function finalizeExecutionResult({ repositoryRoot, plan, taskPlan, 
       stop_reason: handoff.executionTelemetry.stopReason,
       opencode_session_id: handoff.executionTelemetry.sessionId ?? null,
     });
-    if (handoff.status === "blocked") failure = { code: "agent_blocked", message: handoff.residualRisks.join("; ") || "agent blocked", retryable: false, blocked: true };
-    else if (handoff.status === "cancelled") failure = { code: "agent_cancelled", message: "agent cancelled", retryable: false, cancelled: true };
-    else if (handoff.status === "failed") failure = { code: "agent_failed", message: handoff.residualRisks.join("; ") || "agent failed", retryable: handoff.retryable === true };
+    const statusFailure = classifyHandoffStatusFailure({ taskPlan, handoff });
+    if (statusFailure) failure = statusFailure;
   }
 
   if (!failure && handoff) {
@@ -651,6 +756,26 @@ export async function finalizeExecutionResult({ repositoryRoot, plan, taskPlan, 
   const retryDecision = options.policyEngine.evaluateRetry({ failure, attempt, maxAttempts, retryBudgetState });
   await recordPolicyDecision(store, { runId: plan.runId, taskId: taskPlan.taskId, operation: "retry", decision: retryDecision });
   const canRetry = retryDecision.allowed === true;
+  const qaRepair = canRetry
+    && taskPlan.stage === "quality-assurance"
+    && failure?.code === "review_not_approved"
+    && failure?.reviewDecision === "changes_requested"
+    ? await reopenImplementationDependenciesForQaRepair({
+        plan,
+        taskPlan,
+        store,
+        handoff,
+        qaAttempt: attempt,
+      })
+    : { reopenedTaskIds: [], exhaustedTaskIds: [] };
+  if (qaRepair.reopenedTaskIds.length > 0 || qaRepair.exhaustedTaskIds.length > 0) {
+    await store.event(plan.runId, taskPlan.taskId, "qa.implementation_repair_scheduled", {
+      attempt,
+      reopenedTaskIds: qaRepair.reopenedTaskIds,
+      exhaustedTaskIds: qaRepair.exhaustedTaskIds,
+      requiredDeltas: [...(handoff?.sddReview?.requiredDeltas ?? [])],
+    });
+  }
   const retryAfterMs = canRetry ? Math.max(0, Number(retryDecision.retryAfterMs ?? 30_000)) : null;
   const retryNotBefore = canRetry ? new Date(Date.now() + retryAfterMs).toISOString() : null;
   const status = failure?.cancelled ? "cancelled" : failure?.blocked ? "blocked" : canRetry ? "retrying" : "failed";
