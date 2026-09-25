@@ -2608,6 +2608,8 @@ async function r9() {
     && Number(replacementResumeReceipt.fencingToken) === replacement.fencingToken
     && replacementResumeReceipt.skippedFullAgentInvocation === true
     && replacementResumeReceipt.sameTaskAttempt === true
+    && replacementResumeReceipt.checkpointStatus === target.checkpointStatus
+    && /^sha256:[a-f0-9]{64}$/u.test(String(replacementResumeReceipt.effectKey ?? ""))
     && String(replacementResumeReceipt.checkpointEffectKey ?? "") === String(target.checkpointEffectKey);
   if (!replacementResumeReceiptValid) {
     hold("R-9", "RUNTIME", "r9_repair_resume_receipt_invalid", {
@@ -2768,8 +2770,30 @@ async function r9() {
       && Number(payload.fencingToken) === replacement.fencingToken
       && payload.skippedFullAgentInvocation === true
       && payload.sameTaskAttempt === true
+      && String(payload.effectKey ?? "") === String(replacementResumeReceipt.effectKey ?? "")
       && String(payload.checkpointEffectKey ?? "") === String(target.checkpointEffectKey)
     );
+
+  const evaluation = evaluateH9RRecoveryEvidence({
+    sourceIdentity,
+    replacementIdentity: replacement,
+    events,
+    processLossMechanism,
+  });
+
+  if (terminal.status !== "closed") {
+    hold("R-9", "RUNTIME", "r9_post_recovery_semantic_run_failed", {
+      runId,
+      sessionId,
+      r9Fixture,
+      r9Baseline,
+      physicalReceipt: replacementResumeReceipt,
+      recoveryEvaluation: evaluation,
+      terminal,
+      repairEvents: events,
+    });
+  }
+
   if (projectedResumeReceipts.length !== 1) {
     hold("R-9", "RUNTIME", "r9_repair_resume_event_not_projected_after_terminal", {
       target,
@@ -2781,25 +2805,8 @@ async function r9() {
     });
   }
 
-  const evaluation = evaluateH9RRecoveryEvidence({
-    sourceIdentity,
-    replacementIdentity: replacement,
-    events,
-    processLossMechanism,
-  });
   if (!evaluation.ok) {
     hold("R-9", "RUNTIME", "r9_process_loss_recovery_evidence_invalid", { sourceIdentity, replacementIdentity: replacement, events, evaluation });
-  }
-
-  if (terminal.status !== "closed") {
-    hold("R-9", "RUNTIME", "r9_post_recovery_semantic_run_failed", {
-      runId,
-      sessionId,
-      r9Fixture,
-      r9Baseline,
-      recoveryEvaluation: evaluation,
-      terminal,
-    });
   }
 
   const r9BaselineAfter = {
