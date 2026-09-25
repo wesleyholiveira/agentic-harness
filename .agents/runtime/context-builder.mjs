@@ -242,6 +242,19 @@ export function retryFailureInvariants(reasoning) {
 
   const ownershipFailure = code.includes("workspace_ownership_violation")
     || message.includes("workspace_ownership_violation:");
+  const downstreamQaRepair = code === "qa_review_changes_requested";
+
+  if (downstreamQaRepair) {
+    return [
+      `QA corrective implementation attempt ${attempt}: the preceding implementation was integrated, then downstream Quality Assurance requested a bounded repair.`,
+      `QA repair code: ${code}.`,
+      `QA repair diagnostic: ${message || "unavailable"}.`,
+      "Start from the current authoritative workspace: the previously integrated implementation is present and must be preserved except where the QA delta requires correction.",
+      "Apply only the QA-requested delta inside the CURRENT Task Brief.ownedPaths. Do not widen ownership or modify a path that this task does not own.",
+      "Inspect existing behavior and tests before editing. Add or correct the smallest evidence/code slice needed to satisfy the QA diagnostic without regressing already-proven criteria.",
+      "Before returning status=complete, execute every command in Task Brief.validation and make the QA diagnostic no longer reproducible.",
+    ];
+  }
 
   return [
     `Retry corrective attempt ${attempt}: the immediately preceding semantic attempt failed and its diagnostic is authoritative retry context.`,
