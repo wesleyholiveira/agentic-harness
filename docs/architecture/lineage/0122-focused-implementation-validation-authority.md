@@ -37,6 +37,8 @@ and cannot replace it with an ad-hoc `node -e` equivalent.
 
 Independently of focused mode, if an implementation Product criterion already carries an executable shell command in `criterion.verification`, every work item claiming that criterion must include that exact command. Prose verification remains prose and is not converted into a shell gate.
 
+Slash-delimited domain prose is not executable authority merely because its first token contains `/`. For example, `HTTP/BFF/ML identity tests including N06.` is descriptive verification text, not a repository-relative command. Bare repository-relative executable tokens must be unambiguous: script/binary-looking paths (for example `scripts/verify.sh` or `packages/foo/tests/check.mjs`) and conventional `scripts/`, `bin/`, or `tools/` entries remain accepted. Ambiguous extensionless paths can always be written explicitly as `./path/to/executable`.
+
 ### 4. Reject/repair before implementation dispatch
 
 The deterministic Technical Plan issue vector now includes focused-validation missing/extra and executable-criterion verification drift. `synthesizeMissingImplementationPlan` receives the same directive and may repair the implementation plan within the bounded Technical Refinement repair loop. A bad proof plan therefore does not need to consume a new implementation task attempt.
