@@ -2,7 +2,10 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runOpenCodeWithHeadroom } from "./internal/headroom-opencode.mjs";
+import {
+  resolveHeadroomOpenCodePluginPath,
+  runOpenCodeWithHeadroom,
+} from "./internal/headroom-opencode.mjs";
 import { isTcpPortAvailable, parseTcpPort } from "./internal/tcp-port.mjs";
 
 const root = resolve(process.env.AGENT_HARNESS_ROOT || resolve(dirname(fileURLToPath(import.meta.url)), ".."));
@@ -16,9 +19,23 @@ for (const legacyName of ["opencode.json", "opencode.jsonc"]) {
     process.exit(2);
   }
 }
+const headroomEnabled = String(process.env.AGENT_HARNESS_HEADROOM_ENABLED ?? "true").toLowerCase() !== "false";
+const generatorEnv = {
+  ...process.env,
+  AGENT_HARNESS_ROOT: root,
+  AGENT_HARNESS_PROJECT_ROOT: project,
+};
+let headroomPlugin = null;
+if (headroomEnabled) {
+  headroomPlugin = resolveHeadroomOpenCodePluginPath({ baseEnv: generatorEnv });
+  generatorEnv.HEADROOM_OPENCODE_PLUGIN_PATH = headroomPlugin.path;
+  console.log(
+    `[headroom-opencode] resolved bundled plugin entry ${headroomPlugin.path} via ${headroomPlugin.source}.`,
+  );
+}
 const generator = spawnSync(process.execPath, [resolve(root, "scripts", "generate-opencode-config.mjs")], {
   cwd: project,
-  env: { ...process.env, AGENT_HARNESS_ROOT: root, AGENT_HARNESS_PROJECT_ROOT: project },
+  env: generatorEnv,
   encoding: "utf8",
 });
 if (generator.error) throw generator.error;
@@ -40,6 +57,7 @@ const env = {
   ...process.env,
   AGENT_HARNESS_ROOT: root,
   AGENT_HARNESS_PROJECT_ROOT: project,
+  ...(headroomPlugin ? { HEADROOM_OPENCODE_PLUGIN_PATH: headroomPlugin.path } : {}),
   OPENCODE_CONFIG: effective,
   OPENCODE_CONFIG_DIR: resolve(root, ".opencode"),
   AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL:
@@ -60,7 +78,7 @@ if (!(await isTcpPortAvailable(requestedPort))) {
   process.exit(2);
 }
 
-if (String(env.AGENT_HARNESS_HEADROOM_ENABLED ?? "true").toLowerCase() !== "false") {
+if (headroomEnabled) {
   process.exitCode = await runOpenCodeWithHeadroom(args, env);
 } else {
   const result = spawnSync("opencode", args, { cwd: project, env, stdio: "inherit", shell: false });
