@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 
 export const HEADROOM_VERSION = "0.36.5";
 export const HEADROOM_PROXY_PACKAGE = `headroom-ai[proxy]==${HEADROOM_VERSION}`;
+export const HEADROOM_OPENCODE_PLUGIN_SPEC = `headroom-opencode@${HEADROOM_VERSION}`;
 export const HEADROOM_UVX_ISOLATION_ARGS = ["--isolated", "--managed-python"];
 export const HEADROOM_UVX_PYTHON_CANDIDATES = ["3.12", "3.13"];
 export const HEADROOM_UVX_PYTHON = HEADROOM_UVX_PYTHON_CANDIDATES[0];
@@ -91,6 +92,7 @@ export function buildHeadroomEnvironment(baseEnv = process.env) {
     PYTHONIOENCODING: "utf-8",
     HEADROOM_PROXY_PORT: port,
     HEADROOM_PROXY_URL: `http://127.0.0.1:${port}`,
+    HEADROOM_ACTIVE: "1",
     HEADROOM_SAVINGS_PROFILE: profile,
     HEADROOM_TARGET_RATIO: baseEnv.HEADROOM_TARGET_RATIO ?? "0.20",
     HEADROOM_MIN_TOKENS: baseEnv.HEADROOM_MIN_TOKENS ?? "250",
@@ -158,12 +160,15 @@ export function buildHeadroomProxyInvocation(port, baseEnv = process.env, python
   );
 }
 
-export function buildHeadroomWrapInvocation(args, port, baseEnv = process.env, python = HEADROOM_UVX_PYTHON_CANDIDATES[0]) {
-  return buildHeadroomInvocation(
-    ["wrap", "opencode", "--no-proxy", "--port", String(port), "--no-mcp", "--no-serena", "--", ...args],
-    baseEnv,
-    python,
-  );
+export function buildDirectOpenCodeInvocation(args, baseEnv = process.env) {
+  const env = buildHeadroomEnvironment(baseEnv);
+  return {
+    command: "opencode",
+    args: [...args],
+    env,
+    runtime: "direct-opencode",
+    headroomPlugin: HEADROOM_OPENCODE_PLUGIN_SPEC,
+  };
 }
 
 function isPortAvailable(port) {
@@ -270,20 +275,28 @@ export async function startHeadroomProxy({
   throw new Error(`headroom_pinned_proxy_failed_all_python_candidates:${pythonCandidates.join(",")}\n${detail}`);
 }
 
-export async function runHeadroomOpenCode(args = process.argv.slice(2), baseEnv = process.env) {
+export async function runOpenCodeWithHeadroom(
+  args = process.argv.slice(2),
+  baseEnv = process.env,
+  {
+    startProxy = startHeadroomProxy,
+    spawnProcess = spawn,
+    terminateProcessTree = terminateTree,
+  } = {},
+) {
   let proxy;
   let port;
   try {
     port = resolveHeadroomProxyPort(baseEnv);
     console.log(`[headroom-opencode] starting pinned Headroom ${HEADROOM_VERSION} proxy on ${port}...`);
-    proxy = await startHeadroomProxy({ baseEnv, port });
+    proxy = await startProxy({ baseEnv, port });
     console.log(`[headroom-opencode] proxy ready on ${port} using uv-managed Python ${proxy.python}.`);
   } catch (error) {
     console.error(`[headroom-opencode] ${error instanceof Error ? error.message : String(error)}`);
     return 1;
   }
 
-  const cleanup = () => terminateTree(proxy.child);
+  const cleanup = () => terminateProcessTree(proxy.child);
   const signalHandler = () => {
     cleanup();
     process.exitCode = 130;
@@ -292,10 +305,13 @@ export async function runHeadroomOpenCode(args = process.argv.slice(2), baseEnv 
   process.once("SIGTERM", signalHandler);
 
   try {
-    const invocation = buildHeadroomWrapInvocation(args, port, baseEnv, proxy.python);
-    const child = spawn(invocation.command, invocation.args, {
+    const invocation = buildDirectOpenCodeInvocation(args, proxy.env);
+    console.log(
+      `[headroom-opencode] launching OpenCode directly with native plugin ${HEADROOM_OPENCODE_PLUGIN_SPEC}; proxy=${invocation.env.HEADROOM_PROXY_URL}.`,
+    );
+    const child = spawnProcess(invocation.command, invocation.args, {
       cwd: process.cwd(),
-      env: proxy.env,
+      env: invocation.env,
       stdio: "inherit",
       windowsHide: false,
       shell: false,
@@ -315,7 +331,9 @@ export async function runHeadroomOpenCode(args = process.argv.slice(2), baseEnv 
   }
 }
 
+export const runHeadroomOpenCode = runOpenCodeWithHeadroom;
+
 const invokedPath = process.argv[1] ? pathToFileURL(process.argv[1]).href : "";
 if (import.meta.url === invokedPath) {
-  process.exitCode = await runHeadroomOpenCode();
+  process.exitCode = await runOpenCodeWithHeadroom();
 }
