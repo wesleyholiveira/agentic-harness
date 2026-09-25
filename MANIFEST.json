@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-25T02:06:00Z",
+  "generatedAt": "2026-09-25T02:17:00Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 694,
-  "treeSha256": "sha256:cc534ffdb2ecd247631780d011f4f632829fe3488ac917edff95774015d44bdf",
+  "treeSha256": "sha256:0ac003ea836335319bb8f5d040acbf02dd74594efe58fb4555479886a4c6f54b",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -1458,9 +1458,9 @@
       "sha256": "sha256:794d5f4c29a427651365f7c73d6fcce2240731c9cd3223e6a70d1d12784a0794"
     },
     {
-      "bytes": 4813,
+      "bytes": 4964,
       "path": "docs/adr/0041-direct-headroom-opencode-host-integration.md",
-      "sha256": "sha256:e7e65bc6b7f3e26d06b0db91668b0c13f89a16dfe3df91d80d54e34acb330250"
+      "sha256": "sha256:36de2b88295ef299ba42e1ec284fea0fbf980e94c15e50a06ae8262ba3b9337e"
     },
     {
       "bytes": 2664,
@@ -1993,9 +1993,9 @@
       "sha256": "sha256:2092317a5ef1b6e6588698aa8a76a699a5cd1829bd3ebb7c78c8ebb520e0900c"
     },
     {
-      "bytes": 6803,
+      "bytes": 7147,
       "path": "docs/qualification/STANDALONE-PROMOTION.md",
-      "sha256": "sha256:44a5ea42b18fdcaf75ffa433ec90476e66fb4bb635b84176274e75c974e729a4"
+      "sha256": "sha256:2ce919aa2ff6b7b5c55109a467e396121116ffec630ee8f4e386229450cda1a5"
     },
     {
       "bytes": 364,
@@ -2973,9 +2973,9 @@
       "sha256": "sha256:4840f79ab9417ac7b5a2030cf6c8fced532537bb76bfa0f20bb65d27e5a2c274"
     },
     {
-      "bytes": 145553,
+      "bytes": 147575,
       "path": "scripts/qualification/standalone-v1.mjs",
-      "sha256": "sha256:2a216a2966b3e6c4e9a9b08c16fbc23c189e445309a05d4fa2ae1261c81a5c37"
+      "sha256": "sha256:d0371a8555597508b2feb15572e00eabbb16732bbb3f31e0e99e97ff4009f5d7"
     },
     {
       "bytes": 27172,
@@ -3058,9 +3058,9 @@
       "sha256": "sha256:5789781479612136c4d6da6f7409a83accabc70db4ca8348f871d1243f2b959a"
     },
     {
-      "bytes": 4778,
+      "bytes": 5701,
       "path": "tests/contracts/headroom-opencode-host-integration.test.mjs",
-      "sha256": "sha256:6b475c8fc91c226e53ed310bb9e5d4ba3c9346ea357934ecfe7855d410ae12c2"
+      "sha256": "sha256:9e276de621efc7ff17d8d1b1f2f5b258a2853be750d465dd8a15843df314f2f4"
     },
     {
       "bytes": 10161,
