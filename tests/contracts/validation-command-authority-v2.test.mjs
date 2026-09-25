@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import {
+  VALIDATION_COMMAND_PATTERN_SOURCE,
   isExecutableValidationCommand,
   validationCommandId,
   validationCommandProjectionIssues,
@@ -94,6 +95,15 @@ test("slash-delimited product prose is not executable validation authority", () 
   assert.equal(isExecutableValidationCommand("HTTP/BFF/ML identity tests including N06."), false);
   assert.equal(isExecutableValidationCommand("API/BFF tenant isolation verification."), false);
   assert.equal(isExecutableValidationCommand("docs/product/PRD.md evidence review"), false);
+});
+
+test("structured validation schema pattern rejects the same slash-delimited prose", () => {
+  const pattern = new RegExp(VALIDATION_COMMAND_PATTERN_SOURCE, "u");
+  assert.equal(pattern.test("HTTP/BFF/ML identity tests including N06."), false);
+  assert.equal(pattern.test("scripts/verify.sh --strict"), true);
+  assert.equal(pattern.test("packages/foo/tests/check.mjs --ci"), true);
+  assert.equal(pattern.test("tools/check --all"), true);
+  assert.equal(pattern.test("./apps/foo/check --all"), true);
 });
 
 test("unambiguous repository-relative scripts remain executable validation authority", () => {
