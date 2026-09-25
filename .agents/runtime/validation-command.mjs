@@ -9,7 +9,7 @@ const KNOWN_VALIDATION_EXECUTABLES = new Set([
 ]);
 
 const REPOSITORY_RELATIVE_VALIDATION_SCRIPT_EXTENSIONS = String.raw`(?:sh|bash|zsh|fish|ps1|cmd|bat|exe|com|py|pyw|js|mjs|cjs|ts|mts|cts|rb|pl|php|jar)`;
-const REPOSITORY_RELATIVE_VALIDATION_PATH_PATTERN_SOURCE = String.raw`(?:(?:[^\\/\s]+[\\/])*(?:scripts|bin|tools)[\\/][^\s]+|(?:[^\\/\s]+[\\/])+[^\\/\s]+\.\${REPOSITORY_RELATIVE_VALIDATION_SCRIPT_EXTENSIONS})`;
+const REPOSITORY_RELATIVE_VALIDATION_PATH_PATTERN_SOURCE = String.raw`(?:(?:[^\\/\s]+[\\/])*(?:scripts|bin|tools)[\\/][^\s]+|(?:[^\\/\s]+[\\/])+[^\\/\s]+\.${REPOSITORY_RELATIVE_VALIDATION_SCRIPT_EXTENSIONS})`;
 
 // Structured-output schema pattern: require a command-shaped first executable rather than
 // accepting arbitrary prose. A bare token merely containing "/" is NOT enough: product
@@ -17,7 +17,7 @@ const REPOSITORY_RELATIVE_VALIDATION_PATH_PATTERN_SOURCE = String.raw`(?:(?:[^\\
 // while explicit paths, script-like repository-relative paths and scripts/bin/tools entries
 // remain valid. Complex validations can always be wrapped in `bash -lc`, `sh -lc`,
 // `pwsh -Command`, etc.
-export const VALIDATION_COMMAND_PATTERN_SOURCE = String.raw`^(?:(?:[A-Za-z_][A-Za-z0-9_]*=[^\s]+)\s+)*(?:(?:\.{0,2}[\\/]|~[\\/]|[A-Za-z]:[\\/])[^\s]*|\${REPOSITORY_RELATIVE_VALIDATION_PATH_PATTERN_SOURCE}|(?:bash|biome|bun|cargo|cd|cmake|cmd(?:\.exe)?|corepack|ctest|deno|docker(?:-compose)?|dotnet|env|eslint|export|git|go|gradle|gradlew|java|javac|jest|make|mvn|mvnw|mypy|node|npm|npx|nx|pip|pip3|pipx|pnpm|poetry|powershell(?:\.exe)?|pwsh|py|pytest|python|python3|ruff|rustc|set|sh|tsc|tox|turbo|uv|vitest|yarn|zsh))(?:\s|$)`;
+export const VALIDATION_COMMAND_PATTERN_SOURCE = String.raw`^(?:(?:[A-Za-z_][A-Za-z0-9_]*=[^\s]+)\s+)*(?:(?:\.{0,2}[\\/]|~[\\/]|[A-Za-z]:[\\/])[^\s]*|${REPOSITORY_RELATIVE_VALIDATION_PATH_PATTERN_SOURCE}|(?:bash|biome|bun|cargo|cd|cmake|cmd(?:\.exe)?|corepack|ctest|deno|docker(?:-compose)?|dotnet|env|eslint|export|git|go|gradle|gradlew|java|javac|jest|make|mvn|mvnw|mypy|node|npm|npx|nx|pip|pip3|pipx|pnpm|poetry|powershell(?:\.exe)?|pwsh|py|pytest|python|python3|ruff|rustc|set|sh|tsc|tox|turbo|uv|vitest|yarn|zsh))(?:\s|$)`;
 
 
 export const VALIDATION_EXECUTION_SCOPES = Object.freeze(["workspace", "container", "authoritative-host", "live"]);
