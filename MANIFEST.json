@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-25T05:23:57Z",
+  "generatedAt": "2026-09-25T06:30:00Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 694,
-  "treeSha256": "sha256:6e49b0fc9243638b05755e06f3f316dea1d04f8e4c65da616aafee96f9d3c944",
+  "treeSha256": "sha256:e25fcbc79d0b0867f24c2d63b66eca8b741466014a37f9a27fa51e1e8e74fdbc",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -673,9 +673,9 @@
       "sha256": "sha256:25306fc9107b65b10cf0dc60a3e88c8d3cad7fcebb27b0815a555f14f30a878c"
     },
     {
-      "bytes": 8987,
+      "bytes": 17809,
       "path": ".agents/runtime/validation-command.mjs",
-      "sha256": "sha256:dc038d7d9453bf96086d92f2bb1abfe05bf6c35f637a52a14e5829eb4313b5c4"
+      "sha256": "sha256:3ceda00fa146c9e51fc84cc7733fd3431eff2c88d651eab84714080196c6cdd8"
     },
     {
       "bytes": 4518,
@@ -1503,9 +1503,9 @@
       "sha256": "sha256:8a6973dad35c00470871dbeb11aee703f4cdf9fabe4429e734bff67e1310855d"
     },
     {
-      "bytes": 4219,
+      "bytes": 4772,
       "path": "docs/architecture/lineage/0122-focused-implementation-validation-authority.md",
-      "sha256": "sha256:a6d326f278399db455d83ef4c02417ee849b5f5162e6925693d4285c333652ef"
+      "sha256": "sha256:c4b95661d9622fd7fef324f1032bc9abb017dfe5872ace6265c3fd95f09aa269"
     },
     {
       "bytes": 6795,
@@ -3178,9 +3178,9 @@
       "sha256": "sha256:4477068cac195631017683ab800b49d5ca360fa81ac9a277715d7378b5ef8370"
     },
     {
-      "bytes": 8183,
+      "bytes": 11189,
       "path": "tests/contracts/validation-command-authority-v2.test.mjs",
-      "sha256": "sha256:2b0aa1ac09b76fc83e84fb81d241b4f0081f5bbc213a619f8241c55f271f9912"
+      "sha256": "sha256:39c38b9b4f98b2eb281d74912d65031ad2ae119c01168bb1cacaaa2bcb0b4351"
     },
     {
       "bytes": 5292,
