@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-25T02:00:00Z",
+  "generatedAt": "2026-09-25T02:06:00Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 694,
-  "treeSha256": "sha256:1089ebd72a4711b2c2c962d35681da45344085498f3d4110cfb1daafdad6e482",
+  "treeSha256": "sha256:cc534ffdb2ecd247631780d011f4f632829fe3488ac917edff95774015d44bdf",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -1250,7 +1250,7 @@
     {
       "bytes": 2341,
       "path": "config/opencode.template.jsonc",
-      "sha256": "sha256:f3db7a7b570d558b597fadae84b26d932156455ab9b1395f95d35e4aa11d20c5"
+      "sha256": "sha256:b22559762b1c55fafde767a87d80752245440cfb272ba9575ad339538a7f11ef"
     },
     {
       "bytes": 42244,
@@ -1275,7 +1275,7 @@
     {
       "bytes": 1737,
       "path": "docs/adr/0004-portable-opencode-integrations.md",
-      "sha256": "sha256:a1325bfcc68f442417ab01245d97f41d670a4949f98084e0b4bc7a1fc28edb4b"
+      "sha256": "sha256:7abc0bc9ed4b652478dfc32fd87619cc914abeb63bb21d80846297f61ffcd293"
     },
     {
       "bytes": 771,
@@ -1460,7 +1460,7 @@
     {
       "bytes": 4813,
       "path": "docs/adr/0041-direct-headroom-opencode-host-integration.md",
-      "sha256": "sha256:318237ef44d415bc2f6c9c8ec0fb9129604984f87bc029acc8dde9a79c516aa0"
+      "sha256": "sha256:e7e65bc6b7f3e26d06b0db91668b0c13f89a16dfe3df91d80d54e34acb330250"
     },
     {
       "bytes": 2664,
@@ -1490,7 +1490,7 @@
     {
       "bytes": 2459,
       "path": "docs/architecture/DECISIONS.md",
-      "sha256": "sha256:6cf3d1dbf6cf68a899bfc6a67ccd3de6e92c5c66fa3753a2777a31cde141ed04"
+      "sha256": "sha256:841582d05ecc807f9566b599920e9a27bf1cdfa55865704b7c3512533623a3a9"
     },
     {
       "bytes": 6993,
@@ -2820,12 +2820,12 @@
     {
       "bytes": 6627,
       "path": "README.md",
-      "sha256": "sha256:a775006998185065a8de980f11fc3043d8ebead93b687d019efa14ede8f433ce"
+      "sha256": "sha256:ccda6cda667524622ed61a0662738c6e2a5bdc2501266ae72575bdaf6a0271ef"
     },
     {
       "bytes": 4654,
       "path": "scripts/generate-opencode-config.mjs",
-      "sha256": "sha256:1b2c9c2adcb58073394a40aee7e57717f990a1a08493d7af36243f2e0eaefef1"
+      "sha256": "sha256:72746e76b41b3f925004f7afadde4c551e9f18abd1fc2956470c49e8b7d239d8"
     },
     {
       "bytes": 1107,
@@ -2890,7 +2890,7 @@
     {
       "bytes": 11945,
       "path": "scripts/internal/headroom-opencode.mjs",
-      "sha256": "sha256:55ee234c67306dcedc74b5e5d95b0c61303c459b560d84382e6cec90ff9980d1"
+      "sha256": "sha256:a351572dc291799ea96d8497f3250caa525686cbb4a87b40e0803c61842d4eb5"
     },
     {
       "bytes": 86095,
@@ -2925,7 +2925,7 @@
     {
       "bytes": 3195,
       "path": "scripts/opencode-run.mjs",
-      "sha256": "sha256:c634d91c3358ded8b1ed8eb6dc6fa054681253859d18baf66afe859d2d6bee3b"
+      "sha256": "sha256:b3d7488869fe68c1af19632164dc378be32cc33d4daed2b7a18382c664c3f52f"
     },
     {
       "bytes": 10967,
@@ -3040,7 +3040,7 @@
     {
       "bytes": 47870,
       "path": "tests/contracts/config.test.mjs",
-      "sha256": "sha256:67d588501700c8ce6e0e6cfd35be915ba97bff4cbe4e716d233384cef4202fff"
+      "sha256": "sha256:ef12b296d95c73335cb6135fe8016cb5eb9bcdf1c2bd044b059feb587345828d"
     },
     {
       "bytes": 1117,
@@ -3060,7 +3060,7 @@
     {
       "bytes": 4778,
       "path": "tests/contracts/headroom-opencode-host-integration.test.mjs",
-      "sha256": "sha256:a8663fd02116cdad68d67c1a2f64aac3041e0df0543e3c30e825255f2345b51a"
+      "sha256": "sha256:6b475c8fc91c226e53ed310bb9e5d4ba3c9346ea357934ecfe7855d410ae12c2"
     },
     {
       "bytes": 10161,
@@ -3215,7 +3215,7 @@
     {
       "bytes": 1175,
       "path": "THIRD-PARTY-NOTICES.md",
-      "sha256": "sha256:ef8cb371179781a317c4ad6a4e4705f3407b67186c4caf3a2e09fff67e916cd9"
+      "sha256": "sha256:b738a434aafd41ba3e3987421c24107b73d485788a2efe56db2406f6bcf42a66"
     },
     {
       "bytes": 407,
