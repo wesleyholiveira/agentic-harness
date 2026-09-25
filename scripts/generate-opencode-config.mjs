@@ -1,7 +1,8 @@
+import { existsSync, lstatSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { HEADROOM_OPENCODE_PLUGIN_SPEC, HEADROOM_VERSION } from "./internal/headroom-opencode.mjs";
+import { HEADROOM_VERSION } from "./internal/headroom-opencode.mjs";
 import { resolveCodebaseMemoryExecutable } from "./internal/tool-resolution.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -64,9 +65,25 @@ if (config.mcp["codebase-memory-mcp"] && codebaseMemoryExecutable) {
 }
 
 if (Array.isArray(config.plugin)) {
-  config.plugin = config.plugin.filter((entry) => !String(entry).startsWith("headroom-opencode"));
+  config.plugin = config.plugin.filter((entry) => {
+    const value = String(entry).replaceAll("\\", "/");
+    return !value.startsWith("headroom-opencode")
+      && !value.endsWith("/headroom/providers/opencode/_dist/entry.opencode.js");
+  });
   if (headroomEnabled && !runtimeChild) {
-    config.plugin.push(HEADROOM_OPENCODE_PLUGIN_SPEC);
+    const configuredPluginPath = String(process.env.HEADROOM_OPENCODE_PLUGIN_PATH ?? "").trim();
+    if (!configuredPluginPath || !isAbsolute(configuredPluginPath)) {
+      throw new Error("headroom_opencode_plugin_path_required");
+    }
+    const absolutePluginPath = resolve(configuredPluginPath);
+    if (!existsSync(absolutePluginPath)) {
+      throw new Error(`headroom_opencode_plugin_missing:${absolutePluginPath}`);
+    }
+    const pluginInfo = lstatSync(absolutePluginPath);
+    if (!pluginInfo.isFile() || pluginInfo.isSymbolicLink()) {
+      throw new Error(`headroom_opencode_plugin_not_regular_file:${absolutePluginPath}`);
+    }
+    config.plugin.push(absolutePluginPath.replaceAll("\\", "/"));
   }
 }
 
