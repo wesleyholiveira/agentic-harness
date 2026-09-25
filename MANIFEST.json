@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agentic-harness-distribution-manifest/v1",
-  "generatedAt": "2026-09-24T21:27:59Z",
+  "generatedAt": "2026-09-25T00:02:58Z",
   "packageName": "agentic-harness",
   "packageVersion": "1.0.0",
   "distributionStatus": "SOURCE_CANDIDATE_READY_FOR_TARGET_HOST_QUALIFICATION",
@@ -9,8 +9,8 @@
     "sourceSha256": "sha256:2030a87202a3dc5b877c7860f5374edeb97ca52f83ea9d324dc82b13ce2b5abf",
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
-  "fileCount": 691,
-  "treeSha256": "sha256:e059ee58f80af995616be1c5eb705b444f8114cacbd590da061ad6b60b64f58c",
+  "fileCount": 692,
+  "treeSha256": "sha256:0ec36e6cc5c03928ab2e86dac9bcebefa6e248e7820a43ede5be3e95ebdc7036",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -303,9 +303,9 @@
       "sha256": "sha256:179e6449bb66752be6bcbd43fc78ac91444e768373cf04d6a356522d9ebc9916"
     },
     {
-      "bytes": 24386,
+      "bytes": 25429,
       "path": ".agents/runtime/context-builder.mjs",
-      "sha256": "sha256:b8c047b7bf68564f67b9ac5a6cc0827288aadef453cc29b6f97f21e1da141d36"
+      "sha256": "sha256:316df83f08caacd9ad9dbf3b2398e6101a2b5197aa71376b582e2f4b5b4ea167"
     },
     {
       "bytes": 1030,
@@ -363,9 +363,9 @@
       "sha256": "sha256:72327c12b7a29eb33c362b3989aad6b6ec25847b0777b53690b29cb25202bcc7"
     },
     {
-      "bytes": 36490,
+      "bytes": 41406,
       "path": ".agents/runtime/event-driven-finalizer.mjs",
-      "sha256": "sha256:24baea9fedfe4b9bd3e356b8ed8fc90891e511f2a47266aa3cec70ef0853a5f7"
+      "sha256": "sha256:ed6877b6888c59aaa3ca691914dfb58e085e4267216281821e8e643f398f9cc2"
     },
     {
       "bytes": 27184,
@@ -388,9 +388,9 @@
       "sha256": "sha256:1aef37497980a95b2d5c840fd78005118afa816a7381c9e83e3fe0312604ec6c"
     },
     {
-      "bytes": 79317,
+      "bytes": 80155,
       "path": ".agents/runtime/executor.mjs",
-      "sha256": "sha256:4f04ee83a09ef5dcf6546153bee9b1b87c08e7c57581f2352b804d66896702cf"
+      "sha256": "sha256:1adbf865d88dea84871f69f584d8ac3a4d50ae25b39af800cb3d4099295a7467"
     },
     {
       "bytes": 4285,
@@ -1443,9 +1443,9 @@
       "sha256": "sha256:e07287d1757e587f2ea0800784585faefa082ed6e70a3bfe944c6d23d954e6f7"
     },
     {
-      "bytes": 2548,
+      "bytes": 4056,
       "path": "docs/adr/0038-qa-review-is-evidence-derived.md",
-      "sha256": "sha256:254557579a14dc942e5201afd7d7a84427f210d8d0a5cfb9be640d3217bdd8a9"
+      "sha256": "sha256:d2087b2ad93b9808cf2dcac96f29319523f3f2cb48f8fd3da9d21542a08eb362"
     },
     {
       "bytes": 2414,
@@ -2888,9 +2888,9 @@
       "sha256": "sha256:29459bd29752fcb24a62bd0ddb548e930f4835074cb3a1adf677a85ba02e4227"
     },
     {
-      "bytes": 85667,
+      "bytes": 86095,
       "path": "scripts/internal/opencode-task-executor.mjs",
-      "sha256": "sha256:6aa960c57d3d2143277863bd9a3f622ab1f966716ff8cc54523773708334ad8b"
+      "sha256": "sha256:b595cf84234c28bc65e464ffa0f41575b5c374ce7c9989d5d71b6d600dfd812a"
     },
     {
       "bytes": 3019,
@@ -3096,6 +3096,11 @@
       "bytes": 23522,
       "path": "tests/contracts/project-descriptor.test.mjs",
       "sha256": "sha256:6d79f69e3f338afb337d70a9cd316ed1d8204a0c75a0a45ef090137ad649250b"
+    },
+    {
+      "bytes": 7748,
+      "path": "tests/contracts/qa-implementation-repair-loop.test.mjs",
+      "sha256": "sha256:faece00a95b858fc857dfb44de82fd438d4bb0c3fb5e4b551fbdad9bb67497a9"
     },
     {
       "bytes": 49637,
