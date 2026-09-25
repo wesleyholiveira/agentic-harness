@@ -1,10 +1,12 @@
 import { spawn, spawnSync } from "node:child_process";
+import { existsSync, lstatSync } from "node:fs";
 import net from "node:net";
+import { isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const HEADROOM_VERSION = "0.36.5";
 export const HEADROOM_PROXY_PACKAGE = `headroom-ai[proxy]==${HEADROOM_VERSION}`;
-export const HEADROOM_OPENCODE_PLUGIN_SPEC = `headroom-opencode@${HEADROOM_VERSION}`;
+export const HEADROOM_OPENCODE_PLUGIN_ENTRY_RELATIVE = "headroom/providers/opencode/_dist/entry.opencode.js";
 export const HEADROOM_UVX_ISOLATION_ARGS = ["--isolated", "--managed-python"];
 export const HEADROOM_UVX_PYTHON_CANDIDATES = ["3.12", "3.13"];
 export const HEADROOM_UVX_PYTHON = HEADROOM_UVX_PYTHON_CANDIDATES[0];
@@ -160,6 +162,115 @@ export function buildHeadroomProxyInvocation(port, baseEnv = process.env, python
   );
 }
 
+function normalizeHeadroomPluginPath(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw || !isAbsolute(raw)) {
+    throw new Error(`headroom_opencode_plugin_path_invalid:${raw || "empty"}`);
+  }
+  const absolute = resolve(raw);
+  if (!existsSync(absolute)) {
+    throw new Error(`headroom_opencode_plugin_missing:${absolute}`);
+  }
+  const info = lstatSync(absolute);
+  if (!info.isFile() || info.isSymbolicLink()) {
+    throw new Error(`headroom_opencode_plugin_not_regular_file:${absolute}`);
+  }
+  return absolute.replaceAll("\\", "/");
+}
+
+export function buildHeadroomPluginPathInvocation(
+  baseEnv = process.env,
+  python = HEADROOM_UVX_PYTHON_CANDIDATES[0],
+) {
+  const script = [
+    "from headroom.providers.opencode.runtime import headroom_opencode_plugin_path",
+    "import sys",
+    "path = headroom_opencode_plugin_path()",
+    "print(path or '')",
+    "raise SystemExit(0 if path else 3)",
+  ].join("; ");
+  return {
+    command: "uvx",
+    args: [
+      ...HEADROOM_UVX_ISOLATION_ARGS,
+      "--python",
+      python,
+      "--with",
+      HEADROOM_PROXY_PACKAGE,
+      "python",
+      "-c",
+      script,
+    ],
+    runtime: "uvx-pinned-plugin-resolver",
+    python,
+  };
+}
+
+export function resolveHeadroomOpenCodePluginPath({
+  baseEnv = process.env,
+  pythonCandidates = HEADROOM_UVX_PYTHON_CANDIDATES,
+} = {}) {
+  const explicit = String(baseEnv.HEADROOM_OPENCODE_PLUGIN_PATH ?? "").trim();
+  if (explicit) {
+    return {
+      path: normalizeHeadroomPluginPath(explicit),
+      source: "HEADROOM_OPENCODE_PLUGIN_PATH",
+      python: null,
+      invocation: null,
+    };
+  }
+
+  const failures = [];
+  for (const python of pythonCandidates) {
+    const invocation = buildHeadroomPluginPathInvocation(baseEnv, python);
+    const result = spawnSync(invocation.command, invocation.args, {
+      cwd: process.cwd(),
+      env: buildHeadroomEnvironment(baseEnv),
+      encoding: "utf8",
+      windowsHide: true,
+      shell: false,
+    });
+    const candidate = String(result.stdout ?? "")
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .at(-1);
+    if (!result.error && result.status === 0 && candidate) {
+      try {
+        return {
+          path: normalizeHeadroomPluginPath(candidate),
+          source: "headroom-wheel-bundled-entry",
+          python,
+          invocation,
+        };
+      } catch (error) {
+        failures.push({
+          python,
+          exitCode: result.status,
+          error: error instanceof Error ? error.message : String(error),
+          stderr: String(result.stderr ?? "").trim().slice(-2000),
+        });
+        continue;
+      }
+    }
+    failures.push({
+      python,
+      exitCode: result.status,
+      error: result.error?.message ?? "resolver_failed",
+      stderr: String(result.stderr ?? "").trim().slice(-2000),
+    });
+  }
+
+  const detail = failures
+    .map((failure) =>
+      `python=${failure.python} exit=${failure.exitCode ?? "unknown"} error=${failure.error}\n${failure.stderr}`,
+    )
+    .join("\n---\n");
+  throw new Error(
+    `headroom_opencode_plugin_resolution_failed:${HEADROOM_VERSION}:${HEADROOM_OPENCODE_PLUGIN_ENTRY_RELATIVE}\n${detail}`,
+  );
+}
+
 export function buildDirectOpenCodeInvocation(args, baseEnv = process.env) {
   const env = buildHeadroomEnvironment(baseEnv);
   return {
@@ -167,7 +278,7 @@ export function buildDirectOpenCodeInvocation(args, baseEnv = process.env) {
     args: [...args],
     env,
     runtime: "direct-opencode",
-    headroomPlugin: HEADROOM_OPENCODE_PLUGIN_SPEC,
+    headroomPlugin: String(env.HEADROOM_OPENCODE_PLUGIN_PATH ?? "").trim() || null,
   };
 }
 
@@ -306,8 +417,12 @@ export async function runOpenCodeWithHeadroom(
 
   try {
     const invocation = buildDirectOpenCodeInvocation(args, proxy.env);
+    if (!invocation.headroomPlugin) {
+      console.error("[headroom-opencode] headroom_opencode_plugin_path_required");
+      return 1;
+    }
     console.log(
-      `[headroom-opencode] launching OpenCode directly with native plugin ${HEADROOM_OPENCODE_PLUGIN_SPEC}; proxy=${invocation.env.HEADROOM_PROXY_URL}.`,
+      `[headroom-opencode] launching OpenCode directly with bundled native plugin ${invocation.headroomPlugin}; proxy=${invocation.env.HEADROOM_PROXY_URL}.`,
     );
     const child = spawnProcess(invocation.command, invocation.args, {
       cwd: process.cwd(),
