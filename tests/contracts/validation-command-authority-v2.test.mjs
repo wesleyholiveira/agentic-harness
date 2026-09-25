@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import {
+  isExecutableValidationCommand,
   validationCommandId,
   validationCommandProjectionIssues,
 } from "../../.agents/runtime/validation-command.mjs";
@@ -88,6 +89,65 @@ function plan(validation = ["npm test"], validationCommandIds = undefined) {
     }],
   };
 }
+
+test("slash-delimited product prose is not executable validation authority", () => {
+  assert.equal(isExecutableValidationCommand("HTTP/BFF/ML identity tests including N06."), false);
+  assert.equal(isExecutableValidationCommand("API/BFF tenant isolation verification."), false);
+  assert.equal(isExecutableValidationCommand("docs/product/PRD.md evidence review"), false);
+});
+
+test("unambiguous repository-relative scripts remain executable validation authority", () => {
+  assert.equal(isExecutableValidationCommand("scripts/verify.sh --strict"), true);
+  assert.equal(isExecutableValidationCommand("packages/foo/tests/check.mjs --ci"), true);
+  assert.equal(isExecutableValidationCommand("tools/check --all"), true);
+  assert.equal(isExecutableValidationCommand("./apps/foo/check --all"), true);
+});
+
+test("Technical Plan does not demand byte-exact prose verification containing slashes", () => {
+  const schema = JSON.parse(readFileSync(join(process.cwd(), ".agents/schemas/implementation-plan.schema.json"), "utf8"));
+  const proseCriterion = {
+    id: "CLV2-02",
+    source: "docs/product/PRD.md",
+    statement: "Tenant and actor derive from authenticated identity.",
+    blocking: true,
+    verification: "HTTP/BFF/ML identity tests including N06.",
+    proofStage: "implementation",
+  };
+  const implementationPlan = {
+    schemaVersion: 1,
+    revision: 1,
+    coordinatorAgentId: "main-orchestrator",
+    acceptanceCriteria: [proseCriterion],
+    workItems: [{
+      id: "WI-01-identity-review",
+      ownerAgentId: "coding",
+      objective: "Implement identity authority.",
+      dependencies: [],
+      ownedPaths: ["src/foo.js"],
+      acceptanceCriteria: ["CLV2-02"],
+      validation: ["npm test"],
+      validationCommandIds: [validationCommandId("npm test")],
+      validationExecutionScope: "workspace",
+      executionMode: "agent",
+      complexity: "high",
+      estimatedFiles: 2,
+      contractChange: true,
+      migration: false,
+    }],
+  };
+  const issues = technicalPlanRepairIssues({
+    implementationPlan,
+    implementationPlanSchema: schema,
+    requiredAcceptanceCriteria: [proseCriterion],
+    registry: registry(),
+    validationCommandCatalog: [{ id: validationCommandId("npm test"), command: "npm test", source: "package.json#scripts.test" }],
+  });
+
+  assert.equal(
+    issues.some((issue) => issue.startsWith("implementation_plan_criterion_verification_missing:")),
+    false,
+  );
+});
 
 test("validation command IDs are deterministic and byte-sensitive", () => {
   const a = validationCommandId("npm test");
