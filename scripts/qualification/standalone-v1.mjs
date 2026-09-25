@@ -16,8 +16,8 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveComposeProjectIdentity } from "../internal/compose-project-identity.mjs";
 import {
-  HEADROOM_OPENCODE_PLUGIN_SPEC,
   buildDirectOpenCodeInvocation,
+  resolveHeadroomOpenCodePluginPath,
   startHeadroomProxy,
 } from "../internal/headroom-opencode.mjs";
 import { ProcessRunner, terminateProcessTree } from "./lib/process.mjs";
@@ -90,6 +90,7 @@ const state = {
   dnsComposeYaml: null,
   freshTeiContainer: null,
   headroom: null,
+  headroomPlugin: null,
   headroomTrafficBaseline: null,
   opencode: null,
   opencodeAuth: null,
@@ -999,12 +1000,20 @@ async function readHeadroomTraffic(gate) {
 }
 
 async function r5() {
-  const env = {
+  const baseEnv = {
     ...state.consumerEnv,
     AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256: state.pluginSha,
   };
   if (state.headroom) hold("R-5", "QUALIFICATION PROCEDURE", "headroom_already_started");
-  state.headroom = await startHeadroomProxy({ baseEnv: env, port: String(state.ports.headroom) });
+  state.headroom = await startHeadroomProxy({ baseEnv, port: String(state.ports.headroom) });
+  state.headroomPlugin = resolveHeadroomOpenCodePluginPath({
+    baseEnv,
+    pythonCandidates: [state.headroom.python],
+  });
+  const env = {
+    ...baseEnv,
+    HEADROOM_OPENCODE_PLUGIN_PATH: state.headroomPlugin.path,
+  };
 
   const generated = mustRun("R-5", "SOURCE", process.execPath, [resolve(state.consumers.A, ".harness/scripts/generate-opencode-config.mjs")], { cwd: state.consumers.A, env, label: "r5-generate-config" });
   const effectivePath = generated.stdout.trim().split(/\r?\n/u).filter(Boolean).at(-1);
@@ -1022,11 +1031,15 @@ async function r5() {
       expectedHeadroom,
     });
   }
-  const headroomPlugins = (config.plugin ?? []).filter((entry) => String(entry).startsWith("headroom-opencode"));
-  if (headroomPlugins.length !== 1 || headroomPlugins[0] !== HEADROOM_OPENCODE_PLUGIN_SPEC) {
+  const expectedHeadroomPlugin = state.headroomPlugin.path.replaceAll("\\", "/");
+  const headroomPlugins = (config.plugin ?? []).filter((entry) =>
+    String(entry).replaceAll("\\", "/").endsWith("/headroom/providers/opencode/_dist/entry.opencode.js"),
+  );
+  if (headroomPlugins.length !== 1 || String(headroomPlugins[0]).replaceAll("\\", "/") !== expectedHeadroomPlugin) {
     hold("R-5", "SOURCE", "headroom_native_plugin_authority_drift", {
       actual: headroomPlugins,
-      expected: HEADROOM_OPENCODE_PLUGIN_SPEC,
+      expected: expectedHeadroomPlugin,
+      source: state.headroomPlugin.source,
     });
   }
   const permission = config.agent?.["main-orchestrator"]?.permission;
@@ -1058,7 +1071,11 @@ async function r5() {
     effectivePath,
     contextEngineMcp: expectedMcp,
     headroomProxy: expectedHeadroom,
-    headroomNativePlugin: HEADROOM_OPENCODE_PLUGIN_SPEC,
+    headroomNativePlugin: {
+      path: state.headroomPlugin.path,
+      source: state.headroomPlugin.source,
+      python: state.headroomPlugin.python,
+    },
     headroomTrafficBaseline: state.headroomTrafficBaseline,
     mandatoryMcpHandshakes: mandatory,
     mainOrchestratorPermission: permission,
@@ -1070,6 +1087,7 @@ async function startQualifiedOpenCode(label = "opencode") {
   const baseEnv = {
     ...state.consumerEnv,
     AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256: state.pluginSha,
+    HEADROOM_OPENCODE_PLUGIN_PATH: state.headroomPlugin.path,
     OPENCODE_CONFIG: state.effectiveConfigPath,
     OPENCODE_CONFIG_DIR: resolve(state.consumers.A, ".harness/.opencode"),
     AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_URL: `http://127.0.0.1:${state.ports.contextEngine}/runtime-invocation-provenance`,
@@ -1120,6 +1138,18 @@ async function r6() {
   const id = identity.body;
   for (const key of ["expectedPluginSourceSha256", "configuredPluginSourceSha256", "bundledPluginSourceSha256"]) if (id?.[key] !== state.pluginSha) hold("R-6", "RUNTIME", "runtime_invocation_provenance_sha_authority_mismatch", { key, actual: id?.[key], expected: state.pluginSha, identity: id });
 
+  const toolIdsResponse = await requestJson(`${baseUrl}/experimental/tool/ids`, {
+    headers: authHeaders,
+    allowStatuses: [200],
+  });
+  const toolIdsPayload = JSON.stringify(toolIdsResponse.body ?? []);
+  if (!toolIdsPayload.includes("headroom_retrieve")) {
+    hold("R-6", "RUNTIME", "headroom_native_plugin_not_loaded", {
+      plugin: state.headroomPlugin,
+      toolIds: toolIdsResponse.body,
+    });
+  }
+
   const session = await requestJson(`${baseUrl}/session`, { method: "POST", headers: authHeaders, body: { title: "Agentic Harness R-6D history probe" }, allowStatuses: [200, 201] });
   const sessionId = session.body?.id;
   if (!sessionId) hold("R-6", "RUNTIME", "r6d_session_id_missing", { session: session.body });
@@ -1136,7 +1166,19 @@ async function r6() {
   if (assistantCount !== 0 || probeTools.length !== 0 || continuationCount !== 0) hold("R-6", "RUNTIME", "r6d_no_reply_contract_failed", { assistantCount, probeTools, continuationCount });
   await requestJson(`${baseUrl}/session/${encodeURIComponent(sessionId)}`, { method: "DELETE", headers: authHeaders, allowStatuses: [200, 204] });
 
-  return { baseUrl, pid: state.opencode.listeningPid, config: state.effectiveConfigPath, pluginSha: state.pluginSha, provenanceIdentity: id, historyProbe: { sessionId, userMessageId, assistantCount, toolCount: probeTools.length, runtimeRunCount: continuationCount } };
+  return {
+    baseUrl,
+    pid: state.opencode.listeningPid,
+    config: state.effectiveConfigPath,
+    pluginSha: state.pluginSha,
+    headroomPlugin: {
+      path: state.headroomPlugin.path,
+      source: state.headroomPlugin.source,
+      toolLoaded: true,
+    },
+    provenanceIdentity: id,
+    historyProbe: { sessionId, userMessageId, assistantCount, toolCount: probeTools.length, runtimeRunCount: continuationCount },
+  };
 }
 
 function sqlQuote(value) { return String(value).replaceAll("'", "''"); }
@@ -1692,7 +1734,7 @@ async function r7() {
     hold("R-7", "RUNTIME", "headroom_native_transport_traffic_unproven", {
       before: headroomBefore.requests,
       after: headroomAfter.requests,
-      plugin: HEADROOM_OPENCODE_PLUGIN_SPEC,
+      plugin: state.headroomPlugin,
     });
   }
   state.r7 = {
