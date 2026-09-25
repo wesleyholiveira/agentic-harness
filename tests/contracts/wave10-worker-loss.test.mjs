@@ -299,6 +299,10 @@ test("R9 kills worker only inside a physical behavior window and proves replacem
   assert.match(qualification, /r9_replacement_behavior_container_not_materialized/u);
   assert.match(qualification, /matchingBehaviorGatewayEvent/u);
   assert.match(qualification, /docker_gateway_behavior_passed/u);
+  assert.match(qualification, /runtime-repair-resume-receipt\/v1/u);
+  assert.match(qualification, /r9_repair_resume_receipt_missing/u);
+  assert.match(qualification, /r9_repair_resume_receipt_invalid/u);
+  assert.match(qualification, /r9_repair_resume_event_not_projected_after_terminal/u);
   assert.match(qualification, /skippedFullAgentInvocation/u);
   assert.match(qualification, /r9_behavior_boundary_not_disarmed_on_context_engine/u);
 
@@ -310,7 +314,9 @@ test("R9 kills worker only inside a physical behavior window and proves replacem
   const replacementRunning = qualification.indexOf('label: "r9-replacement-behavior-container-running"', replacementIdentity);
   const replacementCompleted = qualification.indexOf('label: "r9-replacement-behavior-completed"', replacementRunning);
   const replacementRemoved = qualification.indexOf('label: "r9-replacement-behavior-container-removed"', replacementCompleted);
-  const replacementResume = qualification.indexOf('label: "r9-repair-resume-receipt"', replacementRemoved);
+  const physicalReceipt = qualification.indexOf('label: "r9-read-repair-resume-receipt"', replacementRemoved);
+  const terminal = qualification.indexOf('const terminal = await waitForTerminalRun(runId, { gate: "R-9" });', physicalReceipt);
+  const semanticProjection = qualification.indexOf("r9_repair_resume_event_not_projected_after_terminal", terminal);
 
   assert.ok(sourceRunning >= 0);
   assert.ok(processLoss > sourceRunning);
@@ -320,8 +326,12 @@ test("R9 kills worker only inside a physical behavior window and proves replacem
   assert.ok(replacementRunning > replacementIdentity);
   assert.ok(replacementCompleted > replacementRunning);
   assert.ok(replacementRemoved > replacementCompleted);
-  assert.ok(replacementResume > replacementRemoved);
-  assert.match(qualification, /The durable repair resume receipt is projected by the semantic finalizer/u);
+  assert.ok(physicalReceipt > replacementRemoved);
+  assert.ok(terminal > physicalReceipt);
+  assert.ok(semanticProjection > terminal);
+  assert.doesNotMatch(qualification, /label: "r9-repair-resume-receipt"/u);
+  assert.match(qualification, /The replacement executor writes the durable resume receipt immediately/u);
+  assert.match(qualification, /the semantic finalizer must have projected the physical\s+\/\/ resume receipt exactly once/u);
 
   assert.match(qualification, /r9_gateway_restarted_during_worker_disconnect/u);
   assert.match(qualification, /r9_gateway_identity_changed_during_worker_recovery/u);
