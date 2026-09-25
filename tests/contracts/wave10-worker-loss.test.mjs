@@ -303,6 +303,8 @@ test("R9 kills worker only inside a physical behavior window and proves replacem
   assert.match(qualification, /r9_repair_resume_receipt_missing/u);
   assert.match(qualification, /r9_repair_resume_receipt_invalid/u);
   assert.match(qualification, /r9_repair_resume_event_not_projected_after_terminal/u);
+  assert.match(qualification, /replacementResumeReceipt\.effectKey/u);
+  assert.match(qualification, /payload\.effectKey/u);
   assert.match(qualification, /skippedFullAgentInvocation/u);
   assert.match(qualification, /r9_behavior_boundary_not_disarmed_on_context_engine/u);
 
@@ -317,6 +319,7 @@ test("R9 kills worker only inside a physical behavior window and proves replacem
   const replacementCompleted = qualification.indexOf('label: "r9-replacement-behavior-completed"', replacementRunning);
   const replacementRemoved = qualification.indexOf('label: "r9-replacement-behavior-container-removed"', replacementCompleted);
   const terminal = qualification.indexOf('const terminal = await waitForTerminalRun(runId, { gate: "R-9" });', replacementRemoved);
+  const terminalFailure = qualification.indexOf("r9_post_recovery_semantic_run_failed", terminal);
   const semanticProjection = qualification.indexOf("r9_repair_resume_event_not_projected_after_terminal", terminal);
 
   assert.ok(sourceRunning >= 0);
@@ -330,7 +333,8 @@ test("R9 kills worker only inside a physical behavior window and proves replacem
   assert.ok(replacementCompleted > replacementRunning);
   assert.ok(replacementRemoved > replacementCompleted);
   assert.ok(terminal > replacementRemoved);
-  assert.ok(semanticProjection > terminal);
+  assert.ok(terminalFailure > terminal);
+  assert.ok(semanticProjection > terminalFailure);
   assert.doesNotMatch(qualification, /label: "r9-repair-resume-receipt"/u);
   assert.match(qualification, /The replacement executor writes the durable resume receipt immediately/u);
   assert.match(qualification, /the semantic finalizer must have projected the physical\s+\/\/ resume receipt exactly once/u);
