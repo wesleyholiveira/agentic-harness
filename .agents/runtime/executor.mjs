@@ -506,6 +506,23 @@ async function taskStateMap(store, runId) {
   return new Map((await store.listTasks(runId)).map((task) => [task.task_id, task.status]));
 }
 
+export function latestAcceptedDependencyArtifacts(artifacts = [], dependencyIds = []) {
+  const dependencies = new Set(dependencyIds ?? []);
+  const newestByTask = new Map();
+  for (const artifact of artifacts ?? []) {
+    if (!dependencies.has(artifact?.task_id) || Number(artifact?.accepted) !== 1) continue;
+    const existing = newestByTask.get(artifact.task_id);
+    const artifactTime = Date.parse(artifact.created_at ?? "") || 0;
+    const existingTime = Date.parse(existing?.created_at ?? "") || 0;
+    if (!existing
+        || artifactTime > existingTime
+        || (artifactTime === existingTime && String(artifact.artifact_id ?? "") > String(existing.artifact_id ?? ""))) {
+      newestByTask.set(artifact.task_id, artifact);
+    }
+  }
+  return (dependencyIds ?? []).map((taskId) => newestByTask.get(taskId)).filter(Boolean);
+}
+
 function dependenciesSatisfied(task, states) {
   const dependencies = JSON.parse(task.dependencies_json);
   return dependencies.every((dependency) => ["integrated", "verified", "complete"].includes(states.get(dependency)));
@@ -673,8 +690,8 @@ export async function executeTask({ repositoryRoot, runDirectory, plan, taskPlan
     });
   }
   await store.event(plan.runId, taskPlan.taskId, "task.running", { agentId: taskPlan.agentId, attempt, reasoningLevel: reasoning.level });
-  const upstreamArtifacts = (await store.listArtifacts(plan.runId))
-    .filter((artifact) => JSON.parse(taskRow.dependencies_json).includes(artifact.task_id) && artifact.accepted)
+  const dependencyIds = JSON.parse(taskRow.dependencies_json);
+  const upstreamArtifacts = latestAcceptedDependencyArtifacts(await store.listArtifacts(plan.runId), dependencyIds)
     .map((artifact) => ({ artifactId: artifact.artifact_id, version: artifact.version, producer: artifact.task_id, path: artifact.path }));
   const { packet, path: contextPath, metrics: contextMetrics } = await buildContextPacket({ repositoryRoot, registry, plan, task: taskPlan, schemas, budgetBytes: reasoning.contextBudgetBytes, upstreamArtifacts, contextProvider: options.contextProvider ?? null });
   const { brief, path: briefPath } = await buildTaskBrief({ repositoryRoot, registry, plan, task: taskPlan, contextPacket: packet, schemas, maxAttempts: options.maxAttempts, reasoning });
