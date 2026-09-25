@@ -9,7 +9,7 @@ Keep one project-agnostic non-auto-discovered template at `config/opencode.templ
 Pinned integrations:
 
 - OpenCode host/server with repository-bound provenance plugin;
-- Headroom `0.36.5` wrapper/MCP;
+- Headroom `0.36.5` managed proxy/MCP plus `headroom-opencode@0.36.5` native host transport;
 - Serena `1.7.0` via `uvx`;
 - Context7 via environment-provided token;
 - codebase-memory-mcp via PATH/configured command;
@@ -21,3 +21,8 @@ Secrets are environment/runtime state and must never be committed. Durable conti
 
 
 > Runtime-child exception: ADR 0017 separates the Linux worker effective config into container-private ephemeral state. The project `.runtime/opencode.effective.json` authority described here applies to the persistent host OpenCode configuration/evidence.
+
+
+## Host launch authority
+
+ADR 0041 supersedes the historical host wrapper launch path. The persistent host now starts the pinned Headroom proxy under harness supervision and launches OpenCode directly with the pinned native Headroom transport plugin. Runtime children remain isolated from this host-only integration.
