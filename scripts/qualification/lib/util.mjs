@@ -30,13 +30,28 @@ export async function allocatePort() {
   });
 }
 
+export const QUALIFICATION_PORT_MIN = 20_000;
+export const QUALIFICATION_PORT_MAX = 29_999;
+const QUALIFICATION_PORT_ALLOCATION_ATTEMPTS = 512;
+
+async function allocateQualificationPort(used) {
+  const span = QUALIFICATION_PORT_MAX - QUALIFICATION_PORT_MIN + 1;
+  for (let attempt = 0; attempt < QUALIFICATION_PORT_ALLOCATION_ATTEMPTS; attempt += 1) {
+    const candidate = QUALIFICATION_PORT_MIN + (randomBytes(4).readUInt32BE(0) % span);
+    if (used.has(candidate)) continue;
+    if (await isPortFree(candidate)) return candidate;
+  }
+  throw new Error(
+    `qualification_port_bank_exhausted:${QUALIFICATION_PORT_MIN}-${QUALIFICATION_PORT_MAX}:${QUALIFICATION_PORT_ALLOCATION_ATTEMPTS}`,
+  );
+}
+
 export async function allocatePortSet() {
   const names = ["postgres", "rabbitmq", "rabbitmqManagement", "redis", "embeddings", "contextEngine", "opencode", "headroom"];
   const ports = {};
   const used = new Set();
   for (const name of names) {
-    let port;
-    do { port = await allocatePort(); } while (used.has(port));
+    const port = await allocateQualificationPort(used);
     used.add(port);
     ports[name] = port;
   }
