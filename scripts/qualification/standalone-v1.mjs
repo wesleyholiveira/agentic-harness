@@ -2574,6 +2574,50 @@ async function r9() {
     return null;
   }, { timeoutMs: 20 * 60_000, intervalMs: 250, label: "r9-replacement-behavior-started" });
 
+  // The replacement executor writes the durable resume receipt immediately when
+  // it loads the repair checkpoint, before behavior execution and without a
+  // second model invocation. Read that physical authority directly from the
+  // shared Runtime workspace. The Postgres event is only a later semantic
+  // projection emitted when execution.result reaches the finalizer.
+  const replacementResumeReceiptPath = `${target.handoffPath}.repair-resume-receipt.json`;
+  const replacementResumeReceiptRead = composeCommand([
+    "exec", "-T", "agent-runtime-worker", "node", "-e",
+    "const fs=require('node:fs');const p=process.argv[1];if(!fs.existsSync(p))process.exit(2);process.stdout.write(fs.readFileSync(p,'utf8'));",
+    replacementResumeReceiptPath,
+  ], {
+    allowExitCodes: [0, 2],
+    label: "r9-read-repair-resume-receipt",
+    timeoutMs: 30_000,
+  });
+  if (replacementResumeReceiptRead.exitCode !== 0 || !replacementResumeReceiptRead.stdout.trim()) {
+    hold("R-9", "RUNTIME", "r9_repair_resume_receipt_missing", {
+      target,
+      replacement,
+      replacementResumeReceiptPath,
+      semanticSnapshot: r9SemanticSnapshot(runId),
+    });
+  }
+  const replacementResumeReceipt = safeJson(replacementResumeReceiptRead.stdout);
+  const replacementResumeReceiptValid =
+    replacementResumeReceipt.contractVersion === "runtime-repair-resume-receipt/v1"
+    && replacementResumeReceipt.runId === runId
+    && replacementResumeReceipt.taskId === target.taskId
+    && Number(replacementResumeReceipt.taskAttempt) === replacement.attempt
+    && Number(replacementResumeReceipt.sourceTaskAttempt) === target.attempt
+    && Number(replacementResumeReceipt.dispatchGeneration) === replacement.dispatchGeneration
+    && Number(replacementResumeReceipt.fencingToken) === replacement.fencingToken
+    && replacementResumeReceipt.skippedFullAgentInvocation === true
+    && replacementResumeReceipt.sameTaskAttempt === true
+    && String(replacementResumeReceipt.checkpointEffectKey ?? "") === String(target.checkpointEffectKey);
+  if (!replacementResumeReceiptValid) {
+    hold("R-9", "RUNTIME", "r9_repair_resume_receipt_invalid", {
+      target,
+      replacement,
+      replacementResumeReceiptPath,
+      receipt: replacementResumeReceipt,
+    });
+  }
+
   const replacementBehaviorContainerName = behaviorContainerName({
     runId,
     taskId: target.taskId,
@@ -2659,50 +2703,6 @@ async function r9() {
     });
     return inspect.exitCode !== 0 ? new Date().toISOString() : null;
   }, { timeoutMs: 30_000, intervalMs: 100, label: "r9-replacement-behavior-container-removed" });
-
-  // The replacement executor writes the durable resume receipt immediately when
-  // it loads the repair checkpoint, before behavior execution and without a
-  // second model invocation. Read that physical authority directly from the
-  // shared Runtime workspace. The Postgres event is only a later semantic
-  // projection emitted when execution.result reaches the finalizer.
-  const replacementResumeReceiptPath = `${target.handoffPath}.repair-resume-receipt.json`;
-  const replacementResumeReceiptRead = composeCommand([
-    "exec", "-T", "agent-runtime-worker", "node", "-e",
-    "const fs=require('node:fs');const p=process.argv[1];if(!fs.existsSync(p))process.exit(2);process.stdout.write(fs.readFileSync(p,'utf8'));",
-    replacementResumeReceiptPath,
-  ], {
-    allowExitCodes: [0, 2],
-    label: "r9-read-repair-resume-receipt",
-    timeoutMs: 30_000,
-  });
-  if (replacementResumeReceiptRead.exitCode !== 0 || !replacementResumeReceiptRead.stdout.trim()) {
-    hold("R-9", "RUNTIME", "r9_repair_resume_receipt_missing", {
-      target,
-      replacement,
-      replacementResumeReceiptPath,
-      semanticSnapshot: r9SemanticSnapshot(runId),
-    });
-  }
-  const replacementResumeReceipt = safeJson(replacementResumeReceiptRead.stdout);
-  const replacementResumeReceiptValid =
-    replacementResumeReceipt.contractVersion === "runtime-repair-resume-receipt/v1"
-    && replacementResumeReceipt.runId === runId
-    && replacementResumeReceipt.taskId === target.taskId
-    && Number(replacementResumeReceipt.taskAttempt) === replacement.attempt
-    && Number(replacementResumeReceipt.sourceTaskAttempt) === target.attempt
-    && Number(replacementResumeReceipt.dispatchGeneration) === replacement.dispatchGeneration
-    && Number(replacementResumeReceipt.fencingToken) === replacement.fencingToken
-    && replacementResumeReceipt.skippedFullAgentInvocation === true
-    && replacementResumeReceipt.sameTaskAttempt === true
-    && String(replacementResumeReceipt.checkpointEffectKey ?? "") === String(target.checkpointEffectKey);
-  if (!replacementResumeReceiptValid) {
-    hold("R-9", "RUNTIME", "r9_repair_resume_receipt_invalid", {
-      target,
-      replacement,
-      replacementResumeReceiptPath,
-      receipt: replacementResumeReceipt,
-    });
-  }
 
   const gatewayAfterRecovery = JSON.parse(runner.run("docker", ["inspect", gatewayIdBeforeWorkerLoss], {
     label: "r9-gateway-after-recovery-inspect",
