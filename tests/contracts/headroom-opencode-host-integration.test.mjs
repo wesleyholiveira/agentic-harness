@@ -9,6 +9,7 @@ import {
   HEADROOM_OPENCODE_PLUGIN_SPEC,
   buildDirectOpenCodeInvocation,
   buildHeadroomEnvironment,
+  buildHeadroomProxyInvocation,
   runOpenCodeWithHeadroom,
 } from "../../scripts/internal/headroom-opencode.mjs";
 
@@ -38,6 +39,20 @@ test("Headroom-enabled host launches OpenCode directly instead of through headro
 
   const source = readFileSync(resolve(root, "scripts/internal/headroom-opencode.mjs"), "utf8");
   assert.doesNotMatch(source, /["']wrap["']\s*,\s*["']opencode["']/u);
+});
+
+test("Headroom proxy keeps local telemetry off by default and allows explicit qualification telemetry", () => {
+  const disabled = buildHeadroomProxyInvocation("18793", { PATH: process.env.PATH ?? "" }, "3.12");
+  assert.equal(disabled.args.includes("--no-telemetry"), true);
+  assert.equal(disabled.args.includes("--telemetry"), false);
+
+  const enabled = buildHeadroomProxyInvocation(
+    "18793",
+    { PATH: process.env.PATH ?? "", HEADROOM_TELEMETRY: "on" },
+    "3.12",
+  );
+  assert.equal(enabled.args.includes("--telemetry"), true);
+  assert.equal(enabled.args.includes("--no-telemetry"), false);
 });
 
 test("Headroom environment keeps outer proxy chaining without leaking competing provider base URLs", () => {
