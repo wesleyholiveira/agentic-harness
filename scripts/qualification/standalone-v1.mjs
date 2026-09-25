@@ -1083,7 +1083,14 @@ async function r5() {
   };
 }
 
-async function startQualifiedOpenCode(label = "opencode") {
+async function startQualifiedOpenCode(label = "opencode", gate = "R-6") {
+  if (!(await isPortFree(state.ports.opencode))) {
+    hold(gate, "ENVIRONMENT", "qualification_port_race_before_opencode_start", {
+      port: state.ports.opencode,
+      label,
+    });
+  }
+
   const baseEnv = {
     ...state.consumerEnv,
     AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256: state.pluginSha,
@@ -1101,13 +1108,53 @@ async function startQualifiedOpenCode(label = "opencode") {
     env: invocation.env,
     label,
   });
+
+  // Publish the child immediately so R-11 can clean it even if readiness fails.
+  state.opencode = { ...started, invocation };
+  let completion = null;
+  void started.completion.then((result) => {
+    completion = result;
+  });
+
   const auth = basicAuthHeaders(state.opencodeAuth.username, state.opencodeAuth.password);
   await waitFor(async () => {
+    if (started.spawnError) {
+      hold(gate, "QUALIFICATION PROCEDURE", "qualified_opencode_spawn_failed", {
+        port: state.ports.opencode,
+        label,
+        spawnError: started.spawnError.message ?? String(started.spawnError),
+        logPath: started.logPath,
+      });
+    }
+
+    if (completion || started.child.exitCode !== null) {
+      const result = completion ?? await started.completion;
+      hold(gate, "QUALIFICATION PROCEDURE", "qualified_opencode_exited_before_health", {
+        port: state.ports.opencode,
+        label,
+        exitCode: result.exitCode,
+        signal: result.signal,
+        spawnError: result.spawnError,
+        stdoutTail: String(result.stdout ?? "").slice(-4_000),
+        stderrTail: String(result.stderr ?? "").slice(-4_000),
+        captureOverflow: result.captureOverflow,
+        logPath: result.logPath ?? started.logPath,
+      });
+    }
+
     try {
       const health = await requestJson(`http://127.0.0.1:${state.ports.opencode}/global/health`, { headers: auth, timeoutMs: 2_000, allowStatuses: [200] });
       return health.body?.healthy === true ? health.body : null;
-    } catch { return null; }
-  }, { timeoutMs: 2 * 60_000, intervalMs: 500, label: "opencode-health" });
+    } catch {
+      return null;
+    }
+  }, {
+    timeoutMs: 2 * 60_000,
+    intervalMs: 500,
+    label: "opencode-health",
+    shouldRetryError: shouldRetryQualificationPollError,
+  });
+
   const listeningPid = resolveListeningPid(state.ports.opencode) || started.child.pid;
   return { ...started, baseUrl: `http://127.0.0.1:${state.ports.opencode}`, authHeaders: auth, listeningPid, invocation };
 }
@@ -3003,7 +3050,7 @@ async function r10() {
     label: "r10-continuation-deferred",
     shouldRetryError: shouldRetryQualificationPollError,
   });
-  state.opencode = await startQualifiedOpenCode("r10-opencode-restart");
+  state.opencode = await startQualifiedOpenCode("r10-opencode-restart", "R-10");
   const recovered = await waitForContinuationObserved(runId, sessionId, { gate: "R-10" });
   const accepted = recovered.observation.delivery;
   mustRun("R-10", "RUNTIME", "npm", ["--prefix", state.consumers.A, "test"], { label: "r10-consumer-validation" });
