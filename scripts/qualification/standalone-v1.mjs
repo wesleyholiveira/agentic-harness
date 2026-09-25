@@ -2660,29 +2660,49 @@ async function r9() {
     return inspect.exitCode !== 0 ? new Date().toISOString() : null;
   }, { timeoutMs: 30_000, intervalMs: 100, label: "r9-replacement-behavior-container-removed" });
 
-  const replacementResumeReceipt = await waitFor(() => {
-    const rows = sqlRows(`
-      SELECT payload_json
-      FROM agent_events
-      WHERE run_id='${sqlQuote(runId)}'
-        AND task_id='${sqlQuote(target.taskId)}'
-        AND event_type='repair.resume_checkpoint_loaded'
-      ORDER BY created_at DESC
-      LIMIT 8;
-    `);
-    for (const [payloadJson] of rows) {
-      const payload = safeJson(payloadJson);
-      if (Number(payload.taskAttempt) === replacement.attempt
-        && Number(payload.dispatchGeneration) === replacement.dispatchGeneration
-        && Number(payload.fencingToken) === replacement.fencingToken
-        && payload.skippedFullAgentInvocation === true
-        && payload.sameTaskAttempt === true
-        && String(payload.checkpointEffectKey ?? "") === String(target.checkpointEffectKey)) {
-        return payload;
-      }
-    }
-    return null;
-  }, { timeoutMs: 2 * 60_000, intervalMs: 250, label: "r9-repair-resume-receipt" });
+  // The replacement executor writes the durable resume receipt immediately when
+  // it loads the repair checkpoint, before behavior execution and without a
+  // second model invocation. Read that physical authority directly from the
+  // shared Runtime workspace. The Postgres event is only a later semantic
+  // projection emitted when execution.result reaches the finalizer.
+  const replacementResumeReceiptPath = `${target.handoffPath}.repair-resume-receipt.json`;
+  const replacementResumeReceiptRead = composeCommand([
+    "exec", "-T", "agent-runtime-worker", "node", "-e",
+    "const fs=require('node:fs');const p=process.argv[1];if(!fs.existsSync(p))process.exit(2);process.stdout.write(fs.readFileSync(p,'utf8'));",
+    replacementResumeReceiptPath,
+  ], {
+    allowExitCodes: [0, 2],
+    label: "r9-read-repair-resume-receipt",
+    timeoutMs: 30_000,
+  });
+  if (replacementResumeReceiptRead.exitCode !== 0 || !replacementResumeReceiptRead.stdout.trim()) {
+    hold("R-9", "RUNTIME", "r9_repair_resume_receipt_missing", {
+      target,
+      replacement,
+      replacementResumeReceiptPath,
+      semanticSnapshot: r9SemanticSnapshot(runId),
+    });
+  }
+  const replacementResumeReceipt = safeJson(replacementResumeReceiptRead.stdout);
+  const replacementResumeReceiptValid =
+    replacementResumeReceipt.contractVersion === "runtime-repair-resume-receipt/v1"
+    && replacementResumeReceipt.runId === runId
+    && replacementResumeReceipt.taskId === target.taskId
+    && Number(replacementResumeReceipt.taskAttempt) === replacement.attempt
+    && Number(replacementResumeReceipt.sourceTaskAttempt) === target.attempt
+    && Number(replacementResumeReceipt.dispatchGeneration) === replacement.dispatchGeneration
+    && Number(replacementResumeReceipt.fencingToken) === replacement.fencingToken
+    && replacementResumeReceipt.skippedFullAgentInvocation === true
+    && replacementResumeReceipt.sameTaskAttempt === true
+    && String(replacementResumeReceipt.checkpointEffectKey ?? "") === String(target.checkpointEffectKey);
+  if (!replacementResumeReceiptValid) {
+    hold("R-9", "RUNTIME", "r9_repair_resume_receipt_invalid", {
+      target,
+      replacement,
+      replacementResumeReceiptPath,
+      receipt: replacementResumeReceipt,
+    });
+  }
 
   const gatewayAfterRecovery = JSON.parse(runner.run("docker", ["inspect", gatewayIdBeforeWorkerLoss], {
     label: "r9-gateway-after-recovery-inspect",
@@ -2705,7 +2725,6 @@ async function r9() {
     });
   }
 
-  const events = sqlRows(`SELECT event_type,payload_json,coalesce(task_id,'') FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND task_id='${sqlQuote(target.taskId)}' AND event_type LIKE 'repair.%' ORDER BY created_at;`).map(([eventType, payloadJson, taskId]) => ({ event_type: eventType, task_id: taskId, payload_json: safeJson(payloadJson) }));
   const sourceIdentity = {
     taskId: target.taskId,
     attempt: target.attempt,
@@ -2733,6 +2752,35 @@ async function r9() {
       gatewayRestartCount: Number(gatewayBeforeWorkerLoss?.RestartCount ?? 0),
     },
   };
+  const terminal = await waitForTerminalRun(runId, { gate: "R-9" });
+
+  // By terminalization, the semantic finalizer must have projected the physical
+  // resume receipt exactly once into agent_events. Do not impose an independent
+  // 120s wall-clock deadline before terminalization; the Runtime liveness
+  // watchdog already owns the execution budget.
+  const events = sqlRows(`SELECT event_type,payload_json,coalesce(task_id,'') FROM agent_events WHERE run_id='${sqlQuote(runId)}' AND task_id='${sqlQuote(target.taskId)}' AND event_type LIKE 'repair.%' ORDER BY created_at;`).map(([eventType, payloadJson, taskId]) => ({ event_type: eventType, task_id: taskId, payload_json: safeJson(payloadJson) }));
+  const projectedResumeReceipts = events
+    .filter((event) => event.event_type === "repair.resume_checkpoint_loaded")
+    .map((event) => event.payload_json)
+    .filter((payload) =>
+      Number(payload.taskAttempt) === replacement.attempt
+      && Number(payload.dispatchGeneration) === replacement.dispatchGeneration
+      && Number(payload.fencingToken) === replacement.fencingToken
+      && payload.skippedFullAgentInvocation === true
+      && payload.sameTaskAttempt === true
+      && String(payload.checkpointEffectKey ?? "") === String(target.checkpointEffectKey)
+    );
+  if (projectedResumeReceipts.length !== 1) {
+    hold("R-9", "RUNTIME", "r9_repair_resume_event_not_projected_after_terminal", {
+      target,
+      replacement,
+      physicalReceipt: replacementResumeReceipt,
+      terminal,
+      projectedResumeReceipts,
+      repairEvents: events,
+    });
+  }
+
   const evaluation = evaluateH9RRecoveryEvidence({
     sourceIdentity,
     replacementIdentity: replacement,
@@ -2743,7 +2791,6 @@ async function r9() {
     hold("R-9", "RUNTIME", "r9_process_loss_recovery_evidence_invalid", { sourceIdentity, replacementIdentity: replacement, events, evaluation });
   }
 
-  const terminal = await waitForTerminalRun(runId, { gate: "R-9" });
   if (terminal.status !== "closed") {
     hold("R-9", "RUNTIME", "r9_post_recovery_semantic_run_failed", {
       runId,
