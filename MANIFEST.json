@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 694,
-  "treeSha256": "sha256:5158bb6c28b4dd524a42c7336c469ea1ae4781f55afebf48221f7d9906f5a3d0",
+  "treeSha256": "sha256:640c58187f2780eb15eb53c5aee82fd2582cd8322852b8db9fff68a10c81f90d",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -3113,9 +3113,9 @@
       "sha256": "sha256:faece00a95b858fc857dfb44de82fd438d4bb0c3fb5e4b551fbdad9bb67497a9"
     },
     {
-      "bytes": 51044,
+      "bytes": 52040,
       "path": "tests/contracts/qualification-controller.test.mjs",
-      "sha256": "sha256:055857685ae2667df1e53212a5c5f5ca08fbc323ff13c6a501673284447732e0"
+      "sha256": "sha256:aed7ba1a2f61eaacb0e37b1891c6aa5de6a2dd2375ae4c02808e2b704d2d7940"
     },
     {
       "bytes": 1982,
