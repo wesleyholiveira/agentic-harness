@@ -138,6 +138,36 @@ test("qualification product-namespace scanner does not self-match outside histor
 
 
 
+test("qualification port set stays in the stable non-ephemeral bank and remains unique", async () => {
+  const {
+    QUALIFICATION_PORT_MIN,
+    QUALIFICATION_PORT_MAX,
+    allocatePortSet,
+  } = await import("../../scripts/qualification/lib/util.mjs");
+  const ports = await allocatePortSet();
+  const values = Object.values(ports);
+  assert.equal(values.length, 8);
+  assert.equal(new Set(values).size, values.length);
+  assert.ok(values.every((port) => port >= QUALIFICATION_PORT_MIN && port <= QUALIFICATION_PORT_MAX));
+  assert.equal(QUALIFICATION_PORT_MIN, 20_000);
+  assert.equal(QUALIFICATION_PORT_MAX, 29_999);
+});
+
+test("qualified OpenCode startup detects a late port race and child exit before health", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const section = controller.slice(
+    controller.indexOf("async function startQualifiedOpenCode"),
+    controller.indexOf("function resolveListeningPid"),
+  );
+  assert.match(section, /qualification_port_race_before_opencode_start/u);
+  assert.match(section, /started\.completion/u);
+  assert.match(section, /qualified_opencode_spawn_failed/u);
+  assert.match(section, /qualified_opencode_exited_before_health/u);
+  assert.match(section, /stdoutTail/u);
+  assert.match(section, /stderrTail/u);
+  assert.match(section, /shouldRetryError:\s*shouldRetryQualificationPollError/u);
+});
+
 test("qualification HTTP layer preserves transport cause and request authority", async () => {
   const { requestJson } = await import("../../scripts/qualification/lib/http.mjs");
   const server = createServer();
