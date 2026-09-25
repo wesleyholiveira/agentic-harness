@@ -271,6 +271,16 @@ test("public migrate is submodule-safe and executes the containerized migrator i
 test("OpenCode effective config is generated under the consuming project runtime root", () => {
   const consumerRoot = mkdtempSync(join(tmpdir(), "agentic-harness-consumer with space-"));
   const harnessRuntimeFile = resolve(root, ".runtime", "opencode.effective.json");
+  const headroomPluginPath = resolve(
+    consumerRoot,
+    "headroom",
+    "providers",
+    "opencode",
+    "_dist",
+    "entry.opencode.js",
+  );
+  mkdirSync(dirname(headroomPluginPath), { recursive: true });
+  writeFileSync(headroomPluginPath, "export default async () => ({ tool: {} });\n", "utf8");
   rmSync(harnessRuntimeFile, { force: true });
   try {
     const result = spawnSync(process.execPath, [resolve(root, "scripts", "generate-opencode-config.mjs")], {
@@ -282,6 +292,7 @@ test("OpenCode effective config is generated under the consuming project runtime
         AGENT_HARNESS_CONTEXT_ENGINE_MCP_URL: "",
         CONTEXT7_API_KEY: "",
         HEADROOM_PROXY_PORT: "18893",
+        HEADROOM_OPENCODE_PLUGIN_PATH: headroomPluginPath,
         CODEBASE_MEMORY_MCP_COMMAND: process.execPath,
       },
       encoding: "utf8",
@@ -305,7 +316,8 @@ test("OpenCode effective config is generated under the consuming project runtime
       resolve(root, ".agents/skills").replaceAll("\\", "/"),
     ]);
     assert.equal(config.plugin.some((entry) => String(entry).startsWith("superpowers@")), false);
-    assert.equal(config.plugin.includes("headroom-opencode@0.36.5"), true);
+    assert.equal(config.plugin.includes(headroomPluginPath.replaceAll("\\", "/")), true);
+    assert.equal(config.plugin.some((entry) => String(entry).startsWith("headroom-opencode@")), false);
     assert.equal(config.small_model, "openai/gpt-5.6-luna");
     assert.equal(config.provider?.headroom, undefined, "native transport must not replace harness model routing");
     for (const skill of JSON.parse(readFileSync(resolve(root, "vendor/superpowers/lock.json"), "utf8")).skills) {
@@ -360,7 +372,13 @@ test("runtime-child OpenCode effective config is container-private and cannot cl
     const child = JSON.parse(readFileSync(childConfig, "utf8"));
     assert.equal(child.mcp.serena.enabled, false);
     assert.equal(child.mcp.headroom.enabled, false);
-    assert.equal(child.plugin.some((entry) => String(entry).startsWith("headroom-opencode")), false);
+    assert.equal(
+      child.plugin.some((entry) =>
+        String(entry).replaceAll("\\", "/").endsWith("/headroom/providers/opencode/_dist/entry.opencode.js"),
+      ),
+      false,
+    );
+    assert.equal(child.plugin.some((entry) => String(entry).startsWith("headroom-opencode@")), false);
     assert.equal(child.mcp["codebase-memory-mcp"].enabled, false);
     assert.equal(child.mcp["context-engine"].url, "http://context-engine:8789/mcp");
     assert.ok(child.skills.paths.includes(resolve(root, "vendor/superpowers/skills").replaceAll("\\", "/")));
@@ -391,7 +409,13 @@ test("persistent host can explicitly disable both Headroom transport plugin and 
     const output = (result.stdout || "").trim().split(/\r?\n/).at(-1);
     const config = JSON.parse(readFileSync(output, "utf8"));
     assert.equal(config.mcp.headroom.enabled, false);
-    assert.equal(config.plugin.some((entry) => String(entry).startsWith("headroom-opencode")), false);
+    assert.equal(
+      config.plugin.some((entry) =>
+        String(entry).replaceAll("\\", "/").endsWith("/headroom/providers/opencode/_dist/entry.opencode.js"),
+      ),
+      false,
+    );
+    assert.equal(config.plugin.some((entry) => String(entry).startsWith("headroom-opencode@")), false);
   } finally {
     rmSync(consumerRoot, { recursive: true, force: true });
   }
