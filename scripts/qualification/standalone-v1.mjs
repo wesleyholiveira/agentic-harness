@@ -1002,7 +1002,6 @@ async function r5() {
   const env = {
     ...state.consumerEnv,
     AGENT_HARNESS_RUNTIME_INVOCATION_PROVENANCE_PLUGIN_SHA256: state.pluginSha,
-    HEADROOM_TELEMETRY: "on",
   };
   if (state.headroom) hold("R-5", "QUALIFICATION PROCEDURE", "headroom_already_started");
   state.headroom = await startHeadroomProxy({ baseEnv: env, port: String(state.ports.headroom) });
