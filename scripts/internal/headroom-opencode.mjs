@@ -152,20 +152,9 @@ export function buildHeadroomInvocation(headroomArgs, baseEnv = process.env, pyt
   };
 }
 
-export function headroomLocalTelemetryEnabled(baseEnv = process.env) {
-  return ["1", "true", "on", "yes"].includes(String(baseEnv.HEADROOM_TELEMETRY ?? "off").trim().toLowerCase());
-}
-
 export function buildHeadroomProxyInvocation(port, baseEnv = process.env, python = HEADROOM_UVX_PYTHON_CANDIDATES[0]) {
   return buildHeadroomInvocation(
-    [
-      "proxy",
-      "--host",
-      "127.0.0.1",
-      "--port",
-      String(port),
-      headroomLocalTelemetryEnabled(baseEnv) ? "--telemetry" : "--no-telemetry",
-    ],
+    ["proxy", "--host", "127.0.0.1", "--port", String(port), "--no-telemetry"],
     baseEnv,
     python,
   );
