@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { HEADROOM_OPENCODE_PLUGIN_SPEC, HEADROOM_VERSION } from "./internal/headroom-opencode.mjs";
 import { resolveCodebaseMemoryExecutable } from "./internal/tool-resolution.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -27,6 +28,8 @@ function expand(value) {
 const configSource = await readFile(resolve(root, "config", "opencode.template.jsonc"), "utf8");
 const config = expand(JSON.parse(stripJsonComments(configSource)));
 config.mcp["context-engine"].url = process.env.AGENT_HARNESS_CONTEXT_ENGINE_MCP_URL?.trim() || "http://127.0.0.1:8789/mcp";
+const runtimeChild = process.env.AGENT_HARNESS_OPENCODE_RUNTIME_CHILD === "1";
+const headroomEnabled = String(process.env.AGENT_HARNESS_HEADROOM_ENABLED ?? "true").toLowerCase() !== "false";
 const context7Key = process.env.CONTEXT7_API_KEY?.trim();
 if (config.mcp.context7) {
   config.mcp.context7.enabled = Boolean(context7Key);
@@ -45,13 +48,14 @@ if (config.mcp.headroom) {
     "--python",
     "3.12",
     "--from",
-    "headroom-ai[mcp]==0.36.5",
+    `headroom-ai[mcp]==${HEADROOM_VERSION}`,
     "headroom",
     "mcp",
     "serve",
     "--proxy-url",
     `http://127.0.0.1:${headroomPort}`,
   ];
+  config.mcp.headroom.enabled = headroomEnabled && !runtimeChild;
 }
 
 const codebaseMemoryExecutable = resolveCodebaseMemoryExecutable(process.env);
@@ -59,7 +63,13 @@ if (config.mcp["codebase-memory-mcp"] && codebaseMemoryExecutable) {
   config.mcp["codebase-memory-mcp"].command = [codebaseMemoryExecutable];
 }
 
-const runtimeChild = process.env.AGENT_HARNESS_OPENCODE_RUNTIME_CHILD === "1";
+if (Array.isArray(config.plugin)) {
+  config.plugin = config.plugin.filter((entry) => !String(entry).startsWith("headroom-opencode"));
+  if (headroomEnabled && !runtimeChild) {
+    config.plugin.push(HEADROOM_OPENCODE_PLUGIN_SPEC);
+  }
+}
+
 if (runtimeChild) {
   for (const name of ["serena", "headroom", "codebase-memory-mcp", "caveman"]) {
     if (config.mcp[name]) config.mcp[name].enabled = false;
