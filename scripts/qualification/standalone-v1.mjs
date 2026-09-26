@@ -1490,10 +1490,16 @@ async function waitForRunId(sessionId, {
     }
 
     const agentStartAttempted = tools.some((name) => name === "agent_start" || name.endsWith("_agent_start"));
-    const completedAssistant = diagnostics.find((entry) => entry.completedAt || entry.finish);
-    if (completedAssistant && !agentStartAttempted) {
+    const latestAssistant = diagnostics.at(-1) ?? null;
+    const assistantTerminal = Boolean(
+      latestAssistant?.completedAt
+      && latestAssistant?.finish
+      && !["tool-calls", "unknown"].includes(latestAssistant.finish),
+    );
+    if (assistantTerminal && !agentStartAttempted) {
       hold(gate, "RUNTIME", "r7_main_orchestrator_completed_without_runtime_ingress", {
         sessionId, request, tools,
+        assistant: latestAssistant,
         assistantTexts: assistantTexts(history).slice(-5),
         assistantDiagnostics: diagnostics.slice(-5),
         opencodeHostDiagnostics: opencodeHostDiagnosticLines(sessionId),
