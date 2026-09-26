@@ -24,6 +24,7 @@ import {
 } from "../../packages/harness-contracts/src/execution-fence.mjs";
 import { bindWorkspaceAuthorityInputs } from "../../packages/project-adapters/src/workspace-binding.mjs";
 import { probeDockerImageSourceAttestation } from "../../packages/project-adapters/src/docker-image-attestation.mjs";
+import { probeDockerRunnerMaterialization } from "../../packages/project-adapters/src/docker-materialization-v2.mjs";
 import { evaluateBehaviorAdmission } from "../../packages/project-adapters/src/behavior-executor-v2.mjs";
 import {
   executeBehaviorUnderTaskFence,
@@ -216,6 +217,68 @@ function fixture(t) {
     commandId: cmd.id,
   };
 }
+
+test("Docker materialization probe uses a practical per-call budget within the overall deadline", t => {
+  const f = fixture(t);
+  const observed = [];
+  const result = probeDockerRunnerMaterialization(
+    { spec: f.spec, sourceBinding: f.sourceBinding },
+    {
+      root: f.root,
+      timeoutMs: 60_000,
+      execute: (argv, { timeoutMs }) => {
+        observed.push({ argv, timeoutMs });
+        if (argv.includes("info")) {
+          return { status: 0, stdout: JSON.stringify("daemon-alpha"), stderr: "" };
+        }
+        if (argv.includes("ls")) {
+          return { status: 0, stdout: `${IMAGE}\n`, stderr: "" };
+        }
+        if (argv.includes("inspect")) {
+          return {
+            status: 0,
+            stdout: JSON.stringify({ id: IMAGE, os: "linux", architecture: "amd64", variant: null }),
+            stderr: "",
+          };
+        }
+        throw new Error(`unexpected docker argv: ${argv.join(" ")}`);
+      },
+    },
+  );
+
+  assert.equal(result.status, "MATERIALIZED");
+  assert.equal(result.calls, 3);
+  assert.equal(observed.length, 3);
+  assert.ok(observed.every((call) => call.timeoutMs > 4_000));
+  assert.ok(observed.every((call) => call.timeoutMs <= 15_000));
+});
+
+test("Docker materialization timeout identifies the exact observation that exhausted its call budget", t => {
+  const f = fixture(t);
+  const result = probeDockerRunnerMaterialization(
+    { spec: f.spec, sourceBinding: f.sourceBinding },
+    {
+      root: f.root,
+      timeoutMs: 60_000,
+      execute: (_argv, { timeoutMs }) => ({
+        status: null,
+        stdout: "",
+        stderr: "",
+        error: { code: "ETIMEDOUT" },
+        timeoutMs,
+      }),
+    },
+  );
+
+  assert.equal(result.status, "HOLD");
+  assert.equal(result.code, "docker_materialization_timeout");
+  assert.equal(result.calls, 1);
+  assert.equal(result.evidence.operation, "daemon-info");
+  assert.equal(result.evidence.callIndex, 1);
+  assert.ok(result.evidence.callTimeoutMs > 4_000);
+  assert.ok(result.evidence.callTimeoutMs <= 15_000);
+  assert.equal(result.evidence.timeoutMs, 60_000);
+});
 
 test("valid image/source attestation matches source binding and materialization", t => {
   const f = fixture(t);
