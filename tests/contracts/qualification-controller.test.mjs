@@ -296,6 +296,21 @@ test("R-4 proves Context Engine and Runtime worker share the same execution-work
   assert.match(controller, /workspaceAuthority/);
 });
 
+test("R-3 Docker materialization timeout is environment evidence with exact probe context", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const behavior = readFileSync(resolve(root, "scripts/qualification/lib/source-attested-behavior.mjs"), "utf8");
+  const materialization = readFileSync(resolve(root, "packages/project-adapters/src/docker-materialization-v2.mjs"), "utf8");
+
+  assert.match(controller, /code === "docker_materialization_timeout"[\s\S]*\? "ENVIRONMENT"/u);
+  assert.match(controller, /code === "docker_command_unavailable"/u);
+  assert.match(behavior, /calls: materialized\.calls/u);
+  assert.match(behavior, /probe: materialized\.evidence \?\? \{\}/u);
+  assert.match(materialization, /DOCKER_OBSERVATION_CALL_TIMEOUT_MS = 15_000/u);
+  assert.match(materialization, /operation: 'overall-budget'/u);
+  assert.match(materialization, /callTimeoutMs/u);
+  assert.match(materialization, /evidence: error instanceof ProbeError \? error\.evidence : \{\}/u);
+});
+
 test("R-7 current-user authority is exercised with OpenCode file expansion", () => {
   const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
   const r7Section = controller.slice(controller.indexOf("async function r7()"), controller.indexOf("async function waitForContinuationObserved"));
