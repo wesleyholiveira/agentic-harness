@@ -10,7 +10,7 @@
     "pluginSha256": "sha256:73ea2df1958a2fa2579bb496151e7a66a127b7d6726490ef219ee62b3948a09b"
   },
   "fileCount": 694,
-  "treeSha256": "sha256:b25105662a90547dcec35d2277f90223fbb3c3d748b4ca34b15cff1f3a9d2048",
+  "treeSha256": "sha256:faf69358bbe2a73134167bcec8bc0b0c0854822360ed30f5a605a9af4b8a7fe6",
   "treeHashAlgorithm": "sha256(canonical-json(git tracked files excluding MANIFEST.json, sorted by path; UTF-8; compact separators))",
   "exclusions": [
     "MANIFEST.json (self)",
@@ -1993,9 +1993,9 @@
       "sha256": "sha256:2092317a5ef1b6e6588698aa8a76a699a5cd1829bd3ebb7c78c8ebb520e0900c"
     },
     {
-      "bytes": 8459,
+      "bytes": 8678,
       "path": "docs/qualification/STANDALONE-PROMOTION.md",
-      "sha256": "sha256:4e4340dd0b90ae748a35bda446f8135ed021cf7ee9e73e28301aff4d6e1b3797"
+      "sha256": "sha256:3a379ed77f9bf2129714a1dd7394c11bb851036504ea79d63ad6dba047abb878"
     },
     {
       "bytes": 364,
@@ -2973,9 +2973,9 @@
       "sha256": "sha256:9626b1e3ae2a31b402821ed5cbfbba8150607e02697d5496b7ed9941a8b51668"
     },
     {
-      "bytes": 157209,
+      "bytes": 157982,
       "path": "scripts/qualification/standalone-v1.mjs",
-      "sha256": "sha256:5244d7f00bb67c178cae7aad3ce66cfbd0bbd67c10b0e62282ee57eb647d2ba2"
+      "sha256": "sha256:ad4c64d8cbb6163562ffeb52f9206b7114549bb0f39808d3608cdcbc3703aaeb"
     },
     {
       "bytes": 27172,
@@ -3113,9 +3113,9 @@
       "sha256": "sha256:faece00a95b858fc857dfb44de82fd438d4bb0c3fb5e4b551fbdad9bb67497a9"
     },
     {
-      "bytes": 54268,
+      "bytes": 55348,
       "path": "tests/contracts/qualification-controller.test.mjs",
-      "sha256": "sha256:8fe78669d4a7ada8206ff7d8cd5acea49098d9220892b0a2fe1fb92648b81cc5"
+      "sha256": "sha256:542a7a0911e0ab280348aa3622160741bc29336be51e8b52aa6d5dcdbb8a254a"
     },
     {
       "bytes": 1982,
