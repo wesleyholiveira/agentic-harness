@@ -78,6 +78,8 @@ export function buildSourceAttestedQualificationImage({
     failure("qualification_behavior_runner_materialization_failed", {
       code: materialized.code,
       runnerId: spec.id,
+      calls: materialized.calls,
+      probe: materialized.evidence ?? {},
     });
   }
   const attested = probeDockerImageSourceAttestation(

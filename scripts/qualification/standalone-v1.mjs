@@ -601,7 +601,12 @@ function buildQualificationBehaviorImage(consumerRoot) {
       run: (command, args, options) => runner.run(command, args, options),
     });
   } catch (error) {
-    hold("R-3", "SOURCE", error?.message ?? "qualification_behavior_runner_failed", error?.evidence ?? {});
+    const code = String(error?.evidence?.code ?? "");
+    const classification = code === "docker_materialization_timeout"
+      || code === "docker_command_unavailable"
+      ? "ENVIRONMENT"
+      : "SOURCE";
+    hold("R-3", classification, error?.message ?? "qualification_behavior_runner_failed", error?.evidence ?? {});
   }
 }
 
@@ -1370,6 +1375,46 @@ function assistantTexts(history) {
   return values;
 }
 
+function assistantDiagnostics(history) {
+  return history
+    .filter((message) => message?.info?.role === "assistant")
+    .map((message) => ({
+      messageId: message.info?.id ?? null,
+      agent: message.info?.agent ?? null,
+      providerId: message.info?.providerID ?? null,
+      modelId: message.info?.modelID ?? null,
+      finish: message.info?.finish ?? null,
+      error: message.info?.error ?? null,
+      createdAt: message.info?.time?.created ?? null,
+      completedAt: message.info?.time?.completed ?? null,
+      partTypes: (message.parts ?? []).map((part) => part?.type ?? null).filter(Boolean),
+      toolStates: (message.parts ?? [])
+        .filter((part) => part?.type === "tool")
+        .map((part) => ({
+          tool: part?.tool ?? null,
+          status: part?.state?.status ?? null,
+          providerExecuted: part?.metadata?.providerExecuted === true,
+          interrupted: part?.state?.metadata?.interrupted === true,
+          error: part?.state?.error ?? null,
+        })),
+    }));
+}
+
+function opencodeHostDiagnosticLines(sessionId, maxChars = 12_000) {
+  try {
+    const logPath = state.opencode?.logPath;
+    if (!logPath || !existsSync(logPath)) return "";
+    return stripAnsi(readFileSync(logPath, "utf8"))
+      .split(/\r?\n/u)
+      .filter((line) => line.includes(sessionId) || /prompt_async|provider|model|headroom|error|failed|exception|unauthorized|rate.?limit/i.test(line))
+      .slice(-80)
+      .join("\n")
+      .slice(-maxChars);
+  } catch (error) {
+    return `opencode_host_log_unavailable:${String(error?.code ?? error?.message ?? error)}`;
+  }
+}
+
 function worktreeFingerprint() {
   const status = runner.run("git", ["-C", state.consumers.A, "status", "--porcelain=v1", "--untracked-files=all"], { label: "consumer-worktree-status" }).stdout;
   const diff = runner.run("git", ["-C", state.consumers.A, "diff", "--no-ext-diff", "--binary", "HEAD", "--"], { label: "consumer-worktree-diff" }).stdout;
@@ -1408,85 +1453,128 @@ function requireAgentStartCurrentTurnProvenance(runId, sessionId, gate = "R-7") 
   };
 }
 
+const R7_RUNTIME_INGRESS_SOFT_TIMEOUT_MS = 90_000;
+const R7_RUNTIME_INGRESS_SAFETY_CEILING_MS = 10 * 60_000;
+
 async function waitForRunId(sessionId, {
-  timeoutMs = 90_000,
+  timeoutMs = R7_RUNTIME_INGRESS_SOFT_TIMEOUT_MS,
   gate = "R-7",
   baselineWorktree = worktreeFingerprint(),
   request = null,
+  headroomBaseline = null,
 } = {}) {
   const direct = new Set(["write", "edit", "apply_patch", "bash", "task"]);
-  try {
-    return await waitFor(async () => {
-      const continuationRunId = sqlScalar(`SELECT run_id FROM agent_continuations WHERE opencode_session_id='${sqlQuote(sessionId)}' ORDER BY created_at DESC LIMIT 1;`);
-      if (continuationRunId) return continuationRunId;
+  const startedAtMs = Date.now();
+  let nextProgressLogAt = 0;
+  let softBoundaryObservation = null;
 
-      if (request) {
-        const runs = sqlRows(`SELECT run_id,status,created_at FROM agent_runs WHERE request='${sqlQuote(request)}' ORDER BY created_at DESC LIMIT 2;`);
-        if (runs.length > 1) hold(gate, "RUNTIME", "multiple_runtime_runs_for_single_qualification_request", { sessionId, request, runs });
-        if (runs.length === 1) return runs[0][0];
-      }
+  while (true) {
+    const continuationRunId = sqlScalar(`SELECT run_id FROM agent_continuations WHERE opencode_session_id='${sqlQuote(sessionId)}' ORDER BY created_at DESC LIMIT 1;`);
+    if (continuationRunId) return continuationRunId;
 
-      const currentWorktree = worktreeFingerprint();
-      if (currentWorktree !== baselineWorktree) hold(gate, "RUNTIME", "persistent_main_orchestrator_mutated_consumer_before_run_id", { sessionId, baselineWorktree, currentWorktree });
-      const history = await openCodeHistory(sessionId);
-      const tools = toolNames(history);
-      const bypass = tools.find((name) => direct.has(name) || name.startsWith("serena_"));
-      if (bypass) hold(gate, "RUNTIME", "main_orchestrator_routing_violation", { bypass, tools, sessionId });
-      return null;
-    }, {
-      timeoutMs,
-      intervalMs: 750,
-      label: `${gate}-agent-start-run-id`,
-      shouldRetryError: shouldRetryQualificationPollError,
-    });
-  } catch (error) {
-    if (!String(error?.message ?? error).startsWith("qualification_wait_timeout:")) throw error;
+    if (request) {
+      const runs = sqlRows(`SELECT run_id,status,created_at FROM agent_runs WHERE request='${sqlQuote(request)}' ORDER BY created_at DESC LIMIT 2;`);
+      if (runs.length > 1) hold(gate, "RUNTIME", "multiple_runtime_runs_for_single_qualification_request", { sessionId, request, runs });
+      if (runs.length === 1) return runs[0][0];
+    }
 
-    const history = await openCodeHistory(sessionId).catch(() => []);
-    const tools = toolNames(history);
     const currentWorktree = worktreeFingerprint();
-    const recentRuns = request
-      ? sqlRows(`SELECT run_id,status,created_at FROM agent_runs WHERE request='${sqlQuote(request)}' ORDER BY created_at DESC LIMIT 5;`)
-      : [];
-    const continuations = sqlRows(`SELECT run_id,status,created_at FROM agent_continuations WHERE opencode_session_id='${sqlQuote(sessionId)}' ORDER BY created_at DESC LIMIT 5;`);
-    const logs = composeCommand(["logs", "--no-color", "context-engine"], { label: `${gate.toLowerCase()}-run-id-timeout-context-engine-logs` }).stdout;
-    const provenanceLogHint = logs.includes("mcp.invocation_provenance_registered")
-      && logs.includes(sessionId)
-      && logs.includes("agent_start");
-
     if (currentWorktree !== baselineWorktree) {
-      hold(gate, "RUNTIME", "persistent_main_orchestrator_mutated_consumer_before_run_id", {
-        sessionId, baselineWorktree, currentWorktree, tools,
+      hold(gate, "RUNTIME", "persistent_main_orchestrator_mutated_consumer_before_run_id", { sessionId, baselineWorktree, currentWorktree });
+    }
+
+    const history = await openCodeHistory(sessionId);
+    const tools = toolNames(history);
+    const bypass = tools.find((name) => direct.has(name) || name.startsWith("serena_"));
+    if (bypass) hold(gate, "RUNTIME", "main_orchestrator_routing_violation", { bypass, tools, sessionId });
+
+    const diagnostics = assistantDiagnostics(history);
+    const explicitAssistantError = diagnostics.find((entry) => entry.error);
+    if (explicitAssistantError) {
+      hold(gate, "RUNTIME", "r7_main_orchestrator_assistant_error_before_runtime", {
+        sessionId, request, tools, assistant: explicitAssistantError,
+        assistantDiagnostics: diagnostics.slice(-5),
+        opencodeHostDiagnostics: opencodeHostDiagnosticLines(sessionId),
       });
     }
 
-    const recentAssistantTexts = assistantTexts(history).slice(-5);
     const agentStartAttempted = tools.some((name) => name === "agent_start" || name.endsWith("_agent_start"));
-    const runtimeValidationText = recentAssistantTexts.find((text) => /schema_validation_failed|additional property not allowed|executionPlan\./i.test(text)) ?? null;
-    const message = runtimeValidationText && agentStartAttempted
-      ? "r7_agent_start_rejected_by_runtime_validation"
-      : provenanceLogHint
-        ? "r7_agent_start_provenance_log_seen_but_run_not_materialized"
-        : agentStartAttempted
-          ? "r7_agent_start_attempted_but_no_run_materialized"
-          : "r7_main_orchestrator_failed_to_enter_runtime";
-
-    hold(
-      gate,
-      "RUNTIME",
-      message,
-      {
-        sessionId,
-        request,
-        tools,
-        assistantTexts: recentAssistantTexts,
-        recentRuns,
-        continuations,
-        provenanceLogHint,
-        agentStartAttempted,
-        runtimeValidationText,
-      },
+    const latestAssistant = diagnostics.at(-1) ?? null;
+    const latestAssistantHasLoopToolCalls = Boolean(
+      latestAssistant?.toolStates?.some((tool) => !tool.providerExecuted && !tool.interrupted),
     );
+    const assistantTerminal = Boolean(
+      latestAssistant?.completedAt
+      && latestAssistant?.finish
+      && !["tool-calls", "unknown"].includes(latestAssistant.finish)
+      && !latestAssistantHasLoopToolCalls,
+    );
+    if (assistantTerminal && !agentStartAttempted) {
+      hold(gate, "RUNTIME", "r7_main_orchestrator_completed_without_runtime_ingress", {
+        sessionId, request, tools,
+        assistant: latestAssistant,
+        assistantTexts: assistantTexts(history).slice(-5),
+        assistantDiagnostics: diagnostics.slice(-5),
+        opencodeHostDiagnostics: opencodeHostDiagnosticLines(sessionId),
+      });
+    }
+
+    const sessionStatus = await openCodeSessionStatus(sessionId)
+      .catch((error) => `unavailable:${String(error?.code ?? error?.message ?? error).slice(0, 160)}`);
+    const nowMs = Date.now();
+    const elapsedMs = nowMs - startedAtMs;
+
+    if (elapsedMs >= timeoutMs && !softBoundaryObservation) {
+      const headroom = await readHeadroomTraffic(gate).catch((error) => ({ requests: null, error: String(error?.code ?? error?.message ?? error) }));
+      softBoundaryObservation = {
+        sessionId, request, elapsedMs, softTimeoutMs: timeoutMs, sessionStatus, tools,
+        assistantTexts: assistantTexts(history).slice(-5),
+        assistantDiagnostics: diagnostics.slice(-5),
+        headroomBaseline,
+        headroomRequests: headroom.requests,
+        headroomProgressed: Number.isFinite(headroom.requests) && Number.isFinite(headroomBaseline) ? headroom.requests > headroomBaseline : null,
+        headroomError: headroom.error ?? null,
+        opencodeHostDiagnostics: opencodeHostDiagnosticLines(sessionId),
+      };
+      console.error(`[qualification][${gate}] runtime ingress soft boundary elapsed=${elapsedMs}ms session=${sessionStatus} tools=${tools.length} assistants=${diagnostics.length} headroom=${headroom.requests ?? "unknown"}`);
+    }
+
+    if (nowMs >= nextProgressLogAt) {
+      console.error(`[qualification][${gate}] waiting runtime ingress elapsed=${elapsedMs}ms session=${sessionStatus} tools=${tools.length} assistants=${diagnostics.length}`);
+      nextProgressLogAt = nowMs + 30_000;
+    }
+
+    if (elapsedMs >= R7_RUNTIME_INGRESS_SAFETY_CEILING_MS) {
+      const recentRuns = request ? sqlRows(`SELECT run_id,status,created_at FROM agent_runs WHERE request='${sqlQuote(request)}' ORDER BY created_at DESC LIMIT 5;`) : [];
+      const continuations = sqlRows(`SELECT run_id,status,created_at FROM agent_continuations WHERE opencode_session_id='${sqlQuote(sessionId)}' ORDER BY created_at DESC LIMIT 5;`);
+      const logs = composeCommand(["logs", "--no-color", "context-engine"], { label: `${gate.toLowerCase()}-run-id-timeout-context-engine-logs` }).stdout;
+      const provenanceLogHint = logs.includes("mcp.invocation_provenance_registered") && logs.includes(sessionId) && logs.includes("agent_start");
+      const recentAssistantTexts = assistantTexts(history).slice(-5);
+      const runtimeValidationText = recentAssistantTexts.find((text) => /schema_validation_failed|additional property not allowed|executionPlan\./i.test(text)) ?? null;
+      const headroom = await readHeadroomTraffic(gate).catch((error) => ({ requests: null, error: String(error?.code ?? error?.message ?? error) }));
+      const message = runtimeValidationText && agentStartAttempted
+        ? "r7_agent_start_rejected_by_runtime_validation"
+        : provenanceLogHint
+          ? "r7_agent_start_provenance_log_seen_but_run_not_materialized"
+          : agentStartAttempted
+            ? "r7_agent_start_attempted_but_no_run_materialized"
+            : "r7_main_orchestrator_runtime_ingress_safety_ceiling";
+
+      hold(gate, "RUNTIME", message, {
+        sessionId, request, elapsedMs, softTimeoutMs: timeoutMs,
+        safetyCeilingMs: R7_RUNTIME_INGRESS_SAFETY_CEILING_MS,
+        sessionStatus, tools, assistantTexts: recentAssistantTexts,
+        assistantDiagnostics: diagnostics.slice(-5), recentRuns, continuations,
+        provenanceLogHint, agentStartAttempted, runtimeValidationText,
+        headroomBaseline, headroomRequests: headroom.requests,
+        headroomProgressed: Number.isFinite(headroom.requests) && Number.isFinite(headroomBaseline) ? headroom.requests > headroomBaseline : null,
+        headroomError: headroom.error ?? null,
+        opencodeHostDiagnostics: opencodeHostDiagnosticLines(sessionId),
+        softBoundaryObservation,
+      });
+    }
+
+    await sleep(750);
   }
 }
 
@@ -1758,7 +1846,12 @@ async function r7() {
   const workload = "Implemente integralmente os requisitos definidos em @docs/specs/example/PRD.md.\n\nUse @docs/adr/0001-example.md como restrição arquitetural.\n\nMantenha o escopo limitado ao projeto consumidor atual e execute a validação especificada no PRD antes de concluir.";
   const baselineWorktree = worktreeFingerprint();
   const userMessageId = await sendWorkload(sessionId, workload);
-  const runId = await waitForRunId(sessionId, { gate: "R-7", baselineWorktree, request: workload });
+  const runId = await waitForRunId(sessionId, {
+    gate: "R-7",
+    baselineWorktree,
+    request: workload,
+    headroomBaseline: headroomBefore.requests,
+  });
   const currentTurnProvenance = requireAgentStartCurrentTurnProvenance(runId, sessionId, "R-7");
   const continuation = await requireDurableContinuation(runId, sessionId, { gate: "R-7" });
   if (continuation.sessionId !== sessionId) hold("R-7", "RUNTIME", "r7_continuation_session_identity_mismatch", { runId, sessionId, continuation });
