@@ -347,6 +347,22 @@ test("R-7 Runtime ingress treats 90 seconds as a soft boundary and preserves Ope
   assert.doesNotMatch(section, /qualification_wait_timeout:/u);
 });
 
+test("R-7 treats OpenCode tool-call assistant steps as non-terminal before agent_start", () => {
+  const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
+  const start = controller.indexOf("const R7_RUNTIME_INGRESS_SOFT_TIMEOUT_MS");
+  const end = controller.indexOf("async function requireDurableContinuation", start);
+  const section = controller.slice(start, end);
+
+  assert.match(section, /const latestAssistant = diagnostics\.at\(-1\) \?\? null/u);
+  assert.match(section, /latestAssistant\?\.completedAt/u);
+  assert.match(section, /!\["tool-calls", "unknown"\]\.includes\(latestAssistant\.finish\)/u);
+  assert.match(section, /latestAssistantHasLoopToolCalls/u);
+  assert.match(section, /!latestAssistantHasLoopToolCalls/u);
+  assert.match(controller, /providerExecuted: part\?\.metadata\?\.providerExecuted === true/u);
+  assert.match(controller, /interrupted: part\?\.state\?\.metadata\?\.interrupted === true/u);
+  assert.doesNotMatch(section, /diagnostics\.find\(\(entry\) => entry\.completedAt \|\| entry\.finish\)/u);
+});
+
 test("persistent Main Orchestrator cannot inherit Superpowers approval workflows before Runtime ingress", () => {
   const controller = readFileSync(resolve(root, "scripts/qualification/standalone-v1.mjs"), "utf8");
   const prompt = readFileSync(resolve(root, ".agents/agents/main-orchestrator/AGENT.md"), "utf8");
