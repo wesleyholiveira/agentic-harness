@@ -601,7 +601,12 @@ function buildQualificationBehaviorImage(consumerRoot) {
       run: (command, args, options) => runner.run(command, args, options),
     });
   } catch (error) {
-    hold("R-3", "SOURCE", error?.message ?? "qualification_behavior_runner_failed", error?.evidence ?? {});
+    const code = String(error?.evidence?.code ?? "");
+    const classification = code === "docker_materialization_timeout"
+      || code === "docker_command_unavailable"
+      ? "ENVIRONMENT"
+      : "SOURCE";
+    hold("R-3", classification, error?.message ?? "qualification_behavior_runner_failed", error?.evidence ?? {});
   }
 }
 
