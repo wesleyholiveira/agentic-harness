@@ -10,6 +10,7 @@ import { projectRoot } from './safe-files.mjs';
 const IMAGE_TEMPLATE = '{"id":{{json .Id}},"os":{{json .Os}},"architecture":{{json .Architecture}},"variant":{{json (index . "Variant")}}}';
 const CONTAINER_TEMPLATE = '{"id":{{json .Id}},"image":{{json .Image}},"running":{{json .State.Running}},"restartCount":{{json .RestartCount}},"startedAt":{{json .State.StartedAt}},"platform":{{json .Platform}},"user":{{json .Config.User}},"workingDir":{{json .Config.WorkingDir}},"project":{{json (index .Config.Labels "com.docker.compose.project")}},"service":{{json (index .Config.Labels "com.docker.compose.service")}},"replica":{{json (index .Config.Labels "com.docker.compose.container-number")}},"oneoff":{{json (index .Config.Labels "com.docker.compose.oneoff")}},"mounts":{{json .Mounts}}}';
 const ID = /^[a-f0-9]{64}$/u;
+const DOCKER_OBSERVATION_CALL_TIMEOUT_MS = 15_000;
 
 function digest(value) {
   const canonical = item => {
@@ -22,8 +23,14 @@ function digest(value) {
 function nativeDocker(argv, { cwd, timeoutMs }) {
   return spawnSync('docker', argv, { cwd, encoding: 'utf8', shell: false, windowsHide: true, timeout: timeoutMs, maxBuffer: 262144, stdio: ['ignore','pipe','pipe'] });
 }
-class ProbeError extends Error { constructor(code) { super(code); this.code = code; } }
-function reject(code) { throw new ProbeError(code); }
+class ProbeError extends Error {
+  constructor(code, evidence = {}) {
+    super(code);
+    this.code = code;
+    this.evidence = evidence;
+  }
+}
+function reject(code, evidence = {}) { throw new ProbeError(code, evidence); }
 function safeMountProjection(mounts) {
   if (!Array.isArray(mounts) || mounts.length > 128) reject('docker_materialization_mounts_invalid');
   return mounts.map(mount => {
@@ -38,26 +45,38 @@ function safeMountProjection(mounts) {
     };
   }).sort((a,b) => Buffer.compare(Buffer.from(a.destination), Buffer.from(b.destination)));
 }
-function parseJson(result) {
-  if (result?.error?.code === 'ENOENT') reject('docker_command_unavailable');
-  if (result?.error?.code === 'ETIMEDOUT') reject('docker_materialization_timeout');
-  if (result?.error || result?.status !== 0 || typeof result.stdout !== 'string' || Buffer.byteLength(result.stdout) > 262144) reject('docker_materialization_command_failed');
-  try { return JSON.parse(result.stdout); } catch { reject('docker_materialization_output_invalid'); }
+function unwrapObservation(observation) {
+  if (observation && typeof observation === 'object' && 'result' in observation) {
+    return {
+      result: observation.result,
+      evidence: observation.evidence ?? {},
+    };
+  }
+  return { result: observation, evidence: {} };
 }
-function parseIds(result) {
-  if (result?.error?.code === 'ENOENT') reject('docker_command_unavailable');
-  if (result?.error?.code === 'ETIMEDOUT') reject('docker_materialization_timeout');
-  if (result?.error || result?.status !== 0 || typeof result.stdout !== 'string' || Buffer.byteLength(result.stdout) > 131072) reject('docker_materialization_command_failed');
+function parseJson(observation) {
+  const { result, evidence } = unwrapObservation(observation);
+  if (result?.error?.code === 'ENOENT') reject('docker_command_unavailable', evidence);
+  if (result?.error?.code === 'ETIMEDOUT') reject('docker_materialization_timeout', evidence);
+  if (result?.error || result?.status !== 0 || typeof result.stdout !== 'string' || Buffer.byteLength(result.stdout) > 262144) reject('docker_materialization_command_failed', evidence);
+  try { return JSON.parse(result.stdout); } catch { reject('docker_materialization_output_invalid', evidence); }
+}
+function parseIds(observation) {
+  const { result, evidence } = unwrapObservation(observation);
+  if (result?.error?.code === 'ENOENT') reject('docker_command_unavailable', evidence);
+  if (result?.error?.code === 'ETIMEDOUT') reject('docker_materialization_timeout', evidence);
+  if (result?.error || result?.status !== 0 || typeof result.stdout !== 'string' || Buffer.byteLength(result.stdout) > 131072) reject('docker_materialization_command_failed', evidence);
   const ids = result.stdout.trim().split(/\r?\n/u).filter(Boolean);
-  if (ids.length > 32 || ids.some(id => !ID.test(id)) || new Set(ids).size !== ids.length) reject('docker_materialization_output_invalid');
+  if (ids.length > 32 || ids.some(id => !ID.test(id)) || new Set(ids).size !== ids.length) reject('docker_materialization_output_invalid', evidence);
   return ids;
 }
-function parseImageIds(result) {
-  if (result?.error?.code === 'ENOENT') reject('docker_command_unavailable');
-  if (result?.error?.code === 'ETIMEDOUT') reject('docker_materialization_timeout');
-  if (result?.error || result?.status !== 0 || typeof result.stdout !== 'string' || Buffer.byteLength(result.stdout) > 131072) reject('docker_materialization_command_failed');
+function parseImageIds(observation) {
+  const { result, evidence } = unwrapObservation(observation);
+  if (result?.error?.code === 'ENOENT') reject('docker_command_unavailable', evidence);
+  if (result?.error?.code === 'ETIMEDOUT') reject('docker_materialization_timeout', evidence);
+  if (result?.error || result?.status !== 0 || typeof result.stdout !== 'string' || Buffer.byteLength(result.stdout) > 131072) reject('docker_materialization_command_failed', evidence);
   const ids = [...new Set(result.stdout.trim().split(/\r?\n/u).filter(Boolean))];
-  if (ids.length > 32 || ids.some(id => !/^sha256:[a-f0-9]{64}$/u.test(id))) reject('docker_materialization_output_invalid');
+  if (ids.length > 32 || ids.some(id => !/^sha256:[a-f0-9]{64}$/u.test(id))) reject('docker_materialization_output_invalid', evidence);
   return ids;
 }
 function platformMatches(expected, image) {
@@ -89,11 +108,29 @@ export function probeDockerRunnerMaterialization({ spec, sourceBinding }, {
   const cwd = projectRoot(root);
   const started = performance.now();
   let calls = 0;
-  const run = (argv, limit = 4000) => {
-    const remaining = Math.floor(timeoutMs - (performance.now() - started));
-    if (remaining <= 0) reject('docker_materialization_timeout');
+  const run = (operation, argv, limit = DOCKER_OBSERVATION_CALL_TIMEOUT_MS) => {
+    const elapsedMs = Math.floor(performance.now() - started);
+    const remaining = Math.floor(timeoutMs - elapsedMs);
+    if (remaining <= 0) {
+      reject('docker_materialization_timeout', {
+        operation: 'overall-budget',
+        calls,
+        elapsedMs,
+        timeoutMs,
+      });
+    }
     calls++;
-    return execute(argv, { cwd, timeoutMs: Math.min(remaining, limit) });
+    const callTimeoutMs = Math.max(1, Math.min(remaining, limit));
+    return {
+      result: execute(argv, { cwd, timeoutMs: callTimeoutMs }),
+      evidence: {
+        operation,
+        callIndex: calls,
+        callTimeoutMs,
+        elapsedMs,
+        timeoutMs,
+      },
+    };
   };
   const base = {
     schemaVersion: 'docker-materialization-observation/v1',
@@ -107,17 +144,17 @@ export function probeDockerRunnerMaterialization({ spec, sourceBinding }, {
   };
   try {
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 120000) reject('docker_materialization_timeout_invalid');
-    const daemonId = parseJson(run(['--context', checkedSpec.dockerContext, 'info', '--format', '{{json .ID}}']));
+    const daemonId = parseJson(run('daemon-info', ['--context', checkedSpec.dockerContext, 'info', '--format', '{{json .ID}}']));
     if (typeof daemonId !== 'string' || !daemonId) reject('docker_materialization_daemon_invalid');
 
     let imageId, containerId = null, configPublicSha256, mountsSha256;
     if (checkedSpec.operation === 'exec') {
-      const ids = parseIds(run([
+      const ids = parseIds(run('container-list', [
         '--context', checkedSpec.dockerContext, 'ps', '--all', '--no-trunc', '--quiet',
         '--filter', `label=com.docker.compose.project=${checkedSpec.composeProject}`,
         '--filter', `label=com.docker.compose.service=${checkedSpec.service}`,
       ]));
-      const inspect = id => parseJson(run(['--context', checkedSpec.dockerContext, 'container', 'inspect', '--format', CONTAINER_TEMPLATE, id]));
+      const inspect = id => parseJson(run('container-inspect', ['--context', checkedSpec.dockerContext, 'container', 'inspect', '--format', CONTAINER_TEMPLATE, id]));
       const matches = ids.map(inspect).filter(item =>
         item?.id && ID.test(item.id) && item.project === checkedSpec.composeProject && item.service === checkedSpec.service
         && item.replica === String(checkedSpec.replica) && item.oneoff === 'False' && item.running === true);
@@ -127,7 +164,7 @@ export function probeDockerRunnerMaterialization({ spec, sourceBinding }, {
       if (before.user !== checkedSpec.user || before.workingDir !== checkedSpec.containerCwd) reject('docker_materialization_container_config_mismatch');
       imageId = before.image;
       if (typeof imageId !== 'string' || !/^sha256:[a-f0-9]{64}$/u.test(imageId)) reject('docker_materialization_image_invalid');
-      const image = parseJson(run(['--context', checkedSpec.dockerContext, 'image', 'inspect', '--format', IMAGE_TEMPLATE, imageId]));
+      const image = parseJson(run('image-inspect', ['--context', checkedSpec.dockerContext, 'image', 'inspect', '--format', IMAGE_TEMPLATE, imageId]));
       if (image.id !== imageId || !platformMatches(checkedSpec.platform, image)) reject('docker_materialization_platform_mismatch');
       containerId = before.id;
       const safeMounts = safeMountProjection(before.mounts);
@@ -138,7 +175,7 @@ export function probeDockerRunnerMaterialization({ spec, sourceBinding }, {
       const fields = ['id','image','running','restartCount','startedAt','project','service','replica','oneoff','user','workingDir'];
       if (fields.some(field => before[field] !== after[field])
           || digest({ mounts: safeMountProjection(after.mounts) }) !== digest({ mounts: safeMounts })) reject('docker_materialization_container_changed');
-      const currentIds = parseIds(run([
+      const currentIds = parseIds(run('container-list-recheck', [
         '--context', checkedSpec.dockerContext, 'ps', '--all', '--no-trunc', '--quiet',
         '--filter', `label=com.docker.compose.project=${checkedSpec.composeProject}`,
         '--filter', `label=com.docker.compose.service=${checkedSpec.service}`,
@@ -149,7 +186,7 @@ export function probeDockerRunnerMaterialization({ spec, sourceBinding }, {
       if (checkedSpec.image.mode === 'source-attested-build') {
         const expectedRunner = dockerRunnerSpecDigest(checkedSpec);
         const expectedBinding = dockerRunnerSourceBindingDigest(checkedBinding, { spec: checkedSpec });
-        const ids = parseImageIds(run([
+        const ids = parseImageIds(run('source-attested-image-list', [
           '--context', checkedSpec.dockerContext,
           'image', 'ls', '--no-trunc', '--quiet',
           '--filter', `label=${DOCKER_IMAGE_SOURCE_LABELS.sourceSnapshotSha256}=${checkedBinding.sourceSnapshotSha256}`,
@@ -160,7 +197,7 @@ export function probeDockerRunnerMaterialization({ spec, sourceBinding }, {
         if (ids.length !== 1) reject('docker_materialization_source_attested_image_ambiguous');
         imageRef = ids[0];
       }
-      const image = parseJson(run(['--context', checkedSpec.dockerContext, 'image', 'inspect', '--format', IMAGE_TEMPLATE, imageRef]));
+      const image = parseJson(run('image-inspect', ['--context', checkedSpec.dockerContext, 'image', 'inspect', '--format', IMAGE_TEMPLATE, imageRef]));
       imageId = image?.id;
       if (typeof imageId !== 'string' || !/^sha256:[a-f0-9]{64}$/u.test(imageId) || !platformMatches(checkedSpec.platform, image)) reject('docker_materialization_image_invalid');
       configPublicSha256 = publicConfigDigest(checkedSpec, null);
@@ -183,6 +220,13 @@ export function probeDockerRunnerMaterialization({ spec, sourceBinding }, {
     }, { spec: checkedSpec, sourceBinding: checkedBinding });
     return { ...base, status: 'MATERIALIZED', code: 'docker_runner_materialized', materialization, calls };
   } catch (error) {
-    return { ...base, status: 'HOLD', code: error instanceof ProbeError ? error.code : 'docker_materialization_failed', materialization: null, calls };
+    return {
+      ...base,
+      status: 'HOLD',
+      code: error instanceof ProbeError ? error.code : 'docker_materialization_failed',
+      materialization: null,
+      calls,
+      evidence: error instanceof ProbeError ? error.evidence : {},
+    };
   }
 }
