@@ -1388,6 +1388,15 @@ function assistantDiagnostics(history) {
       createdAt: message.info?.time?.created ?? null,
       completedAt: message.info?.time?.completed ?? null,
       partTypes: (message.parts ?? []).map((part) => part?.type ?? null).filter(Boolean),
+      toolStates: (message.parts ?? [])
+        .filter((part) => part?.type === "tool")
+        .map((part) => ({
+          tool: part?.tool ?? null,
+          status: part?.state?.status ?? null,
+          providerExecuted: part?.metadata?.providerExecuted === true,
+          interrupted: part?.state?.metadata?.interrupted === true,
+          error: part?.state?.error ?? null,
+        })),
     }));
 }
 
@@ -1491,10 +1500,14 @@ async function waitForRunId(sessionId, {
 
     const agentStartAttempted = tools.some((name) => name === "agent_start" || name.endsWith("_agent_start"));
     const latestAssistant = diagnostics.at(-1) ?? null;
+    const latestAssistantHasLoopToolCalls = Boolean(
+      latestAssistant?.toolStates?.some((tool) => !tool.providerExecuted && !tool.interrupted),
+    );
     const assistantTerminal = Boolean(
       latestAssistant?.completedAt
       && latestAssistant?.finish
-      && !["tool-calls", "unknown"].includes(latestAssistant.finish),
+      && !["tool-calls", "unknown"].includes(latestAssistant.finish)
+      && !latestAssistantHasLoopToolCalls,
     );
     if (assistantTerminal && !agentStartAttempted) {
       hold(gate, "RUNTIME", "r7_main_orchestrator_completed_without_runtime_ingress", {
